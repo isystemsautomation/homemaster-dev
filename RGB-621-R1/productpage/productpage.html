@@ -360,9 +360,12 @@ packages:
     <div class="plc-section">
       <h2 id="cabling-wirings"><strong>Cabling and Wirings</strong></h2>
 
-      <h3 id="power-supply"><strong>Power Supply (24 V DC)</strong></h3>
+      <h3 id="power-supply"><strong>Power Supply</strong></h3>
       <p>
-        The RGB-621-R1 operates exclusively from a <strong>24 V DC SELV/PELV</strong> supply. Connect <strong>+24 V</strong> and <strong>0 V (GND)</strong> to the terminals marked <strong>V+</strong> and <strong>0V</strong> (top block). <strong>12 V DC is not supported.</strong>
+        <strong>Module power (V+ / 0V):</strong> The RGB-621-R1 logic and communication operate from <strong>24 V DC SELV/PELV</strong> only. Connect <strong>+24 V</strong> and <strong>0 V (GND)</strong> to the terminals marked <strong>V+</strong> and <strong>0V</strong> (top block).
+      </p>
+      <p>
+        <strong>LED power (+ / −):</strong> The LED supply terminals (<strong>LED PS</strong> or <strong>+</strong> / <strong>−</strong> on the top block) accept <strong>12 V or 24 V DC</strong>. Use a separate supply for the LED strip; supported LED strips are <strong>12/24 V DC</strong> common-anode.
       </p>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
@@ -371,7 +374,8 @@ packages:
             <tr><th scope="col">Parameter</th><th scope="col">Specification</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Nominal voltage</th><td>24 V DC ±10 % (20–30 V)</td></tr>
+            <tr><th scope="row">Module (V+ / 0V)</th><td>24 V DC ±10 % (20–30 V) — logic and module only</td></tr>
+            <tr><th scope="row">LED supply (+ / −)</th><td>12 V or 24 V DC — for LED strip; separate from module power</td></tr>
             <tr><th scope="row">Protection</th><td>PTC fuses, reverse polarity (STPS340U), TVS (SMBJ33A)</td></tr>
             <tr><th scope="row">Ground reference</th><td>Field return GND_FUSED; do not bridge to logic GND externally</td></tr>
           </tbody>
@@ -395,7 +399,7 @@ packages:
       </div>
 
       <h3 id="terminal-block"><strong>Terminal Block Layout</strong></h3>
-      <p><strong>Top block:</strong> LED_V+ / LED_0V (24 V LED supply), V+ / 0V (module supply), Relay NO/C, I1 / DI1_GND, I2 / DI2. <strong>Bottom block:</strong> R, G, B, CW, WW (low-side PWM), COM (+24 V LED common), A, B, COM (RS-485).</p>
+      <p><strong>Top block:</strong> LED + / − (12 or 24 V DC LED supply), V+ / 0V (24 V DC module supply), Relay NO/C, I1 / GND / I2 (digital inputs). <strong>Bottom block:</strong> R, G, B, CW, WW (low-side PWM), COM (LED + common, 12/24 V), A, B, COM (RS-485).</p>
 
       <div class="plc-grid">
         <div class="plc-col">
@@ -415,7 +419,7 @@ packages:
 
       <h4 id="led-wiring"><strong>LED Output Wiring</strong></h4>
       <p>
-        LED channels (R, G, B, CW, WW) are <strong>low-side PWM sinks</strong>. Connect LED strip <strong>+</strong> to <strong>COM</strong> (+24 V) and each color cathode to its channel. Only <strong>24 V common-anode</strong> LED strips are supported. Current: up to 5 A per channel (25 A max total); size external PSU and fusing accordingly.
+        LED channels (R, G, B, CW, WW) are <strong>low-side PWM sinks</strong>. Connect the LED strip <strong>+</strong> to <strong>COM</strong> (positive from your 12 or 24 V LED supply) and each color cathode to its channel. Supported LED strips: <strong>12/24 V DC</strong> common-anode. Current: up to 5 A per channel (25 A max total); size external LED PSU and fusing accordingly.
       </p>
 
       <div class="plc-grid">
@@ -484,7 +488,7 @@ packages:
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_RelayConnection.png"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_RelayConnectioin.png"
               alt="Relay wiring: NO and C to external load"
               loading="lazy"
               width="600"
@@ -573,7 +577,7 @@ packages:
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_DIagramBlock.png"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_SystemBlock.png"
               alt="RGB-621-R1 System Block Diagram"
               loading="lazy"
               width="800"
@@ -632,9 +636,9 @@ packages:
       <h2 id="safety-installation-notes"><strong>Safety and Installation Notes</strong></h2>
 
       <ul class="plc-list">
-        <li>Use only SELV/PELV 24 V DC power supply. <strong>12 V DC is not supported.</strong></li>
+        <li>Module logic: use only SELV/PELV <strong>24 V DC</strong> on V+ / 0V. LED supply (+ / −) can be <strong>12 or 24 V DC</strong>.</li>
         <li>Install inside control cabinet; protect wiring terminals from accidental contact.</li>
-        <li>Each module must have its own 24 V DC supply; do not bridge GND_FUSED and logic GND externally.</li>
+        <li>Each module must have its own 24 V DC supply for V+ / 0V; do not bridge GND_FUSED and logic GND externally.</li>
         <li>Never connect mains voltage to any terminal.</li>
         <li>Use upstream fusing and snubbers for inductive loads on the relay.</li>
         <li>Size LED supply and wiring for up to 5 A per channel (25 A total); use appropriate fusing.</li>
