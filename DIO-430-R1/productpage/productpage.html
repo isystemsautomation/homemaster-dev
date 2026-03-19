@@ -82,30 +82,30 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Microcontroller</th><td>RP2350 dual-core microcontroller</td></tr>
-            <tr><th scope="row">Flash Memory</th><td>External QSPI flash (W25Q32 series)</td></tr>
+            <tr><th scope="row">Microcontroller</th><td>RP2350A dual-core microcontroller</td></tr>
+            <tr><th scope="row">Flash Memory</th><td>External QSPI Flash (W25Q32JV)</td></tr>
             <tr>
               <th scope="row">Power Input</th>
-              <td>24 V DC nominal</td>
+              <td>24 V DC nominal (V+ / 0V)</td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>4 × isolated digital inputs (ISO1212 receivers)</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>4 × isolated 24 V DC discrete inputs (DIx + GNDx), dry-contact or 24 V; per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs</th>
               <td>
-                3 × SPDT — <strong>3 A MAX continuous per output</strong> (board/system limit).<br>
-                Relay component contacts rated up to 16 A @ 250 V AC (resistive).
+                3 × SPDT dry-contact relays. <strong>Rated load (system limit):</strong> 3 A @ 250 V AC (resistive); max 750 VA @ 250 V AC, 90 W @ 30 V DC.<br>
+                Relay components (informative only) rated up to 12 A @ 250 V AC (resistive); rating does not apply to the complete module.
               </td>
             </tr>
             <tr>
               <th scope="row">User Interface</th>
-              <td>3 buttons, 3 configurable LEDs</td>
+              <td>4 buttons, 13 LEDs (power, 3 user LEDs, RX, TX, 3× relay, 4× DI)</td>
             </tr>
             <tr>
               <th scope="row">Communication</th>
-              <td>RS-485 Modbus RTU</td>
+              <td>RS-485 Modbus RTU (MAX485, half-duplex); TVS surge protection, PTC fuses, EMI choke, fail-safe biasing</td>
             </tr>
-            <tr><th scope="row">USB</th><td>USB-C configuration and firmware interface</td></tr>
-            <tr><th scope="row">Storage</th><td>Internal flash with LittleFS persistent configuration</td></tr>
+            <tr><th scope="row">USB</th><td>USB-C (ESD protected), configuration and firmware upload</td></tr>
+            <tr><th scope="row">Storage</th><td>LittleFS persistent configuration storage</td></tr>
             <tr><th scope="row">Modbus Address Range</th><td>1–255 (default: 3)</td></tr>
             <tr><th scope="row">Modbus Baud Rate</th><td>9600–115200 (default: 19200)</td></tr>
           </tbody>
@@ -141,13 +141,13 @@
             <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
             <tr><td>Conductor type</td><td>Solid or stranded copper</td></tr>
             <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
-            <tr><td>Tightening torque</td><td>0.5–0.6 Nm</td></tr>
+            <tr><td>Tightening torque</td><td>0.4 Nm (max)</td></tr>
 
             <!-- Environmental Ratings -->
             <tr><th scope="row" rowspan="6">Environmental Ratings</th>
                 <td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
             <tr><td>Storage temperature</td><td>−10 °C to +55 °C</td></tr>
-            <tr><td>Relative humidity</td><td>≤ 95 % RH, non-condensing</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
             <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
             <tr><td>Installation</td>
                 <td>Indoor control cabinet only; not for outdoor or exposed installation</td></tr>
@@ -155,15 +155,16 @@
                 <td>All wiring terminals must be protected against accidental contact</td></tr>
 
             <!-- Mechanical / Packaging -->
-            <tr><th scope="row" rowspan="7">Mechanical &amp; Packaging</th>
+            <tr><th scope="row" rowspan="8">Mechanical &amp; Packaging</th>
                 <td>Product dimensions</td>
-                <td><strong>70 × 90.6 × 67.3 mm</strong> (W × H × D)</td></tr>
+                <td><strong>71.5 × 90 × 59 mm</strong> (L × W × H)</td></tr>
+            <tr><td>DIN units</td><td>4 division units (≈ 72 mm DIN rail mounting width)</td></tr>
             <tr><td>Mounting</td><td>35 mm DIN rail</td></tr>
             <tr><td>Enclosure</td><td>PC/ABS industrial enclosure</td></tr>
             <tr><td>Net weight</td><td>TBD</td></tr>
             <tr><td>Gross weight</td><td>TBD</td></tr>
             <tr><td>Pack size</td>
-                <td>TBD</td></tr>
+                <td>140 × 125 × 94 mm (L × W × H)</td></tr>
             <tr><td>Notes</td>
                 <td>All dimensions in millimeters</td></tr>
 
@@ -733,8 +734,8 @@ packages:
             <tr><th scope="col">Component</th><th scope="col">Quantity</th><th scope="col">Description</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Buttons</th><td>3</td><td>Configurable control buttons</td></tr>
-            <tr><th scope="row">LEDs</th><td>3</td><td>Configurable status indicators</td></tr>
+            <tr><th scope="row">Buttons</th><td>4</td><td>Configurable control buttons</td></tr>
+            <tr><th scope="row">LEDs</th><td>13</td><td>Power, 3 user LEDs, RX, TX, 3× relay, 4× DI status indicators</td></tr>
           </tbody>
         </table>
       </div>
