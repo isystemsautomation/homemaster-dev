@@ -1,0 +1,552 @@
+<div class="hm-plc">
+  <div class="plc-wrap">
+
+    <!-- ===================== HERO / OVERVIEW ===================== -->
+    <div class="plc-section plc-hero plc-hero--v2">
+      <div class="plc-grid plc-hero-grid">
+        <!-- LEFT -->
+        <div class="plc-copy">
+          <h2><strong>HomeMaster RGB-621-R1</strong></h2>
+
+          <p>
+            The <strong>HomeMaster RGB-621-R1</strong> is a smart <strong>RGB + CCT LED controller module</strong> designed for HomeMaster automation systems and other Modbus RTU networks. It features five high-current PWM outputs for RGB and Tunable White (CCT) LED control, two isolated digital inputs for wall switches or sensors, and one relay output for switching external loads or LED drivers.
+          </p>
+
+          <p>
+            Powered by the Raspberry Pi RP2350A microcontroller, the module supports RS-485 (Modbus RTU) communication and configuration via <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a> over USB-C — no drivers or external software required. It connects directly to HomeMaster MicroPLC and MiniPLC controllers or operates as a standalone Modbus slave in any automation network.
+          </p>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/photo1.png"
+              alt="HomeMaster RGB-621-R1 RGB+CCT LED control module"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">
+              DIN rail • 24 V DC • Modbus RTU • USB-C <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- =================== /HERO =================== -->
+
+    <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
+    <div class="plc-section">
+      <div class="plc-grid plc-hero-grid">
+        <!-- LEFT: Quick Overview -->
+        <div class="plc-copy">
+          <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>RGB + CCT LED control module for Modbus automation systems</li>
+            <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
+            <li>5 PWM outputs (R, G, B, CW, WW), 2 isolated digital inputs, 1 relay</li>
+            <li>RS-485 Modbus RTU communication</li>
+            <li>Local configuration via USB-C <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a> interface</li>
+            <li>Isolated I/O, surge and short-circuit protection</li>
+          </ul>
+        </div>
+
+        <!-- RIGHT: Typical Applications -->
+        <div class="plc-copy">
+          <h2 id="typical-applications"><strong>Typical Applications</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>RGB and tunable white (CCT) lighting control</li>
+            <li>Ambient and architectural lighting</li>
+            <li>LED strip and fixture dimming</li>
+            <li>Scene control with wall switch inputs</li>
+            <li>Daylight and human-centric lighting</li>
+            <li>Status indicators and alarm signaling</li>
+            <li>Building and home automation</li>
+            <li>PLC lighting expansion module</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- =================== /QUICK OVERVIEW + APPLICATIONS =================== -->
+
+    <!-- ===================== TECH SPECS ===================== -->
+    <div class="plc-section">
+      <h2 id="tech-specs"><strong>Tech Specs</strong></h2>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Technical Specifications</caption>
+          <thead>
+            <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Microcontroller</th><td>RP2350A dual-core microcontroller</td></tr>
+            <tr><th scope="row">Flash Memory</th><td>External QSPI Flash (W25Q32 32 Mbit)</td></tr>
+            <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V); 18–30 V DC recommended</td></tr>
+            <tr><th scope="row">Input Protection</th><td>Time-lag fuse, reverse polarity diode, TVS surge suppression, EMI filtering</td></tr>
+            <tr><th scope="row">PWM Outputs</th><td>5 × low-side MOSFET (R, G, B, CW, WW); up to 5 A per channel (25 A max total)</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>2 × isolated 24 V DC (DIx + GND); dry-contact or sourcing; per-channel PTC, TVS, EMI filtering</td></tr>
+            <tr><th scope="row">Relay Output</th><td>1 × SPST-NO (HF115F); 16 A @ 250 V AC / 30 V DC (resistive). External fuse/snubber recommended for inductive loads.</td></tr>
+            <tr><th scope="row">User Interface</th><td>2 buttons, 8 LEDs (power, 2 user, RX, TX, 1× relay, 2× DI)</td></tr>
+            <tr><th scope="row">Communication</th><td>RS-485 Modbus RTU (MAX485, half-duplex); surge protection, fail-safe biasing</td></tr>
+            <tr><th scope="row">USB</th><td>USB-C (ESD protected), configuration and firmware upload</td></tr>
+            <tr><th scope="row">Modbus Address Range</th><td>1–255 (default: 1)</td></tr>
+            <tr><th scope="row">Modbus Baud Rate</th><td>9600–115200 (default: 19200)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== INSTALLATION, ENVIRONMENTAL & MECHANICAL ===================== -->
+    <div class="plc-section">
+      <h2 id="installation-environment-dimensions">
+        <strong>Installation, Environmental &amp; Mechanical</strong>
+      </h2>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Installation, Environmental &amp; Mechanical Specifications</caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Specification</th>
+              <th scope="col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" rowspan="3">Terminal Specifications</th>
+                <td>Terminal type</td>
+                <td>Pluggable screw terminal blocks, 5.08 mm pitch</td></tr>
+            <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
+            <tr><td>Tightening torque</td><td>0.4–0.6 Nm</td></tr>
+
+            <tr><th scope="row" rowspan="6">Environmental Ratings</th>
+                <td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><td>Storage temperature</td><td>−10 °C to +55 °C</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
+            <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet only)</td></tr>
+            <tr><td>Maximum altitude</td><td>2000 m</td></tr>
+            <tr><td>Pollution degree</td><td>2</td></tr>
+
+            <tr><th scope="row" rowspan="8">Mechanical &amp; Packaging</th>
+                <td>Product dimensions</td>
+                <td><strong>52.5 × 90 × 59 mm</strong> (L × W × H)</td></tr>
+            <tr><td>DIN units</td><td>3 division units (≈ 53 mm DIN rail mounting width)</td></tr>
+            <tr><td>Mounting</td><td>35 mm DIN rail (EN 50022)</td></tr>
+            <tr><td>Enclosure</td><td>PC/ABS, UL94-V0</td></tr>
+            <tr><td>Net weight</td><td>TBD</td></tr>
+            <tr><td>Gross weight</td><td>TBD</td></tr>
+            <tr><td>Pack size</td><td>140 × 125 × 94 mm (L × W × H)</td></tr>
+            <tr><td>Notes</td><td>All dimensions in millimeters</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="plc-text-preserved">
+        <p>
+          Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
+        </p>
+        <p>
+          <strong>All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.</strong>
+        </p>
+      </div>
+
+      <figure class="plc-figure">
+        <img
+          src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB-620-R1Dimensions.png"
+          alt="HomeMaster RGB-621-R1 mechanical drawing (front and side view) with dimensions in mm"
+          width="620"
+          loading="lazy"
+          decoding="async"
+          style="max-width: 620px; width: 100%; height: auto; display: block;"
+        >
+        <figcaption class="plc-figcap">
+          Mechanical drawing: front view + side view + DIN-clip depth (all dimensions in mm).
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- ===================== HOME ASSISTANT / MODBUS / WEB CONFIG ===================== -->
+    <div class="plc-section">
+      <h2 id="home-assistant-modbus-webconfig-integration"><strong>Home Assistant / Modbus / Web Config Integration</strong></h2>
+
+      <div class="plc-grid plc-hero-grid">
+        <div class="plc-copy">
+          <p>
+            The RGB-621-R1 supports flexible integration with:
+          </p>
+          <ul class="plc-list">
+            <li>HomeMaster MicroPLC and MiniPLC controllers</li>
+            <li>PLC and SCADA systems via Modbus RTU</li>
+            <li>Home Assistant using ESPHome or Modbus integration</li>
+            <li>Direct USB-C configuration using browser-based <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a> tool</li>
+          </ul>
+
+          <p>
+            Configuration parameters are stored persistently in onboard flash and automatically restored at power-up.
+          </p>
+
+          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB-C <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <ol class="plc-steps">
+            <li><strong>Mount &amp; Power</strong> – Mount the module on a DIN rail and connect 24 V DC.</li>
+            <li><strong>Connect USB-C</strong> – Connect USB-C cable to the module.</li>
+            <li><strong>Open WebConfig</strong> – Open <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a> page in Chrome or Edge browser.</li>
+            <li><strong>Connect Device</strong> – Click Connect and select the device.</li>
+            <li><strong>Configure</strong> – Set Modbus address and baud rate.</li>
+            <li><strong>Test I/O</strong> – Test LED channels, relay, and digital inputs.</li>
+            <li><strong>Save &amp; Disconnect</strong> – Save settings and disconnect USB-C.</li>
+          </ol>
+
+          <p><strong>Features:</strong></p>
+          <ul class="plc-list">
+            <li>Driverless browser-based configuration</li>
+            <li>Live configuration and diagnostics</li>
+            <li>Persistent flash storage</li>
+            <li>No external software required</li>
+          </ul>
+
+          <p class="plc-caption">
+            <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a> provides Modbus address, baud rate, I/O test, and channel calibration (stored persistently in flash).
+          </p>
+        </div>
+
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/photo1.png"
+              alt="RGB-621-R1 front view and terminals"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="plc-yaml-fullwidth" style="margin-top: 2rem;">
+        <h3 id="minimal-esphome-yaml"><strong>Minimal ESPHome YAML (Controller side)</strong></h3>
+        <p>
+          Use this on the MiniPLC/MicroPLC (ESPHome). It enables the RS-485 bus and imports the RGB-621-R1 package.
+        </p>
+
+        <pre><code>uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  rgb1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: RGB-621-R1/Firmware/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+        vars:
+          rgb_prefix: "RGB#1"
+          rgb_id: rgb_1
+          rgb_address: 1
+    refresh: 1d</code></pre>
+
+        <p class="plc-caption">
+          rgb_address must match the Modbus address configured in <a href="https://www.home-master.eu/configtool-rgb-621-r1" target="_blank" rel="noopener">WebConfig</a>.
+        </p>
+
+        <p>
+          Full Modbus register map and integration details are in the
+          <a href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1/README.md" target="_blank" rel="noopener">RGB-621-R1 README</a>.
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== DOCUMENTATION ===================== -->
+    <div class="plc-section plc-docs">
+      <h2 id="documentation"><strong>Documentation</strong></h2>
+      <p class="plc-docs-intro">
+        The RGB-621-R1 is open-source hardware. Hardware and firmware files are available.
+      </p>
+
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="hardware-design-files">Hardware Design Files</h3>
+        </div>
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Schematic (MCU / Field)</th>
+                <td>Controller and field board circuitry</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1/Schematics/" target="_blank" rel="noopener">
+                    RGB-621-R1 Schematics
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="firmware-software">Firmware &amp; Software</h3>
+        </div>
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">Resource</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Firmware Source Code</th>
+                <td>Firmware and configuration tools</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1/Firmware/" target="_blank" rel="noopener">
+                    GitHub repository
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Integration Guide</th>
+                <td>Setup and configuration documentation</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1/README.md" target="_blank" rel="noopener">
+                    README.md
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">WebConfig Tool</th>
+                <td>Browser-based configuration interface</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1/Firmware/" target="_blank" rel="noopener">
+                    Built-in USB interface
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="plc-docs-footer">
+        All design files and documentation are available in the
+        <a href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1" target="_blank" rel="noopener">
+          HomeMaster GitHub repository
+        </a>.
+      </p>
+    </div>
+
+    <!-- ===================== CABLING AND WIRINGS ===================== -->
+    <div class="plc-section">
+      <h2 id="cabling-wirings"><strong>Cabling and Wirings</strong></h2>
+
+      <h3 id="power-supply"><strong>Power Supply (24 V DC)</strong></h3>
+      <p>
+        The RGB-621-R1 operates exclusively from a <strong>24 V DC SELV/PELV</strong> supply. Connect <strong>+24 V</strong> and <strong>0 V (GND)</strong> to the terminals marked <strong>V+</strong> and <strong>0V</strong> (top block). <strong>12 V DC is not supported.</strong>
+      </p>
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Power Input</caption>
+          <thead>
+            <tr><th scope="col">Parameter</th><th scope="col">Specification</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Nominal voltage</th><td>24 V DC ±10 % (20–30 V)</td></tr>
+            <tr><th scope="row">Protection</th><td>PTC fuses, reverse polarity (STPS340U), TVS (SMBJ33A)</td></tr>
+            <tr><th scope="row">Ground reference</th><td>Field return GND_FUSED; do not bridge to logic GND externally</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="terminal-block"><strong>Terminal Block Layout</strong></h3>
+      <p><strong>Top block:</strong> LED_V+ / LED_0V (24 V LED supply), V+ / 0V (module supply), Relay NO/C, I1 / DI1_GND, I2 / DI2. <strong>Bottom block:</strong> R, G, B, CW, WW (low-side PWM), COM (+24 V LED common), A, B, COM (RS-485).</p>
+
+      <h4 id="led-wiring"><strong>LED Output Wiring</strong></h4>
+      <p>
+        LED channels (R, G, B, CW, WW) are <strong>low-side PWM sinks</strong>. Connect LED strip <strong>+</strong> to <strong>COM</strong> (+24 V) and each color cathode to its channel. Only <strong>24 V common-anode</strong> LED strips are supported. Current: up to 5 A per channel (25 A max total); size external PSU and fusing accordingly.
+      </p>
+
+      <h4 id="relay-wiring"><strong>Relay Wiring</strong></h4>
+      <p>
+        SPST-NO relay (C / NO). Contact rating 16 A @ 250 V AC / 30 V DC (resistive). For inductive loads, add an external flyback diode or RC snubber. Keep relay conductors away from signal wiring.
+      </p>
+
+      <h4 id="digital-input-wiring"><strong>Digital Input Wiring</strong></h4>
+      <p>
+        Inputs use ISO1212 galvanic isolation. Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (I1/I2 with GND). Each input has PTC fuse, TVS, and reverse protection. Do not inject external voltage into DI pins.
+      </p>
+
+      <h4 id="rs485-wiring"><strong>RS-485 Wiring</strong></h4>
+      <p>
+        Connect <strong>A</strong> and <strong>B</strong> to the bus; <strong>COM</strong> is optional common reference. Use twisted-pair (120 Ω characteristic impedance); shielded cable recommended in industrial environments. Enable 120 Ω termination only at the last device on the bus.
+      </p>
+
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/photo1.png"
+              alt="RGB-621-R1 front terminals"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Front view: power, relay, inputs (top); PWM and RS-485 (bottom).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CABLE RECOMMENDATIONS & SHIELD GROUNDING ===================== -->
+    <div class="plc-section">
+      <h2 id="cable-recommendations-shield-grounding"><strong>Cable Recommendations &amp; Shield Grounding</strong></h2>
+
+      <h4 id="general-routing-rules"><strong>General Routing Rules</strong></h4>
+      <ul class="plc-list">
+        <li>Route low-level signal cables (RS-485, DI) separately from power and LED wiring.</li>
+        <li>If crossing power cables is unavoidable, cross at 90°.</li>
+        <li>Keep cable runs as short as practical; avoid parallel runs with high-current conductors.</li>
+      </ul>
+
+      <h4 id="rs-485-modbus-cable"><strong>RS-485 (Modbus) Cable</strong></h4>
+      <ul class="plc-list">
+        <li>Twisted pair recommended (120 Ω characteristic impedance).</li>
+        <li>Shielded cable recommended in industrial environments.</li>
+        <li>Use one twisted pair for A/B; use second conductor as COM reference if required.</li>
+        <li>Examples: J-Y(ST)Y 2×2×0.5 mm² or LI2YCY PiMF 2×2×0.50.</li>
+      </ul>
+
+      <h4 id="shield-grounding"><strong>Shield Grounding</strong></h4>
+      <ul class="plc-list">
+        <li>Bond cable shield(s) to cabinet PE/EMC ground at one end (PLC side recommended).</li>
+        <li>Do not connect shields directly to signal terminals (A/B/COM).</li>
+      </ul>
+    </div>
+
+    <!-- ===================== SYSTEM ARCHITECTURE & PINOUT ===================== -->
+    <div class="plc-section">
+      <h2 id="system-architecture-pinout"><strong>System Architecture &amp; Pinout</strong></h2>
+
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_DIagramBlock.png"
+              alt="RGB-621-R1 System Block Diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">System block diagram.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RGB_MCU_Pinouts.png"
+              alt="RGB-621-R1 MCU Pinout"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">RP2350A MCU pinout.</div>
+          </div>
+        </div>
+      </div>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/RelayBoard_Diagram.png"
+              alt="RGB-621-R1 Field Board"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">Field board layout.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/MCUBoard_Diagram.png"
+              alt="RGB-621-R1 MCU Board"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">MCU board layout.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SAFETY AND INSTALLATION NOTES ===================== -->
+    <div class="plc-section">
+      <h2 id="safety-installation-notes"><strong>Safety and Installation Notes</strong></h2>
+
+      <ul class="plc-list">
+        <li>Use only SELV/PELV 24 V DC power supply. <strong>12 V DC is not supported.</strong></li>
+        <li>Install inside control cabinet; protect wiring terminals from accidental contact.</li>
+        <li>Each module must have its own 24 V DC supply; do not bridge GND_FUSED and logic GND externally.</li>
+        <li>Never connect mains voltage to any terminal.</li>
+        <li>Use upstream fusing and snubbers for inductive loads on the relay.</li>
+        <li>Size LED supply and wiring for up to 5 A per channel (25 A total); use appropriate fusing.</li>
+        <li>Installation and servicing by qualified personnel only.</li>
+      </ul>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster RGB-621-R1 is designed to comply with the applicable European Union directives.
+        <strong>ISYSTEMS AUTOMATION</strong> (HomeMaster brand) maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Safety Notice</h3>
+      <p>
+        Power input and signal terminals are SELV circuits. <strong>24 V DC:</strong> SELV · Qualified personnel only.
+      </p>
+    </div>
+  </div><!-- /plc-wrap -->
+</div><!-- /hm-plc -->
