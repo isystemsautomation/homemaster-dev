@@ -1,0 +1,687 @@
+<div class="hm-plc">
+  <div class="plc-wrap">
+
+    <!-- ===================== HERO / OVERVIEW ===================== -->
+    <div class="plc-section plc-hero plc-hero--v2">
+      <div class="plc-grid plc-hero-grid">
+        <!-- LEFT -->
+        <div class="plc-copy">
+          <h2><strong>HomeMaster ENM-223-R1</strong></h2>
+
+          <p>
+            The <strong>HomeMaster ENM-223-R1</strong> is a DIN-rail 3-phase energy metering and I/O module for power
+            monitoring and automation. It measures <strong>3 voltage channels</strong> (L1/L2/L3-N) and <strong>3 current
+            channels</strong> via external CTs, and provides <strong>2 SPDT relay outputs</strong> for alarm or control.
+          </p>
+
+          <p>
+            The module communicates as a <strong>Modbus RTU slave</strong> over <strong>RS-485</strong> and is configured via
+            <strong>USB-C WebConfig</strong> (Web Serial). Configuration and logic settings are stored persistently in onboard memory.
+          </p>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/photo1.png"
+              alt="HomeMaster ENM-223-R1 3-phase energy metering and I/O module"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">
+              DIN rail • 24 V DC • 3-phase metering • Modbus RTU • USB-C
+              <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- =================== /HERO =================== -->
+
+    <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
+    <div class="plc-section">
+      <div class="plc-grid plc-hero-grid">
+        <!-- LEFT: Quick Overview -->
+        <div class="plc-copy">
+          <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>3-phase energy metering + relay control module for automation</li>
+            <li><strong>DIN-rail</strong> form factor with <strong>24 V DC</strong> supply</li>
+            <li>Voltage sensing: <strong>L1/L2/L3-N</strong> (mains measurement)</li>
+            <li>Current sensing: <strong>3 external CT channels</strong></li>
+            <li><strong>2 × SPDT dry-contact relays</strong> for alarms or load control</li>
+            <li><strong>RS-485 Modbus RTU</strong> multi-drop communication</li>
+            <li>Local configuration via <strong>USB-C</strong> <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a></li>
+            <li>Optional alarms/warnings/events with button/LED feedback</li>
+          </ul>
+        </div>
+
+        <!-- RIGHT: Typical Applications -->
+        <div class="plc-copy">
+          <h2 id="typical-applications"><strong>Typical Applications</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>Energy dashboards and building energy monitoring</li>
+            <li>Overcurrent / power-quality alarm triggering</li>
+            <li>Demand response / staged load shedding</li>
+            <li>HVAC and electrical cabinet power supervision</li>
+            <li>SCADA / PLC metering input expansion</li>
+            <li>Home Assistant via ESPHome on the controller</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- =================== /QUICK OVERVIEW + APPLICATIONS =================== -->
+
+    <!-- ===================== TECH SPECS ===================== -->
+    <div class="plc-section">
+      <h2 id="tech-specs"><strong>Tech Specs</strong></h2>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Technical Specifications (datasheet summary)</caption>
+          <thead>
+            <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Microcontroller</th><td>RP2350A dual-core microcontroller</td></tr>
+            <tr><th scope="row">Metering IC</th><td>ATM90E32AS (3-phase energy metering / power quality)</td></tr>
+            <tr><th scope="row">Storage</th><td>External QSPI Flash (W25Q32JV)</td></tr>
+            <tr>
+              <th scope="row">Power Input</th>
+              <td>24 V DC nominal (V+ / 0V) with protection (reverse polarity diode, TVS, EMI filtering)</td>
+            </tr>
+            <tr>
+              <th scope="row">Voltage Inputs</th>
+              <td>3 × L1/L2/L3-N + PE sensing, <strong>85–265 V AC</strong> (mains measurement inputs)</td>
+            </tr>
+            <tr>
+              <th scope="row">Current Inputs</th>
+              <td>3 × CT channels (external CT inputs), <strong>333 mV / 1 V RMS</strong> sensor inputs</td>
+            </tr>
+            <tr>
+              <th scope="row">Relay Outputs</th>
+              <td>
+                <strong>2 × SPDT dry-contact relays</strong> (NO / COM / NC).<br>
+                <strong>Rated load (system limit):</strong> <strong>3 A @ 250 V AC</strong> (resistive contact rating).<br>
+                <strong>Max load:</strong> 750 VA @ 250 V AC, 90 W @ 30 V DC.<br>
+                Relay outputs are <strong>not internally fused</strong>; external overcurrent protection is required.
+              </td>
+            </tr>
+            <tr><th scope="row">RS-485</th><td>Modbus RTU (MAX485, half-duplex) with surge protection and fail-safe biasing</td></tr>
+            <tr><th scope="row">USB</th><td>USB-C (ESD protected), configuration and firmware upload</td></tr>
+            <tr><th scope="row">File System</th><td>LittleFS persistent configuration storage</td></tr>
+            <tr><th scope="row">User Interface</th><td>4 buttons; 9 LEDs (power, 4 user LEDs, RX, TX, relay status)</td></tr>
+            <tr><th scope="row">Modbus Address Range</th><td>1–255 (default is configurable; typically 3)</td></tr>
+            <tr><th scope="row">Modbus Baud Rate</th><td>9600–115200 (default: 19200, 8N1)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== INSTALLATION, ENVIRONMENTAL & MECHANICAL ===================== -->
+    <div class="plc-section">
+      <h2 id="installation-environment-dimensions">
+        <strong>Installation, Environmental &amp; Mechanical</strong>
+      </h2>
+
+      <!-- CONSOLIDATED TABLE -->
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Installation, Environmental &amp; Mechanical Specifications</caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Specification</th>
+              <th scope="col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Terminal Specifications -->
+            <tr><th scope="row" rowspan="6">Terminal Specifications</th>
+                <td>Terminal type</td>
+                <td>Pluggable screw terminal blocks, <strong>5.08 mm pitch</strong></td></tr>
+            <tr><td>Terminal pitch</td><td>5.08 mm</td></tr>
+            <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
+            <tr><td>Conductor type</td><td>Solid or stranded copper</td></tr>
+            <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
+            <tr><td>Tightening torque</td><td>0.4–0.6 Nm</td></tr>
+
+            <!-- Environmental Ratings -->
+            <tr><th scope="row" rowspan="6">Environmental Ratings</th>
+                <td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><td>Storage temperature</td><td>−10 °C to +55 °C</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
+            <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
+            <tr><td>Maximum altitude</td><td>2000 m</td></tr>
+            <tr><td>Pollution degree</td><td>2</td></tr>
+
+            <!-- Mechanical / Packaging -->
+            <tr><th scope="row" rowspan="7">Mechanical &amp; Packaging</th>
+                <td>Product dimensions</td>
+                <td><strong>71.5 × 90 × 59 mm</strong> (L × W × H)</td></tr>
+            <tr><td>DIN units</td><td>4 division units (≈ 72 mm DIN rail mounting width)</td></tr>
+            <tr><td>Mounting</td><td>35 mm DIN rail (EN 50022)</td></tr>
+            <tr><td>Enclosure</td><td>PC/ABS industrial enclosure (UL94-V0)</td></tr>
+            <tr><td>Net weight</td><td>TBD</td></tr>
+            <tr><td>Gross weight</td><td>TBD</td></tr>
+            <tr><td>Pack size</td>
+              <td>140 × 125 × 94 mm (L × W × H)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="plc-text-preserved">
+        <p>
+          Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate
+          covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
+        </p>
+
+        <p>
+          <strong>All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.</strong>
+        </p>
+      </div>
+
+      <figure class="plc-figure">
+        <img
+          src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENMDimensions.png"
+          alt="HomeMaster ENM-223-R1 mechanical drawing (front and side view) with dimensions in mm"
+          width="620"
+          loading="lazy"
+          decoding="async"
+          style="max-width: 620px; width: 100%; height: auto; display: block;"
+        >
+        <figcaption class="plc-figcap">
+          Mechanical drawing: front view + side view + DIN-clip depth (all dimensions in mm).
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- ===================== HOME ASSISTANT / MODBUS / WEB CONFIG ===================== -->
+    <div class="plc-section">
+      <h2 id="home-assistant-modbus-webconfig-integration"><strong>Home Assistant / Modbus / Web Config Integration</strong></h2>
+
+      <div class="plc-grid plc-hero-grid">
+        <!-- LEFT -->
+        <div class="plc-copy">
+          <p>
+            The ENM-223-R1 supports flexible integration with:
+          </p>
+          <ul class="plc-list">
+            <li>HomeMaster MicroPLC and MiniPLC controllers</li>
+            <li>PLC and SCADA systems via Modbus RTU</li>
+            <li>Home Assistant using ESPHome (controller side) or a Modbus integration</li>
+            <li>Direct USB-C configuration using browser-based <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a></li>
+          </ul>
+
+          <p>
+            Configuration (metering options, calibration/offsets, alarms, relay modes, LED/button mapping) is saved persistently and restored at power-up.
+          </p>
+
+          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB-C <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <ol class="plc-steps">
+            <li><strong>Mount &amp; Power</strong> – Install on DIN rail and connect the 24 V DC supply.</li>
+            <li><strong>Connect USB-C</strong> – Connect USB-C cable to the module.</li>
+            <li><strong>Open WebConfig</strong> – Open <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a> in Chrome/Edge.</li>
+            <li><strong>Connect Device</strong> – Click Connect and select the serial device.</li>
+            <li><strong>Configure Modbus</strong> – Set Modbus address and baud rate.</li>
+            <li><strong>Meter Calibration &amp; Alarms</strong> – Select line frequency, scaling, and thresholds per phase.</li>
+            <li><strong>Map Relays/LEDs/Buttons</strong> – Choose relay control mode and alarm/ack behavior.</li>
+            <li><strong>Save &amp; Disconnect</strong> – Save settings and disconnect USB-C for field operation.</li>
+          </ol>
+
+          <p><strong>Typical WebConfig options:</strong></p>
+          <ul class="plc-list">
+            <li>Modbus address (1–255) and baud rate (9600–115200)</li>
+            <li>Line frequency (50/60 Hz) and metering sum mode</li>
+            <li>Per-channel gains/offsets (U/I calibration)</li>
+            <li>Alarm / warning / event thresholds with optional acknowledgment behavior</li>
+            <li>Relay control modes (alarm-controlled or Modbus-controlled) and inversion</li>
+            <li>User LED sources (alarms/warnings/events/overrides)</li>
+          </ul>
+
+          <p class="plc-caption">
+            <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a> provides live meter values and configuration settings (stored persistently).
+          </p>
+        </div>
+
+        <!-- RIGHT: WebConfig images -->
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/webconfig1.png"
+              alt="ENM-223-R1 WebConfig Modbus settings"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/webconfig2.png"
+              alt="ENM WebConfig calibration options"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/webconfig4.png"
+              alt="ENM WebConfig live meter view"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/webconfig6.png"
+              alt="ENM WebConfig relay logic options"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Full width: Minimal ESPHome YAML (Controller side) -->
+      <div class="plc-yaml-fullwidth" style="margin-top: 2rem;">
+        <h3 id="minimal-esphome-yaml"><strong>Minimal ESPHome YAML (Controller side)</strong></h3>
+        <p>
+          Use this on the MiniPLC/MicroPLC (ESPHome). It enables the RS-485 bus and imports the ready-made ENM package.
+        </p>
+
+        <pre><code>uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  enm1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+        vars:
+          enm_prefix: &quot;ENM #1&quot;
+          enm_id: enm_1
+          enm_address: 3 # Modbus address set in WebConfig
+    refresh: 1d</code></pre>
+
+        <p class="plc-caption">
+          `enm_address` must match the Modbus address configured in <a href="https://www.home-master.eu/configtool-enm-223-r1" target="_blank" rel="noopener">WebConfig</a>.
+        </p>
+
+        <p>
+          Full Modbus register mapping and advanced integration details are available in the
+          <a href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/ENM-223-R1/README.md" target="_blank" rel="noopener">ENM-223-R1 README</a>.
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== DOCUMENTATION ===================== -->
+    <div class="plc-section plc-docs">
+      <h2 id="documentation"><strong>Documentation</strong></h2>
+      <p class="plc-docs-intro">
+        The ENM-223-R1 is open-source hardware. Hardware and firmware files are available.
+      </p>
+
+      <!-- Card: Hardware -->
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="hardware-design-files">Hardware Design Files</h3>
+        </div>
+
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Field Board Schematic</th>
+                <td>Voltage sensing and CT front-end</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Schematics/ENM-223-R1-FieldBoard.pdf" target="_blank" rel="noopener">
+                    ENM-223-R1-FieldBoard.pdf
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">MCU Board Schematic</th>
+                <td>Controller, RS-485, USB, power conversion</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Schematics/ENM-223-R1-MCUBoard.pdf" target="_blank" rel="noopener">
+                    ENM-223-R1-MCUBoard.pdf
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Relay Board Schematic</th>
+                <td>Relay output stage</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Schematics/ENM-223-R1-RelayBoard.pdf" target="_blank" rel="noopener">
+                    ENM-223-R1-RelayBoard.pdf
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Card: Firmware -->
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="firmware-software">Firmware &amp; Software</h3>
+        </div>
+
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">Resource</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Firmware Source Code</th>
+                <td>Firmware and configuration tools</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Firmware/" target="_blank" rel="noopener">
+                    GitHub repository
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Integration Guide</th>
+                <td>Setup and configuration documentation</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/README.md" target="_blank" rel="noopener">
+                    README.md
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">WebConfig Tool</th>
+                <td>Browser-based configuration interface</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Firmware/" target="_blank" rel="noopener">
+                    Built-in USB interface
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="plc-docs-footer">
+        All design files and documentation are available in the
+        <a href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1" target="_blank" rel="noopener">
+          HomeMaster GitHub repository
+        </a>.
+      </p>
+    </div>
+
+    <!-- ===================== CABLING AND WIRINGS ===================== -->
+    <div class="plc-section">
+      <h2 id="cabling-and-wirings"><strong>Cabling and Wirings</strong></h2>
+
+      <h3 id="power-wiring"><strong>24 V DC Supply (V+ / 0V)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_24Vdc.png"
+              alt="ENM-223-R1 24 V DC power wiring to V+ and 0V"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Connect <strong>+</strong> to <strong>V+</strong> and <strong>−</strong> to <strong>0V</strong>; use appropriate protection upstream.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <ul class="plc-list">
+            <li>Power is SELV-rated and supports reverse-polarity protection</li>
+            <li>Route power wiring separately from mains and sensor wiring</li>
+            <li>Apply terminal strain relief and maintain cabinet segregation</li>
+          </ul>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="voltage-inputs"><strong>Voltage Inputs (L1 / L2 / L3-N / PE)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_PhaseConnection.png"
+              alt="ENM-223-R1 voltage input wiring (L1/L2/L3-N/PE)"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Connect mains sensing inputs and protective earth (PE) per the terminal map. Voltage inputs can be hazardous.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="ct-inputs"><strong>Current Transformers (CT1 / CT2 / CT3)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_CTConnection.png"
+              alt="ENM-223-R1 CT connection wiring"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Use CTs with the correct output level (333 mV / 1 V RMS) and correct polarity. Shielded cables are recommended.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="relay-outputs"><strong>Relay Outputs (NO / COM / NC)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_RelayConnection.png"
+              alt="ENM-223-R1 relay NO/COM/NC wiring"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Dry contact wiring only — external load supply and protection are mandatory.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="rs485-wiring"><strong>RS-485 Modbus (A / B / COM)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_RS485.png"
+              alt="ENM-223-R1 RS-485 A/B/COM wiring"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Wire <strong>A</strong> to A, <strong>B</strong> to B, and <strong>COM</strong> to the reference ground as required by your RS-485 network.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CABLE RECOMMENDATIONS & SHIELD GROUNDING ===================== -->
+    <div class="plc-section">
+      <h2 id="cable-recommendations-shield-grounding"><strong>Cable Recommendations &amp; Shield Grounding</strong></h2>
+
+      <h3 id="general-routing-rules"><strong>General Routing Rules</strong></h3>
+      <ul class="plc-list">
+        <li>Route low-level signal cables separately from mains, relay outputs, contactors, and power wiring</li>
+        <li>If crossing power cables is unavoidable, cross at 90°</li>
+        <li>Keep cable runs as short as practical and avoid parallel runs with high-current conductors</li>
+        <li>Label cables and provide strain relief at terminals</li>
+      </ul>
+
+      <h3 id="rs-485-modbus-cable"><strong>RS-485 (Modbus) Cable</strong></h3>
+      <ul class="plc-list">
+        <li>Twisted pair for A/B (120 Ω characteristic impedance recommended)</li>
+        <li>Second conductor/pair can be used as COM (0V reference) depending on the network design</li>
+        <li>Prefer shielding for industrial/noisy panels</li>
+      </ul>
+
+      <h3 id="shield-grounding"><strong>Shield Grounding</strong></h3>
+      <ul class="plc-list">
+        <li>Bond cable shield(s) to cabinet PE/EMC ground at the <strong>PLC/controller end only</strong> by default</li>
+        <li>Do not connect shields to RS-485 signal terminals (A/B/COM)</li>
+        <li>If both ends are in equipotential bonded cabinets, shields may be bonded at both ends using proper 360° clamps</li>
+      </ul>
+    </div>
+
+    <!-- ===================== System Architecture & Pinout ===================== -->
+    <div class="plc-section">
+      <h2 id="system-architecture-pinout"><strong>System Architecture &amp; Pinout</strong></h2>
+
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_Diagram.png"
+              alt="ENM-223-R1 system block diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">System block diagram showing internal architecture and interfaces.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/ENM_MCU_Pinouts.png"
+              alt="ENM-223-R1 MCU pinout diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">MCU interfaces and major connector/pin reference.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plc-grid" style="margin-top: 1.5rem;">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/FieldBoard_Diagram.png"
+              alt="ENM-223-R1 field board diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">Field board: voltage sensing and CT front-end connectors.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/ENM-223-R1/Images/MCUBoard_Diagram.png"
+              alt="ENM-223-R1 MCU board diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">MCU board: controller + comms overview.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SAFETY AND INSTALLATION NOTES ===================== -->
+    <div class="plc-section">
+      <h2 id="safety-installation-notes"><strong>Safety and Installation Notes</strong></h2>
+
+      <ul class="plc-list">
+        <li><strong>Qualified personnel only:</strong> Installation by trained technicians familiar with SELV and mains wiring.</li>
+        <li><strong>Mixed voltage domains:</strong> 24 V DC is SELV; voltage sensing inputs are <strong>mains hazardous</strong> (85–265 V AC).</li>
+        <li>Install inside an IP20 control cabinet and protect terminals using the required front plate/door.</li>
+        <li>Respect relay contact system limits (<strong>3 A @ 250 V AC</strong> resistive) and provide <strong>external overcurrent protection</strong>.</li>
+        <li>For inductive/high-inrush loads: use proper suppression (RC snubbers / TVS as required).</li>
+        <li>Use the correct CT type (rated output 333 mV / 1 V RMS) and observe polarity/shielding to avoid incorrect metering.</li>
+        <li>Maintain RS-485 cabling best practices: twisted pair, correct A/B polarity, and bus termination as required.</li>
+      </ul>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster <strong>ENM-223-R1</strong> is CE marked and designed to comply with applicable European Union directives.
+        The manufacturer maintains technical documentation and a signed EU Declaration of Conformity (DoC).
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 · EN 61000-6-3</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Safety Notice</h3>
+      <p>
+        <strong>SELV circuits:</strong> 24 V DC power input and low-voltage signals. <br>
+        <strong>Mains sensing inputs:</strong> hazardous voltages may be present on field wiring. Qualified personnel only.
+      </p>
+    </div>
+
+  </div><!-- /plc-wrap -->
+</div><!-- /hm-plc -->

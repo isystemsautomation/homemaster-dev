@@ -178,8 +178,18 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len){
 inline bool timeAfter32(uint32_t a, uint32_t b){ return (int32_t)(a-b) >= 0; }
 
 // ---- MOSFET gate set callbacks ----
-static int64_t mos_on_cb_ch0 (alarm_id_t, void*){ digitalWrite(GATE_PINS[0], HIGH); return 0; }
-static int64_t mos_on_cb_ch1 (alarm_id_t, void*){ digitalWrite(GATE_PINS[1], HIGH); return 0; }
+// Important: ON callbacks may already be scheduled by a prior zero-cross edge.
+// If a channel gets disabled in the meantime, we must not re-enable the gate.
+static int64_t mos_on_cb_ch0 (alarm_id_t, void*){
+  if(!chCfg[0].enabled || chLevel[0]==0){ digitalWrite(GATE_PINS[0], LOW); return 0; }
+  digitalWrite(GATE_PINS[0], HIGH);
+  return 0;
+}
+static int64_t mos_on_cb_ch1 (alarm_id_t, void*){
+  if(!chCfg[1].enabled || chLevel[1]==0){ digitalWrite(GATE_PINS[1], LOW); return 0; }
+  digitalWrite(GATE_PINS[1], HIGH);
+  return 0;
+}
 static int64_t mos_off_cb_ch0(alarm_id_t, void*){ digitalWrite(GATE_PINS[0], LOW ); return 0; }
 static int64_t mos_off_cb_ch1(alarm_id_t, void*){ digitalWrite(GATE_PINS[1], LOW ); return 0; }
 
@@ -441,6 +451,12 @@ void handleUnifiedConfig(JSONVar obj){
       if(list[i].hasOwnProperty("preset")){ int pv=(int)list[i]["preset"]; pv=constrain(pv,0,255); chPreset[i]=(uint8_t)pv; clampAndApplyPreset(i); mb.setHreg(HREG_PRESET_BASE + i, chPreset[i]); }
       if(list[i].hasOwnProperty("percent")){ double pct=(double)list[i]["percent"]; if((LoadType)chLoadType[i]!=LOAD_KEY) pct=constrain(pct,0.0,100.0); chPctX10[i]=(uint16_t)constrain((int)lround(pct*10.0),0,1000); mb.setHreg(HREG_PCT_X10_BASE + i, chPctX10[i]); uint8_t lvl=mapPercentToLevel(i,pct); setLevelDirect(i,lvl); wsLog("channel["+String(i)+"]: percent="+String((int)pct)+" -> level="+String(lvl)); }
       else if(list[i].hasOwnProperty("level")){ int lvl=(int)list[i]["level"]; clampAndSetLevel(i,lvl); }
+      // Safety/behavior: when a channel is disabled from UI/Modbus config,
+      // force its effective output level to 0 immediately.
+      // This prevents already-scheduled PWM ON callbacks from turning the gate back on.
+      if(!chCfg[i].enabled){
+        clampAndSetLevel(i, 0);
+      }
     }
     changed=true; wsLog("cfg: channels");
   }
@@ -544,15 +560,17 @@ void loop(){
   for(uint8_t ch=0; ch<NUM_CH; ++ch){
     uint32_t seq=zcSampleSeq[ch]; if(seq!=lastSeqConsumed[ch]){
       noInterrupts(); uint32_t half=zcHalfUsLatest[ch]; interrupts();
-      med3[ch][medIdx[ch]%MED_W]=half; medIdx[ch]++;
-      uint32_t a=med3[ch][0],b=med3[ch][1],c=med3[ch][2];
-      uint32_t med=(a>b)?((b>c)?b:(a>c?c:a)):((a>c)?a:(b>c?c:b));
-      avgSum[ch]-=avgBuf[ch][avgIdx[ch]]; avgBuf[ch][avgIdx[ch]]=med; avgSum[ch]+=med; avgIdx[ch]=(uint8_t)((avgIdx[ch]+1)%AVG_N);
-      double mean_half=corr_half_us((double)avgSum[ch]/(double)AVG_N);
-      double fx100=50000000.0/mean_half; if(fx100<0.0) fx100=0.0; if(fx100>65535.0) fx100=65535.0;
-      uint16_t prevF=freq_x100[ch]; freq_x100[ch]=(uint16_t)lround(fx100); if(freq_x100[ch]!=prevF) mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
-      uint32_t stable_half=(uint32_t)lround(mean_half);
-      if(stable_half<HALF_MIN_US || stable_half>HALF_MAX_US) stable_half=HALF_US_DEFAULT; gateHalfUs[ch]=stable_half;
+      // Simple estimator: use the latest measured half-period directly.
+      // This removes the median/rolling filtering used previously.
+      if(half<HALF_MIN_US || half>HALF_MAX_US) half=HALF_US_DEFAULT;
+      gateHalfUs[ch]=half;
+
+      double fx100=50000000.0/(double)half; // half_us -> Hz*100
+      if(fx100<0.0) fx100=0.0;
+      if(fx100>65535.0) fx100=65535.0;
+      uint16_t prevF=freq_x100[ch];
+      freq_x100[ch]=(uint16_t)lround(fx100);
+      if(freq_x100[ch]!=prevF) mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
       lastSeqConsumed[ch]=seq;
     }
   }

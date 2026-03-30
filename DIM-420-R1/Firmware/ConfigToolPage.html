@@ -71,6 +71,12 @@
   <div class="layout-2col">
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Dimming Channels (2)</h2>
+      <div class="inline" style="justify-content:flex-end;margin:.15rem 0 .85rem;">
+        <label class="label" style="margin:0;display:flex;gap:.5rem;align-items:center;">
+          <input type="checkbox" id="disable-both-ch">
+          Disable both channels
+        </label>
+      </div>
       <div id="channels-config" class="cards-2col"></div>
     </section>
 
@@ -299,6 +305,46 @@
       return list;
     }
     const chSend=()=> send('Config',{t:'channels',list:chList()});
+
+    // One-click disable for both dimming channels
+    let prevDisableBoth=null;
+    const applyDisableBoth=(disable)=>{
+      if(disable){
+        prevDisableBoth = {
+          enabled1: $('enable-ch1').checked,
+          enabled2: $('enable-ch2').checked,
+          percent1: Number($('percent-ch1').value||0),
+          percent2: Number($('percent-ch2').value||0)
+        };
+
+        // Step 1: set level=0 while enable flags remain unchanged.
+        // This guarantees the gate is turned off before we disable PWM generation.
+        $('percent-ch1').value='0';
+        $('percent-ch2').value='0';
+        const pv1=$('percent-val-ch1'), pv2=$('percent-val-ch2');
+        if(pv1) pv1.textContent='0';
+        if(pv2) pv2.textContent='0';
+        chSend();
+
+        // Step 2: now disable both channels.
+        $('enable-ch1').checked=false;
+        $('enable-ch2').checked=false;
+        chSend();
+      }else if(prevDisableBoth){
+        $('enable-ch1').checked=!!prevDisableBoth.enabled1;
+        $('enable-ch2').checked=!!prevDisableBoth.enabled2;
+        $('percent-ch1').value=String(prevDisableBoth.percent1);
+        $('percent-ch2').value=String(prevDisableBoth.percent2);
+        const pv1=$('percent-val-ch1'), pv2=$('percent-val-ch2');
+        if(pv1) pv1.textContent=String(prevDisableBoth.percent1);
+        if(pv2) pv2.textContent=String(prevDisableBoth.percent2);
+        chSend();
+      }
+    };
+    const disableBothEl=$('disable-both-ch');
+    if(disableBothEl){
+      on(disableBothEl,'change',()=> applyDisableBoth(!!disableBothEl.checked));
+    }
     function chBind(i){
       on($('percent-ch'+i),'input',()=>{ $('percent-val-ch'+i).textContent=String(c100($('percent-ch'+i).value)); schedule('ch',chSend,CH_DEB); });
       ['enable','lt','cm','lower','upper','preset'].forEach(k=>{

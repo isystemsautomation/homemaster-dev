@@ -39,6 +39,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD1 Temperature"
+    id: ${aio_id}_rtd1
     address: 120
     register_type: holding
     value_type: S_WORD
@@ -50,6 +51,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD2 Temperature"
+    id: ${aio_id}_rtd2
     address: 121
     register_type: holding
     value_type: S_WORD
@@ -62,6 +64,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI1 mV"
+    id: ${aio_id}_ai1
     address: 140
     register_type: holding
     value_type: U_WORD
@@ -71,6 +74,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI2 mV"
+    id: ${aio_id}_ai2
     address: 141
     register_type: holding
     value_type: U_WORD
@@ -80,6 +84,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI3 mV"
+    id: ${aio_id}_ai3
     address: 142
     register_type: holding
     value_type: U_WORD
@@ -89,6 +94,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI4 mV"
+    id: ${aio_id}_ai4
     address: 143
     register_type: holding
     value_type: U_WORD

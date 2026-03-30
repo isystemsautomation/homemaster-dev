@@ -1,0 +1,689 @@
+<div class="hm-plc">
+  <div class="plc-wrap">
+
+    <!-- ===================== HERO / OVERVIEW ===================== -->
+    <div class="plc-section plc-hero plc-hero--v2">
+      <div class="plc-grid plc-hero-grid">
+        <div class="plc-copy">
+          <h2><strong>HomeMaster WLD-521-R1</strong></h2>
+
+          <p>
+            The <strong>HomeMaster WLD-521-R1</strong> is a DIN-rail water management I/O module for <strong>leak detection</strong>, <strong>pulse water metering</strong>, optional <strong>heat energy (ΔT)</strong> monitoring, and <strong>local irrigation</strong> logic. It provides five opto-isolated digital inputs, two SPDT relay outputs, isolated sensor power rails, a protected 1-Wire bus for DS18B20 probes, RS-485 Modbus RTU, and USB-C WebConfig.
+          </p>
+
+          <p>
+            The module operates from <strong>24 V DC</strong> and integrates with HomeMaster MicroPLC, MiniPLC, or any Modbus RTU master. Configuration is stored in onboard flash; local logic can run autonomously while I/O and telemetry remain visible to the PLC, SCADA, or Home Assistant (via ESPHome/Modbus).
+          </p>
+        </div>
+
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/photo1.png"
+              alt="HomeMaster WLD-521-R1 DIN-rail water leak and metering module"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">
+              DIN rail • 24 V DC • Modbus RTU • 1-Wire • USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
+    <div class="plc-section">
+      <div class="plc-grid plc-hero-grid">
+        <div class="plc-copy">
+          <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>Water leak, flow, irrigation, and hydronic-oriented Modbus expansion module</li>
+            <li><strong>DIN-rail</strong> enclosure; <strong>24 V DC</strong> supply (V+ / 0V)</li>
+            <li>5 × opto-isolated digital inputs (I1–I5 + GND_ISO); configurable sensor / counter modes</li>
+            <li>2 × SPDT relay outputs (NO / COM / NC); dry contacts — observe system current/voltage limits</li>
+            <li>Isolated <strong>+5 V</strong> and <strong>+12 V</strong> sensor rails (low-power field sensors only)</li>
+            <li>1-Wire interface (+5 V / DATA / GND) for temperature probes (e.g. DS18B20)</li>
+            <li>RS-485 Modbus RTU (A / B / COM) and USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a></li>
+            <li>4 buttons and 4 user LEDs (plus power / comm / relay status LEDs)</li>
+          </ul>
+        </div>
+
+        <div class="plc-copy">
+          <h2 id="typical-applications"><strong>Typical Applications</strong></h2>
+          <ul class="plc-list plc-list--tight">
+            <li>Basement / utility leak alarms and automatic shut-off valve control</li>
+            <li>Pulse water meters and consumption totals (litres)</li>
+            <li>Garden or zone irrigation with flow supervision and interlocks</li>
+            <li>Hydronic heat monitoring (flow + supply/return temperatures)</li>
+            <li>Building water safety and BMS remote I/O</li>
+            <li>PLC / SCADA Modbus slave node for water-related signals</li>
+            <li>Home Assistant via ESPHome on the RS-485 master controller</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== TECH SPECS ===================== -->
+    <div class="plc-section">
+      <h2 id="tech-specs"><strong>Tech Specs</strong></h2>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Technical Specifications (per datasheet)</caption>
+          <thead>
+            <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Microcontroller</th><td>RP2350A dual-core microcontroller</td></tr>
+            <tr><th scope="row">Flash memory</th><td>External QSPI flash (W25Q32JV, 32 Mbit)</td></tr>
+            <tr>
+              <th scope="row">Power input</th>
+              <td>24 V DC nominal (V+ / 0V); recommended range <strong>18–30 V DC</strong>. Input protection: 1 A time-lag fuse, reverse-polarity diode, TVS, EMI filtering</td>
+            </tr>
+            <tr><th scope="row">Module power</th><td>Typical 0.2–0.5 W (logic only); maximum ≈ 3 W (relays on + isolated outputs loaded)</td></tr>
+            <tr><th scope="row">Main logic supplies</th><td>Buck 24 V → ~5 V; 3.3 V LDO</td></tr>
+            <tr>
+              <th scope="row">Digital inputs</th>
+              <td>5 × isolated <strong>5 V DC</strong> discrete inputs (I1–I5 + GND_ISO). <strong>Max input voltage:</strong> 5 V DC continuous (field wiring per manual)</td>
+            </tr>
+            <tr>
+              <th scope="row">Relay outputs</th>
+              <td>
+                2 × SPDT dry-contact relays. <strong>Rated load (system limit):</strong> 3 A @ 250 V AC (resistive); max 750 VA @ 250 V AC, 90 W @ 30 V DC.<br>
+                Relay components (informative only) may be rated higher; that rating does not apply to the complete module. <strong>Relay outputs are not internally fused.</strong>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Isolated outputs</th>
+              <td><strong>+12 V ISO:</strong> 12 V isolated rail, 2 W; ≤150 mA recommended (≤167 mA theoretical). <strong>+5 V ISO:</strong> 5 V isolated rail, 1 W; ≤150 mA recommended (≤200 mA theoretical). For low-power sensors only — not for actuators</td>
+            </tr>
+            <tr><th scope="row">1-Wire</th><td>1 × protected bus (+5 V, DATA, GND) for 1-Wire sensors</td></tr>
+            <tr><th scope="row">User interface</th><td>4 buttons; 9 LEDs (power, 4 user, RX, TX, relay 1, relay 2)</td></tr>
+            <tr><th scope="row">Communication</th><td>RS-485 half-duplex Modbus RTU; surge protection and fail-safe biasing</td></tr>
+            <tr><th scope="row">USB</th><td>USB-C, 5 V logic, ESD protected — configuration and firmware</td></tr>
+            <tr><th scope="row">Storage</th><td>LittleFS persistent configuration</td></tr>
+            <tr><th scope="row">Modbus address</th><td>1–255 (default: 3)</td></tr>
+            <tr><th scope="row">Modbus baud rate</th><td>9600–115200 (default: 19200), 8N1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== INSTALLATION, ENVIRONMENTAL & MECHANICAL ===================== -->
+    <div class="plc-section">
+      <h2 id="installation-environment-dimensions">
+        <strong>Installation, Environmental &amp; Mechanical</strong>
+      </h2>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Installation, Environmental &amp; Mechanical (per datasheet)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Specification</th>
+              <th scope="col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" rowspan="4">Terminal specifications</th>
+                <td>Terminal type</td>
+                <td>Pluggable screw terminal blocks, 5.08 mm pitch</td></tr>
+            <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
+            <tr><td>Conductor type</td><td>Solid or stranded copper; ferrules recommended</td></tr>
+            <tr><td>Tightening torque</td><td>0.4–0.6 Nm</td></tr>
+
+            <tr><th scope="row" rowspan="6">Environmental ratings</th>
+                <td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><td>Storage temperature</td><td>−10 °C to +55 °C</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
+            <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
+            <tr><td>Maximum altitude</td><td>2000 m</td></tr>
+            <tr><td>Pollution degree</td><td>2</td></tr>
+
+            <tr><th scope="row" rowspan="7">Mechanical &amp; packaging</th>
+                <td>Product dimensions</td>
+                <td><strong>71.5 × 90 × 59 mm</strong> (L × W × H)</td></tr>
+            <tr><td>DIN units</td><td>4 division units (≈ 72 mm DIN rail mounting width)</td></tr>
+            <tr><td>Mounting</td><td>35 mm DIN rail (EN 50022)</td></tr>
+            <tr><td>Enclosure</td><td>PC/ABS, UL94-V0</td></tr>
+            <tr><td>Net / gross weight</td><td>See product label / packing slip</td></tr>
+            <tr><td>Pack size</td><td>140 × 125 × 94 mm (L × W × H)</td></tr>
+            <tr><td>Mechanical drawing</td>
+                <td>Front + side views with DIN-clip depth in the <a href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf" target="_blank" rel="noopener">datasheet PDF</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="plc-text-preserved">
+        <p>
+          Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
+        </p>
+        <p>
+          <strong>All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.</strong>
+        </p>
+      </div>
+
+      <figure class="plc-figure">
+        <img
+          src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/photo2.png"
+          alt="WLD-521-R1 module orientation and terminal areas"
+          width="620"
+          loading="lazy"
+          decoding="async"
+          style="max-width: 620px; width: 100%; height: auto; display: block;"
+        >
+        <figcaption class="plc-figcap">
+          Module overview — use the official mechanical drawing in the datasheet for exact dimensions (mm).
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- ===================== HOME ASSISTANT / MODBUS / WEB CONFIG ===================== -->
+    <div class="plc-section">
+      <h2 id="home-assistant-modbus-webconfig-integration"><strong>Home Assistant / Modbus / Web Config Integration</strong></h2>
+
+      <div class="plc-grid plc-hero-grid">
+        <div class="plc-copy">
+          <p>The WLD-521-R1 supports:</p>
+          <ul class="plc-list">
+            <li>HomeMaster MicroPLC and MiniPLC as Modbus masters</li>
+            <li>PLC and SCADA via Modbus RTU</li>
+            <li>Home Assistant using ESPHome (on the controller) or a Modbus integration</li>
+            <li>USB-C setup with <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a> (Chrome / Edge, Web Serial)</li>
+          </ul>
+
+          <p>Configuration is saved to flash and restored at power-up.</p>
+
+          <h3 id="quick-setup-process"><strong>Quick Setup (USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <ol class="plc-steps">
+            <li><strong>Mount &amp; power</strong> — DIN rail; connect 24 V DC to V+ / 0V.</li>
+            <li><strong>USB-C</strong> — connect to the PC.</li>
+            <li><strong>Open WebConfig</strong> — <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">configtool-wld-521-r1</a> in Chrome or Edge.</li>
+            <li><strong>Connect device</strong> — Connect → select the serial port.</li>
+            <li><strong>Modbus</strong> — set address (1–255) and baud rate (9600–115200).</li>
+            <li><strong>I/O &amp; logic</strong> — inputs (sensor / counter / heat), relays, LEDs, buttons, irrigation zones as required.</li>
+            <li><strong>Save</strong> — disconnect USB-C for field operation if desired.</li>
+          </ol>
+
+          <h3 id="webconfig-highlights"><strong>WebConfig highlights</strong></h3>
+          <ul class="plc-list">
+            <li>Per-DI mode: water sensor, soil moisture, water counter (flow)</li>
+            <li>Counter: pulses per litre, calibration, totals and live rate</li>
+            <li>Optional heat: 1-Wire sensors A/B, cp, ρ, power and energy</li>
+            <li>Relay source: Modbus, local logic, override</li>
+            <li>LED mapping (solid/blink) and button actions</li>
+            <li>Irrigation zones with flow supervision and time windows</li>
+          </ul>
+
+          <p class="plc-caption">
+            Register-level detail: <a href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/WLD-521-R1/Modbus_Table.md" target="_blank" rel="noopener">Modbus_Table.md</a> and <a href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/WLD-521-R1/README.md" target="_blank" rel="noopener">README.md</a>.
+          </p>
+        </div>
+
+        <div class="plc-rail">
+          <div class="plc-img plc-heroimg">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/webconfig1.png"
+              alt="WLD-521-R1 WebConfig Modbus settings"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/webconfig3.png"
+              alt="WLD WebConfig digital inputs"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/webconfig4.png"
+              alt="WLD WebConfig heat energy panel"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/webconfig5.png"
+              alt="WLD WebConfig relay configuration"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="plc-yaml-fullwidth" style="margin-top: 2rem;">
+        <h3 id="minimal-esphome-yaml"><strong>Minimal ESPHome YAML (controller side)</strong></h3>
+        <p>Use on MiniPLC/MicroPLC (ESPHome): enables RS-485 and imports the WLD package.</p>
+
+        <pre><code>uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  wld1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars:
+          wld_prefix: "WLD#1"
+          wld_id: wld_1
+          wld_address: "4"
+    refresh: 1d</code></pre>
+
+        <p class="plc-caption">
+          <code>wld_address</code> must match the Modbus address set in <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a> (factory default is often <code>3</code>).
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== DOCUMENTATION ===================== -->
+    <div class="plc-section plc-docs">
+      <h2 id="documentation"><strong>Documentation</strong></h2>
+      <p class="plc-docs-intro">
+        The WLD-521-R1 is open-source hardware. Firmware, tools, and design files are published in the HomeMaster repository.
+      </p>
+
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="hardware-design-files">Hardware design files</h3>
+        </div>
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Field board schematic</th>
+                <td>Inputs, 1-Wire, isolated sensor rails</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Schematics/WLD-521-R1-FieldBoard.pdf" target="_blank" rel="noopener">WLD-521-R1-FieldBoard.pdf</a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">MCU board schematic</th>
+                <td>Controller, USB, RS-485, power conversion</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Schematics/WLD-521-R1-MCUBoard.pdf" target="_blank" rel="noopener">WLD-521-R1-MCUBoard.pdf</a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Relay board schematic</th>
+                <td>Relay outputs and contact circuitry</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Schematics/WLD-521-R1-RelayBoard.pdf" target="_blank" rel="noopener">WLD-521-R1-RelayBoard.pdf</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="firmware-software">Firmware &amp; software</h3>
+        </div>
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">Resource</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Datasheet</th>
+                <td>Official specifications, terminals, compliance summary</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf" target="_blank" rel="noopener">WLD-521-R1_Datasheet.pdf</a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Firmware &amp; tools</th>
+                <td>Source, WebConfig page, binaries</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/WLD-521-R1/Firmware/" target="_blank" rel="noopener">GitHub — Firmware</a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Integration guide</th>
+                <td>Setup, Modbus, ESPHome, use cases</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/WLD-521-R1/README.md" target="_blank" rel="noopener">README.md</a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Modbus register table</th>
+                <td>Compact FC / address reference</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/WLD-521-R1/Modbus_Table.md" target="_blank" rel="noopener">Modbus_Table.md</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="plc-docs-footer">
+        All files:
+        <a href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/WLD-521-R1" target="_blank" rel="noopener">HomeMaster — WLD-521-R1</a>.
+      </p>
+    </div>
+
+    <!-- ===================== CABLING AND WIRINGS ===================== -->
+    <div class="plc-section">
+      <h2 id="cabling-and-wirings"><strong>Cabling and Wirings</strong></h2>
+
+      <h3 id="power-wiring"><strong>24 V DC supply (V+ / 0V)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_24Vdc.png"
+              alt="WLD-521-R1 24 V DC power wiring to V+ and 0V"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Regulated SELV <strong>24 V DC</strong> to <strong>V+</strong> and <strong>0V</strong>; fuse the feed per local rules and the datasheet.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <ul class="plc-list">
+            <li>Use a <strong>SELV</strong> 24 V DC supply within the rated input range</li>
+            <li>Observe polarity; input is reverse-polarity protected</li>
+            <li>Size the supply for module + relay coils + modest sensor rail load</li>
+          </ul>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="digital-input-wiring"><strong>Digital inputs (leak / moisture / contacts)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_FloodmeterWiringConnections.png"
+              alt="WLD flood and meter wiring to digital inputs"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Field sensors and contacts — use <strong>GND_ISO</strong> as the input return (not logic 0V unless your design explicitly ties domains).</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="flow-meter-wiring"><strong>Pulse flow meter (counter mode)</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_FlowmeterConnection.png"
+              alt="WLD pulse flow meter connection"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Configure the DI as a <strong>water counter</strong> in WebConfig; set <strong>pulses per litre</strong> to match the meter.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="onewire-wiring"><strong>1-Wire temperature sensors</strong></h3>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_1WireConnection.png"
+              alt="WLD 1-Wire DS18B20 wiring"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">1-Wire: <strong>+5 V</strong>, <strong>DATA</strong>, <strong>GND</strong> — keep leads short; follow DS18B20 wiring practices.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="relay-wiring"><strong>Relay outputs (NO / COM / NC)</strong></h3>
+      <p class="plc-callout plc-callout--warning">
+        <strong>External protection required:</strong> each load shall be protected by a suitable fuse or breaker. Relay contacts are <strong>not internally fused</strong>. Relay terminals may switch hazardous voltage — install per applicable electrical codes.
+      </p>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_RelayConnections.png"
+              alt="WLD relay NO NC COM wiring"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+            <div class="plc-caption">Dry contacts only — external load supply and protection are mandatory.</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="plc-hr">
+
+      <h3 id="rs485-wiring"><strong>RS-485 Modbus (A / B / COM)</strong></h3>
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Bottom terminal block (datasheet positions 12–14)</caption>
+          <thead>
+            <tr><th scope="col">Terminal</th><th scope="col">Function</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">A</th><td>RS-485 A</td></tr>
+            <tr><th scope="row">B</th><td>RS-485 B</td></tr>
+            <tr><th scope="row">COM</th><td>RS-485 common / reference</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="plc-list">
+        <li>Daisy-chain topology; keep stubs short</li>
+        <li>Match A/B polarity across the bus</li>
+        <li>Terminate with <strong>120 Ω</strong> at the two physical ends of the segment</li>
+        <li>Connect <strong>COM</strong> between nodes for a stable reference (per installation design)</li>
+      </ul>
+    </div>
+
+    <!-- ===================== CABLE RECOMMENDATIONS & SHIELD GROUNDING ===================== -->
+    <div class="plc-section">
+      <h2 id="cable-recommendations-shield-grounding"><strong>Cable Recommendations &amp; Shield Grounding</strong></h2>
+      <p>Use shielded, twisted constructions and bond shields correctly to reduce EMI and ground-loop issues (per datasheet).</p>
+
+      <h3 id="general-routing-rules"><strong>General routing rules</strong></h3>
+      <ul class="plc-list">
+        <li>Route low-level signal cables separately from power and relay load wiring</li>
+        <li>If crossing power cables is unavoidable, cross at 90°</li>
+        <li>Keep runs short; avoid long parallel routing with high-current conductors</li>
+        <li>Label cables and provide strain relief at terminals</li>
+      </ul>
+
+      <h3 id="di-and-sensor-cables"><strong>Digital inputs &amp; sensor cables</strong></h3>
+      <ul class="plc-list">
+        <li>Twisted pair from each sensor to the corresponding Ix and return</li>
+        <li>Wire size compatible with 5.08 mm terminals (e.g. 0.2–2.5 mm²)</li>
+        <li>In noisy panels, prefer shielded cable; terminate shields per the shielding section below — not to signal terminals</li>
+      </ul>
+
+      <h3 id="rs-485-modbus-cable"><strong>RS-485 (Modbus) cable</strong></h3>
+      <ul class="plc-list">
+        <li>Twisted pair for A/B; characteristic impedance <strong>~120 Ω</strong> recommended</li>
+        <li>Shielded cable recommended in industrial environments</li>
+        <li>Second conductor or pair for COM reference where required by the network design</li>
+      </ul>
+
+      <h3 id="shield-grounding"><strong>Shield grounding</strong></h3>
+      <ul class="plc-list">
+        <li>Bond cable shield(s) to cabinet PE/EMC ground at <strong>one end</strong> (PLC/controller side typical)</li>
+        <li>Do <strong>not</strong> connect shields directly to A, B, or COM signal terminals</li>
+        <li>Keep shield pigtails short and low-inductance</li>
+      </ul>
+    </div>
+
+    <!-- ===================== SYSTEM ARCHITECTURE & PINOUT ===================== -->
+    <div class="plc-section">
+      <h2 id="system-architecture-pinout"><strong>System Architecture &amp; Pinout</strong></h2>
+
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_SystemBLockDiagram.png"
+              alt="WLD-521-R1 system block diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">System block diagram — MCU, field I/O, relays, comms.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/WLD_MCU_Pinouts.png"
+              alt="WLD-521-R1 MCU pinout"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">MCU GPIO and major interfaces (reference).</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plc-grid" style="margin-top: 1.5rem;">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/FieldBoard_Diagram.png"
+              alt="WLD field board diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">Field board — inputs, 1-Wire, sensor rails.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/MCUBoard_Diagram.png"
+              alt="WLD MCU board diagram"
+              loading="lazy"
+              width="800"
+              height="600"
+              decoding="async"
+            >
+            <div class="plc-caption">MCU board layout overview.</div>
+          </div>
+        </div>
+      </div>
+
+      <figure class="plc-figure" style="margin-top: 1.5rem;">
+        <img
+          src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Images/photo3.png"
+          alt="WLD-521-R1 front panel and labelling"
+          width="620"
+          loading="lazy"
+          decoding="async"
+          style="max-width: 620px; width: 100%; height: auto; display: block;"
+        >
+        <figcaption class="plc-figcap">Front panel reference — always verify terminal markings on the delivered module.</figcaption>
+      </figure>
+    </div>
+
+    <!-- ===================== SAFETY AND INSTALLATION NOTES ===================== -->
+    <div class="plc-section">
+      <h2 id="safety-installation-notes"><strong>Safety and Installation Notes</strong></h2>
+      <ul class="plc-list">
+        <li><strong>SELV</strong> on power and signal terminals as defined in the datasheet; relay contacts may switch up to <strong>250 V AC</strong> — observe separation, insulation, and local electrical codes</li>
+        <li>Installation by <strong>qualified personnel</strong> only</li>
+        <li>Indoor control cabinet; IP20; protect all terminals from accidental touch</li>
+        <li>Respect the <strong>3 A / 750 VA / 90 W</strong> system limits for relay loads; use contactors for higher currents or demanding inductive loads</li>
+        <li>Provide <strong>external fuses or breakers</strong> for every switched load; snubbers or suppression for inductive DC/AC loads where required</li>
+        <li>Do not power valves, pumps, or heavy actuators from <strong>+5 V ISO / +12 V ISO</strong> — sensors only, within current limits</li>
+        <li>Do not exceed <strong>5 V DC</strong> on digital inputs (datasheet continuous maximum)</li>
+        <li>USB-C is intended for configuration/diagnostics — not a field power input</li>
+      </ul>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The WLD-521-R1 is <strong>CE marked</strong> and designed to comply with applicable European Union directives.
+        <strong>ISYSTEMS AUTOMATION S.R.L.</strong> (HomeMaster) maintains technical documentation and a signed EU Declaration of Conformity (DoC).
+      </p>
+
+      <h3>EU directives</h3>
+      <p><strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RoHS</strong> 2011/65/EU</p>
+
+      <h3>Standards (datasheet)</h3>
+      <table class="plc-table-compact">
+        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 · EN 61000-6-3</td></tr>
+        <tr><td><strong>Electrical safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Equipment classification</h3>
+      <p><strong>Industrial / commercial control equipment</strong> — install only in the intended environment and enclosure class.</p>
+
+      <h3>Safety notice</h3>
+      <p>
+        Power input and signal-level circuits are <strong>SELV</strong>. Relay outputs may switch hazardous voltages — qualified installation only.
+        See the <a href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf" target="_blank" rel="noopener">datasheet PDF</a> for the full conformity statement and manufacturer contact.
+      </p>
+    </div>
+  </div>
+</div>
