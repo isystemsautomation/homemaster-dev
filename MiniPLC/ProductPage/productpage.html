@@ -1074,6 +1074,89 @@
           </table>
         </div>
 
+      <h4 id="rtd-jumpers-miniplc"><strong>RTD Field Board Jumpers (RTD1 / RTD2)</strong></h4>
+      <p class="plc-caption">
+        RTD configuration jumpers for MiniPLC are placed on the <strong>field/RTD front-end</strong> for each RTD channel.
+        Factory default is <strong>PT100</strong> sensor and <strong>2‑wire</strong> wiring mode. Use the table below when changing
+        sensor type or wiring topology.
+      </p>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>RTD jumper matrix (per channel, RTD1 / RTD2)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Mode</th>
+              <th scope="col">J1</th>
+              <th scope="col">J2</th>
+              <th scope="col">J3</th>
+              <th scope="col">J4</th>
+              <th scope="col">J5</th>
+              <th scope="col">J6</th>
+              <th scope="col">J7</th>
+              <th scope="col">J8</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><strong>PT100</strong></th>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>PT1000</strong></th>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>2‑wire</strong></th>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>3‑wire</strong></th>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>4‑wire</strong></th>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
         <h4><strong>Wiring Examples</strong></h4>
         <div class="plc-grid">
           <div class="plc-col">

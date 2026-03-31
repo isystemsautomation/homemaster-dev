@@ -1223,16 +1223,6 @@ void readSensors() {
       rtdLastRecoverMs[i] = nowMs;
 
       uint16_t rawDbg = rawCode;
-      WebSerial.send(
-        "message",
-        String("RTD recovery triggered: ch=") + String(i+1) +
-        " fault=0x" + String(f, HEX) +
-        " raw=" + String(rawDbg) +
-        " wires=" + String(rtdWiresCfg[i]) +
-        " rnom=" + String(rtdRnominalCfg[i]) +
-        " rref=" + String(rtdRrefCfg[i])
-      );
-
       if (reapplyRtdHardwareCfgOne(dev, i)) {
         uint8_t f2 = dev.readFault();
         float temp2 = dev.temperature(rnom, rref);
@@ -1869,5 +1859,17 @@ void loop() {
     info["ratio"]    = ratio;
     info["ohms"]     = ohm;
     WebSerial.send("rtdInfo", info);
+
+    // Also periodically echo current RTD configuration so WebConfig
+    // tabs opened after boot still see the correct wiring/sensor/Rref.
+    JSONVar cfg;
+    JSONVar wires, rn, rr;
+    wires[0] = (int)rtdWiresCfg[0]; wires[1] = (int)rtdWiresCfg[1];
+    rn[0]    = (int)rtdRnominalCfg[0]; rn[1] = (int)rtdRnominalCfg[1];
+    rr[0]    = (int)rtdRrefCfg[0]; rr[1] = (int)rtdRrefCfg[1];
+    cfg["wires"]    = wires;
+    cfg["rnominal"] = rn;
+    cfg["rref"]     = rr;
+    WebSerial.send("rtdCfg", cfg);
   }
 }

@@ -1,114 +1,204 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
-  <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/3973-c0758147/photo1.webp"
-         alt="AIO-422-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
-    <h2>AIO-422-R1 Module Configuration</h2>
-    <p>
-      Configure Modbus address, baud rate, and monitor
-      <strong>analog inputs (4)</strong>, <strong>analog outputs (2)</strong>,
-      <strong>RTD inputs (2)</strong>, <strong>buttons (4)</strong>,
-      <strong>user LEDs (4)</strong>, and <strong>4× PID controllers</strong>
-      via Web Serial.
-    </p>
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
+  <style>
+    :root{
+      /* Global color system */
+      --page:#f8fafc;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#1f2937;
+      --muted2:#4b5563;
+      --border:#dde3ea;
+      --borderStrong:#d1d5db;
+      --brand:#2563eb;
+      --brandHover:#1d4ed8;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
+      --r:16px;
+      --r2:14px;
+      --gap:16px;
+      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    *{box-sizing:border-box}
+
+    label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+    select,input,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;color:var(--text);background:#fff;box-sizing:border-box;transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease}
+    select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+
+    .btn{padding:10px 20px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer;transition:background .18s ease,box-shadow .18s ease,transform .08s ease,border-color .18s ease,color .18s ease}
+    .btn:hover{background:#f3f4f6;box-shadow:0 1px 3px rgba(15,23,42,.16)}
+    .btn:active{transform:scale(0.97);box-shadow:none}
+    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn.primary:hover{background:var(--brandHover)}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,0.05)}
+    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .cardheader h2{margin:0;font-size:18px;font-weight:600;color:var(--text)}
+    .sub{margin-top:4px;font-size:13px;color:var(--muted2)}
+    .cardbody{padding:16px}
+
+    .grid{display:grid;gap:var(--gap);margin-top:16px}
+    .grid.two{grid-template-columns:1.2fr .8fr}
+
+    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+    .sectiontitle h3{margin:0;font-size:16px;font-weight:600;color:var(--text)}
+    .sectiontitle .hint{margin:0;font-size:13px;color:var(--muted2);font-weight:650}
+
+    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 2px 8px rgba(16,24,40,0.05);margin-bottom:var(--gap)}
+    .headLeft{display:flex;gap:24px;align-items:center;min-width:300px}
+    .moduleImage{width:256px;height:256px;border-radius:24px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden;background:#f8fafc}
+    .moduleImage img{width:100%;height:100%;object-fit:contain}
+    .title h1{margin:0;font-size:22px;font-weight:700;color:var(--text)}
+    .title p{margin:4px 0 0;font-size:13px;color:var(--muted2)}
+    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:var(--muted2)}
+
+    #log-box{margin-top:.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow);font-size:12px}
+    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
+
+    @media(max-width:980px){
+      .grid.two{grid-template-columns:1fr}
+      .statusbar{align-items:flex-start}
+      .pillrow{justify-content:flex-start}
+    }
+  </style>
+
+  <!-- Header -->
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/photo1.png" alt="AIO-422-R1 module photo" loading="lazy">
+      </div>
+      <div class="title">
+        <h1>AIO-422-R1 Module Configuration</h1>
+        <p>Configure Modbus, analog/RTD channels, buttons, LEDs, and 4× PID controllers via Web Serial.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <span>Modbus ID: <strong id="live-address">--</strong></span>
+        <span>Baud: <strong id="live-baud">--</strong></span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+        <button class="btn primary" id="connect-button" type="button">Connect</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top: Device Setup + Serial Log -->
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Device Setup</h2>
+          <div class="sub">Serial connection and Modbus addressing.</div>
+        </div>
+      </div>
+      <div class="cardbody">
+        <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option>9600</option>
+              <option selected>19200</option>
+              <option>38400</option>
+              <option>57600</option>
+              <option>115200</option>
+            </select>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Serial Log</h2>
+          <div class="sub">Communication messages and status updates.</div>
+        </div>
+      </div>
+      <div class="cardbody">
+        <div id="log-box">
+          <div id="log-content"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
-    <strong>Active Modbus Configuration</strong><br>
-    Address: <span id="live-address" style="font-weight:600;">--</span> |
-    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
+  <!-- Analog Inputs -->
+  <div class="sectiontitle">
+    <h3>Analog Inputs (4 × 0–10&nbsp;V)</h3>
+    <p class="hint">Live field voltage in millivolts and computed volts per channel.</p>
   </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="ai-cards"
+           style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+    </div>
+  </section>
 
-  <form id="modbus-config"
-        style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
-    <div>
-      <label for="modbus-address"><strong>Modbus Address</strong></label>
-      <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
-    </div>
-    <div>
-      <label for="modbus-baud"><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option>
-        <option selected>19200</option>
-        <option>38400</option>
-        <option>57600</option>
-        <option>115200</option>
-      </select>
-    </div>
-    <div style="grid-column:span 2;text-align:right;">
-      <button id="connect-button" type="button"
-              style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">
-        Connect
-      </button>
-    </div>
-  </form>
-
-  <!-- LOG: newest at bottom + scroll -->
-  <div id="log-line"
-       style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
-    <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;max-height:180px;overflow:auto;padding-top:.5rem;"></div>
+  <!-- Analog Outputs -->
+  <div class="sectiontitle" style="margin-top:2rem;">
+    <h3>Analog Outputs (2 × 0–10&nbsp;V)</h3>
+    <p class="hint">Control DAC raw values (0–4095) corresponding to 0–10&nbsp;V at the terminals.</p>
   </div>
-
-  <section>
-    <h2 style="font-size:1.2rem;">Analog Inputs (4 × 0–10&nbsp;V)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Firmware reports field voltage in millivolts (0–10000&nbsp;mV). Voltage is calculated directly.
-    </p>
-    <div id="ai-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="dac-cards"
+           style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
+    </div>
   </section>
 
-  <section style="margin-top:2rem;">
-    <h2 style="font-size:1.2rem;">Analog Outputs (2 × 0–10&nbsp;V)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      DAC raw value is 0..4095 (MCP4725). 4095 ≈ 10&nbsp;V at the terminal.
-    </p>
-
-    <!-- DAC: force 2 columns and full width -->
-    <div id="dac-cards"
-         style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
+  <!-- RTD Inputs -->
+  <div class="sectiontitle" style="margin-top:2rem;">
+    <h3>RTD Inputs (2 × MAX31865)</h3>
+    <p class="hint">Temperature, fault decoding, raw diagnostics, and Web-only RTD configuration.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="rtd-cards"
+           style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
+    </div>
   </section>
 
-  <section style="margin-top:2rem;">
-    <h2 style="font-size:1.2rem;">RTD Inputs (2 × MAX31865)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Shows <strong>fault byte</strong> + <strong>decoded error</strong> from MAX31865 (Web-only),
-      plus raw code, ratio and computed resistance. Configuration is saved in flash.
-    </p>
-    <div id="rtd-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;"></div>
+  <!-- Buttons -->
+  <div class="sectiontitle" style="margin-top:2rem;">
+    <h3>Buttons (4)</h3>
+    <p class="hint">Map physical buttons to Web-only actions (saved in flash).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="buttons-cards"
+           style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
+    </div>
   </section>
 
-  <section style="margin-top:2rem;">
-    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Button states are read directly from the device. Button action is <strong>Web-only</strong> (saved in flash).
-    </p>
-
-    <!-- Buttons: one line 4 columns -->
-    <div id="buttons-cards"
-         style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
-  </section>
-
-  <section style="margin-top:2rem;">
-    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Each LED can be <strong>manual</strong> (toggled by the button) or <strong>driven by a source</strong>.
-    </p>
-
-    <!-- LEDs: one line 4 columns -->
-    <div id="leds-cards"
-         style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
+  <!-- User LEDs -->
+  <div class="sectiontitle" style="margin-top:2rem;">
+    <h3>User LEDs (4)</h3>
+    <p class="hint">Select LED sources or keep manual control via buttons.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="leds-cards"
+           style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
+    </div>
   </section>
 
   <!-- PID Controllers -->
-  <section style="margin-top:2rem;">
-    <h2 style="font-size:1.2rem;">PID Controllers (4)</h2>
-    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Trend is <strong>live only</strong> (no storage): PV/SP/OUT plotted in <strong>%</strong>.
-    </p>
-
-    <div id="pid-rows" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:.75rem;"></div>
+  <div class="sectiontitle" style="margin-top:2rem;">
+    <h3>PID Controllers (4)</h3>
+    <p class="hint">Live-only PV/SP/OUT trends and Web-configurable parameters per loop.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="pid-rows" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:.75rem;"></div>
+    </div>
   </section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
@@ -260,14 +350,14 @@
         for (let i = 0; i < NUM_AI; i++) {
           const card = document.createElement("div");
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
-              <div style="display:flex;justify-content:space-between;font-weight:600;">
-                AI${i + 1}
+            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.95rem;color:#111827;">
+                <span>AI${i + 1}</span>
                 <span id="ai-dot-${i}"
-                      style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                      style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
               </div>
-              <div style="margin-top:.5rem;font-size:.9rem;">
-                Raw mV: <span id="ai-raw-${i}">--</span><br>
+              <div style="margin-top:.45rem;font-size:.9rem;color:#111827;line-height:1.35;">
+                Raw: <span id="ai-raw-${i}">--</span> mV<br>
                 Voltage: <span id="ai-volts-${i}">--</span> V
               </div>
             </div>`;
@@ -282,10 +372,10 @@
         for (let i = 0; i < NUM_DAC; i++) {
           const card = document.createElement("div");
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
-              <div style="font-weight:600;margin-bottom:.5rem;">AO${i + 1}</div>
-              <input type="range" min="0" max="4095" value="0" id="dac-slider-${i}" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:.9rem;margin-top:.25rem;">
+            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+              <div style="font-weight:600;margin-bottom:.5rem;font-size:.95rem;color:#111827;">AO${i + 1}</div>
+              <input type="range" min="0" max="4095" value="0" id="dac-slider-${i}" style="width:100%;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer;">
+              <div style="display:flex;justify-content:space-between;font-size:.9rem;margin-top:.35rem;color:#111827;">
                 <span>Raw: <span id="dac-raw-${i}">0</span></span>
                 <span>≈ <span id="dac-volts-${i}">0.00</span> V</span>
               </div>
@@ -322,46 +412,46 @@
           const rrefHtml = rrefOpts.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
 
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:8px;background:#fff3e0;padding:1rem;">
+            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
               <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-weight:700;">RTD${i+1}</div>
-                <span id="rtd-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                <div style="font-weight:700;color:#111827;">RTD${i+1}</div>
+                <span id="rtd-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
               </div>
 
-              <div style="margin-top:.6rem;font-size:.95rem;">
+              <div style="margin-top:.6rem;font-size:.95rem;color:#111827;">
                 Temperature: <span id="rtd-temp-${i}">--</span> °C
               </div>
 
-              <div style="margin-top:.45rem;font-size:.85rem;color:#444;line-height:1.25;">
+              <div style="margin-top:.45rem;font-size:.85rem;color:#4b5563;line-height:1.25;">
                 Fault: <span id="rtd-fault-${i}">--</span>
                 <div style="margin-top:4px;color:#b00020;font-weight:600;" id="rtd-err-${i}"></div>
               </div>
 
-              <div style="margin-top:.6rem;border-top:1px dashed #d7c7b2;padding-top:.6rem;font-size:.85rem;line-height:1.35;">
+              <div style="margin-top:.6rem;border-top:1px dashed #e5e7eb;padding-top:.6rem;font-size:.85rem;line-height:1.35;color:#111827;">
                 Raw code: <span id="rtd-raw-${i}">--</span><br>
                 Ratio: <span id="rtd-ratio-${i}">--</span><br>
                 Resistance: <span id="rtd-ohms-${i}">--</span> Ω
               </div>
 
-              <div style="margin-top:.75rem;border-top:1px dashed #d7c7b2;padding-top:.75rem;">
-                <div style="font-weight:700;font-size:.9rem;margin-bottom:.4rem;">RTD Settings (Web-only)</div>
+              <div style="margin-top:.75rem;border-top:1px dashed #e5e7eb;padding-top:.75rem;">
+                <div style="font-weight:700;font-size:.9rem;margin-bottom:.4rem;color:#111827;">RTD Settings (Web-only)</div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
                   <div>
-                    <label style="font-size:.8rem;">Wiring</label>
-                    <select id="rtd-wire-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.8rem;color:#4b5563;">Wiring</label>
+                    <select id="rtd-wire-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       ${wireHtml}
                     </select>
                   </div>
                   <div>
-                    <label style="font-size:.8rem;">Sensor</label>
-                    <select id="rtd-sensor-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.8rem;color:#4b5563;">Sensor</label>
+                    <select id="rtd-sensor-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       ${sensHtml}
                     </select>
                   </div>
                   <div style="grid-column:span 2;">
-                    <label style="font-size:.8rem;">Reference resistor (Rref)</label>
-                    <select id="rtd-rref-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.8rem;color:#4b5563;">Reference resistor (Rref)</label>
+                    <select id="rtd-rref-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       ${rrefHtml}
                     </select>
                   </div>
@@ -369,7 +459,7 @@
 
                 <div style="margin-top:.6rem;text-align:right;">
                   <button id="rtd-apply-${i}" type="button"
-                          style="padding:7px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;">
+                          style="padding:7px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;">
                     Apply RTD${i+1}
                   </button>
                 </div>
@@ -524,15 +614,15 @@
           const optHtml = options.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
 
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-              <div style="font-weight:600;display:flex;justify-content:space-between;align-items:center;">
+            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+              <div style="font-weight:600;display:flex;justify-content:space-between;align-items:center;font-size:.95rem;color:#111827;">
                 <span>Button ${i + 1}</span>
-                <span id="btn-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                <span id="btn-dot-${i}" style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
               </div>
 
               <div style="margin-top:.7rem;">
-                <label style="font-size:.85rem;">Action</label>
-                <select id="btn-act-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <label style="font-size:.85rem;color:#4b5563;">Action</label>
+                <select id="btn-act-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                   ${optHtml}
                 </select>
               </div>
@@ -590,15 +680,15 @@
           const optHtml = options.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
 
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.95rem;color:#111827;">
                 <span>LED ${i + 1}</span>
-                <span id="led-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                <span id="led-dot-${i}" style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
               </div>
 
               <div style="margin-top:.6rem;">
-                <label style="font-size:.85rem;">Source</label>
-                <select id="led-src-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <label style="font-size:.85rem;color:#4b5563;">Source</label>
+                <select id="led-src-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                   ${optHtml}
                 </select>
               </div>
@@ -702,21 +792,21 @@
           const idx = i + 1;
           const row = document.createElement("div");
           row.innerHTML = `
-            <div style="display:grid;grid-template-columns: 1fr 1fr;gap:1rem;align-items:stretch;overflow:hidden;border:1px solid #ccc;border-radius:8px;background:#eef8ff;padding:1rem;box-sizing:border-box;">
+            <div style="display:grid;grid-template-columns: 1fr 1fr;gap:1rem;align-items:stretch;overflow:hidden;border:1px solid #dde3ea;border-radius:12px;background:#ffffff;padding:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);box-sizing:border-box;">
               <div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-                  <span style="font-weight:700;">PID ${idx}</span>
-                  <div style="display:flex;gap:.6rem;align-items:center;font-size:.85rem;">
+                  <span style="font-weight:700;color:#111827;">PID ${idx}</span>
+                  <div style="display:flex;gap:.6rem;align-items:center;font-size:.85rem;color:#4b5563;">
                     <div>
                       <label for="pid-en-${i}" style="margin-right:4px;">State</label>
-                      <select id="pid-en-${i}" style="padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                      <select id="pid-en-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
                         <option value="0">Disabled</option>
                         <option value="1">Enabled</option>
                       </select>
                     </div>
                     <div>
                       <label for="pid-mode-${i}" style="margin-right:4px;">Mode</label>
-                      <select id="pid-mode-${i}" style="padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                      <select id="pid-mode-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
                         <option value="0">Direct</option>
                         <option value="1">Reverse</option>
                       </select>
@@ -726,13 +816,13 @@
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
                   <div style="grid-column:span 2;">
-                    <label style="font-size:.85rem;">Setpoint SP${idx} (raw)</label>
-                    <input type="number" id="pid-sp-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="1">
+                    <label style="font-size:.85rem;color:#4b5563;">Setpoint SP${idx} (raw)</label>
+                    <input type="number" id="pid-sp-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
                   </div>
 
                   <div style="grid-column:span 2;">
-                    <label style="font-size:.85rem;">PV Source</label>
-                    <select id="pid-pv-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.85rem;color:#4b5563;">PV Source</label>
+                    <select id="pid-pv-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       <option value="0">None</option>
                       <option value="1">AI1 (mV)</option>
                       <option value="2">AI2 (mV)</option>
@@ -748,8 +838,8 @@
                   </div>
 
                   <div>
-                    <label style="font-size:.85rem;">SP Source</label>
-                    <select id="pid-spsrc-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.85rem;color:#4b5563;">SP Source</label>
+                    <select id="pid-spsrc-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       <option value="0">Manual SP</option>
                       <option value="1">SP1 (Modbus)</option>
                       <option value="2">SP2 (Modbus)</option>
@@ -763,8 +853,8 @@
                   </div>
 
                   <div>
-                    <label style="font-size:.85rem;">Output Target</label>
-                    <select id="pid-out-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.85rem;color:#4b5563;">Output Target</label>
+                    <select id="pid-out-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
                       <option value="0">None</option>
                       <option value="1">AO1</option>
                       <option value="2">AO2</option>
@@ -772,41 +862,41 @@
                   </div>
 
                   <div>
-                    <label style="font-size:.85rem;">Kp</label>
-                    <input type="number" id="pid-kp-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="0.01">
+                    <label style="font-size:.85rem;color:#4b5563;">Kp</label>
+                    <input type="number" id="pid-kp-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
                   </div>
                   <div>
-                    <label style="font-size:.85rem;">Ki</label>
-                    <input type="number" id="pid-ki-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="0.01">
+                    <label style="font-size:.85rem;color:#4b5563;">Ki</label>
+                    <input type="number" id="pid-ki-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
                   </div>
                   <div>
-                    <label style="font-size:.85rem;">Kd</label>
-                    <input type="number" id="pid-kd-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="0.01">
+                    <label style="font-size:.85rem;color:#4b5563;">Kd</label>
+                    <input type="number" id="pid-kd-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
                   </div>
 
-                  <div style="grid-column:span 2;border-top:1px dashed #ccc;margin-top:.5rem;padding-top:.5rem;">
-                    <div style="font-weight:600;margin-bottom:.25rem;font-size:.85rem;">Scaling (raw → 0–100%)</div>
+                  <div style="grid-column:span 2;border-top:1px dashed #e5e7eb;margin-top:.5rem;padding-top:.5rem;">
+                    <div style="font-weight:600;margin-bottom:.25rem;font-size:.85rem;color:#111827;">Scaling (raw → 0–100%)</div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
                       <div>
-                        <label style="font-size:.8rem;">PV min</label>
-                        <input type="number" id="pid-pvmin-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="1">
+                        <label style="font-size:.8rem;color:#4b5563;">PV min</label>
+                        <input type="number" id="pid-pvmin-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
                       </div>
                       <div>
-                        <label style="font-size:.8rem;">PV max</label>
-                        <input type="number" id="pid-pvmax-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="10000" step="1">
+                        <label style="font-size:.8rem;color:#4b5563;">PV max</label>
+                        <input type="number" id="pid-pvmax-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="10000" step="1">
                       </div>
                       <div>
-                        <label style="font-size:.8rem;">OUT min</label>
-                        <input type="number" id="pid-outmin-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="0" step="1">
+                        <label style="font-size:.8rem;color:#4b5563;">OUT min</label>
+                        <input type="number" id="pid-outmin-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
                       </div>
                       <div>
-                        <label style="font-size:.8rem;">OUT max</label>
-                        <input type="number" id="pid-outmax-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;" value="4095" step="1">
+                        <label style="font-size:.8rem;color:#4b5563;">OUT max</label>
+                        <input type="number" id="pid-outmax-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="4095" step="1">
                       </div>
                     </div>
                   </div>
 
-                  <div style="grid-column:span 2;margin-top:.25rem;font-size:.85rem;background:#fff;border-radius:6px;padding:.5rem;">
+                  <div style="grid-column:span 2;margin-top:.25rem;font-size:.85rem;background:#f9fafb;border-radius:6px;padding:.5rem;color:#111827;">
                     <div>
                       PV: <span id="pid-pv-pct-${i}">--</span> % &nbsp; | &nbsp;
                       SP: <span id="pid-sp-pct-${i}">--</span> % &nbsp; | &nbsp;
@@ -816,12 +906,12 @@
                 </div>
               </div>
 
-              <div style="background:#ffffff;border:1px solid #d8d8d8;border-radius:8px;padding:.75rem;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
+              <div style="background:#ffffff;border:1px solid #dde3ea;border-radius:8px;padding:.75rem;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex:0 0 auto;">
-                  <div style="font-weight:700;">Trend (PV / SP / OUT)</div>
+                  <div style="font-weight:700;color:#111827;">Trend (PV / SP / OUT)</div>
                   <div style="display:flex;gap:.5rem;align-items:center;">
-                    <label style="font-size:.85rem;color:#444;">Window</label>
-                    <select id="pid-win-${i}" style="padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                    <label style="font-size:.85rem;color:#4b5563;">Window</label>
+                    <select id="pid-win-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
                       <option value="10" selected>10 min</option>
                       <option value="30">30 min</option>
                       <option value="60">1 hour</option>
@@ -829,7 +919,7 @@
                   </div>
                 </div>
 
-                <div style="font-size:.8rem;color:#666;margin-bottom:.5rem;line-height:1.25;flex:0 0 auto;">
+                <div style="font-size:.8rem;color:#4b5563;margin-bottom:.5rem;line-height:1.25;flex:0 0 auto;">
                   PV/SP raw scale: <span id="pid-scale-pv-${i}">--</span>
                   &nbsp; | &nbsp; OUT raw scale: <span id="pid-scale-out-${i}">--</span>
                 </div>

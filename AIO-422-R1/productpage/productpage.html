@@ -228,36 +228,44 @@
           </p>
         </div>
 
-        <!-- Right: WebConfig / I/O images -->
+        <!-- Right: WebConfig UI screenshots -->
         <div class="plc-rail">
-          <div class="plc-img plc-heroimg">
+          <div class="plc-img plc-heroimg" style="display:flex;flex-direction:column;gap:12px;">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_AnalogInputs.png"
-              alt="AIO-422-R1 analog inputs wiring reference"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/webconfig1.png"
+              alt="AIO-422-R1 WebConfig Modbus and connection view"
               loading="lazy"
               width="600"
-              height="400"
+              height="360"
               decoding="async"
+              style="border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,0.16);border:1px solid rgba(148,163,184,0.4);background:#0b1120;"
             >
-          </div>
-          <div class="plc-wirecard" style="margin-top: 16px;">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_AnalogOutputs.png"
-              alt="AIO-422-R1 analog outputs wiring reference"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/webconfig2.png"
+              alt="AIO-422-R1 WebConfig analog I/O view"
               loading="lazy"
               width="600"
-              height="400"
+              height="360"
               decoding="async"
+              style="border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,0.16);border:1px solid rgba(148,163,184,0.4);background:#0b1120;"
             >
-          </div>
-          <div class="plc-wirecard" style="margin-top: 16px;">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_RTD_Connection.png"
-              alt="AIO-422-R1 RTD connection wiring reference"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/webconfig3.png"
+              alt="AIO-422-R1 WebConfig RTD and diagnostics view"
               loading="lazy"
               width="600"
-              height="400"
+              height="360"
               decoding="async"
+              style="border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,0.16);border:1px solid rgba(148,163,184,0.4);background:#0b1120;"
+            >
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/webconfig4.png"
+              alt="AIO-422-R1 WebConfig PID controllers view"
+              loading="lazy"
+              width="600"
+              height="360"
+              decoding="async"
+              style="border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,0.16);border:1px solid rgba(148,163,184,0.4);background:#0b1120;"
             >
           </div>
         </div>
@@ -439,9 +447,10 @@ packages:
 
       <hr class="plc-hr">
 
-      <h3 id="analog-inputs"><strong>Analog Inputs (AI1–AI4, 0–10 V)</strong></h3>
+      <!-- Analog Inputs / Outputs in two-column layout -->
       <div class="plc-grid">
         <div class="plc-col">
+          <h3 id="analog-inputs"><strong>Analog Inputs (AI1–AI4, 0–10 V)</strong></h3>
           <div class="plc-wirecard">
             <img
               src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_AnalogInputs.png"
@@ -454,11 +463,8 @@ packages:
             <div class="plc-caption">AI channels expect <strong>0–10 V</strong> signals and use <strong>AGND</strong> as analog ground.</div>
           </div>
         </div>
-      </div>
-
-      <h3 id="analog-outputs"><strong>Analog Outputs (AO1–AO2, 0–10 V)</strong></h3>
-      <div class="plc-grid">
         <div class="plc-col">
+          <h3 id="analog-outputs"><strong>Analog Outputs (AO1–AO2, 0–10 V)</strong></h3>
           <div class="plc-wirecard">
             <img
               src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_AnalogOutputs.png"
@@ -475,9 +481,10 @@ packages:
 
       <hr class="plc-hr">
 
-      <h3 id="rtd-inputs"><strong>RTD Inputs (RTD1 / RTD2, PT100/PT1000)</strong></h3>
+      <!-- RTD and RS-485 Modbus in two-column layout -->
       <div class="plc-grid">
         <div class="plc-col">
+          <h3 id="rtd-inputs"><strong>RTD Inputs (RTD1 / RTD2, PT100/PT1000)</strong></h3>
           <div class="plc-wirecard">
             <img
               src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_RTD_Connection.png"
@@ -490,13 +497,8 @@ packages:
             <div class="plc-caption">Supports 2-, 3-, or 4-wire RTD wiring. Shielded RTD cables improve accuracy and fault detection stability.</div>
           </div>
         </div>
-      </div>
-
-      <hr class="plc-hr">
-
-      <h3 id="rs485-wiring"><strong>RS-485 Modbus (A / B / COM)</strong></h3>
-      <div class="plc-grid">
         <div class="plc-col">
+          <h3 id="rs485-wiring"><strong>RS-485 Modbus (A / B / COM)</strong></h3>
           <div class="plc-wirecard">
             <img
               src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/AIO-422-R1/Images/AIO_RS485Connection.png"
@@ -509,6 +511,89 @@ packages:
             <div class="plc-caption">Wire <strong>A</strong> to A, <strong>B</strong> to B, and <strong>COM</strong> to your RS-485 reference as required.</div>
           </div>
         </div>
+      </div>
+      
+      <h3 id="rtd-jumpers"><strong>RTD Field Board Jumpers (RTD1 / RTD2)</strong></h3>
+      <p class="plc-caption">
+        RTD configuration jumpers are placed on the <strong>field board</strong> for each RTD channel. Factory default is
+        <strong>PT100</strong> sensor and <strong>2‑wire</strong> wiring mode. Use the table below as a reference when changing sensor type
+        or wiring topology.
+      </p>
+
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>RTD jumper matrix (per channel, RTD1 / RTD2)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Mode</th>
+              <th scope="col">J1</th>
+              <th scope="col">J2</th>
+              <th scope="col">J3</th>
+              <th scope="col">J4</th>
+              <th scope="col">J5</th>
+              <th scope="col">J6</th>
+              <th scope="col">J7</th>
+              <th scope="col">J8</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row"><strong>PT100</strong></th>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>PT1000</strong></th>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>2‑wire</strong></th>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>3‑wire</strong></th>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>ON</td>
+            </tr>
+            <tr>
+              <th scope="row"><strong>4‑wire</strong></th>
+              <td>OFF</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+              <td>ON</td>
+              <td>—</td>
+              <td>—</td>
+              <td>OFF</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
