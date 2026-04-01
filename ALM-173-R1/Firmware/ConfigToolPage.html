@@ -1,34 +1,201 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
-  <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
-    <h2>ALM-173-R1 Module Configuration</h2>
-    <p>Configure Modbus address, baud rate, inputs, relays, <strong>buttons</strong>, user LEDs, and <strong>alarm modes</strong> via Web Serial.</p>
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
+  <style>
+    :root{
+      --page:#ffffff;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --border:#e2e8f0;
+      --borderStrong:#cbd5e1;
+      --brand:#2563eb;
+      --brandHover:#1d4ed8;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
+      --r:16px;
+      --r2:14px;
+      --gap:16px;
+      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    *{box-sizing:border-box}
+
+    /* Inputs and forms (match DIO style) */
+    label{display:block;font-size:12px;font-weight:750;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--borderStrong);
+      font-size:13px;
+      color:var(--text);
+      background:#fff;
+      box-sizing:border-box;
+    }
+    input:focus,select:focus,textarea:focus{
+      outline:none;
+      border-color:var(--brand);
+      box-shadow:0 0 0 3px rgba(37,99,235,.15);
+    }
+
+    /* Pills and badges */
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;font-weight:650;color:var(--muted);border:1px solid var(--border);border-radius:999px;background:#fff}
+    .tag{font-size:11px;font-weight:750;color:#0f172a;border:1px solid var(--border);background:#f8fafc;padding:3px 8px;border-radius:999px;white-space:nowrap}
+    .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
+    .dot.ok{background:var(--ok)}
+    .dot.warn{background:var(--warn)}
+
+    /* Buttons */
+    .btn{padding:8px 14px;font-size:13px;font-weight:750;border-radius:12px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer}
+    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn.primary:hover{background:var(--brandHover)}
+    .btn.danger{color:var(--bad);border-color:#fecaca}
+    .btn.danger:hover{background:rgba(239,68,68,.06)}
+
+    /* Cards */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
+    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .cardheader h2{margin:0;font-size:14px;font-weight:850}
+    .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .cardbody{padding:14px}
+
+    /* Layout */
+    .grid{display:grid;gap:var(--gap);margin-top:16px}
+    .grid.two{grid-template-columns:1.2fr .8fr}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+
+    /* Section titles (match DIO) */
+    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+    .sectiontitle h3{margin:0;font-size:14px;font-weight:900}
+    .sectiontitle .hint{margin:0;font-size:12px;color:var(--muted2);font-weight:650}
+
+    /* Header / app bar */
+    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:var(--gap)}
+    .headLeft{display:flex;gap:14px;align-items:center;min-width:300px}
+    .moduleImage{width:64px;height:64px;border-radius:14px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden;background:#f8fafc}
+    .moduleImage img{width:100%;height:100%;object-fit:contain}
+    .title h1{margin:0;font-size:18px;font-weight:800}
+    .title p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .mini{margin-top:8px;font-size:12px;color:var(--muted2)}
+
+    /* Log box */
+    #log-box{margin-bottom:0;padding:.75rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);font-size:12px}
+    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
+
+    /* IO groups / cards (match DIO style) */
+    .iogroup{display:grid;gap:var(--gap);grid-template-columns:repeat(4,1fr)}
+    .iogroup.cols3{grid-template-columns:repeat(3,1fr)}
+    .iogroup.cols4{grid-template-columns:repeat(4,1fr)}
+    .iocard{border:1px solid var(--border);border-radius:var(--r2);padding:12px;background:#fff;position:relative;overflow:hidden}
+    .iocard::before{content:"";position:absolute;left:0;top:0;right:0;height:42px;background:rgba(255,255,255,.55);border-bottom:1px solid rgba(15,23,42,.06);pointer-events:none}
+    .iotop{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .iocard > *:not(.iotop){position:relative;z-index:1}
+    .ioid{font-size:14px;font-weight:900}
+    .ioBadge{font-size:11px;font-weight:750;border:1px solid var(--border);padding:3px 8px;border-radius:999px;background:#f8fafc}
+    /* Group tints */
+    .tint-input{background:#e9fbe9;border-color:#bfe7bf}
+    .tint-relay{background:#eef2ff;border-color:#c7d2fe}
+    .tint-button{background:#dbe9ff;border-color:#b7cffc}
+    .tint-led{background:#f6f8d6;border-color:#e2e79e}
+    .checkRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)}
+    .check input{width:auto}
+    .split{display:grid;gap:10px}
+
+    /* Inputs config - 4-column layout */
+    #inputs-config{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:var(--gap);
+    }
+
+    /* Responsive */
+    @media(max-width:980px){
+      .grid.two{grid-template-columns:1fr}
+      .statusbar{align-items:flex-start}
+      .pillrow,.actions{justify-content:flex-start}
+    }
+  </style>
+
+  <!-- Header -->
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png" alt="ALM-173-R1">
+      </div>
+      <div class="title">
+        <h1>ALM-173-R1 Module Configuration</h1>
+        <p>Configure Modbus settings, 17 digital inputs, 3 relays, 4 buttons, 4 LEDs and alarm modes via Web Serial.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
+        <div class="pill">Modbus ID: <span id="live-address" style="color:var(--text)">--</span></div>
+        <div class="pill">Baud: <span id="live-baud" style="color:var(--text)">--</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+        <button class="btn danger" id="reset-button" disabled style="display:none;">Reset Device</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Device setup + log -->
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Device Setup</h2>
+          <div class="sub">Serial connection and Modbus addressing.</div>
+        </div>
+        <span class="tag">Step 1</span>
+      </div>
+      <div class="cardbody">
+        <form id="modbus-config">
+          <div class="row">
+            <div>
+              <label for="modbus-address">Modbus Address</label>
+              <select id="modbus-address"></select>
+              <div class="mini">Use a unique address per device on the bus.</div>
+            </div>
+            <div>
+              <label for="modbus-baud">Baud Rate</label>
+              <select id="modbus-baud">
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200">115200</option>
+              </select>
+              <div class="mini">Must match your controller UART settings.</div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Serial Log</h2>
+          <div class="sub">Communication messages and status updates.</div>
+        </div>
+      </div>
+      <div class="cardbody">
+        <div id="log-box">
+          <strong>Serial Log:</strong>
+          <div id="log-content"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
-    <strong>Active Modbus Configuration</strong><br>
-    Address: <span id="live-address" style="font-weight:600;">--</span> |
-    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
-  </div>
-
-  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
-    <div>
-      <label for="modbus-address"><strong>Modbus Address</strong></label>
-      <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
-    </div>
-    <div>
-      <label for="modbus-baud"><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option>
-      </select>
-    </div>
-    <div style="grid-column:span 2;text-align:right;">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled="">Reset Device</button>
-    </div>
-  </form>
-
-  
+  <!-- Reset confirmation dialog -->
   <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
     <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
       <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
@@ -40,34 +207,31 @@
     </form>
   </dialog>
 
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
-    <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;"></div>
-  </div>
-
   <section style="margin-bottom:2rem;">
     <h2 style="font-size:1.2rem;">Alarm Status &amp; Modes</h2>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1rem;">
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+    <!-- Row 1: 4 status cards (full-width, 4 columns) -->
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1rem;">
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
         <strong>Any Alarm</strong>
         <span id="alarm-any" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
       </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
         <strong>Group 1</strong>
         <span id="alarm-g1" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
       </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
         <strong>Group 2</strong>
         <span id="alarm-g2" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
       </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
         <strong>Group 3</strong>
         <span id="alarm-g3" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+    <!-- Row 2: 3 mode cards (full-width, 3 columns) -->
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;">
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label for="alarm-mode-g1"><strong>Mode – Group 1</strong></label>
         <select id="alarm-mode-g1" style="width:100%;padding:10px;border-radius:4px;">
@@ -95,24 +259,45 @@
     </div>
   </section>
 
-  <section>
-    <h2 style="font-size:1.2rem;">Digital Inputs (17)</h2>
-    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  <!-- Digital Inputs (match DIO card wrapper) -->
+  <div class="sectiontitle">
+    <h3>Digital Inputs (17)</h3>
+    <p class="hint">Configure enable, invert, and alarm group per input.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="inputs-config"></div>
+    </div>
   </section>
 
-  <section>
-    <h2 style="font-size:1.2rem;">Relays (3)</h2>
-    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  <div class="sectiontitle">
+    <h3>Relays (3)</h3>
+    <p class="hint">Configure enable, invert, and alarm group mapping.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols3" id="relays-config"></div>
+    </div>
   </section>
 
-  <section>
-    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  <div class="sectiontitle">
+    <h3>Buttons (4)</h3>
+    <p class="hint">Map physical buttons to acknowledge or override actions.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="buttons-config"></div>
+    </div>
   </section>
 
-  <section>
-    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
-    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  <div class="sectiontitle">
+    <h3>User LEDs (4)</h3>
+    <p class="hint">Configure indicator behavior for alarm and override states.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="leds-config"></div>
+    </div>
   </section>
 
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
@@ -242,57 +427,63 @@
       }
 
       // ---------- Build dynamic UI (Inputs / Relays / Buttons / LEDs) ----------
-      // Inputs (17)
+      // Inputs (17) – DIO-style cards in 4-column grid
       (function buildInputs() {
         const container = $('inputs-config');
         if (!container) return;
         for (let i = 1; i <= 17; i++) {
           const card = document.createElement('div');
+          card.className = 'iocard tint-input';
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
-              <div style="display:flex;justify-content:space-between;font-weight:600;">
-                IN${i}
-                <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
-              </div>
-              <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
-              <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
-              <label>Alarm Group:
-                <select id="group-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+            <div class="iotop">
+              <span class="ioid">IN${i}</span>
+              <span class="ioBadge"><span id="state-in${i}" class="state-dot dot-off"></span></span>
+            </div>
+            <div class="checkRow">
+              <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+              <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+            </div>
+            <div class="split">
+              <div>
+                <label for="group-in${i}">Alarm Group</label>
+                <select id="group-in${i}">
                   <option value="0">None</option>
                   <option value="1">Group 1</option>
                   <option value="2">Group 2</option>
                   <option value="3">Group 3</option>
                 </select>
-              </label>
+              </div>
             </div>`;
           container.appendChild(card);
         }
       })();
 
-      // Relays (3)
+      // Relays (3) – DIO-style cards
       (function buildRelays() {
         const container = $('relays-config');
         if (!container) return;
         for (let i = 1; i <= 3; i++) {
           const card = document.createElement('div');
+          card.className = 'iocard tint-relay';
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
-              <div style="font-weight:600;">
-                Relay ${i}
-                <span style="float:right;">
-                  <input type="checkbox" id="state-relay${i}" disabled>
-                </span>
-              </div>
-              <label><input type="checkbox" id="enable-relay${i}"> Enabled</label><br>
-              <label><input type="checkbox" id="invert-relay${i}"> Inverted</label><br>
-              <label>Alarm Group:
-                <select id="group-relay${i}" style="width:100%;padding:6px;border-radius:4px;">
+            <div class="iotop">
+              <span class="ioid">Relay ${i}</span>
+              <span class="ioBadge"><span id="state-relay${i}" class="state-dot dot-off"></span></span>
+            </div>
+            <div class="checkRow">
+              <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+              <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+            </div>
+            <div class="split">
+              <div>
+                <label for="group-relay${i}">Alarm Group</label>
+                <select id="group-relay${i}">
                   <option value="0">None</option>
                   <option value="1">Group 1</option>
                   <option value="2">Group 2</option>
                   <option value="3">Group 3</option>
                 </select>
-              </label>
+              </div>
             </div>`;
           container.appendChild(card);
         }
@@ -315,17 +506,19 @@
         for (let i = 1; i <= 4; i++) {
           const options = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
           const card = document.createElement('div');
+          card.className = 'iocard tint-button';
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-              <div style="font-weight:600;">
-                Button ${i}
-                <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-              </div>
-              <label>Action:
-                <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
+            <div class="iotop">
+              <span class="ioid">Button ${i}</span>
+              <span class="ioBadge"><span id="state-button${i}" class="state-dot dot-off"></span></span>
+            </div>
+            <div class="split">
+              <div>
+                <label for="action-button${i}">Action</label>
+                <select id="action-button${i}">
                   ${options}
                 </select>
-              </label>
+              </div>
             </div>`;
           container.appendChild(card);
         }
@@ -353,18 +546,21 @@
           const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
           const srcOpts  = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
           const card = document.createElement('div');
+          card.className = 'iocard tint-led';
           card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-              <div style="font-weight:600;">
-                User LED ${i}
-                <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+            <div class="iotop">
+              <span class="ioid">User LED ${i}</span>
+              <span class="ioBadge"><span id="state-led${i}" class="state-dot dot-off"></span></span>
+            </div>
+            <div class="split">
+              <div>
+                <label for="mode-led${i}">Mode</label>
+                <select id="mode-led${i}">${modeOpts}</select>
               </div>
-              <label>Mode:
-                <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">${modeOpts}</select>
-              </label><br>
-              <label>Trigger source:
-                <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">${srcOpts}</select>
-              </label>
+              <div>
+                <label for="source-led${i}">Trigger source</label>
+                <select id="source-led${i}">${srcOpts}</select>
+              </div>
             </div>`;
           container.appendChild(card);
         }
