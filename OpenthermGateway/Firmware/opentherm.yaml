@@ -3,7 +3,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.3"
+    version: "1.0.4"
 
 esp32:
   board: esp32dev
@@ -30,7 +30,6 @@ dashboard_import:
   import_full_config: true
 
 http_request:
-  verify_ssl: false
 
 ota:
   - platform: esphome
@@ -41,7 +40,6 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
-    update_interval: 1min
 
 opentherm:
   id: ot_bus
@@ -86,11 +84,13 @@ sensor:
       unit_of_measurement: "°C"
 
   - platform: dallas_temp
+    id: ow_bus_1_temperature
     one_wire_id: ow_bus_1
     name: "1-Wire Bus 1 Temperature"
     unit_of_measurement: "°C"
 
   - platform: dallas_temp
+    id: ow_bus_2_temperature
     one_wire_id: ow_bus_2
     name: "1-Wire Bus 2 Temperature"
     unit_of_measurement: "°C"

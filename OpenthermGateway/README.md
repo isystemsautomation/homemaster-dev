@@ -75,7 +75,7 @@ If the device cannot connect to Wi-Fi, it starts a fallback Access Point.
 
 1. Power on the device and wait approximately 60 seconds
 2. Connect to: HomeMaster OT Fallback
-3. Open a browser and navigate to: http://192.168.4.14.
+3. Open a browser and navigate to: http://192.168.4.1
 4. Enter your Wi-Fi credentials and save
 
 The device will restart and connect to your network.
@@ -137,7 +137,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.0"
+    version: "1.0.4"
 
 esp32:
   board: esp32dev
@@ -188,6 +188,7 @@ binary_sensor:
     name: "Button"
     pin:
       number: GPIO35
+      inverted: true
       mode:
         input: true
 
@@ -214,16 +215,19 @@ sensor:
     t_boiler:
       id: ot_t_boiler
       name: "Boiler Water Temperature"
+      unit_of_measurement: "°C"
 
   - platform: dallas_temp
+    id: ow_bus_1_temperature
     one_wire_id: ow_bus_1
-    index: 0
     name: "1-Wire Bus 1 Temperature"
+    unit_of_measurement: "°C"
 
   - platform: dallas_temp
+    id: ow_bus_2_temperature
     one_wire_id: ow_bus_2
-    index: 0
     name: "1-Wire Bus 2 Temperature"
+    unit_of_measurement: "°C"
 
 switch:
   - platform: gpio
@@ -235,3 +239,4 @@ status_led:
   pin:
     number: GPIO33
     inverted: true
+```
