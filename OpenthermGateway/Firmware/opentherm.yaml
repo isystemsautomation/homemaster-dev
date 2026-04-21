@@ -64,23 +64,29 @@ binary_sensor:
         input: true
 
   - platform: opentherm
+    # Core status signals commonly available on most OpenTherm boilers.
     fault_indication:
       id: ot_fault_indication
       name: "Boiler Fault Indication"
       entity_category: diagnostic
+    flame_on:
+      id: ot_flame_on
+      name: "Boiler Flame On"
+
+    # Optional status signals (model-dependent). Disabled by default.
     diagnostic_indication:
       id: ot_diagnostic_indication
       name: "Boiler Diagnostic Indication"
       entity_category: diagnostic
-    flame_on:
-      id: ot_flame_on
-      name: "Boiler Flame On"
+      disabled_by_default: true
     ch_active:
       id: ot_ch_active
       name: "Boiler CH Active"
+      disabled_by_default: true
     dhw_active:
       id: ot_dhw_active
       name: "Boiler DHW Active"
+      disabled_by_default: true
 
 one_wire:
   - platform: gpio
@@ -93,30 +99,38 @@ one_wire:
 
 sensor:
   - platform: opentherm
+    # Core telemetry commonly available on most OpenTherm boilers.
     t_boiler:
       id: ot_t_boiler
       name: "Boiler Water Temperature"
       unit_of_measurement: "°C"
+
+    # Optional telemetry (model-dependent). Disabled by default.
     t_ret:
       id: ot_t_ret
       name: "Boiler Return Temperature"
       unit_of_measurement: "°C"
+      disabled_by_default: true
     t_dhw:
       id: ot_t_dhw
       name: "Boiler DHW Temperature"
       unit_of_measurement: "°C"
+      disabled_by_default: true
     t_outside:
       id: ot_t_outside
       name: "Boiler Outside Temperature"
       unit_of_measurement: "°C"
+      disabled_by_default: true
     ch_pressure:
       id: ot_ch_pressure
       name: "Boiler CH Pressure"
       unit_of_measurement: "bar"
+      disabled_by_default: true
     rel_mod_level:
       id: ot_rel_mod_level
       name: "Boiler Relative Modulation Level"
       unit_of_measurement: "%"
+      disabled_by_default: true
 
   - platform: dallas_temp
     id: ow_bus_1_temperature
@@ -148,24 +162,29 @@ switch:
 
 number:
   - platform: opentherm
+    # Core control commonly supported.
     t_set:
       id: ot_t_set
       name: "Boiler CH Setpoint"
       min_value: 20
       max_value: 80
       step: 1
+
+    # Optional controls (model-dependent). Disabled by default.
     t_dhw_set:
       id: ot_t_dhw_set
       name: "Boiler DHW Setpoint"
       min_value: 35
       max_value: 65
       step: 1
+      disabled_by_default: true
     max_t_set:
       id: ot_max_t_set
       name: "Boiler Max CH Setpoint"
       min_value: 30
       max_value: 85
       step: 1
+      disabled_by_default: true
 
 status_led:
   pin:
