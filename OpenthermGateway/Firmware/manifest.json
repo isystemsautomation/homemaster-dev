@@ -1,6 +1,6 @@
 {
   "name": "HomeMaster OpenTherm Gateway",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "builds": [
     {
       "chipFamily": "ESP32",
@@ -8,7 +8,7 @@
         "path": "https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/homemaster-opentherm.ota.bin",
         "md5": "64789dbfe33aae074712644562ba8c48",
         "release_url": "https://www.home-master.eu/shop/esp32-opentherm-gateway-59",
-        "summary": "Version 1.0.2"
+        "summary": "Version 1.0.3"
       }
     }
   ]

@@ -30,6 +30,7 @@ dashboard_import:
   import_full_config: true
 
 http_request:
+  verify_ssl: false
 
 ota:
   - platform: esphome
@@ -40,7 +41,7 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
-    update_interval: 10min
+    update_interval: 1min
 
 opentherm:
   id: ot_bus
