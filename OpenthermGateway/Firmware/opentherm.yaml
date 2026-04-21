@@ -3,7 +3,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.0"
+    version: "1.0.1"
 
 esp32:
   board: esp32dev
@@ -30,6 +30,9 @@ dashboard_import:
   import_full_config: true
 
 http_request:
+  # Temporary compatibility setting: some devices fail TLS validation
+  # against GitHub Pages certificates and then cannot read manifest metadata.
+  verify_ssl: false
 
 ota:
   - platform: esphome
@@ -40,6 +43,7 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    update_interval: 10min
 
 opentherm:
   id: ot_bus
