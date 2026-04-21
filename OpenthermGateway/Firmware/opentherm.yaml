@@ -3,7 +3,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.2"
+    version: "1.0.3"
 
 esp32:
   board: esp32dev
