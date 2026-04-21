@@ -17,6 +17,10 @@ api:
 wifi:
   ap:
     ssid: "HomeMaster OT Fallback"
+  on_connect:
+    then:
+      - delay: 10s
+      - component.update: firmware_update
 
 captive_portal:
 
@@ -30,7 +34,6 @@ dashboard_import:
   import_full_config: true
 
 http_request:
-  verify_ssl: false
 
 ota:
   - platform: esphome
@@ -41,6 +44,7 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    update_interval: 6h
 
 opentherm:
   id: ot_bus

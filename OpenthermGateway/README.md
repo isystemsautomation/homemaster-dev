@@ -32,12 +32,20 @@ This page provides a minimal working ESPHome configuration. The full configurati
 - Relay output
 - Digital input
 - Two 1-Wire buses
+- Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
 - USB Type-C
 - Wi-Fi and Bluetooth
 - ESPHome pre-installed
 - OTA updates (ESPHome + HTTP)
 - Improv provisioning
 - DIN-rail mounting
+
+## Electrical and Safety Notes
+
+- Use only one power input method at a time.
+- Relay output is dry-contact and not internally fused.
+- Add external overcurrent protection (fuse or breaker) for relay/mains circuits.
+- Install inside a control cabinet and protect all terminals from accidental contact.
 
 ## Pinout
 
@@ -174,6 +182,7 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    update_interval: 1min
 
 opentherm:
   id: ot_bus
