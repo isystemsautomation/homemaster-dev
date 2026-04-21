@@ -19,11 +19,14 @@ The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to i
 
 The device provides a hardware OpenTherm interface together with relay outputs, a digital input, and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
 
-This page provides a minimal working ESPHome configuration. The full configuration used for the shipped device and vendor OTA updates is available in the project repository.
+This page includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
-- Maker: https://www.home-master.eu/
+For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
+
 - Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
 - Repository: https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway
+
+- Maker: https://www.home-master.eu/
 
 ## Features
 
@@ -137,7 +140,7 @@ The example configuration below exposes:
 
 Additional OpenTherm entities are available in the full configuration.
 
-## Basic ESPHome Configuration
+## Full ESPHome Configuration (Shipped Device)
 
 ```yaml
 esphome:

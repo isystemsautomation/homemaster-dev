@@ -54,6 +54,11 @@ opentherm:
   dhw_enable: true
 
 binary_sensor:
+  - platform: status
+    id: esp_status
+    name: "ESP Status"
+    entity_category: diagnostic
+
   - platform: gpio
     id: button_1
     name: "Button"
@@ -136,6 +141,24 @@ one_wire:
     pin: GPIO5
 
 sensor:
+  - platform: uptime
+    id: esp_uptime
+    name: "ESP Uptime"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    id: wifi_signal_db
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: internal_temperature
+    id: esp32_temperature
+    name: "ESP32 Temperature"
+    update_interval: 60s
+    entity_category: diagnostic
+
   - platform: opentherm
     # Core (minimum) set: IDs 17, 24.
     t_boiler:
@@ -287,6 +310,31 @@ number:
       max_value: 127
       step: 1
       disabled_by_default: true
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
+  - platform: wifi_info
+    ip_address:
+      name: "ESP IP Address"
+      entity_category: diagnostic
+    ssid:
+      name: "ESP Connected SSID"
+      entity_category: diagnostic
+    bssid:
+      name: "ESP Connected BSSID"
+      entity_category: diagnostic
+    mac_address:
+      name: "ESP MAC Address"
+      entity_category: diagnostic
+
+button:
+  - platform: restart
+    id: esp_restart
+    name: "ESP Restart"
+    entity_category: diagnostic
 
 status_led:
   pin:
