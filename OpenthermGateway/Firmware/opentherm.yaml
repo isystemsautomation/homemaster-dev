@@ -38,14 +38,15 @@ ota:
 update:
   - platform: http_request
     id: firmware_update
-    name: Firmware Update
+    name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
-    update_interval: 10s
 
 opentherm:
   id: ot_bus
   in_pin: GPIO21
   out_pin: GPIO26
+  ch_enable: true
+  dhw_enable: true
 
 binary_sensor:
   - platform: gpio
@@ -55,6 +56,38 @@ binary_sensor:
       number: GPIO35
       mode:
         input: true
+
+  - platform: opentherm
+    fault_indication:
+      id: ot_fault_indication
+      name: "Boiler Fault Indication"
+      entity_category: diagnostic
+    flame_on:
+      id: ot_flame_on
+      name: "Boiler Flame On"
+
+one_wire:
+  - platform: gpio
+    id: ow_bus_1
+    pin: GPIO4
+
+  - platform: gpio
+    id: ow_bus_2
+    pin: GPIO5
+
+sensor:
+  - platform: opentherm
+    t_boiler:
+      id: ot_t_boiler
+      name: "Boiler Water Temperature"
+
+  - platform: dallas_temp
+    one_wire_id: ow_bus_1
+    name: "1-Wire Bus 1 Temperature"
+
+  - platform: dallas_temp
+    one_wire_id: ow_bus_2
+    name: "1-Wire Bus 2 Temperature"
 
 switch:
   - platform: gpio
