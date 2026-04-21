@@ -148,6 +148,110 @@ The example configuration below exposes:
 
 Additional OpenTherm entities are available in the full configuration.
 
+## Minimal ESPHome Configuration
+
+Use this minimal configuration to connect the device to your network and import the full shipped configuration.
+
+```yaml
+esphome:
+  name: homemaster-opentherm
+  friendly_name: HomeMaster OpenTherm Gateway
+  project:
+    name: homemaster.opentherm_gateway
+    version: "1.0.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: "HomeMaster OT Fallback"
+
+captive_portal:
+
+esp32_improv:
+  authorizer: none
+
+improv_serial:
+
+dashboard_import:
+  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
+  import_full_config: true
+
+opentherm:
+  id: ot_bus
+  in_pin: GPIO21
+  out_pin: GPIO26
+  ch_enable: true
+  dhw_enable: true
+
+one_wire:
+  - platform: gpio
+    id: ow_bus_1
+    pin: GPIO4
+  - platform: gpio
+    id: ow_bus_2
+    pin: GPIO5
+
+binary_sensor:
+  - platform: gpio
+    id: button_1
+    name: "Button"
+    pin:
+      number: GPIO35
+      inverted: true
+      mode:
+        input: true
+
+  - platform: opentherm
+    flame_on:
+      id: ot_flame_on
+      name: "Boiler Flame On"
+    fault_indication:
+      id: ot_fault_indication
+      name: "Boiler Fault Indication"
+      entity_category: diagnostic
+
+sensor:
+  - platform: opentherm
+    t_boiler:
+      id: ot_t_boiler
+      name: "Boiler Water Temperature"
+      unit_of_measurement: "°C"
+
+  - platform: dallas_temp
+    id: ow_bus_1_temperature
+    one_wire_id: ow_bus_1
+    name: "1-Wire Bus 1 Temperature"
+    unit_of_measurement: "°C"
+
+  - platform: dallas_temp
+    id: ow_bus_2_temperature
+    one_wire_id: ow_bus_2
+    name: "1-Wire Bus 2 Temperature"
+    unit_of_measurement: "°C"
+
+switch:
+  - platform: gpio
+    id: relay_1
+    name: "Relay"
+    pin: GPIO32
+
+status_led:
+  pin:
+    number: GPIO33
+    inverted: true
+```
+
 ## Full ESPHome Configuration (Shipped Device)
 
 ```yaml
@@ -159,7 +263,9 @@ esphome:
     version: "1.0.4"
 
 esp32:
+  variant: esp32
   board: esp32dev
+  flash_size: 16MB
   framework:
     type: esp-idf
 
@@ -207,6 +313,11 @@ opentherm:
   dhw_enable: true
 
 binary_sensor:
+  - platform: status
+    id: esp_status
+    name: "ESP Status"
+    entity_category: diagnostic
+
   - platform: gpio
     id: button_1
     name: "Button"
@@ -289,6 +400,25 @@ one_wire:
     pin: GPIO5
 
 sensor:
+  - platform: uptime
+    id: esp_uptime
+    name: "ESP Uptime"
+    update_interval: 60s
+    entity_category: diagnostic
+    disabled_by_default: true
+
+  - platform: wifi_signal
+    id: wifi_signal_db
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: internal_temperature
+    id: esp32_temperature
+    name: "ESP32 Temperature"
+    update_interval: 60s
+    entity_category: diagnostic
+
   - platform: opentherm
     # Core (minimum) set: IDs 17, 24.
     t_boiler:
@@ -440,6 +570,37 @@ number:
       max_value: 127
       step: 1
       disabled_by_default: true
+
+text_sensor:
+  - platform: template
+    id: esp_uptime_human
+    name: "ESP Uptime Human"
+    entity_category: diagnostic
+    update_interval: 60s
+    lambda: |-
+      if (isnan(id(esp_uptime).state)) {
+        return {};
+      }
+      int total_seconds = (int) id(esp_uptime).state;
+      int days = total_seconds / 86400;
+      int hours = (total_seconds % 86400) / 3600;
+      if (days > 0) {
+        return {to_string(days) + "d " + to_string(hours) + "h"};
+      }
+      int minutes = (total_seconds % 3600) / 60;
+      if (hours > 0) {
+        return {to_string(hours) + "h " + to_string(minutes) + "m"};
+      }
+      return {to_string(minutes) + "m"};
+
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
+  - platform: wifi_info
+    ip_address:
+      name: "ESP IP Address"
+      entity_category: diagnostic
 
 status_led:
   pin:
