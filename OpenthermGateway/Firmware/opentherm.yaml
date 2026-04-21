@@ -68,9 +68,19 @@ binary_sensor:
       id: ot_fault_indication
       name: "Boiler Fault Indication"
       entity_category: diagnostic
+    diagnostic_indication:
+      id: ot_diagnostic_indication
+      name: "Boiler Diagnostic Indication"
+      entity_category: diagnostic
     flame_on:
       id: ot_flame_on
       name: "Boiler Flame On"
+    ch_active:
+      id: ot_ch_active
+      name: "Boiler CH Active"
+    dhw_active:
+      id: ot_dhw_active
+      name: "Boiler DHW Active"
 
 one_wire:
   - platform: gpio
@@ -87,6 +97,26 @@ sensor:
       id: ot_t_boiler
       name: "Boiler Water Temperature"
       unit_of_measurement: "°C"
+    t_ret:
+      id: ot_t_ret
+      name: "Boiler Return Temperature"
+      unit_of_measurement: "°C"
+    t_dhw:
+      id: ot_t_dhw
+      name: "Boiler DHW Temperature"
+      unit_of_measurement: "°C"
+    t_outside:
+      id: ot_t_outside
+      name: "Boiler Outside Temperature"
+      unit_of_measurement: "°C"
+    ch_pressure:
+      id: ot_ch_pressure
+      name: "Boiler CH Pressure"
+      unit_of_measurement: "bar"
+    rel_mod_level:
+      id: ot_rel_mod_level
+      name: "Boiler Relative Modulation Level"
+      unit_of_measurement: "%"
 
   - platform: dallas_temp
     id: ow_bus_1_temperature
@@ -101,10 +131,41 @@ sensor:
     unit_of_measurement: "°C"
 
 switch:
+  - platform: opentherm
+    ch_enable:
+      id: ot_ch_enable
+      name: "Boiler CH Enable"
+      restore_mode: RESTORE_DEFAULT_ON
+    dhw_enable:
+      id: ot_dhw_enable
+      name: "Boiler DHW Enable"
+      restore_mode: RESTORE_DEFAULT_ON
+
   - platform: gpio
     id: relay_1
     name: "Relay"
     pin: GPIO32
+
+number:
+  - platform: opentherm
+    t_set:
+      id: ot_t_set
+      name: "Boiler CH Setpoint"
+      min_value: 20
+      max_value: 80
+      step: 1
+    t_dhw_set:
+      id: ot_t_dhw_set
+      name: "Boiler DHW Setpoint"
+      min_value: 35
+      max_value: 65
+      step: 1
+    max_t_set:
+      id: ot_max_t_set
+      name: "Boiler Max CH Setpoint"
+      min_value: 30
+      max_value: 85
+      step: 1
 
 status_led:
   pin:
