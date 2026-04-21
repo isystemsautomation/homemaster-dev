@@ -159,6 +159,10 @@ api:
 wifi:
   ap:
     ssid: "HomeMaster OT Fallback"
+  on_connect:
+    then:
+      - delay: 10s
+      - component.update: firmware_update
 
 captive_portal:
 
@@ -182,7 +186,7 @@ update:
     id: firmware_update
     name: "Firmware Update"
     source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
-    update_interval: 1min
+    update_interval: 6h
 
 opentherm:
   id: ot_bus
@@ -202,6 +206,7 @@ binary_sensor:
         input: true
 
   - platform: opentherm
+    # Core (minimum) set: IDs 0, 5, 6.
     fault_indication:
       id: ot_fault_indication
       name: "Boiler Fault Indication"
@@ -209,6 +214,59 @@ binary_sensor:
     flame_on:
       id: ot_flame_on
       name: "Boiler Flame On"
+    ch_active:
+      id: ot_ch_active
+      name: "Boiler CH Active"
+    dhw_active:
+      id: ot_dhw_active
+      name: "Boiler DHW Active"
+    service_request:
+      id: ot_service_request
+      name: "Boiler Service Request"
+      entity_category: diagnostic
+    lockout_reset:
+      id: ot_lockout_reset
+      name: "Boiler Lockout Reset"
+      entity_category: diagnostic
+    low_water_pressure:
+      id: ot_low_water_pressure
+      name: "Boiler Low Water Pressure"
+      entity_category: diagnostic
+    flame_fault:
+      id: ot_flame_fault
+      name: "Boiler Flame Fault"
+      entity_category: diagnostic
+    air_pressure_fault:
+      id: ot_air_pressure_fault
+      name: "Boiler Air Pressure Fault"
+      entity_category: diagnostic
+    water_over_temp:
+      id: ot_water_over_temp
+      name: "Boiler Water Overtemperature"
+      entity_category: diagnostic
+    dhw_setpoint_transfer_enabled:
+      id: ot_dhw_setpoint_transfer_enabled
+      name: "Boiler DHW Setpoint Transfer Enabled"
+      entity_category: diagnostic
+    max_ch_setpoint_transfer_enabled:
+      id: ot_max_ch_setpoint_transfer_enabled
+      name: "Boiler Max CH Setpoint Transfer Enabled"
+      entity_category: diagnostic
+    dhw_setpoint_rw:
+      id: ot_dhw_setpoint_rw
+      name: "Boiler DHW Setpoint Read/Write"
+      entity_category: diagnostic
+    max_ch_setpoint_rw:
+      id: ot_max_ch_setpoint_rw
+      name: "Boiler Max CH Setpoint Read/Write"
+      entity_category: diagnostic
+
+    # Extended set (model-dependent). Disabled by default.
+    diagnostic_indication:
+      id: ot_diagnostic_indication
+      name: "Boiler Diagnostic Indication"
+      entity_category: diagnostic
+      disabled_by_default: true
 
 one_wire:
   - platform: gpio
@@ -221,10 +279,67 @@ one_wire:
 
 sensor:
   - platform: opentherm
+    # Core (minimum) set: IDs 17, 24.
     t_boiler:
       id: ot_t_boiler
       name: "Boiler Water Temperature"
       unit_of_measurement: "°C"
+    rel_mod_level:
+      id: ot_rel_mod_level
+      name: "Boiler Relative Modulation Level"
+      unit_of_measurement: "%"
+
+    # Extended set (model-dependent). Disabled by default.
+    t_ret:
+      id: ot_t_ret
+      name: "Boiler Return Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_dhw:
+      id: ot_t_dhw
+      name: "Boiler DHW Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_outside:
+      id: ot_t_outside
+      name: "Boiler Outside Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    ch_pressure:
+      id: ot_ch_pressure
+      name: "Boiler CH Pressure"
+      unit_of_measurement: "bar"
+      disabled_by_default: true
+    dhw_flow_rate:
+      id: ot_dhw_flow_rate
+      name: "Boiler DHW Flow Rate"
+      unit_of_measurement: "l/min"
+      disabled_by_default: true
+    t_storage:
+      id: ot_t_storage
+      name: "Boiler Storage Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_collector:
+      id: ot_t_collector
+      name: "Boiler Collector Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_flow_ch2:
+      id: ot_t_flow_ch2
+      name: "Boiler CH2 Flow Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_dhw2:
+      id: ot_t_dhw2
+      name: "Boiler DHW2 Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
+    t_exhaust:
+      id: ot_t_exhaust
+      name: "Boiler Exhaust Temperature"
+      unit_of_measurement: "°C"
+      disabled_by_default: true
 
   - platform: dallas_temp
     id: ow_bus_1_temperature
@@ -239,10 +354,81 @@ sensor:
     unit_of_measurement: "°C"
 
 switch:
+  - platform: opentherm
+    # Core control (ID 0).
+    ch_enable:
+      id: ot_ch_enable
+      name: "Boiler CH Enable"
+      restore_mode: RESTORE_DEFAULT_ON
+    dhw_enable:
+      id: ot_dhw_enable
+      name: "Boiler DHW Enable"
+      restore_mode: RESTORE_DEFAULT_ON
+    # Extended control (model-dependent). Disabled by default.
+    cooling_enable:
+      id: ot_cooling_enable
+      name: "Boiler Cooling Enable"
+      disabled_by_default: true
+    otc_active:
+      id: ot_otc_active
+      name: "Boiler OTC Active"
+      disabled_by_default: true
+    ch2_active:
+      id: ot_ch2_active
+      name: "Boiler CH2 Active"
+      disabled_by_default: true
+    summer_mode_active:
+      id: ot_summer_mode_active
+      name: "Boiler Summer Mode Active"
+      disabled_by_default: true
+    dhw_block:
+      id: ot_dhw_block
+      name: "Boiler DHW Block"
+      disabled_by_default: true
+
   - platform: gpio
     id: relay_1
     name: "Relay"
     pin: GPIO32
+
+number:
+  - platform: opentherm
+    # Core (minimum) set: IDs 1, 56.
+    t_set:
+      id: ot_t_set
+      name: "Boiler CH Setpoint"
+      min_value: 20
+      max_value: 80
+      step: 1
+    t_dhw_set:
+      id: ot_t_dhw_set
+      name: "Boiler DHW Setpoint"
+      min_value: 35
+      max_value: 65
+      step: 1
+
+    # Extended controls (model-dependent). Disabled by default.
+    max_t_set:
+      id: ot_max_t_set
+      name: "Boiler Max CH Setpoint"
+      min_value: 30
+      max_value: 85
+      step: 1
+      disabled_by_default: true
+    max_rel_mod_level:
+      id: ot_max_rel_mod_level
+      name: "Boiler Max Relative Modulation Level"
+      min_value: 0
+      max_value: 100
+      step: 1
+      disabled_by_default: true
+    otc_hc_ratio:
+      id: ot_otc_hc_ratio
+      name: "Boiler OTC Heat Curve Ratio"
+      min_value: 0
+      max_value: 127
+      step: 1
+      disabled_by_default: true
 
 status_led:
   pin:
