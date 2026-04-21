@@ -320,21 +320,6 @@ text_sensor:
     ip_address:
       name: "ESP IP Address"
       entity_category: diagnostic
-    ssid:
-      name: "ESP Connected SSID"
-      entity_category: diagnostic
-    bssid:
-      name: "ESP Connected BSSID"
-      entity_category: diagnostic
-    mac_address:
-      name: "ESP MAC Address"
-      entity_category: diagnostic
-
-button:
-  - platform: restart
-    id: esp_restart
-    name: "ESP Restart"
-    entity_category: diagnostic
 
 status_led:
   pin:
