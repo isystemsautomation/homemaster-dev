@@ -17,7 +17,7 @@ difficulty: 1
 
 The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm-compatible boilers.
 
-The device provides a hardware OpenTherm interface together with relay outputs, a digital input, and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
+The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
 
 This page includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
@@ -25,15 +25,15 @@ For complete product documentation (connections, compliance/certifications, wiri
 
 - Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
 - Repository: https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway
+- Datasheet (PDF): https://github.com/isystemsautomation/HOMEMASTER/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
 
 - Maker: https://www.home-master.eu/
 
 ## Features
 
-- ESP32-WROOM-32U
-- OpenTherm interface
-- Relay output
-- Digital input
+- ESP32-WROOM-32U-N16 (16 MB flash)
+- OpenTherm interface (OT+ / OT-)
+- Relay channels: 1 x SPDT dry-contact, system limit 3 A @ 250 VAC (resistive), 90 W @ 30 VDC
 - Two 1-Wire buses
 - Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
 - USB Type-C
@@ -49,6 +49,14 @@ For complete product documentation (connections, compliance/certifications, wiri
 - Relay output is dry-contact and not internally fused.
 - Add external overcurrent protection (fuse or breaker) for relay/mains circuits.
 - Install inside a control cabinet and protect all terminals from accidental contact.
+
+## Mechanical and Environmental
+
+- Operating temperature: `0 °C` to `+40 °C`
+- Storage temperature: `-10 °C` to `+55 °C`
+- Protection rating: `IP20` (inside cabinet)
+- Dimensions: `35.5 x 90.6 x 67.3 mm` (L x W x H)
+- Mounting: `35 mm DIN rail` (2 DIN modules)
 
 ## Pinout
 

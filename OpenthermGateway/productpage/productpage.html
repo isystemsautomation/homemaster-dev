@@ -8,7 +8,7 @@
           <h2><strong>HomeMaster OpenTherm Gateway</strong></h2>
 
           <p>
-            The <strong>HomeMaster OpenTherm Gateway</strong> is a compact DIN-rail automation controller designed for intelligent integration with OpenTherm-compatible boilers and HVAC systems. It combines OpenTherm communication, isolated digital input, relay outputs, dual 1-Wire temperature interfaces, and ESP32 connectivity for reliable local control and monitoring.
+            The <strong>HomeMaster OpenTherm Gateway</strong> is a compact DIN-rail automation controller designed for intelligent integration with OpenTherm-compatible boilers and HVAC systems. It combines OpenTherm communication, one relay output, dual 1-Wire temperature interfaces, and ESP32 connectivity for reliable local control and monitoring.
           </p>
 
           <p>
@@ -43,7 +43,7 @@
             <li>ESP32-based OpenTherm heating gateway for DIN-rail cabinets</li>
             <li>OpenTherm bus interface (OT+ / OT-) with optocoupler isolation</li>
             <li>2 x 1-Wire channels for DS18B20-compatible sensors</li>
-            <li>Isolated digital input and relay outputs for field control</li>
+            <li>Single dry-contact relay output for field control</li>
             <li>USB-C programming + Wi-Fi commissioning with Improv</li>
             <li>ESPHome pre-installed for fast Home Assistant integration</li>
           </ul>
@@ -76,16 +76,16 @@
           <tbody>
             <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (dual-core)</td></tr>
             <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N) OR 120-370 V DC (L / N + / -)</td></tr>
-            <tr><th scope="row">Digital Inputs</th><td>1 x isolated 24 V DC discrete input (DIx + GNDx), dry-contact closure, per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>Not present on this model</td></tr>
             <tr>
-              <th scope="row">Relay Outputs*</th>
+              <th scope="row">Relay Output*</th>
               <td>
-                1 x SPDT dry-contact relays. <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
+                1 x SPDT dry-contact relay. <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
                 Relay components (informative only) rated up to 12 A @ 250 VAC (resistive); this rating does not apply to the complete module.
               </td>
             </tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 x 1-Wire (DS18B20 compatible)</td></tr>
-            <tr><th scope="row">User Interface</th><td>1 button, 6 LEDs (1 user LED, 1 status LED, RX, TX, Relay state, DI state)</td></tr>
+            <tr><th scope="row">User Interface</th><td>1 button, 5 LEDs (1 user LED, 1 status LED, RX, TX, Relay state)</td></tr>
             <tr><th scope="row">Wi-Fi</th><td>Wi-Fi (ESP32)</td></tr>
             <tr><th scope="row">OpenTherm Interface</th><td>1 x OpenTherm bus (OT+ / OT-) with optocoupler isolation</td></tr>
             <tr><th scope="row">USB</th><td>USB-C (ESD protected, CC detection, data to ESP32)</td></tr>
@@ -319,8 +319,8 @@ opentherm:
       </p>
       <p class="plc-callout plc-callout--warning">
         <strong>⚠️ External protection required:</strong>
-        Relay outputs MUST be protected by external fuse or circuit breaker.
-        Relay outputs are <strong>not internally fused</strong>.
+        Relay output MUST be protected by external fuse or circuit breaker.
+        Relay output is <strong>not internally fused</strong>.
       </p>
       <div class="plc-grid">
         <div class="plc-col">
@@ -364,7 +364,7 @@ opentherm:
 
       <h4 id="general-routing-rules"><strong>General Routing Rules</strong></h4>
       <ul class="plc-list">
-        <li>Route low-level signal cables (1-Wire/OT) separately from mains, relay outputs, contactors, and power wiring.</li>
+        <li>Route low-level signal cables (1-Wire/OT) separately from mains, relay output wiring, contactors, and power wiring.</li>
         <li>If crossing power cables is unavoidable, cross at 90 degrees.</li>
         <li>Keep cable runs as short as practical and avoid long parallel runs with high-current conductors.</li>
       </ul>
