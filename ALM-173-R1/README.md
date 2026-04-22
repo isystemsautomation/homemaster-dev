@@ -860,13 +860,21 @@ To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
 
 # 10. Open Source & Licensing
 
-This project uses a dual licensing model.
+Licensing
 
-Hardware (schematics, PCB layouts, BOMs) is licensed under:
+This project uses a hybrid licensing model.
+
+Hardware
+
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
 CERN-OHL-W v2
+
+Firmware & ESPHome Integration
 
 All firmware, ESPHome configurations, and software components are licensed under:
 MIT License
+
+This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 
 See LICENSE files in each directory for full terms.
 
