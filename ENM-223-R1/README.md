@@ -1118,11 +1118,15 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 # 10. Open Source & Licensing
 
-| Component         | License         |
-|------------------|------------------|
-| **Hardware**     | CERN-OHL-W v2.0  |
-| **Firmware**     | GPLv3            |
-| **Config Tool**  | MIT              |
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 
 ---

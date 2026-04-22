@@ -989,11 +989,15 @@ sensor:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** **CERN‑OHL‑W v2**
-- **Firmware:** **GPLv3**
-- **Config Tools (WebConfig UI):** **MIT** (unless folder states otherwise)
+This project uses a dual licensing model.
 
-See the repository `LICENSE` files for the exact texts and sub‑component licenses.
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 ---
 

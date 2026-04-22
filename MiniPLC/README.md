@@ -1241,3 +1241,15 @@ sensor:
 - **Product Page:** [home-master.eu/shop/esp32-miniplc-55](https://www.home-master.eu/shop/esp32-miniplc-55)
 - **GitHub Repository:** [github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC)
 - **Manufacturer:** [home-master.eu](https://www.home-master.eu/)
+
+## License
+
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.

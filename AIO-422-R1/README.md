@@ -86,10 +86,17 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 - Monitor RTD-based industrial temperature points
 - Implement PID control loops locally on MicroPLC
 
-## 📄 License
+## License
 
-All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
-Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 ---
 

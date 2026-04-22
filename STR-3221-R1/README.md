@@ -448,14 +448,15 @@ If flashing fails or the module is unresponsive:
 
 # 10. Open Source & Licensing
 
-| Component | License |
-|------------|----------|
-| **Hardware Design (schematics, PCB)** | **CERN-OHL-W v2.0** |
-| **Firmware and Example Code** | **GNU GPL v3** |
-| **WebConfig / Browser Tools** | **MIT License** |
-| **Documentation & Images** | **CC BY-SA 4.0** |
+This project uses a dual licensing model.
 
-> All source materials are open for study and modification. Derivative works must retain the same or equivalent license conditions.
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 ---
 

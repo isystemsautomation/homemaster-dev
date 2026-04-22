@@ -109,10 +109,17 @@ The MicroPLC supports dashboard import, automatically pulling its official confi
 
 ---
 
-## 📄 License
+## License
 
-All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
-Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 ---
 

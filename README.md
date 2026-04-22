@@ -246,11 +246,17 @@ packages:
 
 ---
 
-## 📄 Licensing
-- **Hardware:** CERN‑OHL‑W v2  
-- **Firmware:** GPLv3  
-- **Tools & Examples:** MIT  
-See `LICENSE` files for full terms.
+## License
+
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 ---
 

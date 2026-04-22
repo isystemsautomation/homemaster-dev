@@ -913,13 +913,15 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** [CERN-OHL-W v2.0](https://ohwr.org/project/cernohl)
-- **Firmware:** [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+This project uses a dual licensing model.
 
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
 
-All repositories are publicly available at:
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
 
-🔗 https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1
+See LICENSE files in each directory for full terms.
 
 ---
 

@@ -503,3 +503,15 @@ status_led:
     number: GPIO33
     inverted: true
 ```
+
+## License
+
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.

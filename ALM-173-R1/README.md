@@ -860,8 +860,15 @@ To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
 
 # 10. Open Source & Licensing
 
-* **Hardware:** **CERN‑OHL‑W 2.0**
-* **Firmware & code samples:** **GPLv3** (unless otherwise noted)
+This project uses a dual licensing model.
+
+Hardware (schematics, PCB layouts, BOMs) is licensed under:
+CERN-OHL-W v2
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+See LICENSE files in each directory for full terms.
 
 # 11. Downloads
 
