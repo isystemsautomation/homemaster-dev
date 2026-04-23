@@ -68,6 +68,15 @@ Use **only one** power input method at a time:
 | L / N | AC or wide-range DC input |
 | C / NC | Relay dry contact (GPIO32) |
 
+## GPIO Notes
+
+### GPIO5 — 1-Wire Bus 2 (Strapping Pin)
+
+GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
+pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
+level shifter. The strapping requirement is satisfied at power-on before the
+ESP32 initializes — no external pull-up or firmware workaround is needed.
+
 ## Relay Specifications
 
 - 1× SPDT dry-contact relay
@@ -188,6 +197,16 @@ This mechanism uses:
 - OTA firmware downloads over HTTPS
 
 If a newer firmware version is available, it can be installed directly from Home Assistant.
+
+## ESPHome Compatibility
+
+- Minimum ESPHome version used and tested: **2026.4.1**
+
+## 1-Wire Bus Note
+
+- In the provided configuration, the 1-Wire buses do not define fixed sensor `address` values.
+- With this setup, use one sensor per bus (`GPIO4` and `GPIO5`) for predictable operation.
+- If you connect multiple sensors on the same bus, you must set each sensor `address` explicitly in YAML.
 
 ## Example Entities
 
