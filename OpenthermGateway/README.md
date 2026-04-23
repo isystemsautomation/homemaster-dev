@@ -105,35 +105,28 @@ Use only ONE power input method at a time:
 | AC Mains | L / N | 85–265 V AC |
 | Wide DC | L / N | 120–370 V DC |
 
-**24 V DC input:**
-
-![24V DC wiring](./Images/OpenTherm_24Vdc.png)
-
-**230 V AC input:**
-
-![230V AC wiring](./Images/OpenTherm_230Vac.png)
+| 24 V DC Input | 230 V AC Input |
+|:---:|:---:|
+| ![24V DC wiring](./Images/OpenTherm_24Vdc.png) | ![230V AC wiring](./Images/OpenTherm_230Vac.png) |
+| Connect + to V+, − to 0V | Connect Live to L, Neutral to N |
 
 ### OpenTherm Bus Wiring
 Connect OT+ and OT− between the gateway and the boiler OpenTherm interface.
 Keep OT wiring separated from mains and relay output conductors.
 
-![OT wiring](./Images/OpenTherm_OTConnection.png)
-
 ### Relay Output Wiring
 The relay output exposes **C and NC contacts only** (normally-closed).
-System load limits:
-- **3 A @ 250 VAC** (resistive, system limit)
-- **750 VA @ 250 VAC** maximum
-- **90 W @ 30 VDC** maximum
+System load limits: **3 A @ 250 VAC** (resistive) · **750 VA @ 250 VAC** max · **90 W @ 30 VDC** max.
 
 > ⚠️ The relay output is **not internally fused**. Always add an external fuse or circuit breaker. Use an external contactor for loads above 3 A or for inductive / high-inrush loads.
-
-![Relay wiring](./Images/OpenTherm_RelayConnection.png)
 
 ### 1-Wire Sensor Wiring
 Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
-![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)
+| OpenTherm Bus | Relay Output | 1-Wire Sensors |
+|:---:|:---:|:---:|
+| ![OT wiring](./Images/OpenTherm_OTConnection.png) | ![Relay wiring](./Images/OpenTherm_RelayConnection.png) | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png) |
+| Connect OT+ and OT− to boiler | C and NC contacts only | Daisy-chain only · stubs ≤ 0.5 m |
 
 ## Cable Recommendations & Shield Grounding
 
