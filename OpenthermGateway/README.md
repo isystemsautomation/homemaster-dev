@@ -12,12 +12,14 @@ The device provides a hardware OpenTherm interface together with one relay outpu
 
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
-For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
-
-- [Product page](https://www.home-master.eu/shop/opentherm-gateway-59)
-- [Repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway)
-- [Datasheet (PDF)](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
-- [Maker](https://www.home-master.eu/)
+| Resource | Link |
+|---|---|
+| 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/opentherm-gateway-59) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway) |
+| 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
+| ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
+| 🔧 Schematics | [Schematic/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematic) |
+| 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents
 
@@ -42,6 +44,7 @@ For complete product documentation (connections, compliance/certifications, wiri
 - [Example Entities](#example-entities)
 - [Entity Reference](#entity-reference)
 - [Default Firmware Configuration](#default-firmware-configuration)
+- [Support & Community](#support--community)
 - [License](#license)
 
 ## Features
@@ -810,6 +813,17 @@ status_led:
     number: GPIO33
     inverted: true
 ```
+
+## Support & Community
+
+| Channel | Link |
+|---|---|
+| 🛠️ Official Support | [home-master.eu/support](https://www.home-master.eu/support) |
+| 📺 YouTube | [youtube.com/@HomeMaster](https://youtube.com/@HomeMaster) |
+| 🛡️ Reddit | [reddit.com/r/HomeMaster](https://reddit.com/r/HomeMaster) |
+| 📷 Instagram | [instagram.com/home_master.eu](https://instagram.com/home_master.eu) |
+| 🔬 Hackster | [hackster.io/homemaster](https://hackster.io/homemaster) |
+| 🐙 GitHub | [isystemsautomation](https://github.com/isystemsautomation/homemaster-dev) |
 
 ## License
 
