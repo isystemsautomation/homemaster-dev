@@ -315,7 +315,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.4"
+    version: "1.0.6"
 
 esp32:
   variant: esp32
@@ -357,7 +357,7 @@ update:
   - platform: http_request
     id: firmware_update
     name: "Firmware Update"
-    source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    source: https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json
     update_interval: 6h
 
 opentherm:
@@ -455,10 +455,8 @@ one_wire:
 sensor:
   - platform: uptime
     id: esp_uptime
-    name: "ESP Uptime"
+    internal: true
     update_interval: 60s
-    entity_category: diagnostic
-    disabled_by_default: true
 
   - platform: wifi_signal
     id: wifi_signal_db

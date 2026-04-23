@@ -156,7 +156,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.4"
+    version: "1.0.6"
 
 esp32:
   variant: esp32
@@ -198,15 +198,13 @@ update:
   - platform: http_request
     id: firmware_update
     name: "Firmware Update"
-    source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    source: https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json
     update_interval: 6h
 
 opentherm:
   id: ot_bus
   in_pin: GPIO21
   out_pin: GPIO26
-  ch_enable: true
-  dhw_enable: true
 
 binary_sensor:
   - platform: status
@@ -272,11 +270,11 @@ binary_sensor:
       entity_category: diagnostic
     dhw_setpoint_rw:
       id: ot_dhw_setpoint_rw
-      name: "Boiler DHW Setpoint Read/Write"
+      name: "Boiler DHW Setpoint RW"
       entity_category: diagnostic
     max_ch_setpoint_rw:
       id: ot_max_ch_setpoint_rw
-      name: "Boiler Max CH Setpoint Read/Write"
+      name: "Boiler Max CH Setpoint RW"
       entity_category: diagnostic
 
     # Extended set (model-dependent). Disabled by default.
@@ -298,10 +296,8 @@ one_wire:
 sensor:
   - platform: uptime
     id: esp_uptime
-    name: "ESP Uptime"
+    internal: true
     update_interval: 60s
-    entity_category: diagnostic
-    disabled_by_default: true
 
   - platform: wifi_signal
     id: wifi_signal_db
