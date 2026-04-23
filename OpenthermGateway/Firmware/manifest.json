@@ -5,8 +5,8 @@
     {
       "chipFamily": "ESP32",
       "ota": {
-        "path": "https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/homemaster-opentherm.ota.bin",
-        "md5": "1eb970ce5a18bec7165f016df8238566",
+        "path": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/homemaster-opentherm.ota.bin",
+        "md5": "2d21f542f38b3723d8b83af8ce9340ad",
         "release_url": "https://www.home-master.eu/shop/esp32-opentherm-gateway-59",
         "summary": "Version 1.0.5"
       }

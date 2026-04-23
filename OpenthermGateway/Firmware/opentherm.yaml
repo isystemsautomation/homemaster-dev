@@ -45,7 +45,7 @@ update:
   - platform: http_request
     id: firmware_update
     name: "Firmware Update"
-    source: https://isystemsautomation.github.io/HOMEMASTER/OpenthermGateway/Firmware/manifest.json
+    source: https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json
     update_interval: 6h
 
 opentherm:
@@ -141,6 +141,11 @@ one_wire:
     pin: GPIO5
 
 sensor:
+  - platform: uptime
+    id: esp_uptime
+    internal: true
+    update_interval: 60s
+
   - platform: wifi_signal
     id: wifi_signal_db
     name: "WiFi Signal"
