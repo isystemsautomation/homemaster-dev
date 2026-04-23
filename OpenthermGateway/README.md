@@ -11,7 +11,7 @@ difficulty: 1
 
 ## HomeMaster OpenTherm Gateway
 
-![Device](./opentherm.png)
+![Device](./Images/opentherm.png)
 
 ## Description
 
@@ -82,14 +82,14 @@ Use only ONE power input method at a time:
 | Wide DC | L / N | 120–370 V DC |
 
 Wiring diagrams:
-- 24 V DC: ![24V DC wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_24Vdc.png)
-- 230 V AC: ![230V AC wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_230Vac.png)
+- 24 V DC: ![24V DC wiring](./Images/OpenTherm_24Vdc.png)
+- 230 V AC: ![230V AC wiring](./Images/OpenTherm_230Vac.png)
 
 ### OpenTherm Bus Wiring
 Connect OT+ and OT− between the gateway and the boiler OpenTherm interface.
 Keep OT wiring separated from mains and relay output conductors.
 
-![OT wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_OTConnection.png)
+![OT wiring](./Images/OpenTherm_OTConnection.png)
 
 ### Relay Output Wiring
 The relay output is dry-contact (SPDT). System load limits:
@@ -99,12 +99,12 @@ The relay output is dry-contact (SPDT). System load limits:
 
 > ⚠️ The relay output is **not internally fused**. Always add an external fuse or circuit breaker. Use an external contactor for loads above 3 A or for inductive / high-inrush loads.
 
-![Relay wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_RelayConnection.png)
+![Relay wiring](./Images/OpenTherm_RelayConnection.png)
 
 ### 1-Wire Sensor Wiring
 Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
-![1-Wire wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_1WireConnection.png)
+![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)
 
 ## Cable Recommendations & Shield Grounding
 
@@ -132,7 +132,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 ## Pinout
 
-![Pinout](./pinout.png)
+![Pinout](./Images/pinout.png)
 
 ## Terminal Reference
 
