@@ -26,6 +26,9 @@ For complete product documentation (connections, compliance/certifications, wiri
 - Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
 - Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
 - Datasheet (PDF): https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
+- Schematics (PDF):
+  - MCU Board: https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematic/MCUBoard.pdf
+  - Relay Board: https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematic/RelayBorard.pdf
 
 - Maker: https://www.home-master.eu/
 
@@ -303,26 +306,6 @@ status_led:
     number: GPIO33
     inverted: true
 ```
-
-## License
-
-Licensing
-
-This project uses a hybrid licensing model.
-
-Hardware
-
-Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
-CERN-OHL-W v2
-
-Firmware & ESPHome Integration
-
-All firmware, ESPHome configurations, and software components are licensed under:
-MIT License
-
-This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
-
-See LICENSE files in each directory for full terms.
 
 ## Full ESPHome Configuration (Shipped Device)
 
@@ -677,3 +660,23 @@ status_led:
     number: GPIO33
     inverted: true
 ```
+
+## License
+
+Licensing
+
+This project uses a hybrid licensing model.
+
+Hardware
+
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
+CERN-OHL-W v2
+
+Firmware & ESPHome Integration
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
+
+See LICENSE files in each directory for full terms.
