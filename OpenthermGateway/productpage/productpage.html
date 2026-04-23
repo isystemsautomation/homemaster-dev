@@ -73,18 +73,19 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core)</td></tr>
+            <tr><th scope="row">Architecture</th><td>Modular — MCU Board + Field Board</td></tr>
+            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core, 16 MB flash)</td></tr>
             <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N) OR 120-370 V DC (L / N + / -)</td></tr>
             <tr>
               <th scope="row">Relay Output*</th>
               <td>
-                1 x SPDT dry-contact relay. <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
+                1 x SPDT relay, C and NC contacts accessible (normally-closed). <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
                 Relay components (informative only) rated up to 12 A @ 250 VAC (resistive); this rating does not apply to the complete module.
               </td>
             </tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 x 1-Wire (DS18B20 compatible)</td></tr>
             <tr><th scope="row">User Interface</th><td>4 LEDs (PWR, Status, Relay state, User LED), 1 button</td></tr>
-            <tr><th scope="row">Wi-Fi</th><td>Wi-Fi (ESP32)</td></tr>
+            <tr><th scope="row">Wi-Fi</th><td>Wi-Fi 2.4 GHz (ESP32, pre-certified radio module)</td></tr>
             <tr><th scope="row">OpenTherm Interface</th><td>1 x OpenTherm bus (OT+ / OT-) with optocoupler isolation</td></tr>
             <tr><th scope="row">USB</th><td>USB-C (ESD protected, CC detection, data to ESP32)</td></tr>
           </tbody>
@@ -119,6 +120,13 @@
         <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
       </table>
 
+      <h3>Radio</h3>
+      <p>
+        The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
+        Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
+        by the maintained technical documentation and conformity assessment of the complete device.
+      </p>
+
       <h3>Safety Notice</h3>
       <p>
         <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
@@ -147,18 +155,16 @@
             <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
             <tr><td>Tightening torque</td><td>0.4 Nm (max)</td></tr>
 
-            <tr><th scope="row" rowspan="6">Environmental Ratings</th><td>Operating temperature</td><td>0 C to +40 C</td></tr>
-            <tr><td>Storage temperature</td><td>-10 C to +55 C</td></tr>
+            <tr><th scope="row" rowspan="6">Environmental Ratings</th><td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><td>Storage temperature</td><td>-10 °C to 55 °C</td></tr>
             <tr><td>Relative humidity</td><td>0-90 % RH, non-condensing</td></tr>
             <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
             <tr><td>Installation</td><td>Indoor control cabinet only; not for outdoor or exposed installation</td></tr>
             <tr><td>Terminal protection</td><td>All wiring terminals must be protected against accidental contact</td></tr>
 
-            <tr><th scope="row" rowspan="8">Mechanical &amp; Packaging</th><td>Product dimensions</td><td><strong>35.5 x 90.6 x 67.3 mm</strong> (L x W x H)</td></tr>
+            <tr><th scope="row" rowspan="6">Mechanical &amp; Packaging</th><td>Product dimensions</td><td><strong>35.5 x 90.6 x 67.3 mm</strong> (L x W x H)</td></tr>
             <tr><td>DIN units</td><td>2 division units (approximately 36 mm DIN rail mounting width)</td></tr>
             <tr><td>Mounting</td><td>35 mm DIN rail</td></tr>
-            <tr><td>Net weight</td><td>TBD</td></tr>
-            <tr><td>Gross weight</td><td>TBD</td></tr>
             <tr><td>Pack size</td><td>140 x 96 x 95 mm (L x W x H)</td></tr>
             <tr><td>Mechanical drawing</td><td>Front + side views with DIN-clip depth</td></tr>
             <tr><td>Notes</td><td>All dimensions shown in millimeters unless stated otherwise</td></tr>
@@ -216,6 +222,12 @@
           <h4 id="one-click-import"><strong>One-Click Import (ESPHome Dashboard)</strong></h4>
           <p>
             After provisioning, click <strong>Take Control</strong> in ESPHome Dashboard to import the official configuration from GitHub.
+          </p>
+          <p class="plc-callout plc-callout--warning">
+            <strong>⚠️ Note:</strong> After taking control, vendor-managed OTA updates will stop working
+            unless you keep the <code>http_request</code>, <code>ota: platform: http_request</code>,
+            and <code>update</code> blocks from the original configuration in your customised YAML.
+            If you remove these blocks, update via ESPHome OTA or USB instead.
           </p>
 
           <h4 id="minimal-esphome-yaml"><strong>Firmware / YAML Source</strong></h4>
@@ -361,7 +373,8 @@
 
       <h3 id="relay-wiring"><strong>Relay Output Wiring</strong></h3>
       <p>
-        Relay output is dry-contact and can be used to switch external actuators (zone valves, pumps, backup heaters) through proper external protection devices.
+        The relay output exposes <strong>C and NC contacts only</strong> (normally-closed) and can be used to switch external actuators (zone valves, pumps, backup heaters) through proper external protection devices.
+        System load limits: <strong>3 A @ 250 VAC</strong> (resistive, system limit) · <strong>750 VA @ 250 VAC</strong> maximum · <strong>90 W @ 30 VDC</strong> maximum.
       </p>
       <p class="plc-callout plc-callout--warning">
         <strong>⚠️ External protection required:</strong>
@@ -380,6 +393,8 @@
       <h3 id="onewire-wiring"><strong>1-Wire Sensor Wiring</strong></h3>
       <p>
         Two independent 1-Wire channels are available for DS18B20-compatible temperature sensors.
+        Use <strong>daisy-chain (bus) topology only</strong> — star wiring is not supported.
+        Keep sensor stubs ≤ 0.5 m. See Cable Recommendations below for full wiring guidance.
       </p>
       <div class="plc-grid">
         <div class="plc-col">

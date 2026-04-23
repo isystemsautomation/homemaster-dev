@@ -48,30 +48,36 @@ For complete product documentation (connections, compliance/certifications, wiri
 
 - ESP32-WROOM-32U-N16 (16 MB flash)
 - OpenTherm interface (OT+ / OT-)
-- Relay channels: 1 x SPDT dry-contact, system limit 3 A @ 250 VAC (resistive), 90 W @ 30 VDC
+- Relay output: 1 x SPDT, C and NC contacts accessible, system limit 3 A @ 250 VAC (resistive), 90 W @ 30 VDC
 - Two 1-Wire buses
 - Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
 - USB Type-C
-- Wi-Fi and Bluetooth
+- Wi-Fi 2.4 GHz (pre-certified radio module) and Bluetooth
 - ESPHome pre-installed
 - OTA updates (ESPHome + HTTP)
 - Improv provisioning
 - DIN-rail mounting
+- Modular architecture: MCU Board + Field Board
 
 ## Electrical and Safety Notes
 
+- Disconnect all power before installation or wiring changes.
 - Use only one power input method at a time.
 - Relay output is dry-contact and not internally fused.
 - Add external overcurrent protection (fuse or breaker) for relay/mains circuits.
 - Install inside a control cabinet and protect all terminals from accidental contact.
+- L / N terminals carry hazardous mains voltage — installation by qualified personnel only.
+- Follow local electrical code and boiler manufacturer OpenTherm wiring requirements.
 
 ## Mechanical and Environmental
 
 - Operating temperature: `0 °C` to `+40 °C`
 - Storage temperature: `-10 °C` to `+55 °C`
+- Relative humidity: `0–90 % RH`, non-condensing
 - Protection rating: `IP20` (inside cabinet)
-- Dimensions: `35.5 x 90.6 x 67.3 mm` (L x W x H)
+- Dimensions: `35.5 × 90.6 × 67.3 mm` (L × W × H)
 - Mounting: `35 mm DIN rail` (2 DIN modules)
+- Pack size: `140 × 96 × 95 mm` (L × W × H)
 
 ## Installation
 
@@ -321,7 +327,7 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 
 ### 1-Wire sensor shows unknown or no value
 - Confirm sensor is wired correctly: +5V, DATA (D1 or D2), Gnd.
-- If using multiple sensors on one bus, see the section above on
+- If using multiple sensors on one bus, see the section below on
   multiple DS18B20 sensors.
 - Keep stubs ≤ 0.5 m and use daisy-chain topology only.
 - For long buses consider reducing pull-up resistor to 2.2–3.3 kΩ.
@@ -359,6 +365,11 @@ technical documentation and a signed EU Declaration of Conformity (DoC).
 | Electrical Safety | EN 62368-1 |
 | Radio | EN 300 328 · EN 301 489-1 · EN 301 489-17 |
 | RoHS | EN IEC 63000 |
+
+### Radio
+The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
+Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
+by the maintained technical documentation and conformity assessment of the complete device.
 
 ### Safety Notice
 - **L / N terminals** carry hazardous mains voltage — qualified personnel only.
@@ -432,6 +443,7 @@ Boiler Fault Indication, 1-Wire Bus 1 & 2 Temperature, and Firmware Update.
 | Boiler Outside Temperature | Sensor | **Disabled** | Requires boiler support |
 | Boiler CH Pressure | Sensor | **Disabled** | Requires boiler support |
 | Boiler DHW Flow Rate | Sensor | **Disabled** | Requires boiler support |
+| Boiler Storage Temperature | Sensor | **Disabled** | Requires boiler support |
 | Boiler Collector Temperature | Sensor | **Disabled** | Requires boiler support |
 | Boiler CH2 Flow Temperature | Sensor | **Disabled** | Requires boiler support |
 | Boiler DHW2 Temperature | Sensor | **Disabled** | Requires boiler support |
