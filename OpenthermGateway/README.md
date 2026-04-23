@@ -23,7 +23,7 @@ This page includes the full ESPHome configuration used on shipped devices (inclu
 
 For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
 
-- Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
+- Product page: https://www.home-master.eu/shop/opentherm-gateway-59
 - Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
 - Datasheet (PDF): https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
 
@@ -58,9 +58,103 @@ For complete product documentation (connections, compliance/certifications, wiri
 - Dimensions: `35.5 x 90.6 x 67.3 mm` (L x W x H)
 - Mounting: `35 mm DIN rail` (2 DIN modules)
 
+## Installation
+
+### DIN Rail Mounting
+- Mount on 35 mm DIN rail. The device occupies 2 DIN modules (≈ 36 mm width).
+- Install only inside a ventilated control cabinet.
+- The cabinet must include a protective front plate covering all terminals and a closing protective door.
+- Not suitable for outdoor or exposed installation.
+
+### Terminal Wiring
+- Terminal type: pluggable screw terminal blocks, 5.08 mm pitch.
+- Wire cross-section: 0.2–2.5 mm² (AWG 24–12), solid or stranded copper.
+- Use ferrules for stranded wire. Tightening torque: 0.4 Nm maximum.
+- All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
+
+### Power Input
+Use only ONE power input method at a time:
+
+| Input | Terminals | Range |
+|---|---|---|
+| 24 V DC | V+ / 0V | 24 V DC nominal |
+| AC Mains | L / N | 85–265 V AC |
+| Wide DC | L / N | 120–370 V DC |
+
+Wiring diagrams:
+- 24 V DC: ![24V DC wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_24Vdc.png)
+- 230 V AC: ![230V AC wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_230Vac.png)
+
+### OpenTherm Bus Wiring
+Connect OT+ and OT− between the gateway and the boiler OpenTherm interface.
+Keep OT wiring separated from mains and relay output conductors.
+
+![OT wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_OTConnection.png)
+
+### Relay Output Wiring
+The relay output is dry-contact (SPDT). System load limits:
+- **3 A @ 250 VAC** (resistive, system limit)
+- **750 VA @ 250 VAC** maximum
+- **90 W @ 30 VDC** maximum
+
+> ⚠️ The relay output is **not internally fused**. Always add an external fuse or circuit breaker. Use an external contactor for loads above 3 A or for inductive / high-inrush loads.
+
+![Relay wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_RelayConnection.png)
+
+### 1-Wire Sensor Wiring
+Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
+
+![1-Wire wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_1WireConnection.png)
+
+## Cable Recommendations & Shield Grounding
+
+### General Routing Rules
+- Route low-level signal cables (1-Wire / OT) separately from mains, relay output, contactors, and power wiring.
+- If crossing power cables is unavoidable, cross at 90°.
+- Keep cable runs as short as practical; avoid long parallel runs next to high-current conductors.
+
+### OpenTherm Cable
+- Construction: twisted pair.
+- Overall shield recommended in cabinets or high-EMI environments.
+- Recommended types: `J-Y(ST)Y 2×2×0.5 mm²` or `LI2YCY PiMF 2×2×0.50`.
+
+### 1-Wire Cable
+- Recommended: shielded 3-core (+5V / DATA / GND).
+- High-EMI or long runs: shielded pairs + overall shield (e.g., `LI2YCY PiMF 2×2×0.50`).
+- Topology: **daisy-chain (bus) only** — star wiring is not supported.
+- Keep sensor stubs ≤ 0.5 m.
+- DATA pull-up: 4.7 kΩ typical; 2.2–3.3 kΩ for long or heavily loaded buses.
+
+### Shield Grounding
+- Bond cable shields to cabinet PE/EMC ground at the controller side only (single-end bonding).
+- Do not connect shields directly to signal terminals (1-Wire / OT).
+- If both ends are in equipotential-bonded cabinets, both-end bonding is permitted using proper 360° clamps.
+
 ## Pinout
 
 ![Pinout](./pinout.png)
+
+## Terminal Reference
+
+| Terminal Label | Signal | Description |
+|---|---|---|
+| GND | Ground | Common ground reference |
+| D1 | Digital Input 1 | Reserved / not populated on this model |
+| D2 | Digital Input 2 | Reserved / not populated on this model |
+| +5V | +5 V output | Auxiliary 5 V for 1-Wire sensors |
+| OT+ | OpenTherm + | OpenTherm bus positive |
+| OT- | OpenTherm − | OpenTherm bus negative |
+| 1-WIRE 1 | 1-Wire Bus 1 | DS18B20-compatible, GPIO4 |
+| 1-WIRE 2 | 1-Wire Bus 2 | DS18B20-compatible, GPIO5 |
+| 24Vdc V+ | DC Power + | 24 V DC positive input |
+| 24Vdc 0V | DC Power − | 24 V DC negative / ground |
+| 220Vac L | AC Line | AC mains live (85–265 V AC) |
+| 220Vac N | AC Neutral | AC mains neutral |
+| RELAY C | Relay Common | Dry-contact relay common |
+| RELAY NC | Relay NC | Normally closed contact |
+| RELAY NO | Relay NO | Normally open contact |
+
+> For the full pinout diagram see the image above.
 
 ## GPIO Notes
 
@@ -70,6 +164,25 @@ GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
 pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
 level shifter. The strapping requirement is satisfied at power-on before the
 ESP32 initializes — no external pull-up or firmware workaround is needed.
+
+## LED and Button Behaviour
+
+### LEDs
+
+| LED | Colour | Behaviour | Meaning |
+|---|---|---|---|
+| PWR | Green | Solid ON | Device is powered |
+| Status | Blue | Slow blink | Normal operation / Wi-Fi connected |
+| Status | Blue | Fast blink | Wi-Fi connecting / fallback AP active |
+| Relay state | Yellow | Solid ON | Relay is energised (NO contact closed) |
+| User LED | Red | Firmware-controlled | Configurable via ESPHome |
+
+> LED behaviour for Status and User LED can be customised in ESPHome YAML.
+
+### Button (GPIO35)
+The physical button is exposed as a binary sensor in ESPHome (`button_1`).
+Default behaviour: read-only input — pressing it triggers the `button_1` binary sensor.
+You can add automations in ESPHome or Home Assistant to assign actions (e.g., restart, toggle relay).
 
 ## Getting Started
 
@@ -150,6 +263,15 @@ If a newer firmware version is available, it can be installed directly from Home
 - In the provided configuration, the 1-Wire buses do not define fixed sensor `address` values.
 - With this setup, use one sensor per bus (`GPIO4` and `GPIO5`) for predictable operation.
 - If you connect multiple sensors on the same bus, you must set each sensor `address` explicitly in YAML.
+
+## Using Multiple DS18B20 Sensors on One Bus
+
+By default, the configuration does not specify sensor addresses. This works reliably when one sensor is connected per bus.
+
+If you need multiple sensors on the same bus, you must assign each sensor a fixed address:
+
+### Step 1 — Find sensor addresses
+Add a temporary logger to your YAML and check the ESPHome logs after boot. Each DS18B20 reports its unique 64-bit ROM address on startup, e.g.:
 
 ## Example Entities
 
@@ -522,20 +644,13 @@ status_led:
 
 ## License
 
-Licensing
-
 This project uses a hybrid licensing model.
 
-Hardware
+### Hardware
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under **CERN-OHL-W v2**.
 
-Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
-CERN-OHL-W v2
-
-Firmware & ESPHome Integration
-
-All firmware, ESPHome configurations, and software components are licensed under:
-MIT License
+### Firmware & ESPHome Integration
+All firmware, ESPHome configurations, and software components are licensed under the **MIT License**.
 
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
-
 See LICENSE files in each directory for full terms.
