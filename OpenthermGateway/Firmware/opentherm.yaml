@@ -52,8 +52,6 @@ opentherm:
   id: ot_bus
   in_pin: GPIO21
   out_pin: GPIO26
-  ch_enable: true
-  dhw_enable: true
 
 binary_sensor:
   - platform: status
@@ -119,11 +117,11 @@ binary_sensor:
       entity_category: diagnostic
     dhw_setpoint_rw:
       id: ot_dhw_setpoint_rw
-      name: "Boiler DHW Setpoint Read/Write"
+      name: "Boiler DHW Setpoint RW"
       entity_category: diagnostic
     max_ch_setpoint_rw:
       id: ot_max_ch_setpoint_rw
-      name: "Boiler Max CH Setpoint Read/Write"
+      name: "Boiler Max CH Setpoint RW"
       entity_category: diagnostic
 
     # Extended set (model-dependent). Disabled by default.
@@ -143,13 +141,6 @@ one_wire:
     pin: GPIO5
 
 sensor:
-  - platform: uptime
-    id: esp_uptime
-    name: "ESP Uptime"
-    update_interval: 60s
-    entity_category: diagnostic
-    disabled_by_default: true
-
   - platform: wifi_signal
     id: wifi_signal_db
     name: "WiFi Signal"
@@ -198,11 +189,6 @@ sensor:
       id: ot_dhw_flow_rate
       name: "Boiler DHW Flow Rate"
       unit_of_measurement: "l/min"
-      disabled_by_default: true
-    t_storage:
-      id: ot_t_storage
-      name: "Boiler Storage Temperature"
-      unit_of_measurement: "°C"
       disabled_by_default: true
     t_collector:
       id: ot_t_collector
