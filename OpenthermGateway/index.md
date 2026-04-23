@@ -304,6 +304,26 @@ status_led:
     inverted: true
 ```
 
+## License
+
+Licensing
+
+This project uses a hybrid licensing model.
+
+Hardware
+
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
+CERN-OHL-W v2
+
+Firmware & ESPHome Integration
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
+
+See LICENSE files in each directory for full terms.
+
 ## Full ESPHome Configuration (Shipped Device)
 
 ```yaml
