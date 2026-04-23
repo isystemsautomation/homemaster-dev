@@ -1,3 +1,28 @@
+## Table of Contents
+
+- [Description](#description)
+- [Features](#features)
+- [Electrical and Safety Notes](#electrical-and-safety-notes)
+- [Mechanical and Environmental](#mechanical-and-environmental)
+- [Installation](#installation)
+- [Cable Recommendations & Shield Grounding](#cable-recommendations--shield-grounding)
+- [Pinout](#pinout)
+- [Terminal Reference](#terminal-reference)
+- [GPIO Notes](#gpio-notes)
+- [LED and Button Behaviour](#led-and-button-behaviour)
+- [Getting Started](#getting-started)
+- [Firmware Updates](#firmware-updates)
+- [Note on Taking Control in ESPHome](#️-note-on-taking-control-in-esphome)
+- [ESPHome Compatibility](#esphome-compatibility)
+- [Troubleshooting](#troubleshooting)
+- [Compliance & Certifications](#compliance--certifications)
+- [1-Wire Bus Note](#1-wire-bus-note)
+- [Using Multiple DS18B20 Sensors](#using-multiple-ds18b20-sensors-on-one-bus)
+- [Example Entities](#example-entities)
+- [Entity Reference](#entity-reference)
+- [Full ESPHome Configuration](#full-esphome-configuration-shipped-device)
+- [License](#license)
+
 ## HomeMaster OpenTherm Gateway
 
 ![Device](./Images/opentherm.png)
@@ -81,7 +106,8 @@ Keep OT wiring separated from mains and relay output conductors.
 ![OT wiring](./Images/OpenTherm_OTConnection.png)
 
 ### Relay Output Wiring
-The relay output is dry-contact (SPDT). System load limits:
+The relay output exposes **C and NC contacts only** (normally-closed).
+System load limits:
 - **3 A @ 250 VAC** (resistive, system limit)
 - **750 VA @ 250 VAC** maximum
 - **90 W @ 30 VDC** maximum
@@ -125,25 +151,30 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 ## Terminal Reference
 
-| Terminal Label | Signal | Description |
-|---|---|---|
-| GND | Ground | Common ground reference |
-| D1 | Digital Input 1 | Reserved / not populated on this model |
-| D2 | Digital Input 2 | Reserved / not populated on this model |
-| +5V | +5 V output | Auxiliary 5 V for 1-Wire sensors |
-| OT+ | OpenTherm + | OpenTherm bus positive |
-| OT- | OpenTherm − | OpenTherm bus negative |
-| 1-WIRE 1 | 1-Wire Bus 1 | DS18B20-compatible, GPIO4 |
-| 1-WIRE 2 | 1-Wire Bus 2 | DS18B20-compatible, GPIO5 |
-| 24Vdc V+ | DC Power + | 24 V DC positive input |
-| 24Vdc 0V | DC Power − | 24 V DC negative / ground |
-| 220Vac L | AC Line | AC mains live (85–265 V AC) |
-| 220Vac N | AC Neutral | AC mains neutral |
-| RELAY C | Relay Common | Dry-contact relay common |
-| RELAY NC | Relay NC | Normally closed contact |
-| RELAY NO | Relay NO | Normally open contact |
+### Top Terminals (Signal)
 
-> For the full pinout diagram see the image above.
+| Terminal | Signal | Description |
+|---|---|---|
+| Gnd | Ground | Common ground reference |
+| D1 | 1-Wire Bus 1 DATA | DS18B20-compatible, GPIO4 |
+| D2 | 1-Wire Bus 2 DATA | DS18B20-compatible, GPIO5 |
+| +5V | +5 V output | Auxiliary 5 V supply for 1-Wire sensors |
+| O+ | OpenTherm + | OpenTherm bus positive |
+| O- | OpenTherm − | OpenTherm bus negative |
+
+### Bottom Terminals (Power & Relay)
+
+| Terminal | Signal | Description |
+|---|---|---|
+| 0V | DC Ground | 24 V DC negative / ground |
+| +V | DC Power + | 24 V DC positive input |
+| L | AC Line / Wide DC + | AC mains live (85–265 V AC) or DC+ (120–370 V DC) |
+| N | AC Neutral / Wide DC − | AC mains neutral or DC− |
+| C | Relay Common | Dry-contact relay common |
+| NC | Relay NC | Normally closed contact |
+
+> ⚠️ Use only ONE power input method at a time (24 V DC or AC/DC L/N).
+> L / N terminals carry hazardous mains voltage — qualified personnel only.
 
 ## GPIO Notes
 
@@ -158,20 +189,26 @@ ESP32 initializes — no external pull-up or firmware workaround is needed.
 
 ### LEDs
 
-| LED | Colour | Behaviour | Meaning |
-|---|---|---|---|
-| PWR | Green | Solid ON | Device is powered |
-| Status | Blue | Slow blink | Normal operation / Wi-Fi connected |
-| Status | Blue | Fast blink | Wi-Fi connecting / fallback AP active |
-| Relay state | Yellow | Solid ON | Relay is energised (NO contact closed) |
-| User LED | Red | Firmware-controlled | Configurable via ESPHome |
+The device has 4 LEDs on the front panel: **O.1**, **PWR**, **U.1**, **U.2**.
 
-> LED behaviour for Status and User LED can be customised in ESPHome YAML.
+| LED | Behaviour | Meaning |
+|---|---|---|
+| PWR | Solid ON | Device is powered |
+| O.1 | Solid ON | Normal operation (Wi-Fi + API connected) |
+| O.1 | Fast blink | Wi-Fi connecting or API disconnected |
+| O.1 | Blink pattern | OTA update in progress |
+| U.1 | Solid ON | Relay is energised |
+| U.2 | Firmware-controlled | Configurable via ESPHome YAML |
+
+> LED colours are not documented here. Refer to the physical device
+> or BOM for colour details.
 
 ### Button (GPIO35)
 The physical button is exposed as a binary sensor in ESPHome (`button_1`).
-Default behaviour: read-only input — pressing it triggers the `button_1` binary sensor.
-You can add automations in ESPHome or Home Assistant to assign actions (e.g., restart, toggle relay).
+Default behaviour: read-only input — pressing it triggers the `button_1`
+binary sensor.
+You can add automations in ESPHome or Home Assistant to assign actions
+(e.g., restart device, toggle relay).
 
 ## Getting Started
 
@@ -243,9 +280,83 @@ This mechanism uses:
 
 If a newer firmware version is available, it can be installed directly from Home Assistant.
 
+## ⚠️ Note on Taking Control in ESPHome
+
+When you click **Take Control** in ESPHome Dashboard, you import the full
+configuration and gain complete control over the firmware.
+
+**Important:** After taking control, vendor-managed OTA updates (via the
+Home Assistant firmware update entity) will stop working **unless** you
+keep the `http_request`, `ota: platform: http_request`, and `update`
+blocks from the original configuration in your customised YAML.
+
+If you remove these blocks, update via ESPHome OTA or USB instead.
+
 ## ESPHome Compatibility
 
 - Minimum ESPHome version used and tested: **2026.4.1**
+
+## Troubleshooting
+
+### Device does not appear in Home Assistant or ESPHome Dashboard
+- Confirm the device is powered (PWR LED solid ON).
+- Confirm Wi-Fi provisioning completed successfully.
+- Check that Home Assistant and the device are on the same network/VLAN.
+- If O.1 LED is fast-blinking, the device is in Wi-Fi connect mode —
+  wait up to 60 seconds.
+- If Wi-Fi fails, the device starts the fallback AP
+  `HomeMaster OT Fallback` — reconnect and re-enter credentials.
+
+### No OpenTherm communication (all OT entities unavailable)
+- Verify O+ and O− wiring. OpenTherm is polarity-sensitive on some boilers.
+- Confirm the boiler has an OpenTherm interface enabled in boiler settings.
+- Check for short circuits or incorrect voltage on the OT terminals.
+- Review ESPHome logs for OpenTherm timeout or CRC errors.
+
+### 1-Wire sensor shows unknown or no value
+- Confirm sensor is wired correctly: +5V, DATA (D1 or D2), Gnd.
+- If using multiple sensors on one bus, see the section above on
+  multiple DS18B20 sensors.
+- Keep stubs ≤ 0.5 m and use daisy-chain topology only.
+- For long buses consider reducing pull-up resistor to 2.2–3.3 kΩ.
+
+### Relay does not switch
+- Check the `Relay` switch entity is enabled in Home Assistant.
+- Verify external wiring on C / NC terminals.
+- Confirm external fuse or breaker is not tripped.
+
+### Firmware update fails
+- Confirm the device has a working internet connection.
+- Check update source is reachable:
+  `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`
+- If you took control in ESPHome and removed the `http_request` / `update`
+  blocks, vendor OTA is no longer available — update via ESPHome OTA instead.
+
+## Compliance & Certifications
+
+The HomeMaster OpenTherm Gateway is CE marked and designed to comply with
+applicable EU directives. ISYSTEMS AUTOMATION (HomeMaster brand) maintains
+technical documentation and a signed EU Declaration of Conformity (DoC).
+
+### EU Directives
+- **EMC** — 2014/30/EU
+- **LVD** — 2014/35/EU
+- **RED** — 2014/53/EU
+- **RoHS** — 2011/65/EU
+
+### Harmonised Standards
+
+| Area | Standard |
+|---|---|
+| EMC Immunity | EN 61000-6-1 |
+| EMC Emissions | EN 61000-6-3 |
+| Electrical Safety | EN 62368-1 |
+| Radio | EN 300 328 · EN 301 489-1 · EN 301 489-17 |
+| RoHS | EN IEC 63000 |
+
+### Safety Notice
+- **L / N terminals** carry hazardous mains voltage — qualified personnel only.
+- **24 V DC input** is SELV (Safety Extra-Low Voltage).
 
 ## 1-Wire Bus Note
 
@@ -255,12 +366,19 @@ If a newer firmware version is available, it can be installed directly from Home
 
 ## Using Multiple DS18B20 Sensors on One Bus
 
-By default, the configuration does not specify sensor addresses. This works reliably when one sensor is connected per bus.
+By default the configuration works with one sensor per bus and does not
+require any address configuration. This is the recommended and simplest setup.
 
-If you need multiple sensors on the same bus, you must assign each sensor a fixed address:
+If you need multiple sensors on the same bus, note the following:
 
-### Step 1 — Find sensor addresses
-Add a temporary logger to your YAML and check the ESPHome logs after boot. Each DS18B20 reports its unique 64-bit ROM address on startup, e.g.:
+- Each DS18B20 has a unique 64-bit ROM address that must be used to
+  distinguish sensors on the same bus.
+- Sensor addresses are visible in the ESPHome logs at boot — each
+  discovered sensor reports its ROM address.
+- With multiple sensors per bus, keep each stub ≤ 0.5 m and use
+  daisy-chain topology only.
+- For guidance on configuring multiple sensors, refer to the
+  [ESPHome Dallas Temperature documentation](https://esphome.io/components/sensor/dallas_temp.html).
 
 ## Example Entities
 
@@ -277,6 +395,60 @@ The example configuration below exposes:
 - Firmware Update
 
 Additional OpenTherm entities are available in the full configuration.
+
+## Entity Reference
+
+| Entity | Type | Default | Description |
+|---|---|---|---|
+| Button | Binary Sensor | Enabled | Physical button (GPIO35) |
+| ESP Status | Binary Sensor | Enabled | Wi-Fi / API connection status |
+| Relay | Switch | Enabled | Dry-contact relay output (GPIO32) |
+| Boiler CH Enable | Switch | Enabled | Enable central heating |
+| Boiler DHW Enable | Switch | Enabled | Enable domestic hot water |
+| Boiler CH Setpoint | Number | Enabled | CH flow setpoint 20–80 °C |
+| Boiler DHW Setpoint | Number | Enabled | DHW setpoint 35–65 °C |
+| Boiler Water Temperature | Sensor | Enabled | Boiler flow temperature |
+| Boiler Relative Modulation Level | Sensor | Enabled | Burner modulation % |
+| Boiler Flame On | Binary Sensor | Enabled | Flame active |
+| Boiler CH Active | Binary Sensor | Enabled | CH mode active |
+| Boiler DHW Active | Binary Sensor | Enabled | DHW mode active |
+| Boiler Fault Indication | Binary Sensor | Enabled (diagnostic) | Boiler fault flag |
+| Boiler Service Request | Binary Sensor | Enabled (diagnostic) | Service due |
+| Boiler Lockout Reset | Binary Sensor | Enabled (diagnostic) | Lockout reset flag |
+| Boiler Low Water Pressure | Binary Sensor | Enabled (diagnostic) | Low pressure fault |
+| Boiler Flame Fault | Binary Sensor | Enabled (diagnostic) | Flame sensor fault |
+| Boiler Air Pressure Fault | Binary Sensor | Enabled (diagnostic) | Air pressure fault |
+| Boiler Water Overtemperature | Binary Sensor | Enabled (diagnostic) | Overtemperature fault |
+| Boiler DHW Setpoint Transfer Enabled | Binary Sensor | Enabled (diagnostic) | DHW setpoint transfer capability |
+| Boiler Max CH Setpoint Transfer Enabled | Binary Sensor | Enabled (diagnostic) | Max CH setpoint transfer capability |
+| Boiler DHW Setpoint RW | Binary Sensor | Enabled (diagnostic) | DHW setpoint read/write capability |
+| Boiler Max CH Setpoint RW | Binary Sensor | Enabled (diagnostic) | Max CH setpoint read/write capability |
+| 1-Wire Bus 1 Temperature | Sensor | Enabled | GPIO4 temperature sensor |
+| 1-Wire Bus 2 Temperature | Sensor | Enabled | GPIO5 temperature sensor |
+| Firmware Update | Update | Enabled | Vendor OTA update entity |
+| WiFi Signal | Sensor | Enabled (diagnostic) | RSSI in dBm |
+| ESP IP Address | Text Sensor | Enabled (diagnostic) | Device IP address |
+| ESPHome Version | Text Sensor | Enabled (diagnostic) | Running ESPHome version |
+| ESP Uptime Human | Text Sensor | Enabled (diagnostic) | Human-readable uptime |
+| ESP32 Temperature | Sensor | Enabled (diagnostic) | Internal chip temperature |
+| Boiler Return Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler DHW Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler Outside Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler CH Pressure | Sensor | **Disabled** | Requires boiler support |
+| Boiler DHW Flow Rate | Sensor | **Disabled** | Requires boiler support |
+| Boiler Collector Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler CH2 Flow Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler DHW2 Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler Exhaust Temperature | Sensor | **Disabled** | Requires boiler support |
+| Boiler Max CH Setpoint | Number | **Disabled** | Requires boiler support |
+| Boiler Max Relative Modulation | Number | **Disabled** | Requires boiler support |
+| Boiler OTC Heat Curve Ratio | Number | **Disabled** | Requires boiler support |
+| Boiler Cooling Enable | Switch | **Disabled** | Requires boiler support |
+| Boiler OTC Active | Switch | **Disabled** | Requires boiler support |
+| Boiler CH2 Active | Switch | **Disabled** | Requires boiler support |
+| Boiler Summer Mode Active | Switch | **Disabled** | Requires boiler support |
+| Boiler DHW Block | Switch | **Disabled** | Requires boiler support |
+| Boiler Diagnostic Indication | Binary Sensor | **Disabled** | Extended diagnostic |
 
 ## Full ESPHome Configuration (Shipped Device)
 
