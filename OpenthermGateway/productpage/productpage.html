@@ -8,11 +8,10 @@
           <h2><strong>HomeMaster OpenTherm Gateway</strong></h2>
 
           <p>
-            The <strong>HomeMaster OpenTherm Gateway</strong> is a compact DIN-rail automation controller designed for intelligent integration with OpenTherm-compatible boilers and HVAC systems. It combines OpenTherm communication, one relay output, dual 1-Wire temperature interfaces, and ESP32 connectivity for reliable local control and monitoring.
-          </p>
-
-          <p>
-            Built around the ESP32-WROOM-32U-N16 platform, the module supports multiple power input options (24 V DC, 85-265 V AC, or 120-370 V DC), USB-C programming, and native ESPHome integration with Home Assistant. It is suitable for control-cabinet installations where robust field wiring and local automation are required.
+            The <strong>HomeMaster OpenTherm Gateway</strong> is a compact DIN-rail automation controller designed for intelligent integration with OpenTherm-compatible boilers and HVAC systems.
+            It connects to the OpenTherm bus (OT+ / OT-), provides one relay output, and supports two 1-Wire temperature interfaces for local monitoring and control.
+            The device is built around two internal boards: the MCU Board (ESP32, OpenTherm interface, USB) and the Field Board (power supply, relay output, 1-Wire interfaces).
+            Built on the ESP32-WROOM-32U-N16 platform with native ESPHome support, it is intended for control-cabinet installations with Home Assistant integration.
           </p>
         </div>
 
@@ -74,9 +73,8 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (dual-core)</td></tr>
+            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core)</td></tr>
             <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N) OR 120-370 V DC (L / N + / -)</td></tr>
-            <tr><th scope="row">Digital Inputs</th><td>Not present on this model</td></tr>
             <tr>
               <th scope="row">Relay Output*</th>
               <td>
@@ -85,7 +83,7 @@
               </td>
             </tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 x 1-Wire (DS18B20 compatible)</td></tr>
-            <tr><th scope="row">User Interface</th><td>1 button, 5 LEDs (1 user LED, 1 status LED, RX, TX, Relay state)</td></tr>
+            <tr><th scope="row">User Interface</th><td>4 LEDs (PWR, Status, Relay state, User LED), 1 button</td></tr>
             <tr><th scope="row">Wi-Fi</th><td>Wi-Fi (ESP32)</td></tr>
             <tr><th scope="row">OpenTherm Interface</th><td>1 x OpenTherm bus (OT+ / OT-) with optocoupler isolation</td></tr>
             <tr><th scope="row">USB</th><td>USB-C (ESD protected, CC detection, data to ESP32)</td></tr>
@@ -95,6 +93,35 @@
 
       <p class="plc-caption">
         <strong>Note:</strong> Relay outputs are not internally fused. External overcurrent protection must be provided according to applicable standards and installation requirements.
+      </p>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster OpenTherm Gateway is designed to comply with applicable EU directives.
+        ISYSTEMS AUTOMATION maintains technical documentation and signed DoC for the complete device.
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Safety Notice</h3>
+      <p>
+        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
       </p>
     </div>
 
@@ -172,8 +199,7 @@
 
           <h4 id="fallback-access-point"><strong>Fallback Access Point</strong></h4>
           <p>
-            If the device cannot connect to Wi-Fi, it starts a fallback Access Point:
-            <strong>HomeMaster OT Fallback</strong>.
+            If the device cannot connect to your Wi-Fi network, it automatically starts a fallback Access Point named HomeMaster OT Fallback. This fallback mode is only active when normal Wi-Fi connection fails.
           </p>
           <ol class="plc-steps">
             <li>Power on the device and wait approximately 60 seconds.</li>
@@ -246,7 +272,7 @@
             <tbody>
               <tr>
                 <th scope="row">Schematics</th>
-                <td>MCU and relay board schematics</td>
+                <td>MCU and Field Board schematics</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematic" target="_blank" rel="noopener">Schematic/</a>
                 </td>
@@ -295,6 +321,13 @@
           </table>
         </div>
       </div>
+
+      <p class="plc-callout plc-callout--warning">
+        <strong>Open-Source Hardware &amp; Firmware</strong><br>
+        Hardware design files are licensed under CERN-OHL-W v2.<br>
+        Firmware and ESPHome configuration are licensed under the MIT License.<br>
+        Full source files are available on GitHub.
+      </p>
 
       <p class="plc-docs-footer">
         All design files and documentation are available in the
@@ -386,8 +419,7 @@
       <ul class="plc-list">
         <li>Recommended: shielded 3-core (+5V / DATA / GND).</li>
         <li>High-EMI / long runs: shielded pairs + overall shield (e.g., LI2YCY PiMF 2x2x0.50).</li>
-        <li>Topology: daisy-chain (bus), avoid star wiring.</li>
-        <li>Keep sensor stubs <= 0.5 m.</li>
+        <li>Keep sensor stubs ≤ 0.5 m. Use daisy-chain (bus) topology only — star wiring is not supported.</li>
         <li>DATA pull-up: 4.7 kOhm typical; 2.2-3.3 kOhm for long/heavy loads.</li>
       </ul>
 
@@ -395,7 +427,7 @@
       <ul class="plc-list">
         <li>Use twisted pair cable for OT+ / OT-.</li>
         <li>Overall shield recommended in industrial/noisy cabinets.</li>
-        <li>Examples: J-Y(ST)Y 2x2x0.5 mm2 or LI2YCY PiMF 2x2x0.50.</li>
+        <li>Recommended cable types: J-Y(ST)Y 2×2×0.5 mm² or LI2YCY PiMF 2×2×0.50.</li>
       </ul>
 
       <h4 id="shield-grounding"><strong>Shield Grounding</strong></h4>
@@ -440,33 +472,5 @@
       </ul>
     </div>
 
-    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
-
-      <p>
-        The HomeMaster OpenTherm Gateway is designed to comply with applicable EU directives.
-        ISYSTEMS AUTOMATION maintains technical documentation and signed DoC for the complete device.
-      </p>
-
-      <h3>EU Directives</h3>
-      <p>
-        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
-      </p>
-
-      <h3>Harmonised Standards</h3>
-      <table class="plc-table-compact">
-        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
-        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
-        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
-        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
-      </table>
-
-      <h3>Safety Notice</h3>
-      <p>
-        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
-      </p>
-    </div>
   </div>
 </div>
