@@ -1,3 +1,24 @@
+# HomeMaster OpenTherm Gateway
+
+![Device](./Images/opentherm.png)
+
+**Part No.:** OpenTherm Gateway-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
+
+## Description
+
+The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm-compatible boilers.
+
+The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
+
+This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
+
+For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
+
+- [Product page](https://www.home-master.eu/shop/opentherm-gateway-59)
+- [Repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway)
+- [Datasheet (PDF)](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
+- [Maker](https://www.home-master.eu/)
+
 ## Table of Contents
 
 - [Description](#description)
@@ -8,8 +29,8 @@
 - [Cable Recommendations & Shield Grounding](#cable-recommendations--shield-grounding)
 - [Pinout](#pinout)
 - [Terminal Reference](#terminal-reference)
-- [GPIO Notes](#gpio-notes)
 - [LED and Button Behaviour](#led-and-button-behaviour)
+- [GPIO Notes](#gpio-notes)
 - [Getting Started](#getting-started)
 - [Firmware Updates](#firmware-updates)
 - [Note on Taking Control in ESPHome](#️-note-on-taking-control-in-esphome)
@@ -20,28 +41,8 @@
 - [Using Multiple DS18B20 Sensors](#using-multiple-ds18b20-sensors-on-one-bus)
 - [Example Entities](#example-entities)
 - [Entity Reference](#entity-reference)
-- [Full ESPHome Configuration](#full-esphome-configuration-shipped-device)
+- [Default Firmware Configuration](#default-firmware-configuration)
 - [License](#license)
-
-## HomeMaster OpenTherm Gateway
-
-![Device](./Images/opentherm.png)
-
-## Description
-
-The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm-compatible boilers.
-
-The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
-
-This page includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
-
-For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
-
-- Product page: https://www.home-master.eu/shop/opentherm-gateway-59
-- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
-- Datasheet (PDF): https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
-
-- Maker: https://www.home-master.eu/
 
 ## Features
 
@@ -91,13 +92,17 @@ Use only ONE power input method at a time:
 
 | Input | Terminals | Range |
 |---|---|---|
-| 24 V DC | V+ / 0V | 24 V DC nominal |
+| 24 V DC | +V / 0V | 24 V DC nominal |
 | AC Mains | L / N | 85–265 V AC |
 | Wide DC | L / N | 120–370 V DC |
 
-Wiring diagrams:
-- 24 V DC: ![24V DC wiring](./Images/OpenTherm_24Vdc.png)
-- 230 V AC: ![230V AC wiring](./Images/OpenTherm_230Vac.png)
+**24 V DC input:**
+
+![24V DC wiring](./Images/OpenTherm_24Vdc.png)
+
+**230 V AC input:**
+
+![230V AC wiring](./Images/OpenTherm_230Vac.png)
 
 ### OpenTherm Bus Wiring
 Connect OT+ and OT− between the gateway and the boiler OpenTherm interface.
@@ -176,15 +181,6 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 > ⚠️ Use only ONE power input method at a time (24 V DC or AC/DC L/N).
 > L / N terminals carry hazardous mains voltage — qualified personnel only.
 
-## GPIO Notes
-
-### GPIO5 — 1-Wire Bus 2 (Strapping Pin)
-
-GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
-pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
-level shifter. The strapping requirement is satisfied at power-on before the
-ESP32 initializes — no external pull-up or firmware workaround is needed.
-
 ## LED and Button Behaviour
 
 ### LEDs
@@ -209,6 +205,15 @@ Default behaviour: read-only input — pressing it triggers the `button_1`
 binary sensor.
 You can add automations in ESPHome or Home Assistant to assign actions
 (e.g., restart device, toggle relay).
+
+## GPIO Notes
+
+### GPIO5 — 1-Wire Bus 2 (Strapping Pin)
+
+GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
+pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
+level shifter. The strapping requirement is satisfied at power-on before the
+ESP32 initializes — no external pull-up or firmware workaround is needed.
 
 ## Getting Started
 
@@ -272,11 +277,8 @@ The device also supports vendor-provided firmware updates.
 
 A firmware update entity is exposed in Home Assistant, allowing the device to check for new firmware versions and install updates directly.
 
-This mechanism uses:
-
-- `update.http_request`
-- a hosted firmware manifest
-- OTA firmware downloads over HTTPS
+This mechanism uses the `update.http_request` component with a hosted firmware manifest,
+downloading updates over HTTPS directly to the device.
 
 If a newer firmware version is available, it can be installed directly from Home Assistant.
 
@@ -360,9 +362,9 @@ technical documentation and a signed EU Declaration of Conformity (DoC).
 
 ## 1-Wire Bus Note
 
-- In the provided configuration, the 1-Wire buses do not define fixed sensor `address` values.
-- With this setup, use one sensor per bus (`GPIO4` and `GPIO5`) for predictable operation.
-- If you connect multiple sensors on the same bus, you must set each sensor `address` explicitly in YAML.
+- The provided configuration does not define fixed sensor `address` values.
+- For reliable operation, use one sensor per bus (`GPIO4` and `GPIO5`).
+- If you need multiple sensors on the same bus, see the section below.
 
 ## Using Multiple DS18B20 Sensors on One Bus
 
@@ -382,19 +384,9 @@ If you need multiple sensors on the same bus, note the following:
 
 ## Example Entities
 
-The example configuration below exposes:
-
-- Button
-- Relay
-- Status LED
-- Boiler Water Temperature
-- Boiler Flame On
-- Boiler Fault Indication
-- 1-Wire Bus 1 Temperature
-- 1-Wire Bus 2 Temperature
-- Firmware Update
-
-Additional OpenTherm entities are available in the full configuration.
+The full list of exposed entities is in the [Entity Reference](#entity-reference) table below.
+Core enabled entities include: Button, Relay, Boiler Water Temperature, Boiler Flame On,
+Boiler Fault Indication, 1-Wire Bus 1 & 2 Temperature, and Firmware Update.
 
 ## Entity Reference
 
@@ -450,7 +442,7 @@ Additional OpenTherm entities are available in the full configuration.
 | Boiler DHW Block | Switch | **Disabled** | Requires boiler support |
 | Boiler Diagnostic Indication | Binary Sensor | **Disabled** | Extended diagnostic |
 
-## Full ESPHome Configuration (Shipped Device)
+## Default Firmware Configuration
 
 ```yaml
 esphome:
