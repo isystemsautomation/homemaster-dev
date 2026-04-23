@@ -241,6 +241,7 @@ Use this minimal configuration to connect the device to your network and import 
 ```yaml
 esphome:
   name: homemaster-opentherm
+  name_add_mac_suffix: true
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
@@ -311,6 +312,7 @@ switch:
 ```yaml
 esphome:
   name: homemaster-opentherm
+  name_add_mac_suffix: true
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway

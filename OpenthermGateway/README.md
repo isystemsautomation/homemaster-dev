@@ -172,6 +172,7 @@ Additional OpenTherm entities are available in the full configuration.
 ```yaml
 esphome:
   name: homemaster-opentherm
+  name_add_mac_suffix: true
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
