@@ -185,19 +185,23 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 ### LEDs
 
-The device has 4 LEDs on the front panel: **O.1**, **PWR**, **U.1**, **U.2**.
+The device has 4 LEDs on the front panel: **PWR**, **O.1**, **U.1**, **U.2**.
+O.1 reflects the relay output state. U.2 is the ESPHome status LED (GPIO33).
+U.1 is user-assignable via ESPHome YAML.
 
 | LED | Behaviour | Meaning |
 |---|---|---|
 | PWR | Solid ON | Device is powered |
-| O.1 | Solid ON | Normal operation (Wi-Fi + API connected) |
-| O.1 | Fast blink | Wi-Fi connecting or API disconnected |
-| O.1 | Blink pattern | OTA update in progress |
-| U.1 | Solid ON | Relay is energised |
-| U.2 | Firmware-controlled | Configurable via ESPHome YAML |
+| O.1 | Solid ON | Relay is energised |
+| U.1 | Firmware-controlled | Configurable via ESPHome YAML |
+| U.2 | Solid ON | Normal operation (Wi-Fi + API connected) |
+| U.2 | Fast blink | Wi-Fi connecting or API disconnected |
+| U.2 | Blink pattern | OTA update in progress |
 
-> LED colours are not documented here. Refer to the physical device
-> or BOM for colour details.
+> U.2 is configured as the ESPHome `status_led` (GPIO33) and its behaviour
+> is controlled by ESPHome firmware. U.1 is a user-assignable LED,
+> configurable via ESPHome YAML automations.
+> LED colours are not documented here — refer to the physical device or BOM.
 
 ### Button (GPIO35)
 The physical button is exposed as a binary sensor in ESPHome (`button_1`).
