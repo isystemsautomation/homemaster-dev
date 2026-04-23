@@ -29,6 +29,60 @@ For complete product documentation (connections, compliance/certifications, wiri
 
 - Maker: https://www.home-master.eu/
 
+## Hardware Details
+
+- **MCU:** ESP32-WROOM-32U-N16 (16 MB flash, external antenna connector)
+- **Architecture:** Modular — MCU Board + Relay Board
+- **Part number:** OpenTherm Gateway-R1
+- **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
+
+## Power Input
+
+Use **only one** power input method at a time:
+
+| Method | Terminals | Range |
+|---|---|---|
+| 24V DC | +V / 0V | 24 V DC nominal |
+| AC mains | L / N | 85–265 V AC |
+| Wide DC | L / N | 120–370 V DC |
+
+## Terminal Connections
+
+### Signal terminals (top)
+| Label | Function | GPIO |
+|---|---|---|
+| GND | Ground | — |
+| D1 | 1-Wire Bus 1 | GPIO4 |
+| D2 | 1-Wire Bus 2 | GPIO5 |
+| +5V | Sensor power output | — |
+| OT- | OpenTherm minus | GPIO21 (in) |
+| OT+ | OpenTherm plus | GPIO26 (out) |
+
+### Power and relay terminals (bottom)
+| Label | Function |
+|---|---|
+| 0V / +V | 24V DC input |
+| L / N | AC or wide-range DC input |
+| C / NC | Relay dry contact (GPIO32) |
+
+## Relay Specifications
+
+- 1× SPDT dry-contact relay
+- System limit: **3A @ 250VAC** (resistive)
+- System limit: **90W @ 30VDC**
+- Not internally fused — external overcurrent protection required
+
+## Compliance
+
+CE marked. Complies with:
+- EMC Directive 2014/30/EU
+- LVD Directive 2014/35/EU
+- RED Directive 2014/53/EU
+- RoHS Directive 2011/65/EU
+
+Harmonised standards: EN 61000-6-1, EN 61000-6-3, EN 62368-1, EN 300 328,
+EN 301 489-1, EN 301 489-17, EN IEC 63000
+
 ## Features
 
 - ESP32-WROOM-32U-N16 (16 MB flash)
@@ -191,8 +245,6 @@ opentherm:
   id: ot_bus
   in_pin: GPIO21
   out_pin: GPIO26
-  ch_enable: true
-  dhw_enable: true
 
 one_wire:
   - platform: gpio
@@ -309,8 +361,6 @@ opentherm:
   id: ot_bus
   in_pin: GPIO21
   out_pin: GPIO26
-  ch_enable: true
-  dhw_enable: true
 
 binary_sensor:
   - platform: status
@@ -376,11 +426,11 @@ binary_sensor:
       entity_category: diagnostic
     dhw_setpoint_rw:
       id: ot_dhw_setpoint_rw
-      name: "Boiler DHW Setpoint Read/Write"
+      name: "Boiler DHW Setpoint RW"
       entity_category: diagnostic
     max_ch_setpoint_rw:
       id: ot_max_ch_setpoint_rw
-      name: "Boiler Max CH Setpoint Read/Write"
+      name: "Boiler Max CH Setpoint RW"
       entity_category: diagnostic
 
     # Extended set (model-dependent). Disabled by default.
