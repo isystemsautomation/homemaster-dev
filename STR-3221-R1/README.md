@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![Image](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/photo1.png)
+![Image](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/photo1.png)
 
 
 # 1. Introduction
@@ -64,10 +64,10 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Diagrams & Descriptions |
 |--------------------------|
-| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
-| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
-| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
+| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
+| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
+| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
+| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
 
 ---
 

@@ -20,7 +20,7 @@ The HOMAMASTER MicroPLC is a compact and powerful open-source automation control
 Maker: https://www.home-master.eu/
 
 Product page: https://www.home-master.eu/shop/esp32-microplc-56
-Schematics: https://github.com/isystemsautomation/HOMEMASTER/tree/main/MicroPLC/Schematic
+Schematics: https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematic
 
 ## Features
 
@@ -72,7 +72,7 @@ The MicroPLC supports dashboard import, automatically pulling its official confi
 ### USB Type-C: Use the ESPHome Dashboard to upload the configuration
 
 1. Connect the MicroPLC to your computer with a USB Type-C cable.
-2. Download the YAML configuration file from our GitHub repository.(https://github.com/isystemsautomation/HOMEMASTER/blob/main/MicroPLC/Firmware/microplc.yaml)
+2. Download the YAML configuration file from our GitHub repository.(https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml)
 3. Open the ESPHome Dashboard, import the YAML file, and update it with your Wi-Fi SSID and password.
 4. Flash the device directly from ESPHome Dashboard.
 5. The MicroPLC supports automatic reset and boot control — there is no need to press reset or boot buttons during programming.

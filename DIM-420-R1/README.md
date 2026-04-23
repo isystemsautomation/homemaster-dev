@@ -18,7 +18,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
@@ -323,7 +323,7 @@ Connect regulated **24 VDC (SELV)** to the top‑left POWER terminals `V+` and
 This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
 </div>
 
 ---
@@ -335,7 +335,7 @@ Each input has its own paired **Gnd** and must be wired independently.
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
 </div>
 
 > Tip: keep DI wiring separate from mains cabling and provide strain relief.
@@ -352,7 +352,7 @@ Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
 - Defaults: **Slave ID 3**, **19200 baud**, **8N1** (change in WebConfig)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
 </div>
 
 ---
@@ -378,7 +378,7 @@ You can configure the DIM‑420‑R1 entirely from a Chromium browser using **We
 > [https://www.home-master.eu/configtool-dim-420-r1](https://www.home-master.eu/configtool-dim-420-r1)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
 </div>
 
 ---
@@ -409,7 +409,7 @@ A live **Serial Log** keeps the last 5 messages for quick feedback.
 Each dimmer channel can be configured for its intended load and behavior:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/webconfig2.png" width="880" alt="Channel configuration">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig2.png" width="880" alt="Channel configuration">
 </div>
 
 - **AC Presence / Frequency** badges confirm input signal quality.
@@ -428,7 +428,7 @@ Changes apply instantly and persist to flash ~1.5s after the last edit.
 Configure press logic, target channels, and press actions:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/webconfig3.png" width="880" alt="Digital input mappings">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig3.png" width="880" alt="Digital input mappings">
 </div>
 
 - Input mode: Momentary or Latching
@@ -444,7 +444,7 @@ Each DI has its own mapping per event and an optional invert.
 Configure onboard pushbuttons and indicator LEDs:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
 </div>
 
 - **Buttons:** Trigger actions like Toggle CH1, Ramp up/down, MAX preset.
@@ -532,7 +532,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
 </div>
 
 ---
@@ -738,7 +738,7 @@ Add the DIM‑420‑R1 using the official GitHub YAML:
 ```yaml
 packages:
   dim1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
@@ -852,7 +852,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 ### Button Mapping (Front Panel)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/DIM-420-R1/Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
 </div>
 
 | Button | Label | Default Function | Special Use                         |
@@ -939,12 +939,12 @@ See LICENSE files in each directory for full terms.
 
 | Item               | Link                                                                 |
 |--------------------|----------------------------------------------------------------------|
-| **Firmware Source**   | [`/Firmware/default_DIM_420_R1`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Firmware/default_DIM_420_R1) |
-| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
+| **Firmware Source**   | [`/Firmware/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/default_DIM_420_R1) |
+| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
 | **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
-| **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Schematics) |
+| **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Schematics) |
 | **Mechanical Images** | See `/Images/` in repo                                             |
-| **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Manuals) |
+| **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Manuals) |
 
 ---
 

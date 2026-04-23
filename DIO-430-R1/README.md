@@ -19,7 +19,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/photo1.png)
+![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/photo1.png)
 
 ---
 
@@ -65,10 +65,10 @@ The module’s logic (input→relay mapping, LED modes, button behavior) is stor
 
 System overview, board callouts, and pin mapping:
 
-- ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
-- ![Control Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
-- ![Relay Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
-- ![RP2350A Pin Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
+- ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
+- ![Control Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
+- ![Relay Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
+- ![RP2350A Pin Map](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
 
 ---
 
@@ -146,7 +146,7 @@ System overview, board callouts, and pin mapping:
 | Ingress Protection | IP20 (panel interior) |
 | Operating Temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
 
-![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
+![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
 
 ---
 
@@ -408,7 +408,7 @@ This section shows typical wiring for **power**, **inputs**, **relays**, **RS-48
 
 Wire the regulated **24 VDC** supply to the top POWER terminals: **V+** and **0V**.
 
-![24Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png)
+![24Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png)
 
 **Notes**
 - Keep V+/0V as a twisted pair; route away from motor cables/contactors.
@@ -420,7 +420,7 @@ Wire the regulated **24 VDC** supply to the top POWER terminals: **V+** and **0V
 
 Each input is **isolated**. Land the contact/sensor on **INx** with the paired **GNDx** return.
 
-![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
+![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
 
 **Tips**
 - Supports **dry contacts** or compatible 24 V field signals.
@@ -433,7 +433,7 @@ Each input is **isolated**. Land the contact/sensor on **INx** with the paired *
 
 Relays provide **dry SPDT contacts** (**NO/NC/COM**) for switching low-voltage loads **or** driving an **interposing contactor** for mains/inductive loads.
 
-![Relay wiring example](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png)
+![Relay wiring example](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png)
 
 **Best practices**
 - Add **RC/MOV snubbers** across inductive loads (fans, pumps, contactors).
@@ -453,7 +453,7 @@ This module **does not export** auxiliary 12 V/5 V rails for field devices.
 
 The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded twisted pair and daisy-chain topology.
 
-![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png)
+![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png)
 
 **Checklist**
 - Wire **A→A**, **B→B**, and share **COM/GND** with the controller.
@@ -473,7 +473,7 @@ Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O
 
 > Screens shown below are from the DIO-430-R1 WebConfig. 
 
-![WebConfig — Header & Modbus](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
+![WebConfig — Header & Modbus](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
 
 ### A) WebConfig setup (Address & Baud)
 1. Connect the module via **USB-C** → open the WebConfig page → click **Connect**.   
@@ -485,7 +485,7 @@ Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O
 
 ---
 
-![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
+![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
 
 ### B) Inputs — enable / invert / group (control target)
 Each **IN1…IN4** card provides:
@@ -502,7 +502,7 @@ This matches the firmware’s input options and allows direct mapping from input
 
 ---
 
-![WebConfig — Relays, Buttons, LEDs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
+![WebConfig — Relays, Buttons, LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
 
 ### C) Relays — logic mode (group/manual)
 For **Relay 1–3**:
@@ -758,7 +758,7 @@ modbus:
 
 packages:
   dio1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
@@ -911,7 +911,7 @@ sensor:
 
 **Button layout (front panel):**  
 
-  ![Button Layout 1‑2‑3](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/buttons1.png)
+  ![Button Layout 1‑2‑3](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/buttons1.png)
 
 **Combinations**
 - **2 + 3 → BOOT mode** (enter bootloader for flashing)
@@ -1012,16 +1012,16 @@ See LICENSE files in each directory for full terms.
 # 11. Downloads
 
 - **Firmware binaries**  
-  - Default UF2: [`DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350)
+  - Default UF2: [`DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350)
 - **YAML configs (ESPHome)**  
-  - Package & examples: [`DIO-430-R1/Firmware/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_dio_430_r1_plc)
+  - Package & examples: [`DIO-430-R1/Firmware/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS)**  
-  - [`DIO-430-R1/Firmware/ConfigToolPage.html`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html)
+  - [`DIO-430-R1/Firmware/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html)
 - **Schematics (PDF)**  
-  - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
-  - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
+  - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
+  - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
 - **Images & diagrams**  
-  - [`DIO-430-R1/Images/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Images)
+  - [`DIO-430-R1/Images/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Images)
 - **Datasheets**  
   - Refer to the `Schematics/` folder BOM notes for part numbers (e.g., ISO1212, MAX485, HF115F).
 

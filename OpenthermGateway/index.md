@@ -4,7 +4,7 @@ date-published: 2025-08-19
 type: relay
 standard: global
 board: esp32
-project-url: https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway
+project-url: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
 made-for-esphome: True
 difficulty: 1
 ---
@@ -24,8 +24,8 @@ This page includes the full ESPHome configuration used on shipped devices (inclu
 For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
 
 - Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
-- Repository: https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway
-- Datasheet (PDF): https://github.com/isystemsautomation/HOMEMASTER/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
+- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
+- Datasheet (PDF): https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf
 
 - Maker: https://www.home-master.eu/
 
@@ -184,7 +184,7 @@ esp32_improv:
 improv_serial:
 
 dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
+  package_import_url: github://isystemsautomation/homemaster-dev/OpenthermGateway/Firmware/opentherm.yaml@main
   import_full_config: true
 
 opentherm:
@@ -289,7 +289,7 @@ esp32_improv:
 improv_serial:
 
 dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
+  package_import_url: github://isystemsautomation/homemaster-dev/OpenthermGateway/Firmware/opentherm.yaml@main
   import_full_config: true
 
 http_request:

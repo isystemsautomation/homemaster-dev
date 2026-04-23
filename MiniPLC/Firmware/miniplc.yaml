@@ -61,7 +61,7 @@ esp32_improv:
   authorizer: none                      # No additional authorization required for Improv
 
 dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/MiniPLC/Firmware/miniplc.yaml@main
+  package_import_url: github://isystemsautomation/homemaster-dev/MiniPLC/Firmware/miniplc.yaml@main
   import_full_config: true   # Allows importing this YAML from GitHub into ESPHome Dashboard
 
 #ethernet:

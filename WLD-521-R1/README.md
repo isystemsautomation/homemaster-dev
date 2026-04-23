@@ -1041,7 +1041,7 @@ modbus:
 
 packages:
   wld1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml

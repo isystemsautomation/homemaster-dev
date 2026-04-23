@@ -2,7 +2,7 @@
 <p><img src="https://img.shields.io/badge/Firmware-2025--10-blue" alt="Firmware Version"><br><img src="https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen" alt="Modbus"><br><img src="https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue" alt="License"></p>
 <h4>ALM-173-R1 Module for Alarm Systems</h4>
 <p><strong>HOMEMASTER – Modular control. Custom logic.</strong></p>
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="ALM-173-R1 module photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="ALM-173-R1 module photo">
 
 <h6>Module Description</h6>
 <p>The <strong>ALM-173-R1</strong> is a configurable <strong>alarm I/O module</strong> with <strong>17 opto-isolated inputs</strong>, <strong>3 SPDT relays</strong>, plus <strong>4 buttons</strong> and <strong>4 LEDs</strong> for on-panel control. It connects to a <strong>MicroPLC/MiniPLC</strong> via <strong>RS-485 (Modbus RTU)</strong> and is set up through a USB-C <strong>WebConfig</strong> UI (Web Serial) to define Modbus params, invert/enable inputs, group them into <strong>three alarm groups</strong> (latched or momentary), map groups to relays, assign button roles (acknowledge, manual relay override), and choose LED modes—with live status and quick <strong>device reset</strong>. The design features a <strong>galvanically isolated field side</strong>, and an <strong>RP2350 MCU</strong> with <strong>MAX485</strong> and <strong>PCF8574</strong> expanders running from <strong>24 V</strong>. Modbus registers expose inputs, group/alarm bits, and relay states, making integration with <strong>Home Assistant</strong> straightforward.</p>
@@ -537,7 +537,7 @@
 <p>⚠️ <strong>Qualified personnel only.</strong> De-energize the panel; verify with a meter. The ALM-173-R1 is <strong>SELV</strong>—never connect mains to logic/input terminals.</p>
 </blockquote>
 <h6>4.4.1 RS‑485 Field Bus</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_RS485Connection.png" alt="RS‑485 wiring"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_RS485Connection.png" alt="RS‑485 wiring"></p>
 <p><strong>How</strong></p>
 <ol>
 <li>Shielded twisted pair (24–22 AWG recommended).</li>
@@ -547,7 +547,7 @@
 <li>Daisy-chain topology preferred (avoid stars).</li>
 </ol>
 <h6>4.4.2 Primary Power (24 VDC)</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_24Vdc_PowerSupply.png" alt="24 VDC power"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_24Vdc_PowerSupply.png" alt="24 VDC power"></p>
 <p><strong>How</strong></p>
 <ul>
 <li>Clean SELV <strong>24 VDC</strong> to <strong>V+ / 0V</strong>.</li>
@@ -555,7 +555,7 @@
 <li>Upstream fuse/breaker; proper panel bonding.</li>
 </ul>
 <h6>4.4.3 Digital Inputs (IN1…IN17)</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_DigitalInputs.png" alt="Digital Inputs"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_DigitalInputs.png" alt="Digital Inputs"></p>
 <p><strong>How</strong></p>
 <ul>
 <li>Wire each <strong>INx</strong> to its matching <strong>GND I.x</strong> return (dry contact / isolated low-voltage).</li>
@@ -564,7 +564,7 @@
 <li>Set <strong>Enable / Invert / Group</strong> in WebConfig; confirm via live dot.</li>
 </ul>
 <h6>4.4.4 Relays (RLY1…RLY3, COM/NO/NC)</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_RelayConnection.png" alt="Relays"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_RelayConnection.png" alt="Relays"></p>
 <p><strong>How</strong></p>
 <ol>
 <li>External supply <strong>L</strong> → <strong>COM</strong>.</li>
@@ -585,7 +585,7 @@
 <p><a id="software-ui-configuration"></a></p>
 <h5>4.5 Software &amp; UI Configuration</h5>
 <h6>4.5.1 Connect</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig1.png" alt="Active Modbus Configuration"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig1.png" alt="Active Modbus Configuration"></p>
 <ol>
 <li>Plug <strong>USB‑C</strong> → 2) open the config page → 3) <strong>Connect</strong> → 4) verify <strong>Active Modbus Configuration</strong> in header → 5) use <strong>Serial Log</strong> / optional <strong>Reset Device</strong>.</li>
 </ol>
@@ -604,16 +604,16 @@
 <li><strong>Active while condition is active</strong> (momentary)</li>
 <li><strong>Latched until acknowledged</strong></li>
 </ul>
-<p>Top-row indicators show live <strong>Any / G1 / G2 / G3</strong> status.<br><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig2.png" alt="Alarm modes panel"></p>
+<p>Top-row indicators show live <strong>Any / G1 / G2 / G3</strong> status.<br><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig2.png" alt="Alarm modes panel"></p>
 <h6>4.5.4 Digital Inputs</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig3.png" alt="Inputs"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig3.png" alt="Inputs"></p>
 <p>For each <strong>IN1…IN17</strong>:</p>
 <ul>
 <li><strong>Enabled</strong>, <strong>Inverted</strong> (for NC), <strong>Alarm Group</strong> (<em>None/1/2/3</em>).</li>
 <li>Live state dot = quick wiring check.</li>
 </ul>
 <h6>4.5.5 Relays</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig4.png" alt="Relays"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig4.png" alt="Relays"></p>
 <p>For <strong>RLY1…RLY3</strong>:</p>
 <ul>
 <li><strong>Enabled</strong>, <strong>Inverted</strong>, <strong>Alarm Group</strong>:<ul>
@@ -627,7 +627,7 @@
 <p>Tip: assign a <strong>Button</strong> to “Relay x override (manual)” for quick field tests.</p>
 </blockquote>
 <h6>4.5.6 LEDs &amp; Buttons</h6>
-<p><img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig5.png" alt="LEDs"></p>
+<p><img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig5.png" alt="LEDs"></p>
 <p><strong>LEDs (1–4)</strong>  </p>
 <ul>
 <li><strong>Mode:</strong> Steady / Blink  </li>
@@ -681,21 +681,21 @@
     <tr>
       <td align="center">
         <strong>ALM System Diagram</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
       </td>
       <td align="center">
         <strong>RP2350 MCU Pinout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
       </td>
     </tr>
     <tr>
       <td align="center">
         <strong>Field Board Layout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
       </td>
       <td align="center">
         <strong>MCU Board Layout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
       </td>
     </tr>
   </table>
@@ -755,7 +755,7 @@
 </tbody></table>
 <hr>
 <h5>5.4 Terminals &amp; Pinout (Field Side)</h5>
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module front with terminal labeling">
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module front with terminal labeling">
 
 <h6>Connector Map (front label reference)</h6>
 <blockquote>
@@ -1019,7 +1019,7 @@
 </ul>
 <h6>Enclosure Dimensions</h6>
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ALMMDimensions.png" alt="ALM-173-R1 Dimensions" width="660">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ALMMDimensions.png" alt="ALM-173-R1 Dimensions" width="660">
   <p><em>ALM-173-R1 Physical Dimensions (DIN-rail enclosure)</em></p>
 </div>
 
@@ -1358,7 +1358,7 @@ modbus:
 
 packages:
   alm1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
@@ -1473,7 +1473,7 @@ packages:
 </blockquote>
 <p>📷 <strong>Button numbering reference:</strong></p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/buttons1.png" alt="Button Layout" width="320">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/buttons1.png" alt="Button Layout" width="320">
 </p>
 
 

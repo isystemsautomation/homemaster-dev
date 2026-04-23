@@ -103,7 +103,7 @@ Once connected to Wi-Fi, the MiniPLC is automatically discovered in the ESPHome 
 ### USB Type-C Manual Flashing (Optional)
 
 1. Connect the MiniPLC to your computer using USB Type-C.
-2. Download the official YAML configuration: [miniplc.yaml](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Firmware/miniplc.yaml)
+2. Download the official YAML configuration: [miniplc.yaml](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Firmware/miniplc.yaml)
 3. Open ESPHome Dashboard and import the YAML file.
 4. Update Wi-Fi credentials in the YAML.
 5. Flash directly from ESPHome (no reset or boot buttons required).
@@ -125,26 +125,26 @@ The MiniPLC is open-source hardware. You can build your own board using the file
 
 | File | Description | Link |
 |------|-------------|------|
-| **Schematic (MCU Board)** | Main controller board schematic | [MCU_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/MCU_Board.pdf) |
-| **Schematic (Relay Board)** | Relay and power section schematic | [Relay_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/Relay_Board.pdf) |
-| **Schematic (USB Board)** | USB-C interface and power management | [USB_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/USB_Board.pdf) |
+| **Schematic (MCU Board)** | Main controller board schematic | [MCU_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Schematic/MCU_Board.pdf) |
+| **Schematic (Relay Board)** | Relay and power section schematic | [Relay_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Schematic/Relay_Board.pdf) |
+| **Schematic (USB Board)** | USB-C interface and power management | [USB_Board.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Schematic/USB_Board.pdf) |
 
 ### Firmware & Software
 
 | Resource | Description | Link |
 |----------|-------------|------|
-| **Default ESPHome Config** | Pre-configured YAML for Home Assistant | [miniplc.yaml](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Firmware/miniplc.yaml) |
-| **Firmware Source Code** | Latest firmware builds and source | [Firmware/](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Firmware/) |
-| **ESPHome Integration Guide** | Complete setup instructions | [README.md](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/README.md) |
+| **Default ESPHome Config** | Pre-configured YAML for Home Assistant | [miniplc.yaml](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Firmware/miniplc.yaml) |
+| **Firmware Source Code** | Latest firmware builds and source | [Firmware/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC/Firmware/) |
+| **ESPHome Integration Guide** | Complete setup instructions | [README.md](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC/README.md) |
 
 ### Manuals & Datasheets
 
 | Document | Description | Link |
 |----------|-------------|------|
-| **Datasheet** | Technical specifications and ratings | [Datasheet.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/Datasheet.pdf) |
-| **User Manual** | Installation and configuration guide | [User_Manual.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/User_Manual.pdf) |
+| **Datasheet** | Technical specifications and ratings | [Datasheet.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Manuals/Datasheet.pdf) |
+| **User Manual** | Installation and configuration guide | [User_Manual.pdf](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/MiniPLC/Manuals/User_Manual.pdf) |
 
-All design files and documentation are available in the [HomeMaster GitHub repository](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC).
+All design files and documentation are available in the [HomeMaster GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC).
 
 ## Power Supply
 
@@ -558,7 +558,7 @@ The HomeMaster MiniPLC has **ESPHome preinstalled**, and the behavior is defined
 
 The default configuration can be downloaded from GitHub:
 
-- [`miniplc.yaml` on GitHub](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Firmware/miniplc.yaml)
+- [`miniplc.yaml` on GitHub](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Firmware/miniplc.yaml)
 
 The default configuration includes all essential components enabled, while optional features such as Ethernet, RTD temperature sensors, 1-Wire sensors, microSD card, and web server are commented out. To enable any optional feature, remove the `#` comment markers from the beginning of the relevant configuration block and adjust parameters as needed for your specific installation.
 
@@ -722,7 +722,7 @@ modbus:
 
 packages:
   dio1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
@@ -1239,7 +1239,7 @@ sensor:
 ## Links
 
 - **Product Page:** [home-master.eu/shop/esp32-miniplc-55](https://www.home-master.eu/shop/esp32-miniplc-55)
-- **GitHub Repository:** [github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC)
+- **GitHub Repository:** [github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC)
 - **Manufacturer:** [home-master.eu](https://www.home-master.eu/)
 
 ## License

@@ -18,7 +18,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/photo1.png)
+![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
 # 1. Introduction
 
@@ -85,10 +85,10 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 | Diagram |
 |---|
-| ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB_DIagramBlock.png) **System Block Diagram** |
-| ![RP2350A Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png) **RP2350A MCU Pinout** |
-| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png) **Field Board Layout** |
-| ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png) **MCU Board Layout** |
+| ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DIagramBlock.png) **System Block Diagram** |
+| ![RP2350A Pinouts](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png) **RP2350A MCU Pinout** |
+| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png) **Field Board Layout** |
+| ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png) **MCU Board Layout** |
 
 ---
 
@@ -118,7 +118,7 @@ RGB + CCT LED controller with:
 
 ## 2.4 Terminals & Pinout
 
-![Front Terminals](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/photo1.png)
+![Front Terminals](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
 **Top:** V+/0 V (24 V DC input), Relay C/NO, Inputs I1/I2 (+ GND)  
 **Bottom:** PWM R/G/B/CW/WW (24 V COM +), RS-485 A/B (+ COM opt.)
@@ -145,7 +145,7 @@ RGB + CCT LED controller with:
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
 
-![Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB-620-R1Dimensions.png)
+![Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB-620-R1Dimensions.png)
 
 ---
 
@@ -563,7 +563,7 @@ Only if supported. Cover:
 
 **Buttons reference (RGB-621-R1 front)**
 
-  ![Button 1 and Button 2 positions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/buttons1.png)
+  ![Button 1 and Button 2 positions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/buttons1.png)
 
 - **Button 1 + Button 2** → **BOOT mode**  
 - **Reset** → **power-cycle 24 VDC for ≥5 s**
@@ -634,7 +634,7 @@ See LICENSE files in each directory for full terms.
 # 11. Downloads
 
 - **Repository (module path):**  
-  [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1)
+  [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
 - **WebConfig (HTML page):** `RGB-621-R1/Firmware/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`

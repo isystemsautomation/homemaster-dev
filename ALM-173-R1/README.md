@@ -18,7 +18,7 @@
 
 # 1. Overview & Description
 
-![ALM-173-R1 module photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
+![ALM-173-R1 module photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
 The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detection**, **fault annunciation**, and **local supervision**. It integrates with a **MicroPLC/MiniPLC** or any Modbus master over **RS-485 (Modbus RTU)** and is configured via a USB-C **WebConfig** UI (Web Serial).
 
@@ -64,11 +64,11 @@ The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detect
 
 | ALM System Diagram | RP2350 MCU Pinout |
 | --- | --- |
-| ![ALM System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png) | ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png) |
+| ![ALM System Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png) | ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png) |
 
 | Field Board Layout | MCU Board Layout |
 | --- | --- |
-| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png) | ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png) |
+| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png) | ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png) |
 
 ## 2.2 Quick Overview
 - **Function:** Alarm/annunciator I/O with **17 opto DI** + **3 SPDT relays**  
@@ -88,7 +88,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detect
 | **Service** | 1 | **USB-C** (config/diagnostics). |
 
 ## 2.4 Terminals & Pinout (Field Side)
-![Terminal labeling](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
+![Terminal labeling](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
 **Blocks:**  
 - **POWER:** V+, 0V (24 VDC SELV)  
@@ -119,7 +119,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detect
 - **DIN-rail:** EN 50022, 35 mm; **PC/ABS V-0** enclosure  
 - **Size / mass:** **157.4 × 91 × 58.4 mm**, ~**420 g**  
 - **Dimensions drawing:**  
-  ![Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALMMDimensions.png)  
+  ![Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALMMDimensions.png)  
 - **Environmental:** **IP20**, Type 1; impulse 2.5 kV; altitude ≤ 2000 m; pollution degree 2
 
 ## 2.8 Protections & Firmware (Brief)
@@ -390,7 +390,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 > ⚠️ **Qualified personnel only.** De-energize the panel; verify with a meter. The ALM-173-R1 is **SELV**—never connect mains to logic/input terminals.
 
 ### 5.4.1 RS‑485 Field Bus
-![RS‑485 wiring](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_RS485Connection.png)
+![RS‑485 wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_RS485Connection.png)
 
 **How**
 1. Shielded twisted pair (24–22 AWG recommended).
@@ -400,7 +400,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 5. Daisy-chain topology preferred (avoid stars).
 
 ### 5.4.2 Primary Power (24 VDC)
-![24 VDC power](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png)
+![24 VDC power](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png)
 
 **How**
 - Clean SELV **24 VDC** to **V+ / 0V**.
@@ -408,7 +408,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 - Upstream fuse/breaker; proper panel bonding.
 
 ### 5.4.3 Digital Inputs (IN1…IN17)
-![Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_DigitalInputs.png)
+![Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_DigitalInputs.png)
 
 **How**
 - Wire each **INx** to its matching **GND I.x** return (dry contact / isolated low-voltage).
@@ -417,7 +417,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 - Set **Enable / Invert / Group** in WebConfig; confirm via live dot.
 
 ### 4.4.4 Relays (RLY1…RLY3, COM/NO/NC)
-![Relays](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_RelayConnection.png)
+![Relays](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_RelayConnection.png)
 
 **How**
 1. External supply **L** → **COM**.
@@ -438,7 +438,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 ## 5.5 Software & UI Configuration
 
 ### 5.5.1 Connect
-![Active Modbus Configuration](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/webconfig1.png)
+![Active Modbus Configuration](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig1.png)
 
 1) Plug **USB‑C** → 2) open the config page → 3) **Connect** → 4) verify **Active Modbus Configuration** in header → 5) use **Serial Log** / optional **Reset Device**.
 
@@ -455,17 +455,17 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 - **Latched until acknowledged**
 
 Top-row indicators show live **Any / G1 / G2 / G3** status.  
-![Alarm modes panel](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/webconfig2.png)
+![Alarm modes panel](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig2.png)
 
 ### 4.5.4 Digital Inputs
-![Inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/webconfig3.png)
+![Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig3.png)
 
 For each **IN1…IN17**:
 - **Enabled**, **Inverted** (for NC), **Alarm Group** (*None/1/2/3*).
 - Live state dot = quick wiring check.
 
 ### 5.5.5 Relays
-![Relays](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/webconfig4.png)
+![Relays](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig4.png)
 
 For **RLY1…RLY3**:
 - **Enabled**, **Inverted**, **Alarm Group**:
@@ -476,7 +476,7 @@ For **RLY1…RLY3**:
 > Tip: assign a **Button** to “Relay x override (manual)” for quick field tests.
 
 ### 4.5.6 LEDs & Buttons
-![LEDs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/webconfig5.png)
+![LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig5.png)
 
 **LEDs (1–4)**  
 - **Mode:** Steady / Blink  
@@ -715,7 +715,7 @@ modbus:
 
 packages:
   alm1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
+    url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
       - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
@@ -826,7 +826,7 @@ These appear as ESPHome switches/scripts usable in HA automations.
 
 📷 **Button numbering reference:**
 
-  ![Button Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/buttons1.png)
+  ![Button Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/buttons1.png)
 
 ## 8.4 Firmware Updates
 
