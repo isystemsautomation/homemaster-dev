@@ -1,38 +1,6 @@
 <div class="hm-plc">
   <div class="plc-wrap">
 
-    <!-- ===================== HERO / OVERVIEW ===================== -->
-    <div class="plc-section plc-hero plc-hero--v2">
-      <div class="plc-grid plc-hero-grid">
-        <div class="plc-copy">
-          <h2><strong>HomeMaster OpenTherm Gateway</strong></h2>
-
-          <p>
-            The <strong>HomeMaster OpenTherm Gateway</strong> is a compact DIN-rail automation controller designed for intelligent integration with OpenTherm-compatible boilers and HVAC systems.
-            It connects to the OpenTherm bus (OT+ / OT-), provides one relay output, and supports two 1-Wire temperature interfaces for local monitoring and control.
-            The device is built around two internal boards: the MCU Board (ESP32, OpenTherm interface, USB) and the Field Board (power supply, relay output, 1-Wire interfaces).
-            Built on the ESP32-WROOM-32U-N16 platform with native ESPHome support, it is intended for control-cabinet installations with Home Assistant integration.
-          </p>
-        </div>
-
-        <div class="plc-rail">
-          <div class="plc-img plc-heroimg">
-            <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/opentherm.png"
-              alt="HomeMaster OpenTherm Gateway DIN-rail controller"
-              loading="lazy"
-              width="800"
-              height="600"
-              decoding="async"
-            >
-            <div class="plc-caption">
-              DIN rail • OpenTherm • ESP32 • 24 V DC / AC-DC wide input • Home Assistant
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
     <div class="plc-section">
       <div class="plc-grid plc-hero-grid">
@@ -84,7 +52,7 @@
               </td>
             </tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 x 1-Wire (DS18B20 compatible)</td></tr>
-            <tr><th scope="row">User Interface</th><td>4 LEDs (PWR, Status, Relay state, User LED), 1 button</td></tr>
+            <tr><th scope="row">User Interface</th><td>4 LEDs (PWR, O.1, U.1, U.2), 1 button</td></tr>
             <tr><th scope="row">Wi-Fi</th><td>Wi-Fi 2.4 GHz (ESP32, pre-certified radio module)</td></tr>
             <tr><th scope="row">OpenTherm Interface</th><td>1 x OpenTherm bus (OT+ / OT-) with optocoupler isolation</td></tr>
             <tr><th scope="row">USB</th><td>USB-C (ESD protected, CC detection, data to ESP32)</td></tr>
@@ -150,22 +118,22 @@
           <tbody>
             <tr><th scope="row" rowspan="6">Terminal Specifications</th><td>Terminal type</td><td>Pluggable screw terminal blocks, 5.08 mm pitch</td></tr>
             <tr><td>Terminal pitch</td><td>5.08 mm</td></tr>
-            <tr><td>Wire cross-section</td><td>0.2-2.5 mm2 (AWG 24-12)</td></tr>
+            <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
             <tr><td>Conductor type</td><td>Solid or stranded copper</td></tr>
             <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
             <tr><td>Tightening torque</td><td>0.4 Nm (max)</td></tr>
 
             <tr><th scope="row" rowspan="6">Environmental Ratings</th><td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
             <tr><td>Storage temperature</td><td>-10 °C to 55 °C</td></tr>
-            <tr><td>Relative humidity</td><td>0-90 % RH, non-condensing</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
             <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
             <tr><td>Installation</td><td>Indoor control cabinet only; not for outdoor or exposed installation</td></tr>
             <tr><td>Terminal protection</td><td>All wiring terminals must be protected against accidental contact</td></tr>
 
-            <tr><th scope="row" rowspan="6">Mechanical &amp; Packaging</th><td>Product dimensions</td><td><strong>35.5 x 90.6 x 67.3 mm</strong> (L x W x H)</td></tr>
+            <tr><th scope="row" rowspan="6">Mechanical &amp; Packaging</th><td>Product dimensions</td><td><strong>35.5 × 90.6 × 67.3 mm</strong> (L × W × H)</td></tr>
             <tr><td>DIN units</td><td>2 division units (approximately 36 mm DIN rail mounting width)</td></tr>
             <tr><td>Mounting</td><td>35 mm DIN rail</td></tr>
-            <tr><td>Pack size</td><td>140 x 96 x 95 mm (L x W x H)</td></tr>
+            <tr><td>Pack size</td><td>140 × 96 × 95 mm (L × W × H)</td></tr>
             <tr><td>Mechanical drawing</td><td>Front + side views with DIN-clip depth</td></tr>
             <tr><td>Notes</td><td>All dimensions shown in millimeters unless stated otherwise</td></tr>
           </tbody>
