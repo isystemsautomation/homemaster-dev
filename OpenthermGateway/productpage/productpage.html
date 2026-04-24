@@ -4,7 +4,7 @@
     <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
     <div class="plc-section">
       <h2><strong>HomeMaster OpenTherm Gateway</strong></h2>
-      <p class="plc-tagline"><em>Any boiler. Any installation. Full local control.</em></p>
+      <p class="plc-tagline"><em>OpenTherm or relay. Local control. No cloud. No lock-in.</em></p>
       <div class="plc-grid plc-hero-grid">
         <div class="plc-copy">
           <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
@@ -12,8 +12,8 @@
             <li>OpenTherm interface — full boiler modulation, setpoints, fault monitoring and flame status</li>
             <li>Relay output — controls zone valves, pumps, 2-way and 3-way valves, or switches on/off boilers without OpenTherm</li>
             <li>Dual 1-Wire temperature inputs — monitor flow, return, buffer tank or room temperature</li>
-            <li>Works with any boiler — OpenTherm modulation or simple relay switching</li>
-            <li>100% local — no cloud, no subscription, no account</li>
+            <li>Works with OpenTherm boilers (full modulation) and legacy on/off boilers (relay fallback)</li>
+            <li>No cloud, no vendor lock-in — fully local control via Home Assistant</li>
             <li>Native Home Assistant integration via ESPHome</li>
             <li>Wide power input: 24 V DC or 85–265 V AC</li>
             <li>DIN-rail cabinet installation — professional grade</li>
@@ -69,42 +69,6 @@
 
       <p class="plc-caption">
         <strong>Note:</strong> Relay outputs are not internally fused. External overcurrent protection must be provided according to applicable standards and installation requirements.
-      </p>
-    </div>
-
-    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
-
-      <p>
-        The HomeMaster OpenTherm Gateway is designed to comply with applicable EU directives.
-        ISYSTEMS AUTOMATION maintains technical documentation and signed DoC for the complete device.
-      </p>
-
-      <h3>EU Directives</h3>
-      <p>
-        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
-      </p>
-
-      <h3>Harmonised Standards</h3>
-      <table class="plc-table-compact">
-        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
-        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
-        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
-        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
-      </table>
-
-      <h3>Radio</h3>
-      <p>
-        The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
-        Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
-        by the maintained technical documentation and conformity assessment of the complete device.
-      </p>
-
-      <h3>Safety Notice</h3>
-      <p>
-        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
       </p>
     </div>
 
@@ -326,7 +290,7 @@
     <div class="plc-section">
       <h2 id="cabling-wirings"><strong>Cabling and Wirings</strong></h2>
 
-      <h3 id="power-supply"><strong>Power Supply Options</strong></h3>
+      <h3 id="power-supply"><strong>Power Supply</strong></h3>
       <p>
         The OpenTherm Gateway supports three input options: <strong>24 V DC (V+ / 0V)</strong>, <strong>85-265 V AC (L / N)</strong>, or <strong>120-370 V DC (L / N + / -)</strong>. Use only one power input method at a time.
       </p>
@@ -347,6 +311,7 @@
       </div>
 
       <h3 id="relay-wiring"><strong>Relay Output Wiring</strong></h3>
+      <p>For boilers without OpenTherm, use the relay output to switch the boiler on/off. Also used to control zone valves, circulation pumps, or two-way and three-way valves.</p>
       <p>
         The relay output exposes <strong>C and NC contacts only</strong> (normally-closed) and can be used to switch external actuators (zone valves, pumps, backup heaters) through proper external protection devices.
         System load limits: <strong>3 A @ 250 VAC</strong> (resistive, system limit) · <strong>750 VA @ 250 VAC</strong> maximum · <strong>90 W @ 30 VDC</strong> maximum.
@@ -366,6 +331,7 @@
       </div>
 
       <h3 id="onewire-wiring"><strong>1-Wire Sensor Wiring</strong></h3>
+      <p>Use both 1-Wire buses to monitor multiple points — flow temperature, return temperature, buffer tank, or room sensors. Works independently of the boiler type.</p>
       <p>
         Two independent 1-Wire channels are available for DS18B20-compatible temperature sensors.
         Use <strong>daisy-chain (bus) topology only</strong> — star wiring is not supported.
@@ -381,9 +347,8 @@
       </div>
 
       <h3 id="opentherm-wiring"><strong>OpenTherm Bus Wiring</strong></h3>
-      <p>
-        Connect OT+ and OT- between the gateway and boiler OpenTherm interface. Keep this wiring separated from high-voltage conductors.
-      </p>
+      <p>Connect OT+ and OT− to the boiler OpenTherm interface for full modulation control, setpoint management, fault monitoring and flame status reporting in Home Assistant.</p>
+      <p>Keep OT wiring separated from high-voltage conductors.</p>
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
@@ -460,6 +425,42 @@
         <li>L / N terminals may carry hazardous voltage; installation by qualified personnel only.</li>
         <li>Follow local electrical code and boiler manufacturer OpenTherm wiring requirements.</li>
       </ul>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster OpenTherm Gateway is designed to comply with applicable EU directives.
+        ISYSTEMS AUTOMATION maintains technical documentation and signed DoC for the complete device.
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Radio</h3>
+      <p>
+        The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
+        Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
+        by the maintained technical documentation and conformity assessment of the complete device.
+      </p>
+
+      <h3>Safety Notice</h3>
+      <p>
+        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
+      </p>
     </div>
 
   </div>

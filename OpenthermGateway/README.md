@@ -10,6 +10,8 @@ The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to i
 
 The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
 
+The device operates as an **OpenTherm master**. It initiates all communication with the boiler. The boiler must be configured as OpenTherm slave (standard for all OT-capable boilers). If no boiler is connected to the OT terminals, the OpenTherm entities will be unavailable but the relay and 1-Wire functions continue to operate normally.
+
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
 | Resource | Link |
@@ -25,6 +27,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 - [Description](#description)
 - [Features](#features)
+- [Device Behaviour Reference](#device-behaviour-reference)
 - [Electrical and Safety Notes](#electrical-and-safety-notes)
 - [Mechanical and Environmental](#mechanical-and-environmental)
 - [Installation](#installation)
@@ -33,6 +36,8 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Terminal Reference](#terminal-reference)
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Notes](#gpio-notes)
+- [GPIO Map](#gpio-map)
+- [Network Requirements](#network-requirements)
 - [Getting Started](#getting-started)
 - [Firmware Updates](#firmware-updates)
 - [Note on Taking Control in ESPHome](#️-note-on-taking-control-in-esphome)
@@ -61,6 +66,22 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - Improv provisioning
 - DIN-rail mounting
 - Modular architecture: MCU Board + Field Board
+
+## Device Behaviour Reference
+
+| Condition | CH Enable | DHW Enable | Relay | OT Bus |
+|---|---|---|---|---|
+| Normal operation | Controlled by HA | Controlled by HA | Controlled by HA | Active polling |
+| Wi-Fi lost | Holds last state | Holds last state | Holds last state | Continues polling |
+| HA disconnected | Holds last state | Holds last state | Holds last state | Continues polling |
+| ESP reboot | Restores ON | Restores ON | Restores OFF (NC closes) | Restarts polling |
+| OT communication failure | Remains ON | Remains ON | Unchanged | Retries |
+| No boiler connected to OT | CH/DHW entities unavailable | CH/DHW entities unavailable | Unaffected | No response |
+
+> ⚠️ After reboot, CH Enable and DHW Enable restore to ON by default
+> (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
+> the NC contact closes and the load is powered.
+> Verify this is safe for your installation before deploying.
 
 ## Electrical and Safety Notes
 
@@ -115,6 +136,13 @@ Connect OT+ and OT− between the gateway and the boiler OpenTherm interface.
 Keep OT wiring separated from mains and relay output conductors.
 
 ### Relay Output Wiring
+
+> ⚠️ **NC contact behaviour:** When the relay is de-energised (switched OFF
+> or on device reboot), the NC contact is **closed** and the load is
+> **powered**. If you are wiring a boiler, pump, or valve to the NC contact,
+> it will be active by default until the relay is commanded ON.
+> Design your installation accordingly and ensure this is safe for your load.
+
 The relay output exposes **C and NC contacts only** (normally-closed).
 System load limits: **3 A @ 250 VAC** (resistive) · **750 VA @ 250 VAC** max · **90 W @ 30 VDC** max.
 
@@ -145,6 +173,9 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 - High-EMI or long runs: shielded pairs + overall shield (e.g., `LI2YCY PiMF 2×2×0.50`).
 - Topology: **daisy-chain (bus) only** — star wiring is not supported.
 - Keep sensor stubs ≤ 0.5 m.
+- Maximum total bus length: **100 m** (standard DS18B20 with external power).
+  For longer runs reduce pull-up to 2.2 kΩ.
+- Maximum recommended sensors per bus: **10** (with correct topology and pull-up).
 - DATA pull-up: 4.7 kΩ typical; 2.2–3.3 kΩ for long or heavily loaded buses.
 
 ### Shield Grounding
@@ -165,7 +196,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 | Gnd | Ground | Common ground reference |
 | D1 | 1-Wire Bus 1 DATA | DS18B20-compatible, GPIO4 |
 | D2 | 1-Wire Bus 2 DATA | DS18B20-compatible, GPIO5 |
-| +5V | +5 V output | Auxiliary 5 V supply for 1-Wire sensors |
+| +5V | +5 V output | Auxiliary 5 V supply for 1-Wire sensors (max 50 mA) |
 | O+ | OpenTherm + | OpenTherm bus positive |
 | O- | OpenTherm − | OpenTherm bus negative |
 
@@ -182,6 +213,8 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 > ⚠️ Use only ONE power input method at a time (24 V DC or AC/DC L/N).
 > L / N terminals carry hazardous mains voltage — qualified personnel only.
+> The +5V terminal is an auxiliary output for powering 1-Wire sensors only.
+> Do not connect other loads to this terminal.
 
 ## LED and Button Behaviour
 
@@ -220,6 +253,34 @@ GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
 pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
 level shifter. The strapping requirement is satisfied at power-on before the
 ESP32 initializes — no external pull-up or firmware workaround is needed.
+
+## GPIO Map
+
+| GPIO | Function | User-modifiable |
+|---|---|---|
+| GPIO4 | 1-Wire Bus 1 (D1 terminal) | No — hardware assigned |
+| GPIO5 | 1-Wire Bus 2 (D2 terminal) — strapping pin | No — hardware assigned |
+| GPIO21 | OpenTherm IN (OT−) | No — hardware assigned |
+| GPIO26 | OpenTherm OUT (OT+) | No — hardware assigned |
+| GPIO32 | Relay output | No — hardware assigned |
+| GPIO33 | Status LED (U.2) | No — hardware assigned |
+| GPIO35 | Button input | No — hardware assigned |
+| GPIO0 | Boot / auto-reset (internal) | No — do not use |
+| GPIO12 | Strapping pin (internal) | No — do not use |
+
+> Do not reassign any of the above GPIOs in custom YAML.
+> Doing so may cause boot failures or hardware damage.
+
+## Network Requirements
+
+- Device and Home Assistant must be on the **same subnet**.
+- **mDNS** must be functional on the network for auto-discovery.
+  In VLAN setups, configure an mDNS repeater or use a static IP
+  assigned via ESPHome YAML.
+- ESPHome API uses **TCP port 6053**. Ensure this port is not blocked
+  by firewall rules between the device and Home Assistant.
+- Vendor-managed OTA updates require outbound **HTTPS (port 443)**
+  access to GitHub Pages from the device.
 
 ## Getting Started
 
@@ -288,6 +349,12 @@ downloading updates over HTTPS directly to the device.
 
 If a newer firmware version is available, it can be installed directly from Home Assistant.
 
+> ⚠️ **OTA safety:** Do not interrupt a firmware update once started.
+> If an OTA update is interrupted mid-flash, the device may fail to boot.
+> If this occurs, reflash via USB-C using ESPHome or the ESP flashing tool.
+> ESPHome safe mode is active for the first 10 boot attempts after a
+> failed OTA — connect via USB and reflash to recover.
+
 ## ⚠️ Note on Taking Control in ESPHome
 
 When you click **Take Control** in ESPHome Dashboard, you import the full
@@ -310,7 +377,7 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 - Confirm the device is powered (PWR LED solid ON).
 - Confirm Wi-Fi provisioning completed successfully.
 - Check that Home Assistant and the device are on the same network/VLAN.
-- If O.1 LED is fast-blinking, the device is in Wi-Fi connect mode —
+- If U.2 LED is fast-blinking, the device is in Wi-Fi connect mode —
   wait up to 60 seconds.
 - If Wi-Fi fails, the device starts the fallback AP
   `HomeMaster OT Fallback` — reconnect and re-enter credentials.
@@ -373,9 +440,17 @@ by the maintained technical documentation and conformity assessment of the compl
 
 ## 1-Wire Bus Note
 
-- The provided configuration does not define fixed sensor `address` values.
-- For reliable operation, use one sensor per bus (`GPIO4` and `GPIO5`).
-- If you need multiple sensors on the same bus, see the section below.
+The default configuration assigns no fixed sensor `address`.
+With no address specified, ESPHome reads the **first sensor discovered**
+on the bus.
+
+**Consequence:** If two or more sensors are connected on the same bus
+without addresses, sensor assignment is non-deterministic — you cannot
+reliably know which physical sensor maps to which entity.
+
+- For reliable operation: use **one sensor per bus** (GPIO4 and GPIO5).
+- For multiple sensors on one bus: assign explicit `address` values.
+  See the section below.
 
 ## Using Multiple DS18B20 Sensors on One Bus
 
