@@ -31,23 +31,21 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Mechanical and Environmental](#mechanical-and-environmental)
 - [Installation](#installation)
 - [Cable Recommendations & Shield Grounding](#cable-recommendations--shield-grounding)
+- [Wiring](#wiring)
 - [Pinout](#pinout)
 - [Terminal Reference](#terminal-reference)
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Map](#gpio-map)
 - [Network Requirements](#network-requirements)
-- [Getting Started](#getting-started)
+- [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
+- [Home Assistant Integration](#home-assistant-integration)
 - [Firmware Updates](#firmware-updates)
-- [Note on Taking Control in ESPHome](#️-note-on-taking-control-in-esphome)
-- [ESPHome Compatibility](#esphome-compatibility)
 - [Device Behaviour Reference](#device-behaviour-reference)
 - [Troubleshooting](#troubleshooting)
-- [Compliance & Certifications](#compliance--certifications)
-- [1-Wire Bus Note](#1-wire-bus-note)
-- [Using Multiple DS18B20 Sensors](#using-multiple-ds18b20-sensors-on-one-bus)
 - [Entity Reference](#entity-reference)
 - [Default Firmware Configuration](#default-firmware-configuration)
 - [Support & Community](#support--community)
+- [Compliance & Certifications](#compliance--certifications)
 - [License](#license)
 
 ## Features
@@ -107,6 +105,35 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - Use ferrules for stranded wire. Tightening torque: 0.4 Nm maximum.
 - All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
 
+## Cable Recommendations & Shield Grounding
+
+### General Routing Rules
+- Route low-level signal cables (1-Wire / OT) separately from mains, relay output, contactors, and power wiring.
+- If crossing power cables is unavoidable, cross at 90°.
+- Keep cable runs as short as practical; avoid long parallel runs next to high-current conductors.
+
+### OpenTherm Cable
+- Construction: twisted pair.
+- Overall shield recommended in cabinets or high-EMI environments.
+- Recommended types: `J-Y(ST)Y 2×2×0.5 mm²` or `LI2YCY PiMF 2×2×0.50`.
+
+### 1-Wire Cable
+- Recommended: shielded 3-core (+5V / DATA / GND).
+- High-EMI or long runs: shielded pairs + overall shield (e.g., `LI2YCY PiMF 2×2×0.50`).
+- Topology: **daisy-chain (bus) only** — star wiring is not supported.
+- Keep sensor stubs ≤ 0.5 m.
+- Maximum total bus length: **100 m** (standard DS18B20 with external power).
+  For longer runs reduce pull-up to 2.2 kΩ.
+- Maximum recommended sensors per bus: **10** (with correct topology and pull-up).
+- DATA pull-up: 4.7 kΩ typical; 2.2–3.3 kΩ for long or heavily loaded buses.
+
+### Shield Grounding
+- Bond cable shields to cabinet PE/EMC ground at the controller side only (single-end bonding).
+- Do not connect shields directly to signal terminals (1-Wire / OT).
+- If both ends are in equipotential-bonded cabinets, both-end bonding is permitted using proper 360° clamps.
+
+## Wiring
+
 ### Power Input
 
 | Input | Terminals | Range |
@@ -145,32 +172,20 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 | ![OT wiring](./Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals. If communication fails, try swapping polarity.* | ![Relay wiring](./Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
 | Connect OT+ and OT− to boiler | C and NC contacts only | Daisy-chain only · stubs ≤ 0.5 m |
 
-## Cable Recommendations & Shield Grounding
+#### 1-Wire Bus Notes
 
-### General Routing Rules
-- Route low-level signal cables (1-Wire / OT) separately from mains, relay output, contactors, and power wiring.
-- If crossing power cables is unavoidable, cross at 90°.
-- Keep cable runs as short as practical; avoid long parallel runs next to high-current conductors.
-
-### OpenTherm Cable
-- Construction: twisted pair.
-- Overall shield recommended in cabinets or high-EMI environments.
-- Recommended types: `J-Y(ST)Y 2×2×0.5 mm²` or `LI2YCY PiMF 2×2×0.50`.
-
-### 1-Wire Cable
-- Recommended: shielded 3-core (+5V / DATA / GND).
-- High-EMI or long runs: shielded pairs + overall shield (e.g., `LI2YCY PiMF 2×2×0.50`).
-- Topology: **daisy-chain (bus) only** — star wiring is not supported.
-- Keep sensor stubs ≤ 0.5 m.
-- Maximum total bus length: **100 m** (standard DS18B20 with external power).
-  For longer runs reduce pull-up to 2.2 kΩ.
-- Maximum recommended sensors per bus: **10** (with correct topology and pull-up).
-- DATA pull-up: 4.7 kΩ typical; 2.2–3.3 kΩ for long or heavily loaded buses.
-
-### Shield Grounding
-- Bond cable shields to cabinet PE/EMC ground at the controller side only (single-end bonding).
-- Do not connect shields directly to signal terminals (1-Wire / OT).
-- If both ends are in equipotential-bonded cabinets, both-end bonding is permitted using proper 360° clamps.
+- The default configuration does not define fixed sensor `address`
+  values. With no address specified, ESPHome reads the first sensor
+  discovered on the bus.
+- **For reliable operation: use one sensor per bus** (GPIO4 and GPIO5).
+- Connecting multiple sensors on the same bus without addresses
+  results in non-deterministic sensor assignment.
+- Maximum total bus length: **100 m** (DS18B20 with external power).
+- Maximum recommended sensors per bus: **10**
+  (with correct topology and pull-up value).
+- For multiple sensors on one bus: assign explicit `address` values
+  via ESPHome YAML. Addresses are visible in ESPHome logs at boot.
+  See [ESPHome Dallas Temperature docs](https://esphome.io/components/sensor/dallas_temp.html).
 
 ## Pinout
 
@@ -261,7 +276,7 @@ You can add automations in ESPHome or Home Assistant to assign actions
 - Vendor-managed OTA updates require outbound **HTTPS (port 443)**
   access to GitHub Pages from the device.
 
-## Getting Started
+## First Boot & Wi-Fi Setup
 
 The device supports two setup methods:
 
@@ -305,6 +320,25 @@ The device will restart and connect to your network.
 - The fallback Access Point is only active when the device cannot connect to Wi-Fi.
 - Improv Wi-Fi is the preferred setup method.
 
+## Home Assistant Integration
+
+After Wi-Fi provisioning, the device appears automatically in:
+- **ESPHome Dashboard** — for configuration and logs
+- **Home Assistant** — under Settings → Devices & Services → ESPHome
+
+Click **Take Control** in ESPHome Dashboard to import the full
+configuration and manage firmware yourself.
+
+### ⚠️ Note on Taking Control
+After taking control, vendor-managed OTA updates stop working
+unless you keep the `http_request`, `ota: platform: http_request`,
+and `update` blocks from the original configuration in your YAML.
+
+If you remove these blocks, update via ESPHome OTA or USB instead.
+
+### ESPHome Compatibility
+- Minimum ESPHome version used and tested: **2026.4.1**
+
 ## Firmware Updates
 
 The device supports two firmware update methods:
@@ -333,38 +367,6 @@ If a newer firmware version is available, it can be installed directly from Home
 > If this occurs, reflash via USB-C using ESPHome or the ESP flashing tool.
 > ESPHome safe mode is active for the first 10 boot attempts after a
 > failed OTA — connect via USB and reflash to recover.
-
-## ⚠️ Note on Taking Control in ESPHome
-
-When you click **Take Control** in ESPHome Dashboard, you import the full
-configuration and gain complete control over the firmware.
-
-**Important:** After taking control, vendor-managed OTA updates (via the
-Home Assistant firmware update entity) will stop working **unless** you
-keep the `http_request`, `ota: platform: http_request`, and `update`
-blocks from the original configuration in your customised YAML.
-
-If you remove these blocks, update via ESPHome OTA or USB instead.
-
-## ESPHome Compatibility
-
-- Minimum ESPHome version used and tested: **2026.4.1**
-
-## Device Behaviour Reference
-
-| Condition | CH Enable | DHW Enable | Relay | OT Bus |
-|---|---|---|---|---|
-| Normal operation | Controlled by HA | Controlled by HA | Controlled by HA | Active polling |
-| Wi-Fi lost | Holds last state | Holds last state | Holds last state | Continues polling |
-| HA disconnected | Holds last state | Holds last state | Holds last state | Continues polling |
-| ESP reboot | Restores ON | Restores ON | Restores OFF (NC closes) | Restarts polling |
-| OT communication failure | Remains ON | Remains ON | Unchanged | Retries |
-| No boiler connected to OT | CH/DHW entities unavailable | CH/DHW entities unavailable | Unaffected | No response |
-
-> ⚠️ After reboot, CH Enable and DHW Enable restore to ON by default
-> (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
-> the NC contact closes and the load is powered.
-> Verify this is safe for your installation before deploying.
 
 ## Troubleshooting
 
@@ -449,50 +451,26 @@ Look for `[opentherm]` lines:
 For a browser interface, add `web_server: port: 80` to your YAML
 after taking control, then open `http://<device_ip>`.
 
-## Compliance & Certifications
+### Device Behaviour Reference
 
-CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full Declaration of Conformity available on request from ISYSTEMS AUTOMATION S.R.L.
+| Condition | CH Enable | DHW Enable | Relay | OT Bus |
+|---|---|---|---|---|
+| Normal operation | Controlled by HA | Controlled by HA | Controlled by HA | Active polling |
+| Wi-Fi lost | Holds last state | Holds last state | Holds last state | Continues polling |
+| HA disconnected | Holds last state | Holds last state | Holds last state | Continues polling |
+| ESP reboot | Restores ON | Restores ON | Restores OFF (NC closes) | Restarts polling |
+| OT communication failure | Remains ON | Remains ON | Unchanged | Retries |
+| No boiler connected to OT | CH/DHW entities unavailable | CH/DHW entities unavailable | Unaffected | No response |
 
-### Radio
-The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
-Conformity with RED 2014/53/EU is demonstrated by maintained technical
-documentation and conformity assessment of the complete device.
-
-### Safety Notice
-- **L / N terminals** carry hazardous mains voltage — qualified personnel only.
-- **24 V DC input** is SELV (Safety Extra-Low Voltage).
-
-## 1-Wire Bus Note
-
-The default configuration assigns no fixed sensor `address`.
-With no address specified, ESPHome reads the **first sensor discovered**
-on the bus.
-
-**Consequence:** If two or more sensors are connected on the same bus
-without addresses, sensor assignment is non-deterministic — you cannot
-reliably know which physical sensor maps to which entity.
-
-- For reliable operation: use **one sensor per bus** (GPIO4 and GPIO5).
-- For multiple sensors on one bus: assign explicit `address` values.
-  See the section below.
-
-## Using Multiple DS18B20 Sensors on One Bus
-
-By default the configuration works with one sensor per bus and does not
-require any address configuration. This is the recommended and simplest setup.
-
-If you need multiple sensors on the same bus, note the following:
-
-- Each DS18B20 has a unique 64-bit ROM address that must be used to
-  distinguish sensors on the same bus.
-- Sensor addresses are visible in the ESPHome logs at boot — each
-  discovered sensor reports its ROM address.
-- With multiple sensors per bus, keep each stub ≤ 0.5 m and use
-  daisy-chain topology only.
-- For guidance on configuring multiple sensors, refer to the
-  [ESPHome Dallas Temperature documentation](https://esphome.io/components/sensor/dallas_temp.html).
+> ⚠️ After reboot CH Enable and DHW Enable restore to ON
+> (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
+> NC contact closes and the load is powered.
+> Verify this is safe for your installation before deploying.
 
 ## Entity Reference
+
+<details>
+<summary>Click to expand full entity reference table</summary>
 
 | Entity | Type | Default | Description |
 |---|---|---|---|
@@ -546,6 +524,8 @@ If you need multiple sensors on the same bus, note the following:
 | Boiler Summer Mode Active | Switch | **Disabled** | Requires boiler support |
 | Boiler DHW Block | Switch | **Disabled** | Requires boiler support |
 | Boiler Diagnostic Indication | Binary Sensor | **Disabled** | Extended diagnostic |
+
+</details>
 
 ## Default Firmware Configuration
 
@@ -918,6 +898,19 @@ status_led:
 | 📷 Instagram | [instagram.com/home_master.eu](https://instagram.com/home_master.eu) |
 | 🔬 Hackster | [hackster.io/homemaster](https://hackster.io/homemaster) |
 | 🐙 GitHub | [isystemsautomation](https://github.com/isystemsautomation/homemaster-dev) |
+
+## Compliance & Certifications
+
+CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full Declaration of Conformity available on request from ISYSTEMS AUTOMATION S.R.L.
+
+### Radio
+The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
+Conformity with RED 2014/53/EU is demonstrated by maintained technical
+documentation and conformity assessment of the complete device.
+
+### Safety Notice
+- **L / N terminals** carry hazardous mains voltage — qualified personnel only.
+- **24 V DC input** is SELV (Safety Extra-Low Voltage).
 
 ## License
 
