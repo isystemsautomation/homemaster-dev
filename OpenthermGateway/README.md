@@ -27,7 +27,6 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 - [Description](#description)
 - [Features](#features)
-- [Device Behaviour Reference](#device-behaviour-reference)
 - [Electrical and Safety Notes](#electrical-and-safety-notes)
 - [Mechanical and Environmental](#mechanical-and-environmental)
 - [Installation](#installation)
@@ -35,18 +34,17 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Pinout](#pinout)
 - [Terminal Reference](#terminal-reference)
 - [LED and Button Behaviour](#led-and-button-behaviour)
-- [GPIO Notes](#gpio-notes)
 - [GPIO Map](#gpio-map)
 - [Network Requirements](#network-requirements)
 - [Getting Started](#getting-started)
 - [Firmware Updates](#firmware-updates)
 - [Note on Taking Control in ESPHome](#️-note-on-taking-control-in-esphome)
 - [ESPHome Compatibility](#esphome-compatibility)
+- [Device Behaviour Reference](#device-behaviour-reference)
 - [Troubleshooting](#troubleshooting)
 - [Compliance & Certifications](#compliance--certifications)
 - [1-Wire Bus Note](#1-wire-bus-note)
 - [Using Multiple DS18B20 Sensors](#using-multiple-ds18b20-sensors-on-one-bus)
-- [Example Entities](#example-entities)
 - [Entity Reference](#entity-reference)
 - [Default Firmware Configuration](#default-firmware-configuration)
 - [Support & Community](#support--community)
@@ -67,31 +65,23 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - DIN-rail mounting
 - Modular architecture: MCU Board + Field Board
 
-## Device Behaviour Reference
-
-| Condition | CH Enable | DHW Enable | Relay | OT Bus |
-|---|---|---|---|---|
-| Normal operation | Controlled by HA | Controlled by HA | Controlled by HA | Active polling |
-| Wi-Fi lost | Holds last state | Holds last state | Holds last state | Continues polling |
-| HA disconnected | Holds last state | Holds last state | Holds last state | Continues polling |
-| ESP reboot | Restores ON | Restores ON | Restores OFF (NC closes) | Restarts polling |
-| OT communication failure | Remains ON | Remains ON | Unchanged | Retries |
-| No boiler connected to OT | CH/DHW entities unavailable | CH/DHW entities unavailable | Unaffected | No response |
-
-> ⚠️ After reboot, CH Enable and DHW Enable restore to ON by default
-> (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
-> the NC contact closes and the load is powered.
-> Verify this is safe for your installation before deploying.
-
 ## Electrical and Safety Notes
 
-- Disconnect all power before installation or wiring changes.
-- Use only one power input method at a time.
-- Relay output is dry-contact and not internally fused.
-- Add external overcurrent protection (fuse or breaker) for relay/mains circuits.
-- Install inside a control cabinet and protect all terminals from accidental contact.
-- L / N terminals carry hazardous mains voltage — installation by qualified personnel only.
-- Follow local electrical code and boiler manufacturer OpenTherm wiring requirements.
+> ⚠️ **Safety — read before installation:**
+> - **L / N terminals carry hazardous mains voltage.** Installation
+>   by qualified personnel only.
+> - **Use only ONE power input at a time** (24 V DC or AC/DC L/N).
+>   Never connect multiple power inputs simultaneously.
+> - **Disconnect all power before wiring changes.**
+> - Relay output is **not internally fused** — always add an
+>   external fuse or circuit breaker on the load circuit.
+> - Install inside a closed control cabinet only.
+>   Protect all terminals from accidental contact.
+> - **24 V DC input** is SELV (Safety Extra-Low Voltage).
+> - The 24 V DC input is protected against reverse polarity
+>   by a Schottky diode (STPS340U).
+> - Follow local electrical code and boiler manufacturer
+>   OpenTherm wiring requirements.
 
 ## Mechanical and Environmental
 
@@ -118,7 +108,6 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
 
 ### Power Input
-Use only ONE power input method at a time:
 
 | Input | Terminals | Range |
 |---|---|---|
@@ -128,7 +117,7 @@ Use only ONE power input method at a time:
 
 | 24 V DC Input | 230 V AC Input |
 |:---:|:---:|
-| ![24V DC wiring](./Images/OpenTherm_24Vdc.png) | ![230V AC wiring](./Images/OpenTherm_230Vac.png) |
+| ![24V DC wiring](./Images/OpenTherm_24Vdc.png)<br>*Connect +V to positive (24 V DC), 0V to negative. Use only one power input at a time.* | ![230V AC wiring](./Images/OpenTherm_230Vac.png)<br>*Connect L to line (live), N to neutral. Include external fuse on the L conductor.* |
 | Connect + to V+, − to 0V | Connect Live to L, Neutral to N |
 
 ### OpenTherm Bus Wiring
@@ -153,7 +142,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 | OpenTherm Bus | Relay Output | 1-Wire Sensors |
 |:---:|:---:|:---:|
-| ![OT wiring](./Images/OpenTherm_OTConnection.png) | ![Relay wiring](./Images/OpenTherm_RelayConnection.png) | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png) |
+| ![OT wiring](./Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals. If communication fails, try swapping polarity.* | ![Relay wiring](./Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
 | Connect OT+ and OT− to boiler | C and NC contacts only | Daisy-chain only · stubs ≤ 0.5 m |
 
 ## Cable Recommendations & Shield Grounding
@@ -211,8 +200,6 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 | C | Relay Common | Dry-contact relay common |
 | NC | Relay NC | Normally closed contact |
 
-> ⚠️ Use only ONE power input method at a time (24 V DC or AC/DC L/N).
-> L / N terminals carry hazardous mains voltage — qualified personnel only.
 > The +5V terminal is an auxiliary output for powering 1-Wire sensors only.
 > Do not connect other loads to this terminal.
 
@@ -245,31 +232,23 @@ binary sensor.
 You can add automations in ESPHome or Home Assistant to assign actions
 (e.g., restart device, toggle relay).
 
-## GPIO Notes
-
-### GPIO5 — 1-Wire Bus 2 (Strapping Pin)
-
-GPIO5 is an ESP32 strapping pin that must be HIGH at boot. On this device it is
-pulled HIGH via a 10 kΩ resistor to 3.3 V through a BSS138 bidirectional
-level shifter. The strapping requirement is satisfied at power-on before the
-ESP32 initializes — no external pull-up or firmware workaround is needed.
-
 ## GPIO Map
 
-| GPIO | Function | User-modifiable |
+| GPIO | Function | Notes |
 |---|---|---|
-| GPIO4 | 1-Wire Bus 1 (D1 terminal) | No — hardware assigned |
-| GPIO5 | 1-Wire Bus 2 (D2 terminal) — strapping pin | No — hardware assigned |
-| GPIO21 | OpenTherm IN (OT−) | No — hardware assigned |
-| GPIO26 | OpenTherm OUT (OT+) | No — hardware assigned |
-| GPIO32 | Relay output | No — hardware assigned |
-| GPIO33 | Status LED (U.2) | No — hardware assigned |
-| GPIO35 | Button input | No — hardware assigned |
-| GPIO0 | Boot / auto-reset (internal) | No — do not use |
-| GPIO12 | Strapping pin (internal) | No — do not use |
+| GPIO4 | 1-Wire Bus 1 (D1 terminal) | Hardware assigned — do not reassign |
+| GPIO5 | 1-Wire Bus 2 (D2 terminal) | Hardware assigned — strapping pin, must be HIGH at boot. Pulled HIGH via 10 kΩ through BSS138 level shifter. |
+| GPIO21 | OpenTherm IN (OT−) via optocoupler | Hardware assigned — do not reassign |
+| GPIO26 | OpenTherm OUT (OT+) via optocoupler | Hardware assigned — do not reassign |
+| GPIO32 | Relay output | Hardware assigned — do not reassign |
+| GPIO33 | Status LED U.2 (inverted) | Hardware assigned — do not reassign |
+| GPIO35 | Button input (inverted, input only) | Hardware assigned — do not reassign |
+| GPIO0 | Boot / auto-reset via CP2102N DTR/RTS circuit | Strapping pin — must be HIGH at boot. Pulled HIGH via 10 kΩ. Driven LOW automatically during USB flashing. Do not hold LOW externally at power-on. |
+| GPIO12 | Not connected on this hardware | ESP32 strapping pin (MTDI). No hardware connection. Safe to use in firmware if needed, not recommended. |
 
-> Do not reassign any of the above GPIOs in custom YAML.
-> Doing so may cause boot failures or hardware damage.
+> Do not reassign GPIO4, GPIO5, GPIO21, GPIO26, GPIO32, GPIO33,
+> or GPIO35 in custom YAML — all are connected to hardware.
+> GPIO0 must not be driven LOW during boot.
 
 ## Network Requirements
 
@@ -371,6 +350,22 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 
 - Minimum ESPHome version used and tested: **2026.4.1**
 
+## Device Behaviour Reference
+
+| Condition | CH Enable | DHW Enable | Relay | OT Bus |
+|---|---|---|---|---|
+| Normal operation | Controlled by HA | Controlled by HA | Controlled by HA | Active polling |
+| Wi-Fi lost | Holds last state | Holds last state | Holds last state | Continues polling |
+| HA disconnected | Holds last state | Holds last state | Holds last state | Continues polling |
+| ESP reboot | Restores ON | Restores ON | Restores OFF (NC closes) | Restarts polling |
+| OT communication failure | Remains ON | Remains ON | Unchanged | Retries |
+| No boiler connected to OT | CH/DHW entities unavailable | CH/DHW entities unavailable | Unaffected | No response |
+
+> ⚠️ After reboot, CH Enable and DHW Enable restore to ON by default
+> (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
+> the NC contact closes and the load is powered.
+> Verify this is safe for your installation before deploying.
+
 ## Troubleshooting
 
 ### Device does not appear in Home Assistant or ESPHome Dashboard
@@ -407,32 +402,61 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 - If you took control in ESPHome and removed the `http_request` / `update`
   blocks, vendor OTA is no longer available — update via ESPHome OTA instead.
 
+### Recovery & Troubleshooting Access
+
+#### Wi-Fi credentials changed or forgotten
+The device starts the fallback AP **HomeMaster OT Fallback**
+automatically after ~60 seconds of failed Wi-Fi connection.
+
+1. Wait 60 seconds after powering on
+2. Connect to Wi-Fi: **HomeMaster OT Fallback**
+3. Navigate to `http://192.168.4.1`
+4. Enter new credentials and save
+
+> On mobile: disable mobile data if the page does not load.
+
+#### Full reset — no OTA, device unreachable
+Reflash via USB. The default firmware has no factory reset button.
+
+**Power:** USB can be connected with or without external power.
+The VBUS line is Schottky-diode protected — no backfeed.
+Disconnecting USB does not reboot the device if external power
+is present.
+
+**Driver:** Device uses **CP2102N** (Silicon Labs).
+Windows may need driver from:
+`silabs.com/developers/usb-to-uart-bridge-vcp-drivers`
+macOS/Linux: auto-detected.
+
+**Flash options:**
+- Web Flasher: `https://web.esphome.io`
+- ESPHome Dashboard → Install → Plug into this computer
+
+
+> Boot mode is handled automatically by the CP2102N auto-reset
+> circuit. No button press required.
+
+#### Verifying OpenTherm without Home Assistant
+Open ESPHome Dashboard → your device → **Logs**.
+Look for `[opentherm]` lines:
+
+| Message | Meaning |
+|---|---|
+| `Received response` | Boiler responding correctly |
+| `Timeout waiting for response` | Check OT wiring |
+| `Invalid response` | Try swapping OT+ / OT− |
+
+For a browser interface, add `web_server: port: 80` to your YAML
+after taking control, then open `http://<device_ip>`.
+
 ## Compliance & Certifications
 
-The HomeMaster OpenTherm Gateway is CE marked and designed to comply with
-applicable EU directives. ISYSTEMS AUTOMATION (HomeMaster brand) maintains
-technical documentation and a signed EU Declaration of Conformity (DoC).
-
-### EU Directives
-- **EMC** — 2014/30/EU
-- **LVD** — 2014/35/EU
-- **RED** — 2014/53/EU
-- **RoHS** — 2011/65/EU
-
-### Harmonised Standards
-
-| Area | Standard |
-|---|---|
-| EMC Immunity | EN 61000-6-1 |
-| EMC Emissions | EN 61000-6-3 |
-| Electrical Safety | EN 62368-1 |
-| Radio | EN 300 328 · EN 301 489-1 · EN 301 489-17 |
-| RoHS | EN IEC 63000 |
+CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full Declaration of Conformity available on request from ISYSTEMS AUTOMATION S.R.L.
 
 ### Radio
 The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
-Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
-by the maintained technical documentation and conformity assessment of the complete device.
+Conformity with RED 2014/53/EU is demonstrated by maintained technical
+documentation and conformity assessment of the complete device.
 
 ### Safety Notice
 - **L / N terminals** carry hazardous mains voltage — qualified personnel only.
@@ -467,12 +491,6 @@ If you need multiple sensors on the same bus, note the following:
   daisy-chain topology only.
 - For guidance on configuring multiple sensors, refer to the
   [ESPHome Dallas Temperature documentation](https://esphome.io/components/sensor/dallas_temp.html).
-
-## Example Entities
-
-The full list of exposed entities is in the [Entity Reference](#entity-reference) table below.
-Core enabled entities include: Button, Relay, Boiler Water Temperature, Boiler Flame On,
-Boiler Fault Indication, 1-Wire Bus 1 & 2 Temperature, and Firmware Update.
 
 ## Entity Reference
 
@@ -530,6 +548,12 @@ Boiler Fault Indication, 1-Wire Bus 1 & 2 Temperature, and Firmware Update.
 | Boiler Diagnostic Indication | Binary Sensor | **Disabled** | Extended diagnostic |
 
 ## Default Firmware Configuration
+
+The full shipped configuration is available in the repository:
+[opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml)
+
+<details>
+<summary>Click to expand full ESPHome configuration</summary>
 
 ```yaml
 esphome:
@@ -881,6 +905,8 @@ status_led:
     number: GPIO33
     inverted: true
 ```
+
+</details>
 
 ## Support & Community
 
