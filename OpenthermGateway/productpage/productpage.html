@@ -3,28 +3,35 @@
 
     <!-- ===================== QUICK OVERVIEW + APPLICATIONS ===================== -->
     <div class="plc-section">
+      <h2><strong>HomeMaster OpenTherm Gateway</strong></h2>
+      <p class="plc-tagline"><em>Any boiler. Any installation. Full local control.</em></p>
       <div class="plc-grid plc-hero-grid">
         <div class="plc-copy">
           <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
           <ul class="plc-list plc-list--tight">
-            <li>ESP32-based OpenTherm heating gateway for DIN-rail cabinets</li>
-            <li>OpenTherm bus interface (OT+ / OT-) with optocoupler isolation</li>
-            <li>2 x 1-Wire channels for DS18B20-compatible sensors</li>
-            <li>Single dry-contact relay output for field control</li>
-            <li>USB-C programming + Wi-Fi commissioning with Improv</li>
-            <li>ESPHome pre-installed for fast Home Assistant integration</li>
+            <li>OpenTherm interface — full boiler modulation, setpoints, fault monitoring and flame status</li>
+            <li>Relay output — controls zone valves, pumps, 2-way and 3-way valves, or switches on/off boilers without OpenTherm</li>
+            <li>Dual 1-Wire temperature inputs — monitor flow, return, buffer tank or room temperature</li>
+            <li>Works with any boiler — OpenTherm modulation or simple relay switching</li>
+            <li>100% local — no cloud, no subscription, no account</li>
+            <li>Native Home Assistant integration via ESPHome</li>
+            <li>Wide power input: 24 V DC or 85–265 V AC</li>
+            <li>DIN-rail cabinet installation — professional grade</li>
+            <li>Open hardware (CERN-OHL-W v2) + open firmware (MIT)</li>
           </ul>
         </div>
 
         <div class="plc-copy">
           <h2 id="typical-applications"><strong>Typical Applications</strong></h2>
           <ul class="plc-list plc-list--tight">
-            <li>OpenTherm boiler monitoring and control</li>
-            <li>Zone valve and circulation pump control</li>
-            <li>Room and system temperature monitoring via 1-Wire</li>
-            <li>HVAC cabinet integration with local fallback logic</li>
-            <li>Smart heating integration with Home Assistant</li>
-            <li>Retrofit gateway for existing boiler systems</li>
+            <li>OpenTherm boiler modulation and setpoint control</li>
+            <li>On/off boiler control via relay (no OpenTherm required)</li>
+            <li>Zone valve or circulation pump switching</li>
+            <li>Flow and return temperature monitoring via 1-Wire sensors</li>
+            <li>Buffer tank temperature monitoring</li>
+            <li>Boiler fault monitoring and alerting in Home Assistant</li>
+            <li>Retrofit smart heating for any existing boiler system</li>
+            <li>Custom heating automation without cloud dependency</li>
           </ul>
         </div>
       </div>
@@ -218,7 +225,7 @@
 
         <div class="plc-img">
           <img
-            src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/take_control.png"
+            src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/take_control.png"
             alt="ESPHome dashboard Take Control for OpenTherm Gateway"
             loading="lazy"
             width="600"
@@ -327,13 +334,13 @@
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_24Vdc.png" alt="OpenTherm Gateway 24V DC power wiring" loading="lazy" width="600" height="400" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OpenTherm_24Vdc.png" alt="OpenTherm Gateway 24V DC power wiring" loading="lazy" width="600" height="400" decoding="async">
             <div class="plc-caption">24 V DC input wiring on V+ / 0V terminals.</div>
           </div>
         </div>
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_230Vac.png" alt="OpenTherm Gateway 230V AC power wiring" loading="lazy" width="600" height="400" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OpenTherm_230Vac.png" alt="OpenTherm Gateway 230V AC power wiring" loading="lazy" width="600" height="400" decoding="async">
             <div class="plc-caption">AC mains input wiring on L / N terminals.</div>
           </div>
         </div>
@@ -352,7 +359,7 @@
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_RelayConnection.png" alt="OpenTherm Gateway relay connection" loading="lazy" width="600" height="400" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OpenTherm_RelayConnection.png" alt="OpenTherm Gateway relay connection" loading="lazy" width="600" height="400" decoding="async">
             <div class="plc-caption">Relay dry-contact wiring example.</div>
           </div>
         </div>
@@ -367,7 +374,7 @@
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_1WireConnection.png" alt="OpenTherm Gateway 1-Wire sensor wiring" loading="lazy" width="600" height="400" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OpenTherm_1WireConnection.png" alt="OpenTherm Gateway 1-Wire sensor wiring" loading="lazy" width="600" height="400" decoding="async">
             <div class="plc-caption">1-Wire sensor bus connection example.</div>
           </div>
         </div>
@@ -380,7 +387,7 @@
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/OpenTherm_OTConnection.png" alt="OpenTherm OT+ OT- wiring" loading="lazy" width="600" height="400" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OpenTherm_OTConnection.png" alt="OpenTherm OT+ OT- wiring" loading="lazy" width="600" height="400" decoding="async">
             <div class="plc-caption">OpenTherm OT+ / OT- bus connection.</div>
           </div>
         </div>
@@ -428,13 +435,13 @@
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/diagram.png" alt="OpenTherm Gateway system block diagram" loading="lazy" width="800" height="600" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/diagram.png" alt="OpenTherm Gateway system block diagram" loading="lazy" width="800" height="600" decoding="async">
             <div class="plc-caption">OpenTherm Gateway functional block diagram.</div>
           </div>
         </div>
         <div class="plc-col">
           <div class="plc-wirecard">
-            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/pinout.png" alt="OpenTherm Gateway pinout" loading="lazy" width="800" height="600" decoding="async">
+            <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/pinout.png" alt="OpenTherm Gateway pinout" loading="lazy" width="800" height="600" decoding="async">
             <div class="plc-caption">Pinout and front terminal reference.</div>
           </div>
         </div>
