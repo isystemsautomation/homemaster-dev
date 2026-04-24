@@ -249,21 +249,19 @@ You can add automations in ESPHome or Home Assistant to assign actions
 
 ## GPIO Map
 
-| GPIO | Function | Notes |
-|---|---|---|
-| GPIO4 | 1-Wire Bus 1 (D1 terminal) | Hardware assigned — do not reassign |
-| GPIO5 | 1-Wire Bus 2 (D2 terminal) | Hardware assigned — strapping pin, must be HIGH at boot. Pulled HIGH via 10 kΩ through BSS138 level shifter. |
-| GPIO21 | OpenTherm IN (OT−) via optocoupler | Hardware assigned — do not reassign |
-| GPIO26 | OpenTherm OUT (OT+) via optocoupler | Hardware assigned — do not reassign |
-| GPIO32 | Relay output | Hardware assigned — do not reassign |
-| GPIO33 | Status LED U.2 (inverted) | Hardware assigned — do not reassign |
-| GPIO35 | Button input (inverted, input only) | Hardware assigned — do not reassign |
-| GPIO0 | Boot / auto-reset via CP2102N DTR/RTS circuit | Strapping pin — must be HIGH at boot. Pulled HIGH via 10 kΩ. Driven LOW automatically during USB flashing. Do not hold LOW externally at power-on. |
-| GPIO12 | Not connected on this hardware | ESP32 strapping pin (MTDI). No hardware connection. Safe to use in firmware if needed, not recommended. |
+All hardware-assigned GPIOs are listed below.
+Do not reassign reserved GPIOs in custom ESPHome YAML.
 
-> Do not reassign GPIO4, GPIO5, GPIO21, GPIO26, GPIO32, GPIO33,
-> or GPIO35 in custom YAML — all are connected to hardware.
-> GPIO0 must not be driven LOW during boot.
+| GPIO | Function | User-configurable |
+|---|---|---|
+| GPIO4 | 1-Wire Bus 1 (D1 terminal) | No — reserved |
+| GPIO5 | 1-Wire Bus 2 (D2 terminal) — strapping pin, pulled HIGH via 10 kΩ at boot | No — reserved |
+| GPIO21 | OpenTherm IN (OT−) via optocoupler | No — reserved |
+| GPIO26 | OpenTherm OUT (OT+) via optocoupler | No — reserved |
+| GPIO25 | User LED U.1 | Yes — add to ESPHome YAML as output |
+| GPIO32 | Relay output | No — reserved |
+| GPIO33 | Status LED U.2 (inverted) — ESPHome status_led | No — reserved |
+| GPIO35 | Button input (inverted, input only) | No — reserved |
 
 ## Network Requirements
 
