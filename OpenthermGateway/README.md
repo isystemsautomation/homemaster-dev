@@ -368,86 +368,17 @@ If a newer firmware version is available, it can be installed directly from Home
 
 ## Troubleshooting
 
-### Device does not appear in Home Assistant or ESPHome Dashboard
-- Confirm the device is powered (PWR LED solid ON).
-- Confirm Wi-Fi provisioning completed successfully.
-- Check that Home Assistant and the device are on the same network/VLAN.
-- If U.2 LED is fast-blinking, the device is in Wi-Fi connect mode —
-  wait up to 60 seconds.
-- If Wi-Fi fails, the device starts the fallback AP
-  `HomeMaster OT Fallback` — reconnect and re-enter credentials.
-
-### No OpenTherm communication (all OT entities unavailable)
-- Verify O+ and O− wiring. OpenTherm is polarity-sensitive on some boilers.
-- Confirm the boiler has an OpenTherm interface enabled in boiler settings.
-- Check for short circuits or incorrect voltage on the OT terminals.
-- Review ESPHome logs for OpenTherm timeout or CRC errors.
-
-### 1-Wire sensor shows unknown or no value
-- Confirm sensor is wired correctly: +5V, DATA (D1 or D2), Gnd.
-- If using multiple sensors on one bus, see the section below on
-  multiple DS18B20 sensors.
-- Keep stubs ≤ 0.5 m and use daisy-chain topology only.
-- For long buses consider reducing pull-up resistor to 2.2–3.3 kΩ.
-
-### Relay does not switch
-- Check the `Relay` switch entity is enabled in Home Assistant.
-- Verify external wiring on C / NC terminals.
-- Confirm external fuse or breaker is not tripped.
-
-### Firmware update fails
-- Confirm the device has a working internet connection.
-- Check update source is reachable:
-  `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`
-- If you took control in ESPHome and removed the `http_request` / `update`
-  blocks, vendor OTA is no longer available — update via ESPHome OTA instead.
-
-### Recovery & Troubleshooting Access
-
-#### Wi-Fi credentials changed or forgotten
-The device starts the fallback AP **HomeMaster OT Fallback**
-automatically after ~60 seconds of failed Wi-Fi connection.
-
-1. Wait 60 seconds after powering on
-2. Connect to Wi-Fi: **HomeMaster OT Fallback**
-3. Navigate to `http://192.168.4.1`
-4. Enter new credentials and save
-
-> On mobile: disable mobile data if the page does not load.
-
-#### Full reset — no OTA, device unreachable
-Reflash via USB. The default firmware has no factory reset button.
-
-**Power:** USB can be connected with or without external power.
-The VBUS line is Schottky-diode protected — no backfeed.
-Disconnecting USB does not reboot the device if external power
-is present.
-
-**Driver:** Device uses **CP2102N** (Silicon Labs).
-Windows may need driver from:
-`silabs.com/developers/usb-to-uart-bridge-vcp-drivers`
-macOS/Linux: auto-detected.
-
-**Flash options:**
-- Web Flasher: `https://web.esphome.io`
-- ESPHome Dashboard → Install → Plug into this computer
-
-
-> Boot mode is handled automatically by the CP2102N auto-reset
-> circuit. No button press required.
-
-#### Verifying OpenTherm without Home Assistant
-Open ESPHome Dashboard → your device → **Logs**.
-Look for `[opentherm]` lines:
-
-| Message | Meaning |
-|---|---|
-| `Received response` | Boiler responding correctly |
-| `Timeout waiting for response` | Check OT wiring |
-| `Invalid response` | Try swapping OT+ / OT− |
-
-For a browser interface, add `web_server: port: 80` to your YAML
-after taking control, then open `http://<device_ip>`.
+| Symptom | Checks | Action |
+|---|---|---|
+| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 LED fast-blinking? Same subnet as HA? | Wait 60s for Wi-Fi. If U.2 blinks, device is connecting. If fails, connect to `HomeMaster OT Fallback` AP and re-enter credentials. |
+| No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | Try swapping OT+ and OT−. Check ESPHome logs for `[opentherm] Timeout` or `Invalid response`. Enable `sync_mode: true` if using 1-Wire simultaneously. |
+| 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | Reduce pull-up to 2.2–3.3 kΩ for long buses. If multiple sensors on one bus, assign explicit addresses in YAML. |
+| Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
+| Relay switches but load does not work | External power connected to load circuit? Relay is dry-contact — it does not supply power. | Add external power supply to the load circuit. Use external contactor for inductive loads above 3 A. |
+| Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`. If `http_request`/`update` blocks removed from YAML, use ESPHome OTA instead. |
+| Wi-Fi credentials changed, device unreachable | — | Wait 60s after power-on. Connect to `HomeMaster OT Fallback` → `http://192.168.4.1` → enter new credentials. On mobile: disable mobile data. |
+| Device completely unreachable, no fallback AP | Boot loop? OTA interrupted? | Reflash via USB. Driver: CP2102N (Silicon Labs, auto on macOS/Linux). Use `https://web.esphome.io` (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. USB can be connected with or without external power — no backfeed risk. |
+| OT communication verification without HA | — | ESPHome Dashboard → Logs → look for `[opentherm]` lines: `Received response` = OK · `Timeout` = check wiring · `Invalid response` = swap OT+/OT−. Add `web_server: port: 80` to YAML for browser interface at `http://<device_ip>`. |
 
 ### Device Behaviour Reference
 
