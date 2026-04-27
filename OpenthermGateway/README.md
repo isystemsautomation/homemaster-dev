@@ -14,10 +14,18 @@ The device operates as an **OpenTherm master**. It initiates all communication w
 
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
+## Quick Start
+
+1. Mount the device on 35 mm DIN rail inside a closed control cabinet.
+2. Connect ONE power input (24 V DC at +V/0V, OR 85–265 V AC / 120–370 V DC at L/N).
+3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
+4. Power on, open https://improv-wifi.com, and provision Wi-Fi via Bluetooth.
+5. Open ESPHome Dashboard → click **Take Control** to import the configuration. The device appears in Home Assistant under Settings → Devices & Services → ESPHome.
+
 | Resource | Link |
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/opentherm-gateway-59) |
-| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev) |
 | 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
 | ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
 | 🔧 Schematics | [Schematic/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematic) |
@@ -26,7 +34,9 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Table of Contents
 
 - [Description](#description)
+- [Quick Start](#quick-start)
 - [Features](#features)
+- [Tested Boilers](#tested-boilers)
 - [Electrical and Safety Notes](#electrical-and-safety-notes)
 - [Mechanical and Environmental](#mechanical-and-environmental)
 - [Installation](#installation)
@@ -47,21 +57,29 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Support & Community](#support--community)
 - [Compliance & Certifications](#compliance--certifications)
 - [License](#license)
+- [Changelog](#changelog)
 
 ## Features
 
 - ESP32-WROOM-32U-N16 (16 MB flash)
 - OpenTherm interface (OT+ / OT-)
-- Relay output: 1 x SPDT, C and NC contacts accessible, system limit 3 A @ 250 VAC (resistive), 90 W @ 30 VDC
+- Relay output: 1 × SPDT relay (component), only **C and NC** terminals exposed externally — functionally **SPST-NC**. System limit: 3 A @ 250 VAC (resistive), 750 VA @ 250 VAC max, 90 W @ 30 VDC max.
 - Two 1-Wire buses
 - Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
 - USB Type-C
 - Wi-Fi 2.4 GHz (pre-certified radio module) and Bluetooth
+- Typical power consumption: **3 W**
 - ESPHome pre-installed
 - OTA updates (ESPHome + HTTP)
 - Improv provisioning
 - DIN-rail mounting
 - Modular architecture: MCU Board + Field Board
+
+## Tested Boilers
+
+The HomeMaster OpenTherm Gateway implements the standard OpenTherm/Plus protocol and works with any OT-compliant boiler. The following models have been reported working with the ESPHome OpenTherm component on this hardware or equivalent designs.
+
+**General compatibility (industry references):** Viessmann, Intergas and Atag have the most complete OpenTherm implementations. Bosch, Buderus, Remeha and most modulating gas boilers from EU brands work well.
 
 ## Electrical and Safety Notes
 
@@ -84,6 +102,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Mechanical and Environmental
 
 - Operating temperature: `0 °C` to `+40 °C`
+The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
 - Storage temperature: `-10 °C` to `+55 °C`
 - Relative humidity: `0–90 % RH`, non-condensing
 - Protection rating: `IP20` (inside cabinet)
@@ -123,9 +142,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - Topology: **daisy-chain (bus) only** — star wiring is not supported.
 - Keep sensor stubs ≤ 0.5 m.
 - Maximum total bus length: **100 m** (standard DS18B20 with external power).
-  For longer runs reduce pull-up to 2.2 kΩ.
-- Maximum recommended sensors per bus: **10** (with correct topology and pull-up).
-- DATA pull-up: 4.7 kΩ typical; 2.2–3.3 kΩ for long or heavily loaded buses.
+- Maximum recommended sensors per bus: **10** (with correct topology).
 
 ### Shield Grounding
 - Bond cable shields to cabinet PE/EMC ground at the controller side only (single-end bonding).
@@ -159,12 +176,14 @@ Keep OT wiring separated from mains and relay output conductors.
 > it will be active by default until the relay is commanded ON.
 > Design your installation accordingly and ensure this is safe for your load.
 
-The relay output exposes **C and NC contacts only** (normally-closed).
+The relay output is a 1 × SPDT relay (component), but only **C and NC** terminals are exposed externally — functionally **SPST-NC**.
 System load limits: **3 A @ 250 VAC** (resistive) · **750 VA @ 250 VAC** max · **90 W @ 30 VDC** max.
 
 > ⚠️ The relay output is **not internally fused**. Always add an external fuse or circuit breaker. Use an external contactor for loads above 3 A or for inductive / high-inrush loads.
 
 ### 1-Wire Sensor Wiring
+⚠️ **One sensor per bus by default.** The shipped configuration does not pin sensor addresses. With multiple sensors on the same 1-Wire bus, ESPHome reads the first sensor it discovers — assignment is non-deterministic across reboots. For multiple sensors per bus, set explicit `address:` values in YAML (visible in ESPHome logs at boot).
+
 Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 | OpenTherm Bus | Relay Output | 1-Wire Sensors |
@@ -174,15 +193,9 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 #### 1-Wire Bus Notes
 
-- The default configuration does not define fixed sensor `address`
-  values. With no address specified, ESPHome reads the first sensor
-  discovered on the bus.
-- **For reliable operation: use one sensor per bus** (GPIO4 and GPIO5).
-- Connecting multiple sensors on the same bus without addresses
-  results in non-deterministic sensor assignment.
 - Maximum total bus length: **100 m** (DS18B20 with external power).
 - Maximum recommended sensors per bus: **10**
-  (with correct topology and pull-up value).
+  (with correct topology).
 - For multiple sensors on one bus: assign explicit `address` values
   via ESPHome YAML. Addresses are visible in ESPHome logs at boot.
   See [ESPHome Dallas Temperature docs](https://esphome.io/components/sensor/dallas_temp.html).
@@ -289,6 +302,8 @@ The device supports two setup methods:
 4. Enter Wi-Fi credentials
 5. Wait for connection
 
+ℹ️ BLE Improv provisioning is open (`authorizer: none`) until the device successfully connects to Wi-Fi the first time. Provision in a private location and avoid leaving an un-provisioned device powered on within BLE range of untrusted devices.
+
 After connection, the device will appear automatically in:
 
 - ESPHome Dashboard
@@ -334,6 +349,8 @@ and `update` blocks from the original configuration in your YAML.
 
 If you remove these blocks, update via ESPHome OTA or USB instead.
 
+⚠️ `import_full_config: true` in the `dashboard_import:` block will overwrite any local edits to your YAML on every dashboard import. After your first successful import, set it to `false` (or remove the `dashboard_import:` block entirely) if you want to keep custom changes.
+
 ### ESPHome Compatibility
 - Minimum ESPHome version used and tested: **2026.4.1**
 
@@ -360,6 +377,10 @@ downloading updates over HTTPS directly to the device.
 
 If a newer firmware version is available, it can be installed directly from Home Assistant.
 
+The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To disable vendor-managed OTA, remove the `update:`, `http_request:`, and `ota: platform: http_request` blocks from your YAML. Updates will then only be possible via ESPHome OTA or USB.
+
+> ℹ️ **OTA security:** OTA updates are downloaded over HTTPS from GitHub Pages. Trust depends on the security of the HomeMaster GitHub account; firmware files are not separately signed. If you need a stricter trust model, take control in ESPHome Dashboard and manage updates yourself.
+
 > ⚠️ **OTA safety:** Do not interrupt a firmware update once started.
 > If an OTA update is interrupted mid-flash, the device may fail to boot.
 > If this occurs, reflash via USB-C using ESPHome or the ESP flashing tool.
@@ -371,14 +392,14 @@ If a newer firmware version is available, it can be installed directly from Home
 | Symptom | Checks | Action |
 |---|---|---|
 | Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 LED fast-blinking? Same subnet as HA? | Wait 60s for Wi-Fi. If U.2 blinks, device is connecting. If fails, connect to `HomeMaster OT Fallback` AP and re-enter credentials. |
-| No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | Try swapping OT+ and OT−. Check ESPHome logs for `[opentherm] Timeout` or `Invalid response`. Enable `sync_mode: true` if using 1-Wire simultaneously. |
-| 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | Reduce pull-up to 2.2–3.3 kΩ for long buses. If multiple sensors on one bus, assign explicit addresses in YAML. |
+| No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair.<br>- If 1-Wire and OT run simultaneously, add `sync_mode: true` under the `opentherm:` block.<br>- Power-cycle both the gateway and the boiler. |
+| 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
 | Relay switches but load does not work | External power connected to load circuit? Relay is dry-contact — it does not supply power. | Add external power supply to the load circuit. Use external contactor for inductive loads above 3 A. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`. If `http_request`/`update` blocks removed from YAML, use ESPHome OTA instead. |
 | Wi-Fi credentials changed, device unreachable | — | Wait 60s after power-on. Connect to `HomeMaster OT Fallback` → `http://192.168.4.1` → enter new credentials. On mobile: disable mobile data. |
 | Device completely unreachable, no fallback AP | Boot loop? OTA interrupted? | Reflash via USB. Driver: CP2102N (Silicon Labs, auto on macOS/Linux). Use `https://web.esphome.io` (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. USB can be connected with or without external power — no backfeed risk. |
-| OT communication verification without HA | — | ESPHome Dashboard → Logs → look for `[opentherm]` lines: `Received response` = OK · `Timeout` = check wiring · `Invalid response` = swap OT+/OT−. Add `web_server: port: 80` to YAML for browser interface at `http://<device_ip>`. |
+| OT communication verification without HA | — | ESPHome Dashboard → Logs → look for `[opentherm]` lines: `Received response` = OK · `Timeout` = check wiring · `Invalid response` = check for electrical noise on OT line. Add `web_server: port: 80` to YAML for browser interface at `http://<device_ip>`. |
 
 ### Device Behaviour Reference
 
@@ -830,7 +851,12 @@ status_led:
 
 ## Compliance & Certifications
 
-CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full Declaration of Conformity available on request from ISYSTEMS AUTOMATION S.R.L.
+CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full EU Declaration of Conformity: [`OpenTherm_Gateway_DoC.pdf`](Manuals/OpenTherm_Gateway_DoC.pdf) *(upload pending — file to be added under `OpenthermGateway/Manuals/`)*.
+
+**Manufacturer / EU importer (per GPSR):**
+ISYSTEMS AUTOMATION S.R.L.
+Deligentei 18, Ploiești, Romania
+Tel: +40 721 389 963 · http://www.home-master.eu
 
 ### Radio
 The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
@@ -853,3 +879,8 @@ All firmware, ESPHome configurations, and software components are licensed under
 
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 See LICENSE files in each directory for full terms.
+
+## Changelog
+
+### v1.0.6 — current
+- Initial public firmware release for OpenTherm Gateway-R1 hardware V1.0.
