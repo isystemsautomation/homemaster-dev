@@ -48,16 +48,17 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Architecture</th><td>Modular — MCU Board + Field Board</td></tr>
+            <tr><th scope="row">Architecture</th><td>Modular — MCU Board + Relay Board</td></tr>
             <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core, 16 MB flash)</td></tr>
             <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N) OR 120-370 V DC (L / N + / -)</td></tr>
             <tr>
               <th scope="row">Relay Output*</th>
               <td>
-                1 x SPDT relay, C and NC contacts accessible (normally-closed). <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
+                1 × SPDT relay (component), only C and NC terminals exposed externally — functionally SPST-NC. <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
                 Relay components (informative only) rated up to 12 A @ 250 VAC (resistive); this rating does not apply to the complete module.
               </td>
             </tr>
+            <tr><th scope="row">Typical Power Consumption</th><td>3 W</td></tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 x 1-Wire (DS18B20 compatible)</td></tr>
             <tr><th scope="row">User Interface</th><td>4 LEDs (PWR, O.1, U.1, U.2), 1 button</td></tr>
             <tr><th scope="row">Wi-Fi</th><td>Wi-Fi 2.4 GHz (ESP32, pre-certified radio module)</td></tr>
@@ -94,7 +95,7 @@
             <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
             <tr><td>Tightening torque</td><td>0.4 Nm (max)</td></tr>
 
-            <tr><th scope="row" rowspan="6">Environmental Ratings</th><td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><th scope="row" rowspan="6">Environmental Ratings</th><td>Operating temperature</td><td>0 °C to +40 °C (for unheated spaces, use a heated/conditioned control cabinet to keep ambient temperature within range)</td></tr>
             <tr><td>Storage temperature</td><td>-10 °C to 55 °C</td></tr>
             <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
             <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
@@ -258,7 +259,7 @@
                 <th scope="row">Integration Guide</th>
                 <td>Setup, wiring, and OpenTherm usage</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/README.md" target="_blank" rel="noopener">README.md</a>
+                  <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/README.md" target="_blank" rel="noopener">README.md</a>
                 </td>
               </tr>
               <tr>
@@ -321,6 +322,11 @@
         Relay output MUST be protected by external fuse or circuit breaker.
         Relay output is <strong>not internally fused</strong>.
       </p>
+      <p class="plc-callout plc-callout--warning">
+        <strong>⚠️ Relay default state on power-up:</strong>
+        The relay output is dry-contact and exposes only C and NC. When the device is unpowered or the relay is switched OFF, the NC contact is closed and the load is energized.
+        Verify this is safe for your installation before connecting any boiler call-for-heat, pump, or valve to NC.
+      </p>
       <div class="plc-grid">
         <div class="plc-col">
           <div class="plc-wirecard">
@@ -336,6 +342,11 @@
         Two independent 1-Wire channels are available for DS18B20-compatible temperature sensors.
         Use <strong>daisy-chain (bus) topology only</strong> — star wiring is not supported.
         Keep sensor stubs ≤ 0.5 m. See Cable Recommendations below for full wiring guidance.
+      </p>
+      <p class="plc-callout plc-callout--warning">
+        ⚠️ <strong>One sensor per bus by default.</strong> The shipped configuration does not pin sensor addresses.
+        With multiple sensors on the same 1-Wire bus, ESPHome reads the first sensor it discovers — assignment is non-deterministic across reboots.
+        For multiple sensors per bus, set explicit <code>address:</code> values in YAML (visible in ESPHome logs at boot).
       </p>
       <div class="plc-grid">
         <div class="plc-col">
@@ -459,6 +470,16 @@
       <h3>Safety Notice</h3>
       <p>
         <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
+      </p>
+
+      <h3>GPSR Manufacturer / Responsible Economic Operator (EU)</h3>
+      <p>
+        <strong>ISYSTEMS AUTOMATION S.R.L.</strong>, Deligentei 18, Ploiești, Romania · Tel: +40 721 389 963
+      </p>
+
+      <h3>Declaration of Conformity (DoC)</h3>
+      <p>
+        <a href="https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Gateway_DoC.pdf" target="_blank" rel="noopener">OpenTherm_Gateway_DoC.pdf</a>
       </p>
     </div>
 

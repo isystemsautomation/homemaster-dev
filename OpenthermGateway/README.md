@@ -73,7 +73,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - OTA updates (ESPHome + HTTP)
 - Improv provisioning
 - DIN-rail mounting
-- Modular architecture: MCU Board + Field Board
+- Modular architecture: MCU Board + Relay Board
 
 ## Tested Boilers
 
@@ -109,13 +109,14 @@ The table below lists boilers users have successfully run with this hardware (or
 ## Mechanical and Environmental
 
 - Operating temperature: `0 °C` to `+40 °C`
-The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
 - Storage temperature: `-10 °C` to `+55 °C`
 - Relative humidity: `0–90 % RH`, non-condensing
 - Protection rating: `IP20` (inside cabinet)
 - Dimensions: `35.5 × 90.6 × 67.3 mm` (L × W × H)
 - Mounting: `35 mm DIN rail` (2 DIN modules)
 - Pack size: `140 × 96 × 95 mm` (L × W × H)
+
+> ℹ️ The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
 
 ## Installation
 
@@ -158,6 +159,8 @@ The 0–40 °C range assumes installation inside a heated indoor control cabinet
 
 ## Wiring
 
+> ⚠️ **Relay default state on power-up:** The relay output is dry-contact and exposes only C and NC. When the device is unpowered or the relay is switched OFF, the NC contact is closed and the load is energized. Verify this is safe for your installation before connecting any boiler call-for-heat, pump, or valve to NC.
+
 ### Power Input
 
 | Input | Terminals | Range |
@@ -195,7 +198,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 | OpenTherm Bus | Relay Output | 1-Wire Sensors |
 |:---:|:---:|:---:|
-| ![OT wiring](./Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals. If communication fails, try swapping polarity.* | ![Relay wiring](./Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
+| ![OT wiring](./Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals.* | ![Relay wiring](./Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
 | Connect OT+ and OT− to boiler | C and NC contacts only | Daisy-chain only · stubs ≤ 0.5 m |
 
 #### 1-Wire Bus Notes
