@@ -77,9 +77,16 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 ## Tested Boilers
 
-The HomeMaster OpenTherm Gateway implements the standard OpenTherm/Plus protocol and works with any OT-compliant boiler. The following models have been reported working with the ESPHome OpenTherm component on this hardware or equivalent designs.
+This gateway acts as an **OpenTherm master** and works with any boiler that supports OpenTherm in slave mode — which is the standard configuration on every OT-capable boiler.
 
-**General compatibility (industry references):** Viessmann, Intergas and Atag have the most complete OpenTherm implementations. Bosch, Buderus, Remeha and most modulating gas boilers from EU brands work well.
+The table below lists boilers users have successfully run with this hardware (or the same ESPHome OpenTherm component on equivalent boards). It is not exhaustive: any OpenTherm-compliant boiler should work.
+
+**OpenTherm support across brands — what to expect:**
+
+- **Best support:** Viessmann, Intergas, Atag — broad model coverage and complete OT command set.
+- **Works well:** Bosch, Buderus, Remeha, and most modern modulating gas boilers from major EU brands.
+- **Limited:** Worcester — very few models in their range expose OpenTherm.
+- **Not OpenTherm:** Vaillant boilers using the VR66 controller use proprietary eBus, not OT. Older Vaillant systems with VR65 do support OT.
 
 ## Electrical and Safety Notes
 
@@ -392,7 +399,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | Symptom | Checks | Action |
 |---|---|---|
 | Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 LED fast-blinking? Same subnet as HA? | Wait 60s for Wi-Fi. If U.2 blinks, device is connecting. If fails, connect to `HomeMaster OT Fallback` AP and re-enter credentials. |
-| No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair.<br>- If 1-Wire and OT run simultaneously, add `sync_mode: true` under the `opentherm:` block.<br>- Power-cycle both the gateway and the boiler. |
+| No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair. |
 | 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
 | Relay switches but load does not work | External power connected to load circuit? Relay is dry-contact — it does not supply power. | Add external power supply to the load circuit. Use external contactor for inductive loads above 3 A. |
