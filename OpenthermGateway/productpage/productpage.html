@@ -55,6 +55,7 @@
               <th scope="row">Relay Output*</th>
               <td>
                 1 × SPDT relay (component), only C and NC terminals exposed externally — functionally SPST-NC. <strong>Rated load (system limit):</strong> 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC.<br>
+                <br><em>Relay output insulation from mains primary on the PCB is rated Basic per EN 62368-1; cross-phase/cross-source mains use is not permitted — see Relay Output Wiring section for full restriction.</em>
                 Relay components (informative only) rated up to 12 A @ 250 VAC (resistive); this rating does not apply to the complete module.
               </td>
             </tr>
@@ -323,6 +324,21 @@
         Relay output is <strong>not internally fused</strong>.
       </p>
       <p class="plc-callout plc-callout--warning">
+        <strong>⚠️ Relay output — use restriction (mandatory):</strong><br>
+        The relay output terminals (C, NC) shall be connected only to:
+      </p>
+      <ul class="plc-list plc-list--tight">
+        <li>the <strong>same mains supply</strong> circuit as the L/N input of this device, OR</li>
+        <li>a <strong>SELV</strong> (Safety Extra-Low Voltage) circuit, OR</li>
+        <li>a <strong>Limited Power Source (LPS)</strong> circuit per EN 62368-1.</li>
+      </ul>
+      <p class="plc-callout plc-callout--warning">
+        Connection of the relay output to a <strong>different mains phase</strong>, an <strong>isolated mains source</strong>, or any circuit at a <strong>higher voltage class</strong> than the device's L/N input is <strong>not permitted</strong>. Failure to follow this restriction may cause dielectric breakdown between the device input and relay output circuits and presents electric-shock and fire hazards.
+      </p>
+      <p>
+        This restriction is required because the printed-circuit-board insulation between the L/N tracks and the C/NC tracks of the Relay board is rated as <strong>Basic</strong> per EN 62368-1 Table 11/14 (working voltage 250 V r.m.s.). Cross-mains use would require Reinforced insulation that the current hardware revision V1.0 does not provide. The next hardware revision will lift this restriction.
+      </p>
+      <p class="plc-callout plc-callout--warning">
         <strong>⚠️ Relay default state on power-up:</strong>
         The relay output is dry-contact and exposes only C and NC. When the device is unpowered or the relay is switched OFF, the NC contact is closed and the load is energized.
         Verify this is safe for your installation before connecting any boiler call-for-heat, pump, or valve to NC.
@@ -432,6 +448,7 @@
         <li>Install only inside a closed control cabinet; protect all terminals from accidental contact.</li>
         <li>Use external overcurrent protection (fuse/breaker) for relay circuits and mains inputs.</li>
         <li>Relay outputs are not internally fused; use external contactors for loads above 3 A and for high inrush/inductive loads.</li>
+        <li><strong>Relay output use restriction:</strong> terminals C and NC shall be connected only to the same mains supply as L/N, or to SELV / Limited Power Source circuits. Cross-phase or cross-source mains connection is not permitted with hardware revision V1.0.</li>
         <li>L / N terminals may carry hazardous voltage; installation by qualified personnel only.</li>
         <li>Follow local electrical code and boiler manufacturer OpenTherm wiring requirements.</li>
       </ul>

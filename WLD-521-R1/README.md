@@ -709,10 +709,13 @@ Summarize steps in 3 phases:
 ## 5.3 Electrical Specifications
 
 ### Power & Rails
+
+- **Power consumption:** 3 W typ., 5 W max (24 V DC nominal input)
+
 | Parameter                    | Min | Typ | Max | Notes |
 |-----------------------------|-----|-----|-----|------|
 | **Supply voltage (V+)**     | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
-| **Power consumption**       | —   | 1.85 W | 3.0 W | Module only (no external loads). |
+| **Power consumption**       | —   | **3 W** | **5 W** | 24 V DC nominal; per product label (logic + RS‑485 + USB‑C typ.; max with both relays on, ISO rails loaded, all DIs active, RS‑485 traffic). |
 | **Logic rails**             | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
 | **Isolated sensor rails**   | —   | +12 V ISO / +5 V ISO | — | Fused, LC‑filtered; for sensors only (≤ ~150 mA shared). |
 | **1‑Wire bus power**        | —   | +5 V (logic) | — | Non‑isolated, for 1‑Wire devices only. |
@@ -786,7 +789,7 @@ Summarize steps in 3 phases:
 | Parameter                     | Min | Typ | Max | Notes |
 |-------------------------------|-----|-----|-----|------|
 | **Supply voltage (V+)**       | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
-| **Power consumption**         | —   | 1.85 W | 3.0 W | Module only (no external loads). |
+| **Power consumption**         | —   | **3 W** | **5 W** | 24 V DC nominal; per product label (logic + RS‑485 + USB‑C typ.; max with both relays on, ISO rails loaded, all DIs active, RS‑485 traffic). |
 | **Logic rails**               | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
 | **Isolated sensor rails**     | —   | +12 V ISO / +5 V ISO | — | Fused & LC‑filtered; specify budget per install. |
 | **Digital inputs**            | —   | —   | —   | Opto‑isolated; per‑channel surge protection. |

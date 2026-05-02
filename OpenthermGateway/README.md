@@ -63,7 +63,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 - ESP32-WROOM-32U-N16 (16 MB flash)
 - OpenTherm interface (OT+ / OT-)
-- Relay output: 1 × SPDT relay (component), only **C and NC** terminals exposed externally — functionally **SPST-NC**. System limit: 3 A @ 250 VAC (resistive), 750 VA @ 250 VAC max, 90 W @ 30 VDC max.
+- Relay output: 1 × SPDT relay (component), only **C and NC** terminals exposed externally — functionally **SPST-NC**. System limit: 3 A @ 250 VAC (resistive), 750 VA @ 250 VAC max, 90 W @ 30 VDC max. *Relay output insulation from mains primary on the PCB is rated Basic; see use restriction in the Relay Output Wiring section.*
 - Two 1-Wire buses
 - Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
 - USB Type-C
@@ -105,6 +105,7 @@ The table below lists boilers users have successfully run with this hardware (or
 >   by a Schottky diode (STPS340U).
 > - Follow local electrical code and boiler manufacturer
 >   OpenTherm wiring requirements.
+> - **Relay output use restriction:** terminals C and NC shall be connected only to the same mains supply as L/N, or to SELV / Limited Power Source circuits. Cross-phase or cross-source mains connection is not permitted with hardware revision V1.0. See Wiring → Relay Output Wiring for the full rationale.
 
 ## Mechanical and Environmental
 
@@ -185,6 +186,16 @@ Keep OT wiring separated from mains and relay output conductors.
 > **powered**. If you are wiring a boiler, pump, or valve to the NC contact,
 > it will be active by default until the relay is commanded ON.
 > Design your installation accordingly and ensure this is safe for your load.
+
+> ⚠ **Relay output — use restriction (mandatory):**
+> The relay output terminals (C, NC) shall be connected only to:
+> - the **same mains supply** circuit as the L/N input of this device, OR
+> - a **SELV** (Safety Extra-Low Voltage) circuit, OR
+> - a **Limited Power Source (LPS)** circuit per EN 62368-1.
+>
+> Connection of the relay output to a **different mains phase**, an **isolated mains source**, or any circuit at a **higher voltage class** than the device's L/N input is **not permitted**. Failure to follow this restriction may cause dielectric breakdown between the device input and relay output circuits, presenting an electric-shock and fire hazard.
+>
+> This restriction is required because the printed-circuit-board insulation between the L/N tracks and the C/NC tracks of the Relay board is rated as **Basic** (per EN 62368-1 Table 11/14, working voltage 250 V r.m.s.); cross-mains use would require Reinforced insulation that the current PCB revision (V1.0) does not provide. The next hardware revision will lift this restriction.
 
 The relay output is a 1 × SPDT relay (component), but only **C and NC** terminals are exposed externally — functionally **SPST-NC**.
 System load limits: **3 A @ 250 VAC** (resistive) · **750 VA @ 250 VAC** max · **90 W @ 30 VDC** max.
@@ -891,6 +902,9 @@ This ensures full compatibility with ESPHome and Home Assistant while protecting
 See LICENSE files in each directory for full terms.
 
 ## Changelog
+
+### v1.0.6 — current (documentation update)
+- **Safety:** Added relay output use-restriction warning to comply with the Basic-insulation rating between mains primary (L/N) and relay output (C, NC) tracks on the Relay board, REV1.0. The restriction will be lifted in REV2 of the hardware where Reinforced insulation is achieved by PCB redesign.
 
 ### v1.0.6 — current
 - Initial public firmware release for OpenTherm Gateway-R1 hardware V1.0.

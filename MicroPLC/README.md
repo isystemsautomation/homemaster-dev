@@ -1,134 +1,136 @@
-# 🚧 Project Status: Under Active Development & Testing
+# HomeMaster MicroPLC
 
-> **Important Notice:** This documentation, hardware designs, and firmware are for the **pre-release version** of the HomeMaster system. All information is preliminary and may contain errors or be subject to change.
->
-> - **Hardware:** Modules are currently in the prototyping and testing phase. Final production versions may differ.
-> - **Firmware:** Firmware is under active development and is considered **beta**. Features, configurations, and stability are being refined.
->
-> Please use this information for evaluation and development purposes only. Check the [Releases page](../../releases) for the latest stable versions and updates.
+![HomeMaster MicroPLC](./Images/MicroPLC.png)
 
----
----
-Homemaster-MicroPLC
----
-![alt text](./Images/MicroPLC.png "HOMAMASTER MicroPLC")
+> **Project status:** under active development and testing.
+> Hardware and firmware are pre-release and may change.
+> Check [Releases](../../releases) for stable versions.
 
-## Product description
+## Description
 
-The HOMAMASTER MicroPLC is a compact and powerful open-source automation controller based on the ESP32-WROOM-32U. Designed for seamless integration with Home Assistant using ESPHome, it enables control of smart home devices, sensors, actuators, and industrial systems through RS-485 Modbus and wireless communication.
+HomeMaster MicroPLC is a compact open-source automation controller based on `ESP32-WROOM-32U`.
+It is designed for Home Assistant integration via ESPHome and supports local control, sensor
+inputs, and industrial communication with RS-485 Modbus RTU.
 
-Maker: https://www.home-master.eu/
+| Resource | Link |
+|---|---|
+| 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/esp32-microplc-56) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC) |
+| ⚙️ Default Firmware (YAML) | [microplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml) |
+| 🔧 Schematics | [Schematic/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematic) |
+| 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
-Product page: https://www.home-master.eu/shop/esp32-microplc-56
-Schematics: https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematic
+## Table of Contents
+
+- [Description](#description)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Programming](#programming)
+- [Bus System Configuration](#bus-system-configuration)
+- [Specifications](#specifications)
+- [Pinout](#pinout)
+- [MicroPLC Functional Block Diagram](#microplc-functional-block-diagram)
+- [License](#license)
 
 ## Features
 
-- **ESP32-WROOM-32U** microcontroller with Wi-Fi and Bluetooth
-- **ESPHome compatible firmware** for seamless Home Assistant integration
-- **RS-485 Modbus RTU** interface for extension module communication
-- **USB Type-C port** for programming, debugging, and power
-- **1-Wire interface** with ESD and overvoltage protection
-- **PCF8563 RTC** for accurate time-based automation
-- **One industrial-grade relay** with varistor and opto-isolation
-- **One 24V digital input** with surge protection (ISO1212)
-- **Four front-panel buttons** and **status LEDs** for local control and diagnostics
-- **DIN-rail mountable** for standard electrical enclosures
+- `ESP32-WROOM-32U` microcontroller with Wi-Fi and Bluetooth
+- ESPHome-compatible firmware for Home Assistant integration
+- RS-485 Modbus RTU interface for extension module communication
+- USB Type-C for programming, debugging, and power
+- 1-Wire interface with ESD and overvoltage protection
+- PCF8563 RTC for time-based automation
+- One industrial-grade relay with varistor and opto-isolation
+- One 24 V digital input with surge protection (ISO1212)
+- Four front-panel buttons and status LEDs
+- DIN-rail mounting for standard control cabinets
 
-## Networking
+## Quick Start
 
-Wi-Fi Connectivity – Integrated Wi-Fi for wireless access and Home Assistant integration.
-
-## Pinout
-
-![alt text](./Images/pinout.png "pinout")
-
-## MicroPLC Functional Block Diagram
-
-![alt text](./Images/diagram.png "System Block Diagram")
+1. Mount the device on a 35 mm DIN rail inside a closed cabinet.
+2. Power on the device.
+3. Open [improv-wifi.com](https://www.improv-wifi.com) in Chrome/Edge.
+4. Connect over USB (serial) or Bluetooth LE and enter Wi-Fi credentials.
+5. Open ESPHome Dashboard and click **Take Control** after discovery.
 
 ## Programming
 
-The MicroPLC comes with ESPHome pre-installed and can be confgured via:
+The MicroPLC ships with ESPHome and can be configured in three standard ways.
 
-### Improve
-
-Wi-Fi Configuration with Improv
+### Improv Wi-Fi Setup
 
 1. Power on your HomeMaster MicroPLC.
-2. Go to 👉 improv-wifi.com (works in Chrome/Edge on desktop or mobile).
-3. Connect via USB (Serial) or Bluetooth LE.
-4. Enter your Wi-Fi SSID and password, then press Connect.
-5. The device joins your Wi-Fi and is now ready.
+2. Go to [improv-wifi.com](https://www.improv-wifi.com).
+3. Connect via USB (serial) or Bluetooth LE.
+4. Enter your Wi-Fi SSID and password, then connect.
+5. The device joins your Wi-Fi and becomes available in Home Assistant / ESPHome.
 
-You can then access it via its local address (e.g., http://homemaster-microplc.local) or directly in Home Assistant.
+### One-Click Import (ESPHome Dashboard)
 
-### One-Click Import (ESPHome Dashboard Import)
+Once connected to Wi-Fi, the MicroPLC is auto-discovered in ESPHome Dashboard.
+Click **Take Control** to import the official configuration from GitHub.
 
-Once connected to Wi-Fi, the MicroPLC will be automatically discovered in ESPHome Dashboard.
-When the device appears in ESPHome Dashboard, click “Take Control”.
-The MicroPLC supports dashboard import, automatically pulling its official configuration from GitHub
+### USB Type-C Flashing (ESPHome Dashboard)
 
-### USB Type-C: Use the ESPHome Dashboard to upload the configuration
-
-1. Connect the MicroPLC to your computer with a USB Type-C cable.
-2. Download the YAML configuration file from our GitHub repository.(https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml)
-3. Open the ESPHome Dashboard, import the YAML file, and update it with your Wi-Fi SSID and password.
+1. Connect the MicroPLC to your computer using USB Type-C.
+2. Open the YAML config:
+   [microplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml)
+3. Import it into ESPHome Dashboard and set your Wi-Fi credentials.
 4. Flash the device directly from ESPHome Dashboard.
-5. The MicroPLC supports automatic reset and boot control — there is no need to press reset or boot buttons during programming.
-6. After flashing, the device will reboot automatically and run the updated firmware.
+5. The board supports automatic reset/boot control (no manual BOOT/RESET sequence needed).
 
-## Bus system configuration
+## Bus System Configuration
 
 ### I2C
 
-|        | PIN                           |
-| ------ | ----------------------------- |
-| SDA    | GPIO32                        |
-| SCL    | GPIO33                        |
+| Signal | Pin |
+|---|---|
+| SDA | GPIO32 |
+| SCL | GPIO33 |
 
-### I2C addresses
+### I2C Addresses
 
-|              | address                     |
-| ------------ | --------------------------- |
-| pcf8563      | 0x51                        |
+| Device | Address |
+|---|---|
+| PCF8563 | `0x51` |
 
 ## Specifications
 
-| Feature              | Details                              |
-|----------------------|--------------------------------------|
-| Microcontroller      | ESP32-WROOM-32U                      |
-| Power Supply         | 5V via USB-C for programming or 24V via terminal     |
-| Relay Output         | 1x 16A (optically isolated)     |
-| Digital Input        | 1x 24V DI (ISO1212-based)            |
-| Communication        | RS-485, Wi-Fi, Bluetooth, USB-C      |
-| RTC                  | PCF8563                              |
-| 1-Wire               | 1 channel (ESD/OVP protected)        |
-| Mounting             | DIN-rail                             |
-| Firmware             | ESPHome (pre-installed), Arduino |
+| Feature | Details |
+|---|---|
+| Microcontroller | ESP32-WROOM-32U |
+| Power Supply | 5 V via USB-C (programming) or 24 V via terminal |
+| Relay Output | 1× 16 A (optically isolated) |
+| Digital Input | 1× 24 V DI (ISO1212-based) |
+| Communication | RS-485, Wi-Fi, Bluetooth, USB-C |
+| RTC | PCF8563 |
+| 1-Wire | 1 channel (ESD/OVP protected) |
+| Mounting | DIN-rail |
+| Firmware | ESPHome (pre-installed), Arduino |
 
----
+## Pinout
+
+![MicroPLC Pinout](./Images/pinout.png)
+
+## MicroPLC Functional Block Diagram
+
+![MicroPLC Block Diagram](./Images/diagram.png)
 
 ## License
 
-Licensing
-
 This project uses a hybrid licensing model.
 
-Hardware
+### Hardware
 
-Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
-CERN-OHL-W v2
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under **CERN-OHL-W v2**.
 
-Firmware & ESPHome Integration
+### Firmware & ESPHome Integration
 
-All firmware, ESPHome configurations, and software components are licensed under:
-MIT License
+All firmware, ESPHome configurations, and software components are licensed under the **MIT License**.
 
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
-
 See LICENSE files in each directory for full terms.
 
 ---
 
-> 🔧 **HOMEMASTER – Modular control. Custom logic.**
+> 🔧 **HOMEMASTER - Modular control. Custom logic.**
