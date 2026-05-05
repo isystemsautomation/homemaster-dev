@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HomeMaster MicroPLC (ESP32)</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@bf912f279d00d1d7edf16119a36063f46923eb04/productpage/styles.css">
+  <link rel="stylesheet" href="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main@bf912f279d00d1d7edf16119a36063f46923eb04/productpage/styles.css">
 </head>
 <body>
 <!-- FIXED: corrected nesting, removed stray text, added ESPHome mention in HERO, and consolidated cable/shield guidance into one bottom section -->
@@ -31,7 +31,7 @@
         <div class="plc-rail">
           <div class="plc-img plc-heroimg">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/description.png"
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/description.png"
               alt="HomeMaster MicroPLC DIN-rail ESP32 industrial controller"
               loading="lazy"
               width="800"
@@ -195,7 +195,7 @@
       <!-- KEEP THE EXISTING DRAWING -->
       <figure class="plc-figure">
         <img
-          src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/dimensions.png"
+          src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/dimensions.png"
           alt="HomeMaster MicroPLC mechanical drawing (front and side view) with dimensions in mm"
           width="620"
           loading="lazy"
@@ -240,7 +240,7 @@
             <li>Connect the MicroPLC to your computer using USB Type-C.</li>
             <li>
               Download the official YAML configuration:
-              <a href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Firmware/microplc.yaml" target="_blank" rel="noopener">
+              <a href="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Firmware/microplc.yaml" target="_blank" rel="noopener">
                 microplc.yaml
               </a>
             </li>
@@ -262,7 +262,7 @@
         <!-- Right: image -->
         <div class="plc-img">
           <img
-            src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/improv.png"
+            src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/improv.png"
             alt="ESPHome Improv WiFi setup flow"
             loading="lazy"
             width="600"
@@ -300,7 +300,7 @@
                 <th scope="row">Schematic (MCU Board)</th>
                 <td>Main controller board schematic</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Schematic/MCUBoard.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Schematic/MCUBoard.pdf" target="_blank" rel="noopener">
                     MCUBoard.pdf
                   </a>
                 </td>
@@ -309,7 +309,7 @@
                 <th scope="row">Schematic (Relay Board)</th>
                 <td>Relay and power section schematic</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Schematic/RelayBoard.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Schematic/RelayBoard.pdf" target="_blank" rel="noopener">
                     RelayBoard.pdf
                   </a>
                 </td>
@@ -318,6 +318,50 @@
           </table>
         </div>
       </div>
+
+      <!-- Card: Compliance Documents -->
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="compliance-documents">Compliance Documents</h3>
+        </div>
+
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">EU Declaration of Conformity (DoC)</th>
+                <td>Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf"
+                     href="https://github.com/isystemsautomation/homemaster-dev/raw/main/MicroPLC/Manuals/DoC-MicroPLC-V1.0.pdf"
+                     target="_blank" rel="noopener">
+                    DoC-MicroPLC-V1.0.pdf
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Datasheet</th>
+                <td>Technical specifications and electrical characteristics</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf"
+                     href="https://github.com/isystemsautomation/homemaster-dev/raw/main/MicroPLC/Manuals/MicroPLC_Datasheet.pdf"
+                     target="_blank" rel="noopener">
+                    MicroPLC_Datasheet.pdf
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
 
       <!-- Card: Firmware -->
       <div class="plc-docs-card">
@@ -339,7 +383,7 @@
                 <th scope="row">Default ESPHome Config</th>
                 <td>Pre-configured YAML for Home Assistant</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--yml" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Firmware/microplc.yaml" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--yml" href="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Firmware/microplc.yaml" target="_blank" rel="noopener">
                     microplc.yaml
                   </a>
                 </td>
@@ -424,7 +468,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_ps_dc.png"
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_ps_dc.png"
               alt="Wiring example: 24 V DC connected to V+ and 0V"
               loading="lazy"
               width="600"
@@ -500,7 +544,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_DI_2.png"
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_DI_2.png"
               alt="Wiring example: dry contact wiring to DI inputs"
               loading="lazy"
               width="600"
@@ -579,7 +623,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_relays1.png"
+                src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_relays1.png"
                 alt="Relay wiring example NO and NC contacts"
                 loading="lazy"
                 width="600"
@@ -666,7 +710,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_1wire2.png"
+                src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_1wire2.png"
                 alt="1-Wire wiring example"
                 loading="lazy"
                 width="600"
@@ -752,7 +796,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_rs485_1.png"
+                src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_rs485_1.png"
                 alt="RS-485 wiring example: bus connection (A/B/COM)"
                 loading="lazy"
                 width="600"
@@ -768,7 +812,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_rs485_2.png"
+                src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/wiring_rs485_2.png"
                 alt="RS-485 wiring example with 120 ohm termination"
                 loading="lazy"
                 width="600"
@@ -873,7 +917,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/diagram.png"
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/diagram.png"
               alt="ESP32 MicroPLC System Block Diagram"
               loading="lazy"
               width="800"
@@ -886,7 +930,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/pinout.png"
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MicroPLC/Images/pinout.png"
               alt="ESP32 MicroPLC Pinout Diagram"
               loading="lazy"
               width="800"
@@ -901,43 +945,23 @@
     </div><!-- /Inputs & Outputs -->
 
     <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
-
+        <div class="plc-section">
+      <h2 id="compliance"><strong>Compliance &amp; Certifications</strong></h2>
       <p>
-        The HomeMaster MicroPLC is designed to comply with the applicable European Union directives.
-        <strong>ISYSTEMS AUTOMATION</strong> (HomeMaster brand) maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+        The MicroPLC module is CE marked. <strong>ISYSTEMS AUTOMATION S.R.L.</strong>
+        (HomeMaster® brand) maintains the technical documentation and a signed EU
+        Declaration of Conformity (DoC) available for download in the
+        <a href="#documents-and-resources">Documents and Resources</a> section above.
       </p>
-
-      <h3>EU Directives</h3>
-      <p>
-        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
-      </p>
-
-      <h3>Harmonised Standards</h3>
-      <table class="plc-table-compact">
-        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
-        <tr><td><strong>EMC</strong></td><td>EN 55032 (Emissions) · EN 55035 (Immunity)</td></tr>
-        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio (Wi-Fi)</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
-        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
-      </table>
-
-      <h3>Equipment Classification</h3>
-      <p>
-        <strong>Class A Information Technology Equipment</strong> (industrial / commercial environment)
-      </p>
-
-      <h3>Radio</h3>
-      <p>
-        The product integrates a pre-certified ESP32 2.4 GHz Wi-Fi radio module.
-        Final conformity with the Radio Equipment Directive (RED) is demonstrated by the conformity assessment of the complete apparatus and the maintained technical documentation.
-      </p>
-
-      <h3>Safety Notice</h3>
-      <p>
-        <strong>24 V DC:</strong> SELV · Qualified personnel only
-      </p>
+      <ul class="plc-list plc-list--tight">
+  <li><strong>EMC Directive 2014/30/EU</strong> — EN 55032:2015 (Class B emissions),
+      EN 55035:2017 (immunity), tested by Idvorsky Laboratories Ltd. (Job #1648)</li>
+  <li><strong>Low Voltage Directive 2014/35/EU</strong> — EN 62368-1:2020 + A11:2020,
+      in-house dielectric and isolation testing by ISYSTEMS AUTOMATION compliance laboratory</li>
+  <li><strong>RoHS Directive 2011/65/EU</strong> — EN IEC 63000 technical documentation</li>
+  <li><strong>HomeMaster®</strong> — registered EU trademark (EUTM No. 019082911,
+      EUIPO, registered 15 January 2025)</li>
+      </ul>
     </div>
   </div><!-- /plc-wrap -->
 </div><!-- /hm-plc -->

@@ -235,6 +235,50 @@
         </div>
       </div>
 
+      <!-- Card: Compliance Documents -->
+      <div class="plc-docs-card">
+        <div class="plc-docs-cardhead">
+          <h3 class="plc-docs-title" id="compliance-documents">Compliance Documents</h3>
+        </div>
+
+        <div class="plc-tablewrap">
+          <table class="table o_table plc-docs-table">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Description</th>
+                <th class="plc-docs-linkcol" scope="col">Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">EU Declaration of Conformity (DoC)</th>
+                <td>Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf"
+                     href="https://github.com/isystemsautomation/homemaster-dev/raw/main/OpenthermGateway/Manuals/DoC-OTGW-R1-V1.0.pdf"
+                     target="_blank" rel="noopener">
+                    DoC-OTGW-R1-V1.0.pdf
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Datasheet</th>
+                <td>Technical specifications and electrical characteristics</td>
+                <td class="plc-docs-linkcol">
+                  <a class="plc-docs-link plc-docs-link--pdf"
+                     href="https://github.com/isystemsautomation/homemaster-dev/raw/main/OpenthermGateway/Manuals/OTGW-R1_Datasheet.pdf"
+                     target="_blank" rel="noopener">
+                    OTGW-R1_Datasheet.pdf
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
       <div class="plc-docs-card">
         <div class="plc-docs-cardhead">
           <h3 class="plc-docs-title" id="firmware-software">Firmware &amp; Software</h3>
@@ -455,49 +499,23 @@
     </div>
 
     <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
-
+        <div class="plc-section">
+      <h2 id="compliance"><strong>Compliance &amp; Certifications</strong></h2>
       <p>
-        The HomeMaster OpenTherm Gateway is designed to comply with applicable EU directives.
-        ISYSTEMS AUTOMATION maintains technical documentation and signed DoC for the complete device.
+        The OpenTherm Gateway module is CE marked. <strong>ISYSTEMS AUTOMATION S.R.L.</strong>
+        (HomeMaster® brand) maintains the technical documentation and a signed EU
+        Declaration of Conformity (DoC) available for download in the
+        <a href="#documents-and-resources">Documents and Resources</a> section above.
       </p>
-
-      <h3>EU Directives</h3>
-      <p>
-        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
-      </p>
-
-      <h3>Harmonised Standards</h3>
-      <table class="plc-table-compact">
-        <tr><th scope="col">Area</th><th scope="col">Standards</th></tr>
-        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
-        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
-        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
-      </table>
-
-      <h3>Radio</h3>
-      <p>
-        The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
-        Conformity with the Radio Equipment Directive (RED 2014/53/EU) is demonstrated
-        by the maintained technical documentation and conformity assessment of the complete device.
-      </p>
-
-      <h3>Safety Notice</h3>
-      <p>
-        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only.
-      </p>
-
-      <h3>GPSR Manufacturer / Responsible Economic Operator (EU)</h3>
-      <p>
-        <strong>ISYSTEMS AUTOMATION S.R.L.</strong>, Deligentei 18, Ploiești, Romania · Tel: +40 721 389 963
-      </p>
-
-      <h3>Declaration of Conformity (DoC)</h3>
-      <p>
-        <a href="https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Gateway_DoC.pdf" target="_blank" rel="noopener">OpenTherm_Gateway_DoC.pdf</a>
-      </p>
+      <ul class="plc-list plc-list--tight">
+  <li><strong>EMC Directive 2014/30/EU</strong> — EN 55032:2015 (Class B emissions),
+      EN 55035:2017 (immunity), tested by Idvorsky Laboratories Ltd. (Job #1648)</li>
+  <li><strong>Low Voltage Directive 2014/35/EU</strong> — EN 62368-1:2020 + A11:2020,
+      in-house dielectric and isolation testing by ISYSTEMS AUTOMATION compliance laboratory</li>
+  <li><strong>RoHS Directive 2011/65/EU</strong> — EN IEC 63000 technical documentation</li>
+  <li><strong>HomeMaster®</strong> — registered EU trademark (EUTM No. 019082911,
+      EUIPO, registered 15 January 2025)</li>
+      </ul>
     </div>
 
   </div>

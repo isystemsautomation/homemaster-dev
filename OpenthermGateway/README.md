@@ -872,21 +872,29 @@ status_led:
 
 ## Compliance & Certifications
 
-CE marked · **EMC** 2014/30/EU · **LVD** 2014/35/EU · **RED** 2014/53/EU · **RoHS** 2011/65/EU · **EN 62368-1** · Full EU Declaration of Conformity: [`OpenTherm_Gateway_DoC.pdf`](Manuals/OpenTherm_Gateway_DoC.pdf) *(upload pending — file to be added under `OpenthermGateway/Manuals/`)*.
+The OpenTherm Gateway module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
+maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
 
-**Manufacturer / EU importer (per GPSR):**
-ISYSTEMS AUTOMATION S.R.L.
-Deligentei 18, Ploiești, Romania
-Tel: +40 721 389 963 · http://www.home-master.eu
+### Applicable EU directives
 
-### Radio
-The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
-Conformity with RED 2014/53/EU is demonstrated by maintained technical
-documentation and conformity assessment of the complete device.
+- **EMC Directive 2014/30/EU** — EN 55032:2015 + AC:2016-07 + A11:2020 + A1:2020 (Class B emissions),
+  EN 55035:2017 + A11:2020 (immunity); tested by Idvorsky Laboratories Ltd., Belgrade, Serbia
+  (Job #1648, 20 April 2026)
+- **Low Voltage Directive 2014/35/EU** — EN 62368-1:2020 + A11:2020; in-house dielectric and isolation
+  test by ISYSTEMS AUTOMATION S.R.L. internal compliance laboratory
+- **RoHS Directive 2011/65/EU** — EN IEC 63000 technical documentation
 
-### Safety Notice
-- **L / N terminals** carry hazardous mains voltage — qualified personnel only.
-- **24 V DC input** is SELV (Safety Extra-Low Voltage).
+### Compliance documents
+
+| Document | File |
+|---|---|
+| EU Declaration of Conformity (DoC) | [DoC-OTGW-R1-V1.0.pdf](./Manuals/DoC-OTGW-R1-V1.0.pdf) |
+| Datasheet | [OTGW-R1_Datasheet.pdf](./Manuals/OTGW-R1_Datasheet.pdf) |
+
+### Trademark
+
+**HomeMaster®** is a registered European Union trademark of ISYSTEMS AUTOMATION S.R.L.,
+EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 
 ## License
 
@@ -908,3 +916,13 @@ See LICENSE files in each directory for full terms.
 
 ### v1.0.6 — current
 - Initial public firmware release for OpenTherm Gateway-R1 hardware V1.0.
+
+---
+
+**Manufacturer:** ISYSTEMS AUTOMATION S.R.L. (HomeMaster® brand)
+**Registered office (sediul social):** Str. Domnișori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiești, Jud. Prahova, Romania
+**Office / Contact address:** Diligentei 18, Ploiești, Romania
+**CUI / VAT:** RO 21537032
+**EUID:** ROONRC.J2007000919293
+**Telephone:** +40 747 757 798
+**Website:** [https://www.home-master.eu](https://www.home-master.eu)

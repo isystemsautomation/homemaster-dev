@@ -1194,5 +1194,38 @@ If you need help using or configuring the ENM‑223‑R1 module, the following s
 
 ---
 
+## Compliance & Certifications
 
+The ENM-223-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
+maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
 
+### Applicable EU directives
+
+- **EMC Directive 2014/30/EU** — EN 55032:2015 + AC:2016-07 + A11:2020 + A1:2020 (Class B emissions),
+  EN 55035:2017 + A11:2020 (immunity); tested by Idvorsky Laboratories Ltd., Belgrade, Serbia
+  (Job #1648, 20 April 2026)
+- **Low Voltage Directive 2014/35/EU** — EN 62368-1:2020 + A11:2020; in-house dielectric and isolation
+  test by ISYSTEMS AUTOMATION S.R.L. internal compliance laboratory
+- **RoHS Directive 2011/65/EU** — EN IEC 63000 technical documentation
+
+### Compliance documents
+
+| Document | File |
+|---|---|
+| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0.pdf](./Manuals/DoC-ENM-223-R1-V1.0.pdf) |
+| Datasheet | [ENM-223-R1_Datasheet.pdf](./Manuals/ENM-223-R1_Datasheet.pdf) |
+
+### Trademark
+
+**HomeMaster®** is a registered European Union trademark of ISYSTEMS AUTOMATION S.R.L.,
+EUTM No. 019082911, registered with EUIPO on 15 January 2025.
+
+---
+
+**Manufacturer:** ISYSTEMS AUTOMATION S.R.L. (HomeMaster® brand)
+**Registered office (sediul social):** Str. Domnișori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiești, Jud. Prahova, Romania
+**Office / Contact address:** Diligentei 18, Ploiești, Romania
+**CUI / VAT:** RO 21537032
+**EUID:** ROONRC.J2007000919293
+**Telephone:** +40 747 757 798
+**Website:** [https://www.home-master.eu](https://www.home-master.eu)
