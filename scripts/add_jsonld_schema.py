@@ -51,7 +51,7 @@ PRODUCTS: list[tuple[str, str, str, str, str]] = [
      "https://www.home-master.eu/shop/rgb-621-r1-57"),
     ("STR-3221-R1/productpage/productpage.html",
      "STR-3221-R1", "HomeMaster STR-3221-R1", "module",
-     "https://www.home-master.eu/shop/str-3221-r1-<ID>"),
+     "https://www.home-master.eu/shop/str-3221-r1-stair-leds-module-66"),
     ("WLD-521-R1/productpage/productpage.html",
      "WLD-521-R1", "HomeMaster WLD-521-R1", "module",
      "https://www.home-master.eu/shop/wld-521-r1-1021"),
