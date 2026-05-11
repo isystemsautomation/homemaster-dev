@@ -1,4 +1,4 @@
-xml<!--
+<!--
   QWeb arch_base template for HomeMaster /build/* articles.
 
   n8n fetches this file and substitutes:
