@@ -6,14 +6,19 @@ xml<!--
     ___BODY___       the article HTML body (XHTML-cleaned by n8n)
     ___SCHEMAS___    JSON-LD <script> blocks joined with newlines
 
-  Tweak the wrapper structure here to change ALL articles at once:
-    - <section class="...">   background, padding, color level
-    - <div class="container"> width
-    - add <div class="row"><div class="col-lg-10 mx-auto"> if you want narrow reading
+  Headings are forced to font-weight: 700 because Odoo only loads Roboto
+  at weights 400 and 700; without this, the theme's default 500 collapses
+  to 400 (light) instead of upscaling to 700 (bold).
 -->
 <t t-name="___VIEW_KEY___">
     <t t-call="website.layout">
         <div id="wrap" class="oe_structure">
+            <style>
+                #wrap section.s_text_block h1,
+                #wrap section.s_text_block h2,
+                #wrap section.s_text_block h3,
+                #wrap section.s_text_block h4 { font-weight: 700; }
+            </style>
             <section class="s_text_block o_cc o_cc1 o_colored_level pt48 pb48">
                 <div class="container">
 ___BODY___
