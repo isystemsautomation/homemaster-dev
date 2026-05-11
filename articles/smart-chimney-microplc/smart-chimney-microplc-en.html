@@ -1,0 +1,807 @@
+<div class="o_blog_post_content">
+<h2 id="1-how-the-system-works">1. How the System Works</h2>
+<h3 id="heat-sources">Heat Sources</h3>
+<p>The home heating system this controller runs in has <strong>three heat sources</strong>:</p>
+<ul>
+<li><strong>a wood-fired fireplace with a water jacket</strong> — the primary winter source, and the one this MicroPLC manages;</li>
+<li><strong>a solar collector with an indirect heater tank</strong> — the summer and shoulder-season source;</li>
+<li><strong>a gas boiler</strong> — the backup, used when the other sources aren't enough.</li>
+</ul>
+<p>The connecting node between all of these is the indirect heater tank. Through the <strong>three-way valve V3</strong> (see the schematic in section 2), the tank can either be tied into the heating loop or excluded from it. With the valve <strong>open</strong>, the tank acts simultaneously as a heat consumer (charging up when the loop water is hotter than the tank) and as a thermal accumulator (giving up stored heat when the tank is hotter than the loop). The tank can be charged by both the fireplace and the solar collector; heat can be drawn out by the heating loop and by domestic hot water through a second internal coil. With the valve <strong>closed</strong>, the tank is bypassed entirely and the loop water flows past it.</p>
+<h3 id="the-role-of-the-microplc-this-controller">The Role of the MicroPLC (this controller)</h3>
+<p>The MicroPLC handles the "wet" side of the system — the fireplace water jacket, the two circulation pumps on the fireplace loop, the gas boiler trigger, heat metering, and the main room thermostat. The DIN-rail panel holds the MicroPLC itself plus two Modbus expansion modules: <strong>WLD-521-R1</strong> (a metering module with flow inputs and a heat counter) and <strong>DIO-430-R1</strong> (a relay-output module).</p>
+<p>The full set of functions the controller performs:</p>
+<ol>
+<li>Reads water-jacket temperatures from two DS18B20 sensors.</li>
+<li>Turns the main circulation pump on under either of two conditions: when the jacket temperature climbs above 35 °C (the fireplace has come up to temperature), or when the solar-loop controller signals "the indirect heater tank is hot enough — please move its heat into the house."</li>
+<li>Turns the backup (emergency) pump on when the jacket temperature reaches 70 °C. More on the two-pump arrangement in the sub-section below.</li>
+<li>Counts the thermal energy delivered by the fireplace. The flow meter on the fireplace loop and the two temperature sensors on supply and return are wired into the WLD-521-R1; the module computes instantaneous power and accumulated energy itself (formulas and assumptions are in section 2). On the dashboard this shows up as <code>Chimney Heating</code> — at the time of the screenshots <strong>30,330 kWh</strong> of recovered heat had been counted.</li>
+<li>Triggers the gas boiler — but only when neither the fireplace nor the solar loop is delivering heat <strong>and</strong> the main HA thermostat is calling for warmth. Free heat sources always take priority.</li>
+<li>Counts cold and hot water consumption in the house — two additional pulse flow meters on the WLD-521-R1.</li>
+<li>Acts as the home's primary room thermostat. The thermostat works off a median temperature derived from several room sensors and raises one of three virtual signals: "heat", "cool", or "ventilate". The "heat" signal is consumed by the controller itself (to decide whether to start the gas boiler). "Cool" and "ventilate" are passed to Home Assistant, where automations pick them up and run the air conditioner and ventilation hardware.</li>
+</ol>
+<p>All of this control logic runs locally on the MicroPLC. The control loop ticks every 3 seconds off the on-board PCF8563 hardware RTC. If Wi-Fi or Home Assistant goes away, the controller keeps running on its local sensors — values imported from HA are protected by NaN checks, and any unavailable input is simply dropped from the calculation.</p>
+<h4 id="why-two-pumps-in-series">Why Two Pumps in Series</h4>
+<p>The two circulation pumps on the fireplace loop are installed <strong>in series</strong>. The second (backup) pump fills two distinct roles:</p>
+<ul>
+<li><strong>Hydraulic headroom when the jacket overheats.</strong> When the jacket temperature reaches 70 °C, the MicroPLC kicks in the second pump. Two pumps in series increase the loop's <strong>head</strong>; the actual increase in flow rate depends on the system's hydraulic resistance — if the loop isn't choked elsewhere, the flow goes up and heat is pulled out of the jacket faster.</li>
+<li><strong>Failure backup.</strong> If the main pump dies or its output isn't enough (for example because of an air lock in the loop), the jacket temperature will keep climbing and at 70 °C the second pump will automatically come online — providing circulation in place of the failed unit.</li>
+</ul>
+<h3 id="the-role-of-external-controllers">The Role of External Controllers</h3>
+<p>Some of the functions related to the fireplace and to the heating system in general are implemented on other ESPHome devices. This MicroPLC doesn't talk to those devices directly — all interaction goes through Home Assistant.</p>
+<ul>
+<li><strong>Solar-loop controller.</strong> Manages the solar collector and the indirect heater tank (charging the tank from the collector plus a backup electric heating element). When the water in the tank is warm enough that its heat is worth pushing into the house, this controller raises a permission signal in HA — the MicroPLC sees that signal and turns on the main pump.</li>
+<li><strong>Air-side controller for the fireplace.</strong> Drives the fans that draw fresh outside air through the cavity around the fireplace and along the flue pipe. The air picks up heat from the walls and is delivered into the rooms. The fans run on setpoints from temperature sensors around the fireplace. On the dashboard this shows up as <code>Air inlet</code>, <code>Air outlet 1</code>, <code>Air outlet 2</code>, <code>fan 1</code>, <code>fan 2</code>.</li>
+<li><strong>Air conditioner and ventilation (via HA automations).</strong> The thermostat's <code>Air Condition</code> and <code>Ventilation</code> virtual signals go into Home Assistant; HA automations react to them and start the corresponding equipment.</li>
+</ul>
+<hr>
+<h2 id="2-the-control-system">2. The Control System</h2>
+<h3 id="heating-system-schematic">Heating System Schematic</h3>
+<figure class="text-center my-4">
+  <img src="/web/image/website/heating-system-schematic.png" alt="Heating system schematic: fireplace with water jacket, indirect heater tank, gas boiler, and piping" class="img-fluid" loading="lazy">
+  <figcaption>Heating system schematic: fireplace with water jacket, indirect heater tank, gas boiler, and piping</figcaption>
+</figure>
+<p>Labels on the schematic:</p>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1, T2</td>
+<td>DS18B20 sensors on the fireplace water jacket (wired to MicroPLC, GPIO04)</td>
+</tr>
+<tr>
+<td>T3, T4</td>
+<td>temperature sensors on the air-side heat exchanger around the flue (handled by the air-side controller)</td>
+</tr>
+<tr>
+<td>T5, T6</td>
+<td>supply and return of the heating loop through the fireplace (1-Wire on WLD-521-R1, inputs for the heat meter)</td>
+</tr>
+<tr>
+<td>T7</td>
+<td>temperature at the indirect heater tank's outlet to the main loop (1-Wire on WLD-521-R1)</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>fresh-air inlet temperature from outside (handled by the air-side controller)</td>
+</tr>
+<tr>
+<td>M1, M2</td>
+<td>main and backup circulation pumps on the fireplace loop, installed in series</td>
+</tr>
+<tr>
+<td>M3, M4</td>
+<td>air-side fans for the fireplace (Fresh Air, House Air — handled by a separate controller)</td>
+</tr>
+<tr>
+<td>V1</td>
+<td>shut-off / mixing valve assembly on the hot water side</td>
+</tr>
+<tr>
+<td>V2</td>
+<td>shut-off / mixing valve assembly on the cold water side</td>
+</tr>
+<tr>
+<td>V3</td>
+<td>three-way valve that ties the indirect heater tank into the heating loop or excludes it</td>
+</tr>
+<tr>
+<td>F1</td>
+<td>hot water flow meter (pulse input on WLD-521-R1)</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>cold water flow meter (pulse input on WLD-521-R1)</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>fireplace-loop flow meter (pulse input on WLD-521-R1, primary input for the heat meter)</td>
+</tr>
+<tr>
+<td>Indirect heater tank</td>
+<td>the system's thermal accumulator, with two internal heat-exchange coils</td>
+</tr>
+<tr>
+<td>Gas heater</td>
+<td>the gas boiler (its trigger is wired to a DIO-430-R1 relay)</td>
+</tr>
+<tr>
+<td>Leak sensors</td>
+<td>water-leak sensors (wired to digital inputs on the WLD-521-R1)</td>
+</tr>
+</tbody>
+</table>
+<p>This MicroPLC controls pumps M1 and M2, triggers the gas boiler, and reads sensors T1, T2, T5, T6, T7, flow meters F1, F2, F3, and the leak sensors. The fireplace's air side (T3, T4, T8, M3, M4) is handled by a separate ESPHome controller.</p>
+<h3 id="whats-in-the-panel">What's in the Panel</h3>
+<p>A single DIN-rail enclosure. The rail holds three devices:</p>
+<p><strong>MicroPLC</strong> — the main controller. ESP32-WROOM, ESPHome firmware. It is the master of the Modbus RS-485 bus. It has one on-board relay, a 1-Wire bus for temperature sensors, and a PCF8563 hardware RTC.</p>
+<p><strong>WLD-521-R1</strong> — an RP2350-based module, wired to the Modbus bus as a slave at address 3. This is the metering module: 5 pulse inputs for flow meters, up to 10 1-Wire channels for temperature sensors, 5 channels of (flow + two temperature sensors) for thermal power and energy calculation, plus 2 relay outputs.</p>
+<p><strong>DIO-430-R1</strong> — an RP2350-based module, Modbus slave at address 4. A discrete I/O module: 4 digital inputs, 3 LEDs, and 3 relay outputs.</p>
+<h3 id="whats-wired-to-each-device">What's Wired to Each Device</h3>
+<p><strong>To the MicroPLC:</strong>
+- Two DS18B20 sensors on the 1-Wire bus (GPIO04). They sit in the fireplace water jacket and read the heat-transfer fluid temperature. They appear on the dashboard as <code>Water inside 1</code> and <code>Water inside 2</code>. These are the sensors that decide when to run the pumps.
+- The on-board relay (GPIO26) — drives the main circulation pump on the fireplace loop.</p>
+<p><strong>To the WLD-521-R1:</strong>
+- Two 1-Wire temperature sensors on the supply and return pipes of the fireplace heating loop (T5, T6 on the schematic). Their difference (ΔT) is the basis for calculating how much heat the fireplace is delivering.
+- One additional 1-Wire temperature sensor at the indirect heater tank's outlet to the main loop (T7 on the schematic).
+- A pulse flow meter on the fireplace circulation loop (F3 on the schematic) — counts how many liters of heat-transfer fluid have passed through the jacket. Used by the heat counter together with T5 and T6.
+- A pulse flow meter on the cold water inlet to the house (F2 on the schematic).
+- A pulse flow meter on the hot water line (F1 on the schematic).
+- Two wired water-leak sensors (placed on the floor in service areas) — wired to digital inputs.</p>
+<p><strong>To the DIO-430-R1:</strong>
+- Relay #1 — triggers the gas boiler.
+- Relay #2 — drives the backup circulation pump.</p>
+<h3 id="where-fireplace-energy-comes-from">Where "Fireplace Energy" Comes From</h3>
+<p>The flow meter on the fireplace loop tells you how much heat-transfer fluid has passed through the jacket (in liters per minute). The two temperature sensors on supply and return tell you how much that fluid was warmed up inside the jacket (ΔT, in °C). The WLD-521-R1 calculates thermal power using the proper physical formula:</p>
+<pre><code class="language-text">m_dot = (flow_L_per_min / 60) × ρ      kg/s
+P     = m_dot × Cp × ΔT                W
+</code></pre>
+<p>That is, the volumetric flow is first converted to a mass flow using the fluid's density ρ, and then multiplied by the specific heat Cp and the temperature difference.</p>
+<p>Out of the box, the module is configured for water at room temperature: <strong>ρ = 1.0 kg/L</strong>, <strong>Cp = 4186 J/(kg·°C)</strong>. This is an engineering approximation, not "exact physics":</p>
+<ul>
+<li>The density of water depends on temperature: at 20 °C it really is close to 1.0 kg/L, but at 60–80 °C it drops to about 0.97–0.98 kg/L. So the default value slightly overestimates power by about 2–3 % across the working range of a hot loop. For a domestic heating system, that's an acceptable margin.</li>
+<li>Cp = 4186 J/(kg·°C) is for <strong>water</strong>. For propylene-glycol-based heat-transfer fluids Cp is noticeably lower (about 3500–3800 J/(kg·°C) depending on concentration). If you have antifreeze in your loop, the default value gives an error well in excess of 2–3 %.</li>
+</ul>
+<p>The WLD-521-R1's web configurator exposes editable fields directly in the UI for each of its five heat-counter channels:</p>
+<ul>
+<li><strong>Enable heat</strong> — turn the channel on or off.</li>
+<li><strong>Sensor A</strong> and <strong>Sensor B</strong> — pick the supply and return 1-Wire sensors from the list of sensors the module has discovered.</li>
+<li><strong>cp (J/kg·°C)</strong> — specific heat of the fluid, default 4186.</li>
+<li><strong>ρ (kg/L)</strong> — density of the fluid, default 1.000.</li>
+<li><strong>calib</strong> — a calibration coefficient, default 1.0000 (used to fit the meter to a reference measurement).</li>
+</ul>
+<p>For the same channel's flow meter you also get <strong>Pulses per Liter</strong> (default 450) and calibration coefficients for both rate and accumulator. So if you ever need to (antifreeze, an unusual fluid, or a calibration against a reference meter), you change all of these settings right in the browser — no reflashing, no YAML edits.</p>
+<p>The instantaneous power that comes out of the formula is integrated over time → accumulated energy in joules → converted to kWh and published to Home Assistant as the entity <code>Chimney Heating</code>.</p>
+<p>The MicroPLC doesn't do any of this math itself — the WLD module computes everything internally and hands the finished numbers over the Modbus bus.</p>
+<hr>
+<h2 id="3-bill-of-materials">3. Bill of Materials</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Specification</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MicroPLC</td>
+<td>ESP32-WROOM, ESPHome, Modbus RS-485 master, on-board relay on GPIO26 (with NC contacts), PCF8563 RTC, 1-Wire bus</td>
+<td>home-master.eu</td>
+</tr>
+<tr>
+<td>WLD-521-R1</td>
+<td>RP2350, Modbus RTU slave (address 3): 5 pulse inputs with counters, up to 10 1-Wire channels, 5 heat-meter channels, 2 relays</td>
+<td>home-master.eu</td>
+</tr>
+<tr>
+<td>DIO-430-R1</td>
+<td>RP2350, Modbus RTU slave (address 4): 4 digital inputs, 3 relays, 3 LEDs</td>
+<td>home-master.eu</td>
+</tr>
+<tr>
+<td>DS18B20 (waterproof, cabled)</td>
+<td>1-Wire, range −55…+125 °C, stainless-steel probe with thermowell, cable length to suit each install location. At least 4 are needed (2 for the fireplace water jacket on the MicroPLC, 2 for supply/return of the fireplace heating loop on the WLD), plus more as required for additional points</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Pulse flow meter for the fireplace loop (1 pc)</td>
+<td>hall-sensor or open-collector type, sized to the pipe diameter (typically G3/4 or G1), range matched to the loop's flow rate (e.g. 1–25 L/min). The pulses-per-liter constant goes into the WLD module's YAML</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Pulse flow meters for cold and hot water (2 pcs)</td>
+<td>for domestic plumbing, G1/2 or G3/4, typical range 1–30 L/min, hall-sensor / open-collector</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Circulation pumps (2 pcs)</td>
+<td>main and backup, installed in series on the fireplace loop. This system uses 45 W / 220 V AC pumps — thanks to the modest power, they're driven directly off the relay outputs without any external contactors</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Gas boiler</td>
+<td>"trigger" input via an external dry contact, with a signalling-circuit current of tens of mA</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Water-leak sensors (2 pcs)</td>
+<td>wired cable-style water-presence sensors, brought to the WLD-521-R1's digital inputs, mounted on the floor in service areas</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>80 °C thermal switch (pressostat)</td>
+<td>hardware over-temperature protection for the main pump, wired in parallel with the output contacts of the main-pump relay (closes the pump's power circuit, bypassing the relay)</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>85 °C emergency cooling valve</td>
+<td>a mechanical valve on the emergency cooling coil inside the fireplace; its inlet is fed from the cold-water supply</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>DIN-rail enclosure</td>
+<td>at least 6 modules wide (MicroPLC + WLD-521-R1 + DIO-430-R1 + power supply + breakers + terminal blocks)</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Power supply</td>
+<td>DIN-rail mounted; output voltage and wattage to suit the chosen MicroPLC and modules</td>
+<td>third-party</td>
+</tr>
+<tr>
+<td>Cables, ferrules, terminals, breaker</td>
+<td>standard wiring materials</td>
+<td>third-party</td>
+</tr>
+</tbody>
+</table>
+<p>The 1-Wire pull-up resistor is already on the MicroPLC board — no external resistor is needed. Both pumps and the gas-boiler trigger are driven directly off the MicroPLC and DIO-430-R1 relays, with no external contactors or solid-state relays. This is acceptable because the load is modest: the pumps are 45 W / 220 V AC each (roughly 0.2 A running, with an inrush current several times higher — but still inside the relays' rating), and the gas-boiler "trigger" is a dry contact carrying a signalling-circuit current in the tens of milliamps. With heavier loads (larger pumps, circuits with multi-amp inrush), a contactor between the relay and the load is mandatory.</p>
+<hr>
+<h2 id="4-wiring">4. Wiring</h2>
+<h3 id="41-temperature-sensors">4.1. Temperature Sensors</h3>
+<p><strong>In the fireplace water jacket (on the MicroPLC).</strong> Two DS18B20 sensors share a single 1-Wire bus on GPIO04. It's a flat bus — three wires per sensor: data, +3.3 V, GND. The pull-up is already on the board.</p>
+<p><strong>On the heating loop (on the WLD-521-R1).</strong> Additional DS18B20 sensors are wired into the WLD module's 1-Wire inputs. Two of them sit on the supply and return pipes of the fireplace loop (these feed the heat counter); the rest go to the gas-boiler return and other points in the system.</p>
+<h3 id="42-modbus">4.2. Modbus</h3>
+<p>The MicroPLC is the bus master. The bus runs from the MicroPLC to the WLD-521-R1 (address 3), and from there to the DIO-430-R1 (address 4). Three wires: A, B, and a shared ground.</p>
+<p>The bus parameters in YAML:</p>
+<pre><code class="language-yaml">uart:
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+</code></pre>
+<p>This is the standard configuration for HomeMaster modules. Wire the bus in a daisy chain (not as a star) and always run the GND reference alongside A/B.</p>
+<h3 id="43-relay-outputs">4.3. Relay Outputs</h3>
+<table>
+<thead>
+<tr>
+<th>Output</th>
+<th>What it drives</th>
+<th>When it activates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MicroPLC on-board relay (GPIO26)</td>
+<td>main circulation pump</td>
+<td>jacket temperature above 35 °C</td>
+</tr>
+<tr>
+<td>DIO-430-R1, relay #2</td>
+<td>backup circulation pump</td>
+<td>jacket temperature above 70 °C</td>
+</tr>
+<tr>
+<td>DIO-430-R1, relay #1</td>
+<td>gas boiler trigger</td>
+<td>fireplace not running AND HA thermostat calling for heat</td>
+</tr>
+</tbody>
+</table>
+<p><strong>An important wiring detail for the main pump.</strong> The pump is wired to the <strong>normally-closed (NC)</strong> contacts of the on-board relay. This is deliberate, and it gives us another layer of over-temperature protection for the fireplace: in any abnormal state of the controller — power loss, ESP hang, firmware reboot, hardware failure — the relay sits in its de-energized state with the NC contacts closed, and <strong>the pump simply keeps running on its own</strong>, with no controller involvement. The pump's safe state in this system is "on". If something goes wrong with the electronics while there's a fire in the fireplace, the pump automatically keeps pulling heat out of the jacket and prevents an over-temperature event.</p>
+<p>The <code>inverted: true</code> flag in YAML is a consequence of this wiring. The command <code>switch.turn_on: relay1</code> means, semantically, "the pump should be running"; since "pump running" corresponds to a de-energized relay (NC contacts closed), the flag inverts the GPIO level so that a logical <code>turn_on</code> in YAML maps to a physically de-energized relay rather than the other way around.</p>
+<h3 id="44-flow-meters">4.4. Flow Meters</h3>
+<p>All three flow meters are wired into pulse inputs on the WLD-521-R1 (<code>WLD#1 DI1</code>–<code>DI5</code>). On the dashboard their readings appear as:
+- <code>WLD#1 Flow1 Total</code> / <code>Flow1 Rate</code> — the fireplace-loop flow meter (the one used by the heat counter)
+- "Cold water" (<code>2,794.924 L</code> total) — cold water into the house
+- "Hot water" (<code>1,167.729 L</code> total) — hot water into the house</p>
+<hr>
+<h2 id="5-one-time-module-setup-via-webconfig">5. One-Time Module Setup via WebConfig</h2>
+<p>Before the MicroPLC can talk to the WLD-521-R1 and the DIO-430-R1, each expansion module needs its own one-time configuration. This is done entirely in the browser: plug the module's USB-C port into your laptop, open the module's <strong>WebConfig</strong> page in Chrome or Edge, click <strong>Connect</strong>, and pick the serial device that appears. All settings are stored in the module's onboard flash and survive power cycles.</p>
+<p>The MicroPLC's ESPHome YAML <strong>does not</strong> contain any of this information — it only knows the Modbus address and baud rate of each module. Everything below — sensor names, calibration constants, which physical input drives which relay — lives inside the modules themselves.</p>
+<h3 id="51-wld-521-r1-modbus-address-and-1-wire-sensors">5.1. WLD-521-R1: Modbus Address and 1-Wire Sensors</h3>
+<figure class="text-center my-4">
+  <img src="/web/image/website/wld-device-setup.png" alt="WLD-521-R1 WebConfig: Modbus address 3, baud 19200, and three named 1-Wire DS18B20 sensors discovered and stored in flash — Boiler, Water supply, Water return." class="img-fluid" loading="lazy">
+  <figcaption>WLD-521-R1 WebConfig: Modbus address 3, baud 19200, and three named 1-Wire DS18B20 sensors discovered and stored in flash — Boiler, Water supply, Water return.</figcaption>
+</figure>
+<p>The WLD module sits at Modbus address <strong>3</strong> and runs at <strong>19200 baud</strong> to match the MicroPLC's UART. The bottom of the page lists every DS18B20 the module has discovered on its 1-Wire bus and lets you give each one a human-friendly name. In this install three sensors are stored:</p>
+<ul>
+<li><strong>#1 Boiler</strong> — the gas-boiler return pipe.</li>
+<li><strong>#2 Water supply</strong> — the supply side of the fireplace loop (this becomes <em>Sensor A</em> for the heat meter in 5.2).</li>
+<li><strong>#3 Water return</strong> — the return side of the fireplace loop (this becomes <em>Sensor B</em> for the heat meter in 5.2).</li>
+</ul>
+<p>The names are arbitrary and only affect what's shown in the WebConfig UI; the controller addresses sensors by their 64-bit ROM IDs (the <code>0x…28</code> strings), not by name.</p>
+<h3 id="52-wld-521-r1-flow-meter-and-heat-counter-on-in1">5.2. WLD-521-R1: Flow Meter and Heat Counter on IN1</h3>
+<figure class="text-center my-4">
+  <img src="/web/image/website/wld-input-heatmeter.png" alt="WLD-521-R1 IN1 set as a Water counter with Heat enabled — 450 pulses per liter, Sensor A = Water supply, Sensor B = Water return, water defaults (cp = 4186 J/kg·°C, ρ = 1 kg/L)." class="img-fluid" loading="lazy">
+  <figcaption>WLD-521-R1 IN1 set as a Water counter with Heat enabled — 450 pulses per liter, Sensor A = Water supply, Sensor B = Water return, water defaults (cp = 4186 J/kg·°C, ρ = 1 kg/L).</figcaption>
+</figure>
+<p>This is the page that turns the fireplace-loop flow meter into a <strong>thermal energy counter</strong>. The settings here implement exactly the formula explained in section 2:</p>
+<ul>
+<li><strong>Type: Water counter</strong> — interprets pulses on IN1 as a flow rate.</li>
+<li><strong>Pulses per liter: 450</strong> — the constant printed on this particular flow meter's nameplate; adjust to match your own meter.</li>
+<li><strong>Enable heat</strong> — ticked. This adds the thermal-power channel on top of the flow counter.</li>
+<li><strong>Sensor A (supply)</strong> = <strong>#2 Water supply</strong>, <strong>Sensor B (return)</strong> = <strong>#3 Water return</strong> — picked from the list of 1-Wire devices stored in 5.1.</li>
+<li><strong>cp = 4186 J/(kg·°C)</strong> and <strong>ρ = 1 kg/L</strong> — water defaults. Change these only if you have antifreeze in the loop (see section 2).</li>
+<li><strong>Calibration ×1</strong> on flow rate, flow total, and energy — leave these at 1 unless you're matching the meter against a reference.</li>
+</ul>
+<p>The live readout at the bottom of the panel — <strong>TA</strong>, <strong>TB</strong>, <strong>ΔT</strong>, <strong>Power</strong>, <strong>Energy</strong> — is exactly what the module publishes on Modbus. The MicroPLC forwards these to Home Assistant under names like <code>WLD#1 Flow1 Total</code>, <code>WLD#1 Power1</code>, and <code>Chimney Heating</code>.</p>
+<p>Two more pulse flow meters (cold and hot domestic water) are wired into IN2 and IN3 of the same module. They use the same <strong>Water counter</strong> type but with <strong>Enable heat</strong> turned <em>off</em> — they only need pulses → liters, no temperature math.</p>
+<h3 id="53-dio-430-r1-modbus-buttons-relays-and-leds">5.3. DIO-430-R1: Modbus, Buttons, Relays, and LEDs</h3>
+<figure class="text-center my-4">
+  <img src="/web/image/website/dio-webconfig.png" alt="DIO-430-R1 WebConfig: Modbus address 4, baud 19200. The four digital inputs are passed straight through to Modbus (no local action). Each of the three front-panel buttons toggles one of the three relays, and each user LED follows the state of its matching relay." class="img-fluid" loading="lazy">
+  <figcaption>DIO-430-R1 WebConfig: Modbus address 4, baud 19200. The four digital inputs are passed straight through to Modbus (no local action). Each of the three front-panel buttons toggles one of the three relays, and each user LED follows the state of its matching relay.</figcaption>
+</figure>
+<p>The DIO module sits at Modbus address <strong>4</strong> and shares the same 19200-baud RS-485 bus. Three sections matter:</p>
+<ul>
+<li><strong>Digital Inputs (4)</strong> — all four enabled, <em>Action</em> set to <strong>None</strong>. The module just reports input state on Modbus; the MicroPLC sees the bits and decides what (if anything) to do.</li>
+<li><strong>Relays (3)</strong> — all enabled, no inversion. Relay 1 drives the gas-boiler trigger, Relay 2 drives the backup circulation pump, Relay 3 is spare. The MicroPLC turns these on and off over Modbus from inside Rules B and C of the ESPHome YAML.</li>
+<li><strong>Buttons (3)</strong> — each front-panel button is wired locally to <strong>override</strong> one relay (Button 1 → Relay 1, Button 2 → Relay 3, Button 3 → Relay 2). This lets an operator standing in front of the cabinet manually energize any relay without going through Home Assistant — useful for commissioning and for forcing the backup pump on during a power-up test.</li>
+<li><strong>User LEDs (3)</strong> — <strong>Solid</strong> mode, with each LED's <em>Source</em> set to the matching <strong>Overridden Relay</strong>. The LEDs therefore mirror the actual energized state of each relay, regardless of whether the command came from Modbus or from a local button press.</li>
+</ul>
+<p>None of this is duplicated in the MicroPLC's YAML — the <code>packages/dio_430_r1.yaml</code> file only exposes the relays and inputs as Modbus entities. Button-to-relay mapping and LED-source selection are purely module-local, so even if you remove the MicroPLC from the bus the operator still has working local control of the three relays.</p>
+<hr>
+<h2 id="6-the-full-esphome-configuration">6. The Full ESPHome Configuration</h2>
+<p>This is the working configuration from the actual deployed controller. To build it for your own install:
+1. Replace the three values marked <code>REPLACE_WITH_YOUR_OWN_*</code> with your own.
+2. Replace the DS18B20 addresses with the addresses of your own sensors (the addresses show up in the ESPHome boot log — the <code>one_wire</code> platform automatically lists every device it finds on the bus along with its 64-bit address).
+3. Put your Wi-Fi credentials in <code>secrets.yaml</code>.</p>
+<pre><code class="language-yaml">esphome:
+  name: micoplc-heating
+  friendly_name: MicoPLC-Heating
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: &quot;REPLACE_WITH_YOUR_OWN_API_KEY&quot;
+
+ota:
+  - platform: esphome
+    password: &quot;REPLACE_WITH_YOUR_OWN_OTA_PASSWORD&quot;
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: &quot;Micoplc-Heating Fallback Hotspot&quot;
+    password: &quot;REPLACE_WITH_YOUR_OWN_AP_PASSWORD&quot;
+
+captive_portal:
+
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+# Pull WLD and DIO module definitions directly from the HomeMaster repository
+packages:
+  wld1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars:
+          wld_prefix: &quot;WLD#1&quot;
+          wld_id: WLD521_1
+          wld_address: 3
+    refresh: 24h
+  dio1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+        vars:
+          dio_prefix: &quot;DIO#1&quot;
+          dio_id: dio_1
+          dio_address: 4
+    refresh: 24h
+
+time:
+  - platform: pcf8563
+    id: pcf8563_time
+    address: 0x51
+    on_time:
+      - seconds: /3
+        then:
+          # --- Rule A: main pump — 35 °C threshold ---
+          - if:
+              condition:
+                lambda: |-
+                  const float t1 = id(chimney_water2).state;
+                  const float t2 = id(inside_chimney).state;
+                  const float th = id(temp_inside_heater).state;
+
+                  const bool chimney_on =
+                    (!isnan(t1) &amp;&amp; t1 &gt; 35.0f) ||
+                    (!isnan(t2) &amp;&amp; t2 &gt; 35.0f);
+
+                  const bool electric_combo_on =
+                    (!isnan(th) &amp;&amp; th &gt; 39.0f) &amp;&amp;
+                    id(electric_heating).state;
+
+                  return chimney_on || electric_combo_on;
+              then:
+                - switch.turn_on: relay1
+              else:
+                - if:
+                    condition:
+                      lambda: |-
+                        const float t1 = id(chimney_water2).state;
+                        const float t2 = id(inside_chimney).state;
+                        const float th = id(temp_inside_heater).state;
+
+                        const bool chimney_off =
+                          (!isnan(t1) &amp;&amp; t1 &lt; 35.0f) &amp;&amp;
+                          (!isnan(t2) &amp;&amp; t2 &lt; 35.0f);
+
+                        const bool electric_combo_off =
+                          (!isnan(th) &amp;&amp; th &lt; 35.0f) &amp;&amp;
+                          (!id(electric_heating).state);
+
+                        return chimney_off &amp;&amp; electric_combo_off;
+                    then:
+                      - switch.turn_off: relay1
+
+          # --- Rule B: backup pump — 70 °C threshold ---
+          - if:
+              condition:
+                lambda: |-
+                  const float t1 = id(chimney_water2).state;
+                  const float t2 = id(inside_chimney).state;
+                  return (!isnan(t1) &amp;&amp; t1 &gt; 70.0f) || (!isnan(t2) &amp;&amp; t2 &gt; 70.0f);
+              then:
+                - switch.turn_on: dio_1_relay2
+              else:
+                - if:
+                    condition:
+                      lambda: |-
+                        const float t1 = id(chimney_water2).state;
+                        const float t2 = id(inside_chimney).state;
+                        return (!isnan(t1) &amp;&amp; t1 &lt; 70.0f) &amp;&amp; (!isnan(t2) &amp;&amp; t2 &lt; 70.0f);
+                    then:
+                      - switch.turn_off: dio_1_relay2
+
+          # --- Rule C: gas boiler trigger — only when no other source is delivering heat ---
+          - if:
+              condition:
+                and:
+                  - switch.is_off: relay1
+                  - binary_sensor.is_off: dio_1_rly2_state
+                  - switch.is_on: heating
+              then:
+                - switch.turn_on: dio_1_relay1
+              else:
+                - switch.turn_off: dio_1_relay1
+  - platform: homeassistant
+    on_time_sync:
+      then:
+        pcf8563.write_time:
+
+i2c:
+  - id: bus_a
+    sda: 32
+    scl: 33
+    scan: true
+
+one_wire:
+  - platform: gpio
+    pin: GPIO04
+    id: hub_1
+
+switch:
+- platform: gpio
+  name: &quot;Relay&quot;
+  pin: 26
+  id: relay1
+  inverted: True
+- platform: template
+  name: &quot;Air Condition&quot;
+  id: air_cond
+  optimistic: True
+- platform: template
+  name: &quot;Ventilation&quot;
+  id: air_ventilation
+  optimistic: True
+- platform: template
+  name: &quot;Heat&quot;
+  id: heating
+  optimistic: True
+
+sensor:
+- platform: dallas_temp
+  one_wire_id: hub_1
+  address: 0x85030994971ce228
+  name: &quot;Chimney Temperature #1&quot;
+  id: chimney_water1
+  update_interval: 5s
+- platform: dallas_temp
+  one_wire_id: hub_1
+  address: 0xfa00000094def728
+  name: &quot;Chimney Temperature #2&quot;
+  id: chimney_water2
+  update_interval: 5s
+- platform: homeassistant
+  id: inside_temperature
+  entity_id: sensor.indoor_median_temperature
+  internal: true
+- platform: homeassistant
+  id: inside_chimney
+  entity_id: sensor.chimney_esp32_chimney_temperature_2
+  internal: true
+- platform: homeassistant
+  id: temp_inside_heater
+  name: &quot;Temp inside heater&quot;
+  entity_id: sensor.miniplc_solar_heater_temperature
+  internal: false
+- platform: uptime
+  name: &quot;Uptime&quot;
+  unit_of_measurement: &quot;h&quot;
+  accuracy_decimals: 1
+  filters:
+    - lambda: return x / 3600.0;
+- platform: wifi_signal
+  name: &quot;WiFi Signal&quot;
+  update_interval: 60s
+- platform: internal_temperature
+  name: &quot;ESP Temperature&quot;
+  update_interval: 60s
+
+binary_sensor:
+  - platform: template
+    name: &quot;Chimney State&quot;
+    id: chimney_state
+    device_class: heat
+    lambda: |-
+      const float t1 = id(chimney_water2).state;
+      const float t2 = id(inside_chimney).state;
+      if ((!isnan(t1) &amp;&amp; t1 &gt; 30.0f) || (!isnan(t2) &amp;&amp; t2 &gt; 30.0f)) {
+        return true;
+      } else {
+        return false;
+      }
+  - platform: homeassistant
+    name: &quot;Electric heating state&quot;
+    entity_id: switch.homemaster_microplc_aio_enm_1_relay_1
+    id: electric_heating
+    internal: false
+
+status_led:
+  pin:
+    number: GPIO25
+    inverted: true
+    id: st_led
+
+climate:
+  - platform: thermostat
+    name: &quot;Thermostat Boiler Controller&quot;
+    visual:
+      min_temperature: 18
+      max_temperature: 26
+      temperature_step: 0.5
+    sensor: inside_temperature
+    min_cooling_off_time: 300s
+    min_cooling_run_time: 300s
+    min_heating_off_time: 300s
+    min_fanning_run_time: 30s
+    min_fanning_off_time: 30s
+    min_heating_run_time: 300s
+    min_idle_time: 30s
+    cool_action:
+      - switch.turn_on: air_cond
+    heat_action:
+      - switch.turn_on: heating
+    idle_action:
+      - switch.turn_off: heating
+      - switch.turn_off: air_ventilation
+      - switch.turn_off: air_cond
+    fan_only_action:
+      - switch.turn_on: air_ventilation
+    default_preset: Home
+    preset:
+      - name: Home
+        default_target_temperature_low: 20 °C
+        default_target_temperature_high: 22 °C
+</code></pre>
+<hr>
+<h2 id="7-walking-through-the-configuration">7. Walking Through the Configuration</h2>
+<h3 id="71-boilerplate-blocks-esp32-api-ota-wifi-captive_portal">7.1. Boilerplate Blocks: <code>esp32</code>, <code>api</code>, <code>ota</code>, <code>wifi</code>, <code>captive_portal</code></h3>
+<p>The standard set for any MicroPLC-based ESPHome project:
+- <code>esp32</code> with <code>board: esp32dev</code> and <code>framework: esp-idf</code> — this is the generic target for the ESP32-WROOM that's installed on the MicroPLC board (ESP-IDF is chosen as the framework because that's what the HomeMaster packages build cleanly against).
+- <code>api</code> with an encryption key — the main link to Home Assistant.
+- <code>ota</code> with a password — over-the-air firmware updates.
+- <code>wifi</code> — primary Wi-Fi plus a fallback access point in case the primary network is down.
+- <code>captive_portal</code> — the built-in web page for configuring Wi-Fi via the fallback AP.</p>
+<h3 id="72-the-modbus-bus-uart-modbus">7.2. The Modbus Bus: <code>uart</code> + <code>modbus</code></h3>
+<p>UART2 on GPIO17 (TX) and GPIO16 (RX), 19200 baud, 8N1. The WLD-521-R1 and DIO-430-R1 modules sit downstream on this bus.</p>
+<h3 id="73-pulling-in-the-modules-packages">7.3. Pulling in the Modules: <code>packages</code></h3>
+<p>This is the most convenient pattern in the HomeMaster ecosystem. Instead of hand-writing dozens of Modbus register definitions for the modules, ESPHome pulls ready-made YAML files straight from the HomeMaster GitHub repository:</p>
+<pre><code class="language-text">packages:
+  wld1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars:
+          wld_prefix: &quot;WLD#1&quot;
+          wld_id: WLD521_1
+          wld_address: 3
+    refresh: 24h
+</code></pre>
+<p>What's going on here:
+- <code>url</code> and <code>ref: main</code> — the repository and branch we're pulling the file from.
+- <code>path</code> — the path to the specific file inside the repository.
+- <code>vars</code> — variables that get substituted inside the imported file. This is how you set the entity-name prefix in Home Assistant, the internal identifier, and the module's address on the Modbus bus.
+- <code>refresh: 24h</code> — the interval at which ESPHome checks the remote file for updates <strong>at compile time</strong> (a value suitable for a production system; for development and testing it makes sense to set this much lower — e.g. <code>1s</code> — so every build pulls the latest version from the repo). This is <strong>not</strong> the Modbus polling interval. Modbus register polling is configured inside the package files themselves — the standard <code>update_interval</code> for the Modbus sensors in those packages is on the order of seconds (typically 1–5 s depending on the specific entity), which is more than enough for thermal control with a 3-second tick.</p>
+<p>Once the WLD package is imported, every entity from the module shows up in Home Assistant automatically: 5 heat-counter channels (<code>Heat1</code>–<code>Heat5</code> with Power, ΔT, Energy fields), 5 flow meters (Rate, Total), 10 1-Wire temperature channels, 5 digital inputs with counters, and 2 relays. Same story with the DIO-430.</p>
+<p>Out of the 5 heat-counter channels we use <code>Heat1</code> — it's bound to the flow meter on the fireplace loop and to the two temperature sensors on the supply and return pipes. The <code>Chimney Heating</code> entity (accumulated energy in kWh) is just <code>WLD#1 Heat1 Energy</code> renamed in HA.</p>
+<h3 id="74-the-clock-and-the-logic-time-rules-a-b-c">7.4. The Clock and the Logic: <code>time</code> + Rules A / B / C</h3>
+<p>This is the heart of the controller.</p>
+<p><strong><code>pcf8563</code></strong> — the on-board hardware real-time clock. It sits on the I²C bus at address <code>0x51</code> and runs independently of Wi-Fi: even with no internet it keeps ticking. That matters because the entire control loop is driven off this clock — every 3 seconds, it triggers all three rules.</p>
+<p>The second <code>time: homeassistant</code> platform is for sync: when HA is reachable, the PCF8563 picks up the network time.</p>
+<p><strong>Rule A: the main pump.</strong>
+Every 3 seconds, the controller looks at three temperatures and one state:
+- the fireplace water-jacket temperature (sensor 1 or 2);
+- the water temperature inside the indirect heater tank (<code>temp_inside_heater</code>, imported from HA from the solar-loop controller);
+- the permission signal from the solar-loop controller (<code>electric_heating</code>, imported from HA — the state of a relay that the solar controller raises when it decides that the tank is hot enough to share its heat with the house).</p>
+<p>The main pump (<code>relay1</code>) turns on if <strong>either</strong> of the following is true:
+- at least one of the two sensors in the fireplace water jacket reads above 35 °C — i.e. the fireplace has come up to temperature and needs to be unloaded, <strong>or</strong>
+- the indirect heater tank is above 39 °C <strong>and</strong> the solar-loop controller has raised its permission signal — i.e. the sun has heated the tank and is asking us to push that heat into the system.</p>
+<p>The pump only turns off when <strong>all</strong> of the conditions stop being met simultaneously: both jacket sensors are below 35 °C <strong>and</strong> the indirect heater tank is below 35 °C <strong>and</strong> the permission signal is gone.</p>
+<p><strong>On hysteresis.</strong> The logic here is more interesting than it looks at first glance.</p>
+<p>For the solar-loop branch, hysteresis is built in explicitly on temperature: turn-on at 39 °C, turn-off at 35 °C — after the first activation the tank has to cool by 4 °C before the pump turns off.</p>
+<p>For the fireplace branch there is no temperature hysteresis: the on threshold and the off threshold are both 35 °C. But that doesn't mean chatter is guaranteed — what saves you here is the asymmetry of the logic: <strong>OR for turn-on / AND for turn-off</strong>.</p>
+<ul>
+<li>Turn-on condition: <code>(t1 &gt; 35) OR (t2 &gt; 35)</code> OR the electric combo. Any single sensor above 35 → the pump turns on.</li>
+<li>Turn-off condition: <code>(t1 &lt; 35) AND (t2 &lt; 35)</code> AND the electric combo is off. To turn off, <strong>all</strong> sources have to confirm "no heat".</li>
+</ul>
+<p>This asymmetry is something like hysteresis — not in temperature, but in "sensor voting": ON happens easily (one vote is enough); OFF requires a consensus of all sources. On top of that, the comparators are strict (<code>&gt;</code> and <code>&lt;</code>, not <code>≥</code> / <code>≤</code>) — at exactly 35.000 °C neither condition fires and the relay holds its current state.</p>
+<p>In actual operation, chatter on this branch is unlikely for two reasons. First, the two sensors in the jacket (<code>Water inside 1</code> and <code>Water inside 2</code>) are physically located at different points and normally read different temperatures — they almost never hover around 35 °C at the same moment. Second, the water in the jacket either heats actively (with a fire going, the temperature blows past the threshold quickly) or cools slowly (and even then the downward dynamics don't linger near 35 °C). The "temperature stuck right at the threshold with measurement noise" scenario is genuinely rare in practice.</p>
+<p><strong>If</strong> chatter does turn out to be a problem — say, after a long burn-down when both temperatures slowly drift down to room temperature — splitting the thresholds in the lambda is trivial (e.g. turn on at 38 °C, turn off at 32 °C).</p>
+<p>Every comparison is wrapped in a NaN check (<code>!isnan(...)</code>). That means if any sensor imported from HA is temporarily unavailable and returns "not a number", its term is simply removed from the expression. The controller doesn't "fall through to false" and doesn't make spurious switching decisions — it just keeps running on the inputs it does have.</p>
+<p><strong>Rule B: the backup pump.</strong>
+Simpler logic. If at least one of the two jacket sensors reads above 70 °C, the backup pump (<code>dio_1_relay2</code>) turns on. When both sensors drop below 70 °C, the backup pump turns off.</p>
+<p>This rule is independent of the thermostat and of Rule A. If the fireplace water jacket is overheating, the backup pump comes on. The pumps are wired in series: with both running, the loop's <strong>head</strong> goes up; the actual increase in flow rate depends on the system's hydraulic resistance — if the loop isn't choked elsewhere, the flow rate goes up too, and heat is pulled out of the jacket faster. As a side benefit, the second pump also provides backup for a failure of the first.</p>
+<p><strong>Rule C: the gas boiler.</strong>
+The gas boiler turns on <strong>only</strong> when all three of the following conditions are simultaneously true:
+- the main pump is off (so the fireplace isn't running);
+- the backup pump is off (so the jacket isn't overheating);
+- the virtual "heat" signal from the HA thermostat is active.</p>
+<p>In any other situation, the boiler is off. In other words, the boiler only fires when <strong>the house genuinely needs heat</strong> (the thermostat is asking for it) <strong>and</strong> <strong>the free heat sources aren't delivering</strong> (the fireplace is cold and there's no over-temperature).</p>
+<p>When the fireplace fires up again, Rule A turns the main pump on → on the very next tick, Rule C sees that <code>relay1</code> is now on → and the gas boiler is shut off immediately. Free heat automatically takes priority.</p>
+<h3 id="75-i2c-and-1-wire">7.5. I²C and 1-Wire</h3>
+<p><code>i2c</code> on SDA=GPIO32, SCL=GPIO33 — for the PCF8563 RTC. The <code>scan: true</code> parameter triggers a bus scan at boot and logs whatever addresses are found.</p>
+<p><code>one_wire</code> on GPIO04 — the bus for the two DS18B20s in the water jacket. ESPHome automatically logs every device it finds at boot — no separate flag is needed for that.</p>
+<h3 id="76-switches">7.6. Switches</h3>
+<p>The <code>switch:</code> block defines four entities — but only one of them is physical.</p>
+<p><strong><code>relay1</code></strong> — the actual physical relay on the MicroPLC board, GPIO26. The <code>inverted: true</code> flag is needed because the pump is wired to the <strong>normally-closed contacts</strong> of this relay (see the "Relay outputs" section). That choice was made for safety: if the controller loses power or fails, the relay is de-energized, the NC contacts are closed, and the pump keeps running on its own — preventing the fireplace from overheating. The flag inverts the GPIO level so that a logical <code>turn_on</code> in YAML ("the pump should be running") maps onto a physically de-energized relay.</p>
+<p><strong><code>air_cond</code>, <code>air_ventilation</code>, <code>heating</code></strong> — these are <strong>virtual switches</strong> (<code>platform: template</code>, <code>optimistic: true</code>). They don't drive any pin or any relay directly. They're just three flags in Home Assistant that the thermostat uses to signal "need cooling", "need ventilation", "need heating".</p>
+<p>Who reacts to those flags:
+- <code>heating</code> — read by Rule C right here on this controller (to decide whether to start the gas boiler).
+- <code>air_cond</code> — the switch's state is sent to Home Assistant, and <strong>HA's own automations</strong> then start the air conditioner (through whatever equipment / integration is appropriate).
+- <code>air_ventilation</code> — same idea: HA sees the state, and its automations start the ventilation hardware.</p>
+<p>In other words, the MicroPLC doesn't talk to the ventilation or air-conditioning hardware directly. It just hands its intent over to HA — "we need cooling / we need ventilation" — and the decision about what to actually turn on, and how, is made on the HA side.</p>
+<p>This is a standard pattern when a system is split across multiple controllers: one controller declares intent, others physically execute it.</p>
+<h3 id="77-sensors">7.7. Sensors</h3>
+<p>Local temperature sensors — the two DS18B20s in the water jacket, polled every 5 seconds.</p>
+<p>Imports from Home Assistant (sensors that physically live on other devices):
+- <code>inside_temperature</code> — the median temperature inside the house (HA computes the median itself, from several room sensors). Used as the input to the thermostat.
+- <code>inside_chimney</code> — a second flue-temperature sensor on a separate ESP32. Used in Rule A for cross-checking.
+- <code>temp_inside_heater</code> — the water temperature inside the indirect heater tank, imported from the solar-loop controller (entity_id <code>sensor.miniplc_solar_heater_temperature</code>). Used in Rule A — this is the first half of the condition "the sun has heated the tank enough that we should push its heat into the heating system".</p>
+<p>Diagnostic sensors — uptime, Wi-Fi signal strength, the ESP32 chip's internal temperature. Useful for keeping an eye on controller stability.</p>
+<h3 id="78-binary-sensors">7.8. Binary Sensors</h3>
+<p>The <code>binary_sensor:</code> block contains two entities.</p>
+<p><strong><code>chimney_state</code></strong> — a simple template sensor with <code>device_class: heat</code>. It goes high when at least one of the two jacket sensors reads above 30 °C. The threshold is intentionally lower than Rule A's (which is 35 °C) — this gives the user a slightly earlier visual cue on the dashboard that "the fireplace is starting to come up to temperature", before the pump actually kicks in.</p>
+<p><strong><code>electric_heating</code></strong> — an import of a relay state from the solar-loop controller (<code>switch.homemaster_microplc_aio_enm_1_relay_1</code>). This is the permission signal from that controller: "the indirect heater tank has been warmed enough by the sun (or by the backup electric element) — it's OK to push its heat into the heating system". This signal is the second half of the "solar" branch's condition in Rule A.</p>
+<h3 id="79-the-thermostat">7.9. The Thermostat</h3>
+<p>This is the "main HA heating thermostat" that decides whether the gas boiler should run.</p>
+<p>How it works:
+- The thermostat looks at <code>inside_temperature</code> (the median home temperature from HA).
+- If the house is colder than the lower setpoint, the thermostat raises the <code>heating</code> flag — Rule C decides whether to fire up the boiler.
+- If the house is warmer than the upper setpoint, the thermostat raises the <code>air_cond</code> flag — that flag goes into HA, and HA automations start the air conditioner.
+- In <code>fan_only</code> mode the thermostat raises the <code>air_ventilation</code> flag — that flag goes into HA, and HA automations start ventilation.
+- In <code>idle</code> mode all three flags are off.</p>
+<p>The <code>min_*_time</code> parameters (300 seconds for heating/cooling, 30 seconds for ventilation and idle) protect downstream loads from rapid on/off cycling.</p>
+<p>On the Home Assistant dashboard the thermostat appears as a "Controller" card with two setpoints (the lower one for heating, the upper for cooling), the current temperature, and the current state. In the screenshot, the state is <strong>Idle</strong> — the room is at 22.5 °C, which falls between the setpoints of 19.5 °C and 24.0 °C, so the thermostat doesn't do anything. The default preset is <code>Home</code>, range 20–22 °C, step 0.5 °C.</p>
+<hr>
+<h2 id="8-what-shows-up-in-home-assistant">8. What Shows Up in Home Assistant</h2>
+<p>Once the controller is flashed and joins Wi-Fi, it appears in Home Assistant automatically through the ESPHome integration — no extra setup, no MQTT needed.</p>
+<p>The entities you'll see:</p>
+<ul>
+<li>The thermostat <code>climate.thermostat_boiler_controller</code>.</li>
+<li>Local temperatures — <code>Chimney Temperature #1</code>, <code>Chimney Temperature #2</code>.</li>
+<li>Imported temperatures — <code>Temp inside heater</code>.</li>
+<li>Relay states — <code>Relay</code> (on-board), <code>DIO#1 Relay 1</code> (gas boiler), <code>DIO#1 Relay 2</code> (backup pump).</li>
+<li>Virtual switches — <code>Heat</code>, <code>Air Condition</code>, <code>Ventilation</code>.</li>
+<li>A binary indicator — <code>Chimney State</code>.</li>
+<li>Diagnostics — <code>Uptime</code>, <code>WiFi Signal</code>, <code>ESP Temperature</code>.</li>
+<li>Every entity from the imported module packages — flow meters, heat counters, digital inputs, and relays from the WLD-521-R1 and DIO-430-R1.</li>
+</ul>
+<h3 id="screenshots-from-the-live-system">Screenshots from the Live System</h3>
+<p><strong>The thermostat card.</strong> A compact widget showing two setpoints (19.5 °C for heating, 24.0 °C for cooling) and the current room temperature (22.5 °C). In the screenshot, the state is "Idle" — the room sits inside the setpoint band, and the thermostat takes no action.</p>
+<p><strong>The main heating dashboard.</strong> A summary screen for the entire heating system. The data here comes from two different controllers:</p>
+<table>
+<thead>
+<tr>
+<th>Indicator group</th>
+<th>Data source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chimney Normal</code>, <code>heating Off</code>, <code>pump 1</code>, <code>pump 2</code></td>
+<td>this MicroPLC</td>
+</tr>
+<tr>
+<td><code>Water inside 1/2</code>, <code>Water supply</code>, <code>Return</code>, <code>Heat water flow</code>, <code>Heat power</code>, <code>cold water flow</code>, <code>hot water flow</code></td>
+<td>this MicroPLC + WLD-521-R1</td>
+</tr>
+<tr>
+<td><code>fan 1</code>, <code>fan 2</code>, <code>Air inlet</code>, <code>Air outlet 1</code>, <code>Air outlet 2</code></td>
+<td>a separate ESPHome controller for the fireplace's air side</td>
+</tr>
+</tbody>
+</table>
+<p>A single dashboard aggregating data from two devices is a normal pattern in Home Assistant when each controller owns its own slice of the system.</p>
+<p><strong>The "Controls" panel on the MicroPLC device page.</strong> This shows every control entity that belongs specifically to this controller: <code>Air Condition</code>, <code>DIO#1 Relay 1/2/3</code>, <code>Heat</code>, <code>Relay</code>, <code>Ventilation</code>, the WLD counter-reset buttons, and the digital-input enable switches. <code>Air Condition</code> and <code>Ventilation</code> are the virtual switches the thermostat uses to tell Home Assistant that cooling or ventilation is needed; HA automations react to those states and actually start the AC and ventilation hardware.</p>
+<p><strong>The "Sensors" panel.</strong> The full list of readings from the MicroPLC and its modules. The most interesting figure is <code>Chimney Heating</code> (accumulated energy): at the time of the screenshot, <strong>30,330 kWh</strong> of heat had been recovered from the fireplace over the system's lifetime.</p>
+<hr>
+<h2 id="9-how-the-controller-behaves-in-different-situations">9. How the Controller Behaves in Different Situations</h2>
+<p><strong>The fireplace is firing up, the stove is being lit.</strong>
+The jacket temperature climbs above 35 °C. Rule A turns on the main pump — heat-transfer fluid starts circulating, and heat moves into the heating system. Rule C sees that the main pump is running and keeps the gas boiler off, even if the thermostat is calling for heat at the same time.</p>
+<p><strong>The fireplace is roaring, the jacket has hit 75 °C.</strong>
+Rule A keeps the main pump running. Rule B sees the temperature above 70 °C and brings on the backup pump as well. Two pumps in series increase the loop's <strong>head</strong>; the actual increase in flow depends on the system's hydraulics — on the dashboard you can see this as <code>Heat water flow</code> and <code>Heat power</code> both rising. The more flow you push through the jacket, the faster heat is pulled out, and the <code>Chimney Heating</code> counter starts ticking up noticeably faster.</p>
+<p><strong>The fireplace is cold, but the solar collector has heated up the tank.</strong>
+The local sensors in the jacket read below 35 °C. But the solar-loop controller has raised its permission signal (<code>electric_heating</code> ON) and the indirect heater tank is above 39 °C — meaning the sun has warmed the tank and it's time to push that heat into the house. Rule A sees the solar-branch condition satisfied and keeps the main pump running. Circulation flows from the tank into the heating system. The backup pump is off (the fireplace jacket is cold, far from 70 °C). The gas boiler is off.</p>
+<p><strong>No heat sources are active, the house is cold.</strong>
+The fireplace jacket is cold, the indirect heater tank has cooled down too (or the solar-loop controller has dropped its permission signal). Rule A keeps the main pump off. Rule B keeps the backup pump off. The HA thermostat sees that the room is below the lower setpoint and raises the <code>heating</code> flag. Rule C checks all three of its conditions — they're all true — and turns on the gas-boiler relay. The boiler fires.</p>
+<p><strong>The fireplace fires up while the gas boiler was already running.</strong>
+The boiler had been turned on by Rule C (with no other sources available). Now the fireplace fires up, and the jacket heats above 35 °C. Rule A immediately turns on the main pump. On the very next tick (3 seconds later), Rule C sees that the main pump is now on and shuts the gas boiler off. Free heat snatches priority back.</p>
+<p><strong>Wi-Fi or Home Assistant goes down.</strong>
+The PCF8563 RTC keeps ticking — the control loop doesn't stop. The local DS18B20s keep reporting jacket temperatures. HA imports return NaN, but the <code>!isnan(...)</code> checks in every formula simply drop those terms from the calculation. Rules A and B keep working off the local data: fireplace heats up → main pump comes on; jacket goes above 70 °C → backup pump comes on; fireplace cools down → both pumps go off.</p>
+<p>The gas boiler will not start automatically while HA is down. That's because the <code>heating</code> flag is owned by the thermostat, and the thermostat depends on <code>inside_temperature</code> from HA — if HA is unreachable, that value is NaN too, and the thermostat just sits idle.</p>
+<p>In industrial-automation terms this is <strong>fail-silent</strong>, not fail-safe: when communication breaks, the controller takes no active action, but the house may be left without heating in the meantime. This is acceptable here because of the fireplace's physical safety devices (see "Physical Over-Temperature Protection" below) and because room temperature isn't a critical parameter and tolerates a temporary loss of control. In a system where heating <em>is</em> critical, you'd want to add a backup thermostat on the boiler side, or a timeout-based rule like "if HA has been unreachable for more than N hours, fire the boiler at the last-known setpoint".</p>
+<h3 id="physical-over-temperature-protection">Physical Over-Temperature Protection</h3>
+<p>In this system, fireplace over-temperature protection is implemented <strong>not by the controller, but by independent mechanical and electromechanical devices</strong> — and that's the right approach, because digital logic should never be the only barrier between you and a dangerous temperature. The protection is built up in several echelons:</p>
+<ol>
+<li><strong>NC wiring of the main pump.</strong> The pump is wired to the normally-closed contacts of the MicroPLC's on-board relay (see section 4.3). The pump's safe state in this system is "on". If the controller loses power, the ESP hangs, the firmware crashes, the relay is de-energized, the NC contacts are closed — and the pump just keeps running, with no controller involvement. This echelon kicks in instantly, before the temperature has had a chance to climb at all.</li>
+<li><strong>An 80 °C thermal switch (pressostat)</strong>, wired <strong>in parallel with the output contacts of the main-pump relay</strong> (i.e. in parallel with the circuit that the controller uses to power the pump). When it trips, it closes the pump's power circuit independently and around the relay — feeding mains directly to the pump, bypassing the controller. If for some reason the NC echelon hasn't kicked in (e.g. the controller is mistakenly holding the relay energized so the NC contacts are open while the jacket is hot), the 80 °C switch will turn the pump on by itself.</li>
+<li><strong>An 85 °C emergency cooling valve.</strong> If neither the first nor the second echelon has helped and the temperature is still climbing, at 85 °C this valve opens and feeds cold mains water through a dedicated emergency cooling coil installed inside the fireplace. The water heated in that coil is dumped into the drain — heat is pulled out of the fireplace without involving the heating loop at all.</li>
+<li><strong>A combined pressure/temperature relief valve</strong>, plus automatic make-up of the jacket from the system's expansion / accumulator tank when the level drops. This protects the loop from rupture during sudden expansion and prevents the jacket from running dry.</li>
+</ol>
+<p>All of these echelons work independently of one another. Echelons 2, 3, and 4 don't even depend on electrical power. The controller provides normal-operation control; below 80 °C none of the hardware echelons engage.</p>
+<hr>
+<h2 id="10-faq">10. FAQ</h2>
+<p><strong>Can I build this without the WLD-521-R1 module?</strong>
+Yes, if you don't need flow and heat metering. Just remove the <code>wld1:</code> block from the <code>packages:</code> section — every WLD entity goes away. The logic of Rules A, B, and C doesn't depend on the WLD module — it only uses the DS18B20 sensors on the MicroPLC itself and the imported sensors from HA.</p>
+<p><strong>Can I build this without the DIO-430-R1 module?</strong>
+Not in its current form — Rules B and C use two of the DIO module's relay outputs. To get away with just the MicroPLC, you'd need to add two extra GPIO switches (one for the backup pump, one for the gas-boiler trigger), rename the target switches in Rules B and C to the new ids, and rebuild the firmware. The MicroPLC's on-board relay is already taken by the main pump — one extra output isn't enough.</p>
+<p><strong>How do I find the addresses of my own DS18B20s?</strong>
+Flash the controller with any "dummy" addresses in YAML and open the ESPHome boot log. The <code>one_wire</code> platform automatically lists every device it discovers along with its 64-bit address. Copy them into YAML and rebuild.</p>
+<p><strong>What happens if Wi-Fi drops?</strong>
+The PCF8563 keeps running, the local sensors keep being read, and Rules A and B keep managing the pumps based on the jacket temperature. Sensors imported from HA return NaN, but the <code>isnan</code> guards correctly remove them from the formulas. The gas boiler will not start automatically while HA is down — this is fail-silent behaviour: the controller takes no active action on data it can't verify, but a long outage may leave the house without heat. The fireplace over-temperature protection is fully unaffected — it's implemented in hardware (the thermal switch, the emergency cooling valve), not by the controller.</p>
+<p><strong>Can I replace the relay-style boiler trigger with OpenTherm?</strong>
+Yes. The HomeMaster ecosystem includes a separate ESPHome OpenTherm gateway — you can add it to the same HA instance and rewrite Rule C to set a setpoint and a "call for heat" signal through the gateway's entities instead of toggling a relay. The "boiler runs only when no other source is delivering" logic stays the same — only the way the command is delivered changes.</p>
+<p><strong>Why <code>inverted: True</code> on the on-board relay?</strong>
+Because the main pump is wired to the <strong>normally-closed (NC) contacts</strong> of the on-board relay — and that's a deliberate over-temperature protection: if the controller loses power or fails, the relay is de-energized, the NC contacts are closed, and the pump keeps running on its own, preventing the fireplace from overheating. The <code>inverted: True</code> flag inverts the GPIO level so that the logical command <code>turn_on</code> in YAML ("the pump should be running") maps onto a physically de-energized relay — and vice versa.</p>
+<p><strong>What happens if the air conditioner is running while there's a fire in the fireplace at the same time?</strong>
+The thermostat itself prevents simultaneous heat and cool — that's its standard built-in logic. But Rule A is independent of the thermostat: it only looks at the jacket temperature. So if the AC is cooling the air while there's a fire going, the heat-transfer fluid will still circulate through the jacket — the pump's job isn't to warm the room, it's to pull heat out of the jacket and move it into the heating system. That heat ends up in the radiators, in underfloor heating, or in a buffer tank — not directly in the room.</p>
+<hr>
+<h2 id="11-internal-links">11. Internal Links</h2>
+<ul>
+<li><a href="/build/home-assistant-automation-system">Home Assistant as the smart home hub</a></li>
+<li><a href="/build/esphome-smart-home">HomeMaster controllers running ESPHome</a></li>
+<li><a href="/smart-home-features/smart-home-heating-control">Smart home heating control</a></li>
+<li><a href="/shop/esp32-microplc-56">MicroPLC</a></li>
+<li><a href="/shop/wld-521-r1-water-meter-leak-1035">WLD-521-R1</a></li>
+<li><a href="/shop/dio-430-r1-relay-module-58">DIO-430-R1</a></li>
+</ul>
+<hr>
+</div>
