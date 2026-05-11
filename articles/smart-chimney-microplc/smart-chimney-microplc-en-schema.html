@@ -1,0 +1,86 @@
+html<!--
+Paste this whole block into the blog post's SEO settings →
+Optimize SEO → Custom Code (Header) on home-master.eu.
+Contains 4 JSON-LD blocks: Article · HowTo (8 steps) · FAQPage · BreadcrumbList.
+Edit datePublished, image, and URL paths after the final blog URL is known.
+-->
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Wood-Fired Fireplace Water Jacket Automation with MicroPLC, ESPHome and Home Assistant",
+  "description": "Complete DIY guide: a controller for a wood-fired fireplace with a water jacket, built on MicroPLC and ESPHome. Two pumps, heat and water metering, gas boiler, HA thermostat.",
+  "image": "https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/smart-chimney-microplc/smartheating1.png",
+  "datePublished": "2026-05-10",
+  "dateModified": "2026-05-10",
+  "author": {
+    "@type": "Organization",
+    "name": "HomeMaster",
+    "url": "https://www.home-master.eu/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "ISYSTEMS AUTOMATION S.R.L.",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.home-master.eu/web/image/website/1/logo/HOMEMASTER"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://www.home-master.eu/blog/build-2/smart-chimney-with-microplc-esphome-home-assistant-1"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "Build a smart fireplace controller with MicroPLC, ESPHome and Home Assistant",
+  "description": "Wire the temperature sensors, run the Modbus bus to the WLD-521-R1 and DIO-430-R1 modules, configure each module through its USB-C WebConfig, flash the MicroPLC with the ESPHome YAML, and add the controller to Home Assistant.",
+  "totalTime": "PT4H",
+  "supply": [
+    { "@type": "HowToSupply", "name": "HomeMaster MicroPLC" },
+    { "@type": "HowToSupply", "name": "HomeMaster WLD-521-R1" },
+    { "@type": "HowToSupply", "name": "HomeMaster DIO-430-R1" },
+    { "@type": "HowToSupply", "name": "DS18B20 1-Wire temperature sensors (4+)" },
+    { "@type": "HowToSupply", "name": "Pulse flow meter for the fireplace loop" },
+    { "@type": "HowToSupply", "name": "Cold and hot water pulse flow meters" },
+    { "@type": "HowToSupply", "name": "Two AC circulation pumps wired in series" }
+  ],
+  "tool": [
+    { "@type": "HowToTool", "name": "ESPHome Dashboard" },
+    { "@type": "HowToTool", "name": "Home Assistant" },
+    { "@type": "HowToTool", "name": "USB-C cable for WebConfig and initial flashing" },
+    { "@type": "HowToTool", "name": "Chromium-based browser (Chrome or Edge) for WebConfig" }
+  ],
+  "step": [
+    { "@type": "HowToStep", "position": 1, "name": "Wire the temperature sensors", "text": "Connect two DS18B20 sensors to the MicroPLC 1-Wire bus on GPIO04 (fireplace water jacket). Connect supply and return DS18B20 sensors and the fireplace-loop flow meter into the WLD-521-R1." },
+    { "@type": "HowToStep", "position": 2, "name": "Run the Modbus RS-485 bus", "text": "Daisy-chain the bus from the MicroPLC (master) to WLD-521-R1 (slave 3) and DIO-430-R1 (slave 4). Three wires: A, B, and shared GND. Use 19200 baud, no parity, 1 stop bit." },
+    { "@type": "HowToStep", "position": 3, "name": "Configure the WLD-521-R1 and DIO-430-R1 via WebConfig", "text": "Plug each module into your laptop over USB-C and open its WebConfig page in Chrome or Edge. On the WLD: set Modbus address 3 and baud 19200, scan and name the 1-Wire sensors, configure IN1 as a Water counter with Heat enabled (450 pulses/L, Sensor A = supply, Sensor B = return, cp = 4186, rho = 1). On the DIO: set Modbus address 4 and baud 19200, enable the four digital inputs and three relays, and map the three buttons and LEDs to local relay overrides. Settings are stored in flash." },
+    { "@type": "HowToStep", "position": 4, "name": "Prepare the ESPHome YAML", "text": "Copy the full configuration from the article. Replace the three REPLACE_WITH_YOUR_OWN_* placeholders with your Wi-Fi credentials and API key, and substitute your own DS18B20 64-bit addresses for the two on-board sensors." },
+    { "@type": "HowToStep", "position": 5, "name": "Flash the MicroPLC", "text": "Open the YAML in ESPHome Dashboard, click Install, choose USB or wireless flashing. After the first boot the controller comes up on Wi-Fi and joins your network." },
+    { "@type": "HowToStep", "position": 6, "name": "Add the controller to Home Assistant", "text": "Home Assistant auto-discovers the ESPHome device. Confirm the API encryption key and the controller appears with all its entities — jacket temperatures, pump switches, the thermostat, the heat-meter and water-meter sensors." },
+    { "@type": "HowToStep", "position": 7, "name": "Configure the thermostat", "text": "Set the desired temperature, the deadband, and any external sensors that should feed the median calculation. Verify the three virtual signals 'heat', 'cool', and 'ventilate'." },
+    { "@type": "HowToStep", "position": 8, "name": "Verify all three control rules", "text": "Cold-start the fireplace and watch the main pump engage above 35 C (Rule A). Drive the jacket above 70 C and confirm the backup pump comes online (Rule B). Stop the fireplace and call for heat from the thermostat — the gas boiler trigger should activate (Rule C)." }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Can I build this without the WLD-521-R1 module?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, if you don't need flow and heat metering. Remove the wld1: block from the packages section and every WLD entity goes away. The logic of Rules A, B, and C doesn't depend on the WLD module — it only uses the DS18B20 sensors on the MicroPLC and the imported sensors from Home Assistant." } },
+    { "@type": "Question", "name": "Can I build this without the DIO-430-R1 module?", "acceptedAnswer": { "@type": "Answer", "text": "Not in its current form — Rules B and C use two of the DIO module's relay outputs. To get away with just the MicroPLC you'd need to add two extra GPIO switches (backup pump and gas boiler trigger), rename the target switches in Rules B and C, and rebuild the firmware. The MicroPLC's on-board relay is already taken by the main pump." } },
+    { "@type": "Question", "name": "How do I find the addresses of my own DS18B20 sensors?", "acceptedAnswer": { "@type": "Answer", "text": "Flash the controller with dummy addresses in YAML and open the ESPHome boot log. The one_wire platform automatically lists every device it discovers along with its 64-bit address. Copy them into YAML and rebuild." } },
+    { "@type": "Question", "name": "What happens if Wi-Fi drops?", "acceptedAnswer": { "@type": "Answer", "text": "The PCF8563 RTC keeps running, the local sensors keep being read, and Rules A and B keep managing the pumps based on the jacket temperature. Sensors imported from Home Assistant return NaN, but the isnan guards remove them from the formulas. The gas boiler will not start automatically while HA is down. The fireplace over-temperature protection is fully unaffected — it's implemented in hardware (thermal switch and emergency cooling valve), not by the controller." } },
+    { "@type": "Question", "name": "Can I replace the relay-style boiler trigger with OpenTherm?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The HomeMaster ecosystem includes a separate ESPHome OpenTherm gateway — you can add it to the same Home Assistant instance and rewrite Rule C to set a setpoint and a 'call for heat' through the gateway's entities instead of toggling a relay. The 'boiler runs only when no other source is delivering' logic stays the same." } },
+    { "@type": "Question", "name": "Why is inverted set to true on the on-board relay?", "acceptedAnswer": { "@type": "Answer", "text": "Because the main pump is wired to the normally-closed (NC) contacts of the on-board relay. That's a deliberate over-temperature protection: if the controller loses power or fails, the relay is de-energized, the NC contacts close, and the pump keeps running. The inverted flag inverts the GPIO level so that the logical command turn_on in YAML ('the pump should be running') maps to a physically de-energized relay." } },
+    { "@type": "Question", "name": "What happens if the air conditioner is running while there's a fire in the fireplace?", "acceptedAnswer": { "@type": "Answer", "text": "The thermostat itself prevents simultaneous heat and cool — that's its built-in logic. But Rule A is independent of the thermostat: it only looks at the jacket temperature. So if the AC is cooling while there's a fire going, the heat-transfer fluid will still circulate through the jacket — the pump's job is to pull heat out of the jacket and move it into the heating system. That heat ends up in radiators, underfloor heating, or a buffer tank — not directly in the room." } }
+  ]
+}
+</script>
