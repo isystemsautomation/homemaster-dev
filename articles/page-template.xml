@@ -6,18 +6,86 @@
     ___BODY___       the article HTML body (XHTML-cleaned by n8n)
     ___SCHEMAS___    JSON-LD <script> blocks joined with newlines
 
-  Headings are forced to font-weight: 700 because Odoo only loads Roboto
-  at weights 400 and 700; without this, the theme's default 500 collapses
-  to 400 (light) instead of upscaling to 700 (bold).
+  All visual styling for long-form /build/* articles lives in the <style>
+  block below. Edit there to change typography, code, tables across every
+  article that goes through this template.
 -->
 <t t-name="___VIEW_KEY___">
     <t t-call="website.layout">
         <div id="wrap" class="oe_structure">
             <style>
-                #wrap section.s_text_block h1,
-                #wrap section.s_text_block h2,
-                #wrap section.s_text_block h3,
-                #wrap section.s_text_block h4 { font-weight: 700; }
+                /* Headings — bold (Odoo only loads Roboto 400/700; without
+                   this rule the theme's default 500 collapses to 400). Sizes
+                   are tighter than the theme defaults because /build/* articles
+                   have many sub-sections and tower-block H2s look excessive. */
+                #wrap section.s_text_block h1 { font-weight: 700; font-size: 28px; margin-top: 0; }
+                #wrap section.s_text_block h2 { font-weight: 700; font-size: 23px; margin-top: 2.5rem; margin-bottom: 1rem; }
+                #wrap section.s_text_block h3 { font-weight: 700; font-size: 20px; margin-top: 1.75rem; margin-bottom: 0.75rem; }
+                #wrap section.s_text_block h4 { font-weight: 700; font-size: 18px; margin-top: 1.25rem; }
+
+                /* Inline code — neutral monospace with a soft chip, not Bootstrap pink */
+                #wrap section.s_text_block :not(pre) > code {
+                    color: rgb(40, 50, 65);
+                    background-color: rgb(241, 243, 245);
+                    padding: 0.12em 0.4em;
+                    border-radius: 0.25em;
+                    font-size: 0.9em;
+                    font-weight: 500;
+                }
+
+                /* Pre/code blocks — soft card, scroll on overflow */
+                #wrap section.s_text_block pre {
+                    background-color: rgb(248, 249, 250);
+                    border: 1px solid rgb(222, 226, 230);
+                    border-radius: 0.5rem;
+                    padding: 1rem 1.25rem;
+                    overflow-x: auto;
+                    margin: 1rem 0 1.5rem;
+                }
+                #wrap section.s_text_block pre code {
+                    color: rgb(33, 37, 41);
+                    background: transparent;
+                    padding: 0;
+                    font-size: 0.875rem;
+                    font-weight: 400;
+                }
+
+                /* Tables — visible borders, header chip, zebra stripes */
+                #wrap section.s_text_block table {
+                    width: 100%;
+                    margin: 1.25rem 0 1.75rem;
+                    border-collapse: collapse;
+                }
+                #wrap section.s_text_block th,
+                #wrap section.s_text_block td {
+                    border: 1px solid rgb(222, 226, 230);
+                    padding: 0.55rem 0.75rem;
+                    vertical-align: top;
+                    text-align: left;
+                }
+                #wrap section.s_text_block th {
+                    background-color: rgb(241, 243, 245);
+                    font-weight: 600;
+                }
+                #wrap section.s_text_block tbody tr:nth-child(even) {
+                    background-color: rgb(249, 250, 251);
+                }
+
+                /* Images responsive by default */
+                #wrap section.s_text_block img {
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 0.25rem;
+                }
+
+                /* Figures — caption styling */
+                #wrap section.s_text_block figure { margin: 1.5rem 0; }
+                #wrap section.s_text_block figcaption {
+                    font-size: 0.875rem;
+                    color: rgb(108, 117, 125);
+                    margin-top: 0.5rem;
+                    text-align: center;
+                }
             </style>
             <section class="s_text_block o_cc o_cc1 o_colored_level pt48 pb48">
                 <div class="container">
