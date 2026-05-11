@@ -37,10 +37,10 @@
 <hr>
 <h2 id="2-the-control-system">2. The Control System</h2>
 <h3 id="heating-system-schematic">Heating System Schematic</h3>
-<figure class="text-center my-4">
-  <img src="/web/image/website/heating-system-schematic.png" alt="Heating system schematic: fireplace with water jacket, indirect heater tank, gas boiler, and piping" class="img-fluid" loading="lazy">
-  <figcaption>Heating system schematic: fireplace with water jacket, indirect heater tank, gas boiler, and piping</figcaption>
-</figure>
+<div class="alert alert-info my-3">
+  <strong>Schematic illustration coming soon.</strong>
+  The table below describes every point on the heating loop with the same level of detail.
+</div>
 <p>Labels on the schematic:</p>
 <table>
 <thead>
@@ -296,7 +296,7 @@ P     = m_dot × Cp × ΔT                W
 <p>The MicroPLC's ESPHome YAML <strong>does not</strong> contain any of this information — it only knows the Modbus address and baud rate of each module. Everything below — sensor names, calibration constants, which physical input drives which relay — lives inside the modules themselves.</p>
 <h3 id="51-wld-521-r1-modbus-address-and-1-wire-sensors">5.1. WLD-521-R1: Modbus Address and 1-Wire Sensors</h3>
 <figure class="text-center my-4">
-  <img src="/web/image/website/wld-device-setup.png" alt="WLD-521-R1 WebConfig: Modbus address 3, baud 19200, and three named 1-Wire DS18B20 sensors discovered and stored in flash — Boiler, Water supply, Water return." class="img-fluid" loading="lazy">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/smart-chimney-microplc/smartheating1.png" alt="WLD-521-R1 WebConfig: Modbus address 3, baud 19200, and three named 1-Wire DS18B20 sensors discovered and stored in flash — Boiler, Water supply, Water return." class="img-fluid" loading="lazy">
   <figcaption>WLD-521-R1 WebConfig: Modbus address 3, baud 19200, and three named 1-Wire DS18B20 sensors discovered and stored in flash — Boiler, Water supply, Water return.</figcaption>
 </figure>
 <p>The WLD module sits at Modbus address <strong>3</strong> and runs at <strong>19200 baud</strong> to match the MicroPLC's UART. The bottom of the page lists every DS18B20 the module has discovered on its 1-Wire bus and lets you give each one a human-friendly name. In this install three sensors are stored:</p>
@@ -308,7 +308,7 @@ P     = m_dot × Cp × ΔT                W
 <p>The names are arbitrary and only affect what's shown in the WebConfig UI; the controller addresses sensors by their 64-bit ROM IDs (the <code>0x…28</code> strings), not by name.</p>
 <h3 id="52-wld-521-r1-flow-meter-and-heat-counter-on-in1">5.2. WLD-521-R1: Flow Meter and Heat Counter on IN1</h3>
 <figure class="text-center my-4">
-  <img src="/web/image/website/wld-input-heatmeter.png" alt="WLD-521-R1 IN1 set as a Water counter with Heat enabled — 450 pulses per liter, Sensor A = Water supply, Sensor B = Water return, water defaults (cp = 4186 J/kg·°C, ρ = 1 kg/L)." class="img-fluid" loading="lazy">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/smart-chimney-microplc/smartheating2.png" alt="WLD-521-R1 IN1 set as a Water counter with Heat enabled — 450 pulses per liter, Sensor A = Water supply, Sensor B = Water return, water defaults (cp = 4186 J/kg·°C, ρ = 1 kg/L)." class="img-fluid" loading="lazy">
   <figcaption>WLD-521-R1 IN1 set as a Water counter with Heat enabled — 450 pulses per liter, Sensor A = Water supply, Sensor B = Water return, water defaults (cp = 4186 J/kg·°C, ρ = 1 kg/L).</figcaption>
 </figure>
 <p>This is the page that turns the fireplace-loop flow meter into a <strong>thermal energy counter</strong>. The settings here implement exactly the formula explained in section 2:</p>
@@ -324,7 +324,7 @@ P     = m_dot × Cp × ΔT                W
 <p>Two more pulse flow meters (cold and hot domestic water) are wired into IN2 and IN3 of the same module. They use the same <strong>Water counter</strong> type but with <strong>Enable heat</strong> turned <em>off</em> — they only need pulses → liters, no temperature math.</p>
 <h3 id="53-dio-430-r1-modbus-buttons-relays-and-leds">5.3. DIO-430-R1: Modbus, Buttons, Relays, and LEDs</h3>
 <figure class="text-center my-4">
-  <img src="/web/image/website/dio-webconfig.png" alt="DIO-430-R1 WebConfig: Modbus address 4, baud 19200. The four digital inputs are passed straight through to Modbus (no local action). Each of the three front-panel buttons toggles one of the three relays, and each user LED follows the state of its matching relay." class="img-fluid" loading="lazy">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/smart-chimney-microplc/smartheating3.png" alt="DIO-430-R1 WebConfig: Modbus address 4, baud 19200. The four digital inputs are passed straight through to Modbus (no local action). Each of the three front-panel buttons toggles one of the three relays, and each user LED follows the state of its matching relay." class="img-fluid" loading="lazy">
   <figcaption>DIO-430-R1 WebConfig: Modbus address 4, baud 19200. The four digital inputs are passed straight through to Modbus (no local action). Each of the three front-panel buttons toggles one of the three relays, and each user LED follows the state of its matching relay.</figcaption>
 </figure>
 <p>The DIO module sits at Modbus address <strong>4</strong> and shares the same 19200-baud RS-485 bus. Three sections matter:</p>
