@@ -1,0 +1,13 @@
+{
+  "_comment": "Registry of HomeMaster build-guide articles synced to home-master.eu pages. n8n reads this file from raw.githubusercontent.com and iterates over `articles`. Adding a new article = add a new entry here + push the two HTML files referenced by `body` and `schema` to the repo.",
+  "articles": [
+    {
+      "slug": "smart-chimney-microplc",
+      "view_id": 6210,
+      "page_id": 49,
+      "canonical_url": "/build/smart-chimney-microplc",
+      "body": "articles/smart-chimney-microplc/smart-chimney-microplc-en.html",
+      "schema": "articles/smart-chimney-microplc/smart-chimney-microplc-en-schema.html"
+    }
+  ]
+}
