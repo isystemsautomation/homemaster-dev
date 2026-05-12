@@ -87,6 +87,35 @@
                     text-align: center;
                 }
 
+                /* Article hero — title + lead text on the left, photo on the right */
+                #wrap section.s_text_block .article-hero { padding: 1rem 0 1.5rem; }
+                #wrap section.s_text_block .article-hero-title {
+                    font-size: 32px;
+                    font-weight: 700;
+                    line-height: 1.2;
+                    margin: 0 0 0.75rem;
+                }
+                #wrap section.s_text_block .article-hero-lead {
+                    font-size: 1.05rem;
+                    color: rgb(60, 67, 75);
+                    line-height: 1.55;
+                    margin-bottom: 0.75rem;
+                }
+                #wrap section.s_text_block .article-hero-meta {
+                    font-size: 0.875rem;
+                    color: rgb(108, 117, 125);
+                    margin: 0;
+                }
+                #wrap section.s_text_block .article-hero-img {
+                    width: 100%;
+                    object-fit: cover;
+                    aspect-ratio: 3/2;
+                }
+                @media (max-width: 991.98px) {
+                    #wrap section.s_text_block .article-hero .col-12.col-lg-5 { order: -1; }
+                    #wrap section.s_text_block .article-hero-img { aspect-ratio: 16/10; }
+                }
+
                 /* Related cards — bottom-of-article grid linking to related guides/products */
                 #wrap .related-cards .rc-card {
                     display: flex;
