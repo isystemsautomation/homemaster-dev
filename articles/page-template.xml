@@ -86,6 +86,62 @@
                     margin-top: 0.5rem;
                     text-align: center;
                 }
+
+                /* Related cards — bottom-of-article grid linking to related guides/products */
+                #wrap .related-cards .rc-card {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: stretch;
+                    height: 100%;
+                    border: 1px solid rgb(222, 226, 230);
+                    border-radius: 0.5rem;
+                    background: #fff;
+                    text-decoration: none;
+                    color: inherit;
+                    overflow: hidden;
+                    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+                }
+                #wrap .related-cards .rc-card:hover {
+                    border-color: rgb(180, 190, 200);
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+                    transform: translateY(-1px);
+                    text-decoration: none;
+                }
+                #wrap .related-cards .rc-img-wrap {
+                    flex: 0 0 110px;
+                    background: rgb(248, 249, 250);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                #wrap .related-cards .rc-img-wrap img {
+                    max-width: 100%;
+                    max-height: 110px;
+                    width: auto;
+                    height: auto;
+                    object-fit: contain;
+                    padding: 8px;
+                }
+                #wrap .related-cards .rc-body {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    padding: 0.85rem 1rem;
+                    flex: 1 1 auto;
+                    min-width: 0;
+                }
+                #wrap .related-cards .rc-body strong {
+                    color: rgb(33, 37, 41);
+                    font-weight: 700;
+                    font-size: 1rem;
+                    display: block;
+                }
+                #wrap .related-cards .rc-body .rc-desc {
+                    color: rgb(108, 117, 125);
+                    font-size: 0.85rem;
+                    margin-top: 0.2rem;
+                    line-height: 1.35;
+                }
             </style>
             <section class="s_text_block o_cc o_cc1 o_colored_level pt48 pb48">
                 <div class="container">
