@@ -1,16 +1,16 @@
 {
-     "name": "Homemaster MiniPLC",
-     "version": "1.0.1",
-     "home_assistant_domain": "esphome",
-     "builds": [
-       {
-         "chipFamily": "ESP32",
-         "ota": {
-           "path": "miniplc.ota.bin",
-           "md5": "<md5 hash>",
-           "summary": "Initial release",
-           "release_url": "https://github.com/isystemsautomation/homemaster-dev/releases"
-         }
-       }
-     ]
-   }
+  "name": "Homemaster MiniPLC",
+  "version": "1.0.1",
+  "home_assistant_domain": "esphome",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "ota": {
+        "path": "miniplc.ota.bin",
+        "md5": "620f309474226d03b48a4696b34ff742",
+        "summary": "Initial release"
+      }
+    }
+  ]
+}
