@@ -6,7 +6,7 @@ esphome:
   name_add_mac_suffix: true
   project:
     name: homemaster.miniplc
-    version: "1.0.0"
+    version: "1.0.1"
 
 esp32:
   board: esp32dev
