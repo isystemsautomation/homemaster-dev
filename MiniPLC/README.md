@@ -1,6 +1,6 @@
 # HomeMaster MiniPLC
 
-![Device](./Images/miniplc.png)
+![Device](./Images/MiniPLC.png)
 
 **Part No.:** MiniPLC-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
@@ -15,7 +15,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Quick Start
 
 1. Mount the device on 35 mm DIN rail inside a closed control cabinet.
-2. Connect ONE power input (24 V DC at V+/0V, OR 85–265 V AC / 120–370 V DC at L/N).
+2. Connect ONE power input (24 V DC at V+/0V, OR 85–265 V AC at L/N).
 3. Wire your field signals: DI, AI, AO, RTD, 1-Wire, RS-485 — as needed.
 4. Power on, open <https://improv-wifi.com>, and provision Wi-Fi via Bluetooth (BLE) or USB (Serial).
 5. Open ESPHome Dashboard → click **Take Control** to import the configuration. The device appears in Home Assistant under Settings → Devices & Services → ESPHome.
@@ -74,7 +74,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - 4 front-panel buttons + 3 user LEDs + 1 status LED + buzzer
 - PCF8563 real-time clock with on-board battery holder (battery sold separately)
 - microSD card slot (SPI, power-switched 3.3 V rail)
-- Power input options: 24 V DC, 85–265 V AC, or 120–370 V DC (single isolated input module)
+- Power input options: 24 V DC or 85–265 V AC (single isolated input module)
 - USB Type-C for programming and serial console (CP2102N, ESD-protected)
 - Wi-Fi 2.4 GHz (pre-certified ESP32 radio module) and Bluetooth
 - Optional Ethernet via on-board LAN8720 PHY (RMII, fixed pins)
@@ -199,11 +199,10 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 |---|---|---|
 | 24 V DC | V+ / 0V | 24 V DC nominal |
 | AC Mains | L / N | 85–265 V AC, 47–63 Hz |
-| Wide DC | L / N (+ / −) | 120–370 V DC |
 
-| 24 V DC Input | 230 V AC Input | High-Voltage DC |
-|:---:|:---:|:---:|
-| ![24V DC wiring](./Images/wiring_ps_dc.png)<br>*Connect + to V+, − to 0V.* | ![230V AC wiring](./Images/wiring_ps_ac1.png)<br>*Connect Live to L, Neutral to N.* | ![High-Voltage DC](./Images/wiring_ps_ac2.png)<br>*Observe polarity where marked.* |
+| 24 V DC Input | 230 V AC Input |
+|:---:|:---:|
+| ![24V DC wiring](./Images/wiring_ps_dc.png)<br>*Connect + to V+, − to 0V.* | ![230V AC wiring](./Images/wiring_ps_ac1.png)<br>*Connect Live to L, Neutral to N.* |
 
 - Typical current at 24 V DC: **~150 mA** (≈ 3.6 W).
 - Internal service fuse: **1.0 A** (soldered).
@@ -298,7 +297,7 @@ The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by o
 | Terminal | Signal | Description |
 |---|---|---|
 | 0V / V+ | DC input | 24 V DC negative / positive |
-| L / N | AC / Wide DC input | 85–265 V AC or 120–370 V DC |
+| L / N | AC mains input | 85–265 V AC, 47–63 Hz |
 | R1–R6 (COM, NO, NC) | Relay outputs | 6 × SPDT mechanical relays |
 
 ## LED and Button Behaviour
