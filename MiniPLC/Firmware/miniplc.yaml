@@ -1,12 +1,12 @@
 esphome:
-  name: miniplc
+  name: homemaster-miniplc
   friendly_name: Homemaster MiniPLC
   comment: Homemaster MiniPLC
   min_version: 2025.7.0
   name_add_mac_suffix: true
   project:
     name: homemaster.miniplc
-    version: "1.0.1"
+    version: "1.0.0"
 
 esp32:
   board: esp32dev
@@ -17,11 +17,16 @@ esp32:
 logger:
   baud_rate: 115200
 
-mdns:
-  disabled: false
-
 api:
 
+web_server:
+  port: 80
+  version: 3
+  ota: false
+
+# RS-485 / Modbus RTU bus. The UART is exposed below as `uart_modbus`.
+# Users can attach their own `modbus_controller:` blocks to integrate
+# field devices (energy meters, expansion modules, etc.).
 http_request:
   id: http_request_data
 
@@ -395,6 +400,7 @@ output:
     pin: GPIO2
   - platform: mcp4725
     id: dac_output
+    address: 0x60
 
 status_led:
   id: st_led
