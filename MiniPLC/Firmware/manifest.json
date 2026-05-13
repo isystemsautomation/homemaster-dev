@@ -6,7 +6,7 @@
        {
          "chipFamily": "ESP32",
          "ota": {
-           "path": "miniplc.factory.bin",
+           "path": "miniplc.ota.bin",
            "md5": "<md5 hash>",
            "summary": "Initial release",
            "release_url": "https://github.com/isystemsautomation/homemaster-dev/releases"
