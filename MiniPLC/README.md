@@ -46,9 +46,12 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Map](#gpio-map)
 - [RTD DIP Switch Configuration](#rtd-dip-switch-configuration)
+- [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml)
+- [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml)
 - [Real-Time Clock (RTC) Battery](#real-time-clock-rtc-battery)
 - [Network Requirements](#network-requirements)
 - [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
+- [Optional Ethernet (LAN8720)](#optional-ethernet-lan8720)
 - [Home Assistant Integration](#home-assistant-integration)
 - [Firmware Updates](#firmware-updates)
 - [Device Behaviour Reference](#device-behaviour-reference)
@@ -439,6 +442,72 @@ Switches **1 and 4–5 and 8** select wiring mode. Switches **2–3 and 6–7** 
 
 **Configurable in YAML:** sensor type (`rtd_nominal_resistance: 100` or `1000`), wiring mode (`wires: 2/3/4`), update interval, filters, alarm thresholds.
 
+## Enabling RTD Sensors in YAML
+
+RTD inputs are **disabled in the factory firmware** because the MAX31865 chip-select lines are wired to **GPIO1** and **GPIO3**, which are the ESP32 UART0 TX/RX pins used by the USB serial logger and Improv Serial provisioning.
+
+> ⚠️ **Trade-off:** Enabling RTD sensors disables the USB serial logger and Improv Serial. After this change, the device can be flashed only via OTA (Wi-Fi or Ethernet).
+
+To enable RTD sensors, after taking control of the device:
+
+1. Disable the serial logger:
+
+```yaml
+   logger:
+     baud_rate: 0
+```
+
+2. Remove the `improv_serial:` block.
+
+3. Add the SPI bus and the MAX31865 sensors:
+
+```yaml
+   spi:
+     miso_pin: GPIO12
+     mosi_pin: GPIO13
+     clk_pin: GPIO14
+
+   sensor:
+     - platform: max31865
+       id: rtd_1
+       name: "RTD Temperature 1"
+       cs_pin: GPIO1
+       reference_resistance: 400 Ω
+       rtd_nominal_resistance: 100 Ω
+       wires: 2
+       update_interval: 60s
+     - platform: max31865
+       id: rtd_2
+       name: "RTD Temperature 2"
+       cs_pin: GPIO3
+       reference_resistance: 4000 Ω
+       rtd_nominal_resistance: 1000 Ω
+       wires: 2
+       update_interval: 60s
+```
+
+4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `wires` (`2`, `3`, or `4`) to match the DIP-switch settings — see [RTD DIP Switch Configuration](#rtd-dip-switch-configuration).
+
+## Enabling 1-Wire Sensors in YAML
+
+The two 1-Wire buses (GPIO5 and GPIO4) are pre-declared in the factory firmware, but no DS18B20 sensors are read until they are added to the YAML.
+
+```yaml
+sensor:
+  - platform: dallas_temp
+    id: ow_bus_1_temp
+    one_wire_id: ow_bus_1
+    name: "1-Wire Bus 1 Temperature"
+    update_interval: 60s
+  - platform: dallas_temp
+    id: ow_bus_2_temp
+    one_wire_id: ow_bus_2
+    name: "1-Wire Bus 2 Temperature"
+    update_interval: 60s
+```
+
+If you wire more than one sensor to the same bus, set an explicit `address:` for each entry — discovered addresses are printed in the ESPHome boot logs.
+
 ## Real-Time Clock (RTC) Battery
 
 The MiniPLC includes a **PCF8563** real-time clock chip on the I²C bus (address `0x51`), with an on-board **coin-cell battery holder** for keeping time during power loss.
@@ -487,6 +556,38 @@ After successful Wi-Fi connection, the device appears automatically in:
 - **Home Assistant** — under Settings → Devices & Services → ESPHome.
 
 Click **Take Control** in ESPHome Dashboard to import the full shipped configuration.
+
+## Optional Ethernet (LAN8720)
+
+The MiniPLC has an on-board LAN8720 PHY (RMII, fixed pins) but Ethernet is **not enabled in the factory firmware** — Wi-Fi is used by default.
+
+ESPHome does not allow `wifi:` and `ethernet:` to be enabled at the same time, so switching to Ethernet means **replacing** the Wi-Fi setup, not adding to it.
+
+To enable Ethernet, after taking control of the device:
+
+1. Add the `ethernet:` block:
+
+```yaml
+   ethernet:
+     type: LAN8720
+     id: eth_phy
+     mdc_pin: GPIO23
+     mdio_pin: GPIO18
+     clk_mode: GPIO0_OUT
+     phy_addr: 1
+```
+
+2. Remove (or comment out) all Wi-Fi-related blocks:
+   - `wifi:`
+   - `captive_portal:`
+   - `improv_serial:`
+   - `esp32_improv:`
+   - `wifi_signal` sensor under `sensor:`
+   - `wifi_info` text sensor under `text_sensor:`
+
+The `api:`, `web_server:`, `ota:`, `update:`, `dashboard_import:` and all other non-Wi-Fi components continue to work over Ethernet without changes.
+
+> ⚠️ After switching to Ethernet you lose Wi-Fi provisioning via Improv. To go back, restore the Wi-Fi blocks and remove the `ethernet:` block.
 
 ## Home Assistant Integration
 
@@ -606,7 +707,7 @@ The file includes:
 - RS-485 UART (GPIO17 / GPIO16, 19200 baud) ready for Modbus
 - All digital inputs, buttons, relays, user LEDs, status LED, buzzer, analog inputs, analog output (DAC) with explicit `id` on every entity (Made for ESPHome compliant)
 
-Optional features (1-Wire DS18B20 sensors, MAX31865 RTD sensors, microSD, Ethernet) are present in commented-out blocks — uncomment and adjust to enable.
+Optional features (1-Wire DS18B20 sensors, MAX31865 RTD sensors, microSD, Ethernet) are present in commented-out blocks — uncomment and adjust to enable. See also [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml), [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml), and [Optional Ethernet (LAN8720)](#optional-ethernet-lan8720).
 
 ## Support & Community
 
@@ -664,6 +765,8 @@ This ensures full compatibility with ESPHome and Home Assistant while protecting
 - Removed captive-portal fallback AP from documentation — provisioning is now Improv-only (BLE + USB Serial).
 - Added Real-Time Clock battery notes (coin cell not installed by default; install if you need offline timekeeping).
 - Added detailed RTD DIP-switch configuration tables for PT100 / PT1000 and 2/3/4-wire modes.
+- Added YAML configuration sections for optional RTD (MAX31865) and 1-Wire sensors, including the GPIO1/GPIO3 vs USB serial trade-off.
+- Added YAML configuration section for optional wired Ethernet (LAN8720).
 - Documented compatible HomeMaster expansion modules (DIO-430-R1, DIM-420-R1, ENM-223-R1, ALM-173-R1, AIO-422-R1).
 - All ESPHome entities given explicit `id:` values (Made for ESPHome compliant).
 - Updated I²C address map: PCF8574 expanders at 0x20 / 0x21 (was 0x38 / 0x39 in earlier prototypes).
