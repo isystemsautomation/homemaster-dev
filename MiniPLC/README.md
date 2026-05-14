@@ -89,12 +89,12 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 ## Compatible Expansion Modules
 
-The MiniPLC acts as a Modbus RTU master on its RS-485 bus. Add HomeMaster I/O modules using the standard `modbus_controller:` or pre-built `packages:` blocks from each module's repository folder.
+The MiniPLC acts as a Modbus RTU master on its RS-485 bus. Add HomeMaster I/O modules using the standard `modbus_controller:` and pre-built `packages:` blocks from each module's repository folder.
 
 | Module | Function | Repository |
 |---|---|---|
 | DIO-430-R1 | 4 × digital inputs + 3 × relays | [DIO-430-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1) |
-| DIM-420-R1 | 4 × triac dimmer outputs | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1) |
+| DIM-420-R1 | 2 x channel msfet dimmer outputs | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1) |
 | ENM-223-R1 | Energy monitor (single-phase) | [ENM-223-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ENM-223-R1) |
 | ALM-173-R1 | Alarm panel (17 zones, 3 outputs) | [ALM-173-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1) |
 | AIO-422-R1 | 4 × analog inputs + 2 × analog outputs | [AIO-422-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1) |
