@@ -1,0 +1,417 @@
+esphome:
+  name: homemaster-miniplc
+  friendly_name: Homemaster MiniPLC
+  comment: Homemaster MiniPLC
+  min_version: 2025.7.0
+  name_add_mac_suffix: false
+  project:
+    name: homemaster.miniplc
+    version: 1.0.0
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: recommended
+
+logger:
+  baud_rate: 115200
+
+api:
+
+web_server:
+  port: 80
+  version: 3
+  ota: false
+
+# RS-485 / Modbus RTU bus. The UART is exposed below as `uart_modbus`.
+# Users can attach their own `modbus_controller:` blocks to integrate
+# field devices (energy meters, expansion modules, etc.).
+http_request:
+  id: http_request_data
+
+ota:
+- platform: esphome
+  id: ota_esphome
+- platform: http_request
+  id: ota_http_request
+
+update:
+- platform: http_request
+  id: firmware_update
+  name: Firmware Update
+  source: 
+    https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/manifest.json
+  update_interval: 6h
+
+#wifi:
+#  ap: {}
+#  on_connect:
+#    then:
+#    - delay: 10s
+#    - component.update: firmware_update
+
+#captive_portal:
+
+#improv_serial:
+
+#esp32_improv:
+#  authorizer: none
+
+dashboard_import:
+  package_import_url: 
+    github://isystemsautomation/homemaster-dev/MiniPLC/Firmware/miniplc.yaml@main
+  import_full_config: true
+
+# Optional wired Ethernet (LAN8720 PHY)
+ethernet:
+  type: LAN8720
+  id: eth_phy
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_OUT
+  phy_addr: 1
+
+uart:
+  id: uart_modbus
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 19200
+
+i2c:
+- id: bus_a
+  sda: GPIO32
+  scl: GPIO33
+  frequency: 400kHz
+  timeout: 1s
+  scan: true
+spi:
+  miso_pin: GPIO12
+  mosi_pin: GPIO13
+  clk_pin: GPIO14
+one_wire:
+- platform: gpio
+  id: ow_bus_1
+  pin: GPIO5
+- platform: gpio
+  id: ow_bus_2
+  pin: GPIO4
+
+pcf8574:
+- id: pcf8574_hub_a
+  address: 0x20
+  pcf8575: false
+- id: pcf8574_hub_b
+  address: 0x21
+  pcf8575: false
+
+ads1115:
+- id: ads1115_hub
+  address: 0x48
+
+time:
+- platform: pcf8563
+  id: pcf8563_time
+  address: 0x51
+- platform: homeassistant
+  id: ha_time
+  on_time_sync:
+    then:
+    - pcf8563.write_time:
+
+font:
+- file: gfonts://Roboto
+  id: font_small
+  size: 8
+- file: gfonts://Roboto
+  id: font_large
+  size: 48
+- file: gfonts://Roboto
+  id: font_medium
+  size: 14
+
+display:
+- platform: ssd1306_i2c
+  id: oled_display
+  model: SH1106 128x64
+  address: 0x3C
+  rotation: 180
+  contrast: 100%
+  update_interval: 1s
+  lambda: |-
+    it.printf(64, 0, id(font_small), TextAlign::TOP_CENTER, "HOMEMASTER");
+    it.strftime(0, 60, id(font_large), TextAlign::BASELINE_LEFT, "%H:%M", id(pcf8563_time).now());
+
+binary_sensor:
+- platform: status
+  id: esp_status
+  name: ESP Status
+  entity_category: diagnostic
+
+- platform: gpio
+  id: di_1
+  name: 'DI #1'
+  pin:
+    number: GPIO36
+- platform: gpio
+  id: di_2
+  name: 'DI #2'
+  pin:
+    number: GPIO39
+- platform: gpio
+  id: di_3
+  name: 'DI #3'
+  pin:
+    number: GPIO34
+- platform: gpio
+  id: di_4
+  name: 'DI #4'
+  pin:
+    number: GPIO35
+
+- platform: gpio
+  id: button_1
+  name: 'Button #1'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 0
+    inverted: true
+- platform: gpio
+  id: button_2
+  name: 'Button #2'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 1
+    inverted: true
+- platform: gpio
+  id: button_3
+  name: 'Button #3'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 2
+    inverted: true
+- platform: gpio
+  id: button_4
+  name: 'Button #4'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 3
+    inverted: true
+
+switch:
+- platform: gpio
+  id: relay_1
+  name: 'RELAY #1'
+  pin:
+    pcf8574: pcf8574_hub_b
+    number: 2
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: relay_2
+  name: 'RELAY #2'
+  pin:
+    pcf8574: pcf8574_hub_b
+    number: 1
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: relay_3
+  name: 'RELAY #3'
+  pin:
+    pcf8574: pcf8574_hub_b
+    number: 0
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: relay_4
+  name: 'RELAY #4'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 6
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: relay_5
+  name: 'RELAY #5'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 5
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: relay_6
+  name: 'RELAY #6'
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 4
+    mode:
+      output: true
+    inverted: true
+
+- platform: gpio
+  id: led_2
+  name: 'LED #2'
+  pin:
+    pcf8574: pcf8574_hub_b
+    number: 3
+    mode:
+      output: true
+    inverted: true
+- platform: gpio
+  id: led_3
+  name: 'LED #3'
+  pin:
+    pcf8574: pcf8574_hub_b
+    number: 4
+    mode:
+      output: true
+    inverted: true
+
+- platform: template
+  id: buzzer_switch
+  name: Buzzer
+  optimistic: true
+  turn_on_action:
+  - output.turn_on: buzzer_output
+  - output.ledc.set_frequency:
+      id: buzzer_output
+      frequency: 2441Hz
+  - output.set_level:
+      id: buzzer_output
+      level: 75%
+  turn_off_action:
+  - output.turn_off: buzzer_output
+
+fan:
+- platform: speed
+  id: dac_fan
+  output: dac_output
+  name: DAC 0-10V
+
+sensor:
+- platform: uptime
+  id: esp_uptime
+  name: Uptime
+  update_interval: 60s
+  entity_category: diagnostic
+#- platform: wifi_signal
+#  id: wifi_signal_db
+#  name: WiFi Signal
+#  update_interval: 60s
+#  entity_category: diagnostic
+- platform: internal_temperature
+  id: esp32_temperature
+  name: ESP32 Temperature
+  update_interval: 60s
+  entity_category: diagnostic
+
+- platform: ads1115
+  id: ai_1
+  ads1115_id: ads1115_hub
+  multiplexer: A3_GND
+  gain: 6.144
+  name: AI 1
+  update_interval: 60s
+  filters:
+  - multiply: 3
+- platform: ads1115
+  id: ai_2
+  ads1115_id: ads1115_hub
+  multiplexer: A2_GND
+  gain: 6.144
+  name: AI 2
+  update_interval: 60s
+  filters:
+  - multiply: 3
+- platform: ads1115
+  id: ai_3
+  ads1115_id: ads1115_hub
+  multiplexer: A1_GND
+  gain: 6.144
+  name: AI 3
+  update_interval: 60s
+  filters:
+  - multiply: 3
+- platform: ads1115
+  id: ai_4
+  ads1115_id: ads1115_hub
+  multiplexer: A0_GND
+  gain: 6.144
+  name: AI 4
+  update_interval: 60s
+  filters:
+  - multiply: 3
+
+  # Optional 1-Wire Dallas temperature sensors — enable per bus.
+  # Set explicit `address:` if you connect multiple sensors on the same bus.
+- platform: dallas_temp
+  id: ow_bus_1_temp
+  one_wire_id: ow_bus_1
+  name: "1-Wire Bus 1 Temperature"
+  update_interval: 60s
+- platform: dallas_temp
+  id: ow_bus_2_temp
+  one_wire_id: ow_bus_2
+  name: "1-Wire Bus 2 Temperature"
+  update_interval: 60s
+
+  # Optional MAX31865 RTD inputs (PT100 / PT1000) over SPI.
+  # Requires `spi:` block above to be enabled with miso/mosi/clk pins.
+- platform: max31865
+  id: rtd_1
+  name: "RTD Temperature 1"
+  cs_pin: GPIO1
+  reference_resistance: 400 Ω
+  rtd_nominal_resistance: 100 Ω
+  update_interval: 60s
+- platform: max31865
+  id: rtd_2
+  name: "RTD Temperature 2"
+  cs_pin: GPIO3
+  reference_resistance: 4000 Ω
+  rtd_nominal_resistance: 1000 Ω
+  update_interval: 60s
+
+text_sensor:
+- platform: template
+  id: current_time
+  name: Current Time
+  entity_category: diagnostic
+  update_interval: 60s
+  lambda: |-
+    char str[17];
+    time_t currTime = id(pcf8563_time).now().timestamp;
+    strftime(str, sizeof(str), "%Y-%m-%d %H:%M", localtime(&currTime));
+    return { str };
+- platform: version
+  id: esphome_version
+  name: ESPHome Version
+  entity_category: diagnostic
+#- platform: wifi_info
+#  ip_address:
+#    id: wifi_ip_address
+#    name: IP Address
+#    entity_category: diagnostic
+
+output:
+- platform: ledc
+  id: buzzer_output
+  pin: GPIO2
+- platform: mcp4725
+  id: dac_output
+  address: 0x60
+
+status_led:
+  id: st_led
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 7
+    mode:
+      output: true
+    inverted: false
