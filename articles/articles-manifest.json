@@ -8,6 +8,14 @@
       "canonical_url": "/build/smart-chimney-microplc",
       "body": "articles/smart-chimney-microplc/smart-chimney-microplc-en.html",
       "schema": "articles/smart-chimney-microplc/smart-chimney-microplc-en-schema.html"
+    },
+    {
+      "slug": "march-2026-certification-retest",
+      "view_id": null,
+      "page_id": null,
+      "canonical_url": "/build/march-2026-certification-retest",
+      "body": "articles/march-2026-certification-retest/march-2026-certification-retest-en.html",
+      "schema": "articles/march-2026-certification-retest/march-2026-certification-retest-en-schema.html"
     }
   ]
 }

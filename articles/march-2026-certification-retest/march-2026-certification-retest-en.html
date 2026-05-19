@@ -1,0 +1,203 @@
+<div class="o_blog_post_content">
+<section class="article-hero">
+  <div class="row align-items-center g-4">
+    <div class="col-12 col-lg-7 article-hero-text">
+      <h1 class="article-hero-title">HomeMaster Completes EMC, LVD and RED Conformity Assessment — Production Hardware Now Shipping</h1>
+      <p class="lead article-hero-lead">Six months ago we walked into a certified test laboratory with the whole HomeMaster system, and some early-revision boards exposed weak points under EMC and electrical-safety testing. Today every product in the lineup now ships with a signed EU Declaration of Conformity issued by HomeMaster as the manufacturer. Here's how the final round actually played out — same two systems on the bench, same tests, this time with the revised production hardware completing the campaign successfully.</p>
+      <p class="article-hero-meta">By Dmitry Drezyulya · Published May 17, 2026 · ~14 min read</p>
+    </div>
+    <div class="col-12 col-lg-5">
+      <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/main.webp" alt="HomeMaster lineup of eleven DIN-rail modules on the certification test bench" class="img-fluid rounded shadow-sm article-hero-img"/>
+    </div>
+  </div>
+</section>
+<hr/>
+<h2 id="recap">Where We Left Off</h2>
+<p>Back in November we wrote up the pre-compliance campaign — eight months of engineering condensed into one Reddit post. We took the entire HomeMaster system into an accredited lab for a first look at EMC and electrical safety, and we walked out with a clear punch-list: DC/DC sections everywhere needed tighter filtering, the DIO regulator destabilised under EFT, the DIM module's gate drive let lamps flicker, the AIO analog inputs deviated in narrow RF bands, the USB-C shells didn't have a strong-enough discharge path to chassis, and the SELV-to-mains creepage on the DIM-420-R1 wasn't yet wide enough — a flashover occurred during the dielectric-strength test.</p>
+<p>That post ended with a plan and a timeline. This post is the closure of that plan. We did the redesigns, we built an in-house compliance lab for the LVD work, we went back to Belgrade for the EMC campaign on the new revisions, we collected every certificate, and we signed the Declarations of Conformity. The HomeMaster lineup is now CE-marked across the board and on sale.</p>
+<p>Here's how it went, test by test — but first, what changed under the hood.</p>
+<hr/>
+<h2 id="what-we-changed">What We Changed Between Rounds</h2>
+<p>The November punch-list turned into roughly four months of engineering work — circuit changes, layout rework, component upgrades, a new in-house bench. The short version, for anyone who skipped the January follow-up post:</p>
+<h3 id="power-supply-hardening">Power Supply EMC Hardening (every module)</h3>
+<p>Ferrite beads on the 24 V input, improved LC filtering on the DC/DC converters, and layout changes to reduce high-frequency current loops. Lower conducted and radiated emissions, better EFT immunity, more stable regulators. This is the single biggest contributor to the November-to-March improvement on the emission curves.</p>
+<h3 id="usb-esd">USB-C ESD Path and Ground Split</h3>
+<p>The USB-C shell now has a strengthened low-impedance grounding path, ESD discharges are routed away from the logic ground, and the internal ground is split into <code>GND</code> and <code>GND_USB</code>. The two are connected only through filtering, which keeps any ESD energy that hits the connector shell from coupling into the logic plane. RS-485 drops and MCU disturbances during ESD events are gone.</p>
+<h3 id="creepage-clearance-fix">Creepage and Clearance (the LVD fix)</h3>
+<p>The biggest finding from the November safety round was a dielectric breakdown during the 3.75 kV test on the early PCB. The fix is geometric: increased creepage and clearance between SELV (24 V) and mains-related circuitry, cleaner isolation zones in the PCB layout, and a wider physical separation between the two domains. The revised boards meet — and exceed — the SELV-to-mains spacing requirements that this round tested against.</p>
+<h3 id="isolation-upgrades">Isolation Component Upgrades (system-wide)</h3>
+<p>Opto-isolators were moved from 2.5 kV-rated parts to 8 kV-rated parts. Isolated DC/DC converters were moved from 1.5 kV-rated parts to 6 kV-rated parts. Higher surge margin, better long-term reliability, cleaner EMC behaviour.</p>
+<h3 id="function-specific">Function-Specific Refinements</h3>
+<p><strong>STR-3221-R1 and RGB-621-R1 — LED supply and output filtering.</strong> The external LED PSU input now passes through a dedicated LC filter stage (series inductor + multi-stage capacitive decoupling), with bulk capacitance to absorb load transients and high-frequency decoupling close to the output connector. Each LED output channel has dedicated filtering at the module's output: a <code>BLM31PG601SN1L</code> ferrite bead in series with each channel, plus an RC damping network (4.7 nF + 27 Ω) referenced to ground. High-frequency switching noise is contained at the module rather than radiating out along the LED cables.</p>
+<p><strong>DIM-420-R1 — multi-stage EMC filtering on the mains path.</strong> Series protection elements on each line, common-mode chokes (<code>ACM1211-102-2PL-TL01</code>) for the L/N pairs, X-capacitors across L–N (100 nF), and RC damping (100 nF + 100 Ω) on the dimmer output side.</p>
+<p><strong>Relay-equipped modules — split +5 V rail.</strong> Logic and control now run on <code>+5V</code>, and the relay coils run on a separate <code>+5V_RELAY</code> rail. The two are connected only through filtering, which keeps the coil switching currents from injecting noise into the logic supply.</p>
+<p><strong>Additional filtering chokes</strong> went onto the RS-485 bus and the digital input lines as a general EMC-margin improvement.</p>
+<h3 id="tinysa-validation">In-House Validation Before Returning to the Lab</h3>
+<p>Between the revision and the lab visit we added a TinySA spectrum analyser to the internal validation setup. Comparative scans of the old and the new PCBs under the same conditions showed a clear reduction in noise peaks and overall spectral activity, particularly in the 30–150 MHz band where the November lab had flagged elevated emissions. It is not a replacement for an accredited-lab measurement — but it is a useful sanity check that the fixes were working in the right direction before we shipped boards back to Belgrade.</p>
+<hr/>
+<h2 id="the-two-systems-on-the-bench">The Two Systems on the Bench</h2>
+<p>Same approach as November: instead of testing modules in isolation, we brought two complete HomeMaster installations into the lab — both wired the way a real DIN-rail cabinet is wired, with real loads on the dimmer and the LED driver, a current transformer on the energy meter, temperature sensors on the metering channels, Modbus traffic on the bus, and a laptop monitoring the system over Wi-Fi throughout.</p>
+<table>
+<thead>
+<tr><th>System</th><th>Master</th><th>Expansion modules on the RS-485 bus</th></tr>
+</thead>
+<tbody>
+<tr><td>SYSTEM 1</td><td>MiniPLC</td><td>AIO-422-R1, RGB-621-R1, STR-3221-R1, OpenTherm Gateway</td></tr>
+<tr><td>SYSTEM 2</td><td>MicroPLC</td><td>DIO-430-R1, WLD-521-R1, ENM-223-R1, DIM-420-R1, ALM-173-R1</td></tr>
+</tbody>
+</table>
+<figure class="text-center my-4">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/eut-board.webp" alt="Both HomeMaster systems mounted on a single metal backplate inside the test laboratory, with long cables, real loads, and active RS-485 communication" class="img-fluid" loading="lazy"/>
+  <figcaption>Eleven modules on a single backplate, powered up and exchanging Modbus traffic the way they would inside a real cabinet.</figcaption>
+</figure>
+<p>Eleven products in total. Same setup as November except that this time everything sat on a single metal-backed board, and the recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used throughout. Every module had at least one active I/O channel doing real work.</p>
+<hr/>
+<h2 id="emc">The EMC Campaign</h2>
+<p><strong>Laboratory:</strong> Idvorsky Laboratories Ltd., Belgrade — ATS-accredited (ATS 01-404), ISO/IEC 17025, ilac-MRA recognised.<br/>
+<strong>Dates:</strong> 23 February – 20 March 2026.<br/>
+<strong>Report:</strong> #1648, issued 22 April 2026.</p>
+<p>EMC testing covers a familiar list:</p>
+<ul>
+<li>✔ Noise sent back into the power lines</li>
+<li>✔ Radio noise radiated into the air</li>
+<li>✔ Immunity to strong RF fields</li>
+<li>✔ Noise injected directly into cables</li>
+<li>✔ Fast electrical spikes (EFT/Burst)</li>
+<li>✔ Electrostatic discharge shocks</li>
+</ul>
+<p>Many of these tests involve kilovolt-level transients. Six months ago some tests exposed weak points in the early hardware revisions. This time the revised production hardware completed the campaign successfully. Below are the procedures and what was observed.</p>
+<h3 id="conducted-emissions">1. Conducted RF Emissions (150 kHz – 30 MHz)</h3>
+<p><strong>Standard:</strong> EN 55032:2015 + AC:2016-07 + A11:2020 + A1:2020 (Class B equipment).</p>
+<p><strong>What the lab did:</strong> the whole system was powered through a LISN, which forces all conducted noise into a measurement port. A spectrum analyser scanned noise going back into the AC mains wiring of the MiniPLC and of the OpenTherm Gateway in turn. RS-485 communication and loads remained active throughout the sweep.</p>
+<p><strong>Purpose:</strong> make sure switching regulators and cables don't inject too much noise into the power lines.</p>
+<p><strong>What was observed:</strong> the conducted-emission profile sat comfortably below the Class B quasi-peak and average limits across the whole 150 kHz – 30 MHz sweep. The DC/DC layout changes from the November punch-list — tighter HF loops, RC snubbers, ferrite filtering on the 24 V rail — did what they were supposed to do. The certified configuration includes a small ferrite ring core (four turns) plus a 100 nF X2 capacitor on the AC mains inputs of the MiniPLC and OpenTherm, which goes into the recommended installation.</p>
+<p><strong>Verdict:</strong> PASS.</p>
+<h3 id="radiated-emissions">2. Radiated RF Emissions (30 MHz – 2.7 GHz)</h3>
+<p><strong>Standard:</strong> EN 55032 (Class B), method EN 55016-2-3:2017 + A1:2019 + A2:2023.</p>
+<p><strong>What the lab did:</strong> both systems were placed in a semi-anechoic chamber, a calibrated BiLog antenna 3 m away scanned for radiated RF energy, the turntable rotated the setup, and antenna height (1 / 2.5 / 4 m) and polarisation (horizontal and vertical) were varied.</p>
+<figure class="text-center my-4">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/sac-chamber.webp" alt="Two HomeMaster systems on the turntable of a semi-anechoic chamber, with the calibrated BiLog antenna at 3 m" class="img-fluid" loading="lazy"/>
+  <figcaption>The full HomeMaster system on the turntable for the radiated-emissions sweep.</figcaption>
+</figure>
+<p><strong>Purpose:</strong> ensure the system doesn't unintentionally radiate RF into the environment.</p>
+<p><strong>What was observed:</strong> the 30–80 MHz region that produced several peaks in November is now clean. Improved ground returns, smaller HF loop areas around the DC/DC converters, and additional ferrite cores on the MiniPLC DC mains input and on two earth-connection cables brought the whole sweep below the Class B limit line. Above 1 GHz the peak level stayed more than 10 dB under the limit across the full 1–2.7 GHz band.</p>
+<p><strong>Verdict:</strong> PASS.</p>
+<h3 id="rf-immunity-swept">3. RF Immunity, Swept Test (80 MHz – 1 GHz)</h3>
+<p><strong>Standard:</strong> EN 55035:2017 + A11:2020, method EN IEC 61000-4-3:2020.</p>
+<p><strong>What the lab did:</strong> a transmitter antenna blasted the system with RF fields while sweeping the full 80–1000 MHz band at 3 V/m, 80 % AM-modulated. Both polarisations. System behaviour monitored via the Modbus bus and over Wi-Fi.</p>
+<p><strong>Purpose:</strong> verify resistance to nearby radios — walkie-talkies, GSM, LTE, Wi-Fi.</p>
+<p><strong>What was observed:</strong> no changes in performance during or after the test. The narrow-band RS-485 disturbances we had seen in November around 115–175 MHz and ~514 MHz are completely gone — the shielded RS-485 cable specification eliminated them. No resets, no Modbus drops, no anomalies on any sensor reading.</p>
+<p><strong>Verdict:</strong> PASS, criterion A.</p>
+<h3 id="rf-immunity-spot">4. RF Immunity, Spot Test (1.8 / 2.6 / 3.5 / 5 GHz)</h3>
+<p><strong>Standard:</strong> EN 55035 with method EN IEC 61000-4-3, 3 V/m, 80 % AM-modulated, 30 s dwell at each spot frequency, both polarisations. Covers the GSM, LTE, and Wi-Fi bands.</p>
+<p><strong>What was observed:</strong> no changes at any of the four frequencies.</p>
+<p><strong>Verdict:</strong> PASS, criterion A.</p>
+<h3 id="conducted-immunity">5. Conducted RF Immunity (150 kHz – 80 MHz)</h3>
+<p><strong>Standard:</strong> EN 55035, method EN IEC 61000-4-6:2023.</p>
+<p><strong>What the lab did:</strong> a CDN injected RF directly into the AC mains, the RS-485 bus, and an EM clamp coupled RF into the analog input, analog output, digital input, PWM, RTD and 1-Wire cables. Sweep 150 kHz → 80 MHz at 1 % steps, 1.5 s per step, levels 3 V (0.15–10 MHz) tapering to 1 V at 30–80 MHz.</p>
+<figure class="text-center my-4">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/cdn-injection.webp" alt="CDN-based RF injection into the AC mains port of the HomeMaster system on the lab bench" class="img-fluid" loading="lazy"/>
+  <figcaption>RF injected through a coupling/decoupling network (CDN) directly into the AC mains port.</figcaption>
+</figure>
+<p><strong>Purpose:</strong> simulate real-world noisy environments — motors, HVAC units, industrial wiring.</p>
+<p><strong>What was observed:</strong> the AIO analog-input deviations we had in November at 15–21 MHz and 73–80 MHz are gone — they were caused by unshielded twisted-pair analog cabling, and the shielded analog cable now specified in the manual suppresses them. All eight injected ports stayed inside criterion A across the full sweep.</p>
+<p><strong>Verdict:</strong> PASS, criterion A on every port.</p>
+<h3 id="eft-burst">6. EFT / Burst Immunity</h3>
+<p><strong>Standard:</strong> EN 61000-4-4:2012, ±1 kV on the AC mains via coupling/decoupling network, ±0.5 kV on the signal ports (RS-485, DI, 1-Wire, AI, AO, PWM, RTD) via capacitive clamp. 5 kHz repetition frequency, 75 spikes per burst, 300 ms repetition, 60 s per polarity per port.</p>
+<p><strong>Purpose:</strong> simulate relay / contact switching noise and industrial electrical environments.</p>
+<p><strong>What was observed:</strong> this is the test that exposed problems in November. The DIO module showed occasional resets back then, and the DIM module showed lamp flicker. The redesigned DIO regulator section and the redesigned DIM gate drive are both fully stable now. Although criterion B performance was acceptable under the applicable immunity requirements for this equipment category, all tested ports maintained criterion A operation throughout the entire test sequence — no resets, no Modbus drops, no input glitches, no flicker.</p>
+<p><strong>Verdict:</strong> PASS, criterion A with margin.</p>
+<h3 id="esd">7. Electrostatic Discharge (ESD)</h3>
+<p><strong>Standard:</strong> EN IEC 61000-4-2:2009. ±4 kV contact discharges to the HCP, VCP, the metal board, every USB-C shell, and the antenna connectors of MiniPLC, MicroPLC, and OpenTherm. ±2 / ±4 / ±8 kV air discharges to displays, LEDs, buttons, Ethernet connectors, and enclosures.</p>
+<p><strong>Purpose:</strong> simulate a user touching the device in a real home — dry climate, carpets, the whole story.</p>
+<p><strong>What was observed:</strong> the November-era weakness is closed. November sometimes required a manual restart after −4 kV contact on the USB connector. This round, the worst observation on any USB shell was a brief, self-recovering flicker of the test-load lamp — well inside criterion B. The new low-impedance shell grounding plus the small connector recess took care of it. Air discharge at ±8 kV produced one observable spark on the OpenTherm enclosure (also self-recovered), everywhere else there was no spark at all.</p>
+<p><strong>Verdict:</strong> PASS, criterion B.</p>
+<hr/>
+<h2 id="lvd">The LVD Programme — On Our Own Bench</h2>
+<p>The Low Voltage Directive lets the manufacturer self-declare conformity under Module A of Annex III — internal production control, no notified body required. We took that route. For it to mean anything, you need a real lab: calibrated equipment, traceability, and a test methodology that follows EN 62368-1 verbatim. So we built one.</p>
+<figure class="text-center my-4">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/lvd-bench.webp" alt="In-house LVD compliance bench with GW Instek GPT-9804 hi-pot tester, calibrated DMM, calliper, and programmable AC source" class="img-fluid" loading="lazy"/>
+  <figcaption>The in-house compliance bench: GW Instek GPT-9804 hi-pot / IR tester, calibrated true-RMS DMM with K-type probe, programmable AC source, digital calliper. Calibration traceable to ISO 17025 references.</figcaption>
+</figure>
+<p><strong>Standard applied:</strong> EN 62368-1:2020 + A11:2020 — the harmonised safety standard for audio/video, IT and communication technology equipment that gives presumption of conformity to Directive 2014/35/EU.</p>
+<p><strong>Hazard classification per clause 5:</strong> mains and the relay output contacts are ES3 (hazardous), the 24 V SELV bus and internal logic rails are ES1.</p>
+<p><strong>Construction class:</strong> Class II throughout — no protective earth conductor, double / reinforced insulation between mains-side and SELV.</p>
+<p><strong>Scope:</strong> nine products — every module where mains can be present, either through a mains <em>input</em> or through relay <em>output</em> contacts that can switch user-supplied 250 V AC. The two products outside the LVD scope are the AIO-422-R1 (pure analog, RS-485, RTD — all SELV) and the STR-3221-R1 (MOSFET LED outputs on 12–24 V DC only).</p>
+<h3 id="lvd-tests">What the lab bench did</h3>
+<p><strong>Hi-pot (electric strength, clause 5.4.9 / Annex G.6).</strong> A 4243 V DC dielectric-strength test was applied for 60 s across every SELV-to-mains isolation barrier (mains primary to SELV secondary, mains to relay-output contacts, relay-output contacts to internal SELV), corresponding to the reinforced-insulation test level required by EN 62368-1, with a 5 mA trip current. No breakdown, no arc, clean recovery — every barrier passed the reinforced-insulation electric-strength requirement with substantial margin.</p>
+<p><strong>Insulation resistance (clause 5.4.10).</strong> 500 V DC for 60 s on the same barriers. The instrument's display stuck at its over-range value (&gt;9999 MΩ) against the standard's 7 MΩ minimum at the reinforced-insulation level — passed by orders of magnitude.</p>
+<p><strong>Touch current (clause 5.7).</strong> Measured at 1.06× rated mains (281 V AC for a 265 V max declared input) against an external earth reference, using the EN 62368-1 Figure 4 measuring network. Both supply polarities. Every accessible terminal and every accessible surface stayed below the 0.25 mA r.m.s. limit.</p>
+<p><strong>Temperature rise — normal operation (clauses 5.4.1.4 / 9).</strong> Each safety-critical component instrumented with a K-type thermocouple, EUT operated in worst-case mode (relay K1 toggling, OT bus active, both 1-Wire buses populated, Wi-Fi associated), measurements stabilised over an hour, then corrected mathematically to the rated 40 °C maximum ambient per Annex B.3. Every measurement stayed below the lower of the component datasheet maximum and the EN 62368-1 Table 9 limit.</p>
+<p><strong>Single-fault conditions (Annex B.4).</strong> Eight defined faults: mains primary short, AC/DC output short, relay output short, simultaneous relay activation under full load, DI over-voltage, AI over-voltage, ESP32 watchdog disabled, mains over-voltage transient. No fire, no electric-shock hazard, no glass-transition of insulation materials, no ES2/ES3 emerging at user-accessible terminals.</p>
+<p><strong>PCB creepage and clearance (clause 5.4.2, Tables 11 and 14).</strong> Working voltage up to 250 V r.m.s., overvoltage category II, pollution degree 2, FR-4 group IIIa. Each insulation path measured on the assembled board with a creepage gauge, photographed in frame, checked against the standard's minimums for Reinforced (≥ 3.0 mm clearance, ≥ 6.4 mm creepage).</p>
+<h3 id="early-pcb-finding">An honest note from the bench</h3>
+<p>During the very first hi-pot pass, a sample broke down at approximately 2.1 kV on the relay-to-SELV barrier — and failed again during retest at a lower threshold. We investigated. The sample turned out to be the very first PCB revision: an early prototype build with a known design issue around the relay-output area, never released into series production. That board was quarantined and labelled "DO NOT USE", the tests were repeated on the current production-revision PCB, and every barrier passed the reinforced-insulation requirement with substantial margin. From now on, every test report we issue cites the PCB revision explicitly so this kind of confusion doesn't repeat.</p>
+<hr/>
+<h2 id="red-rohs">RED and RoHS</h2>
+<p>The Radio Equipment Directive is the only one in this CE package that needs a notified body. Three of our products carry Wi-Fi — MiniPLC, MicroPLC, and OpenTherm Gateway — and all three use the same radio: an Espressif <strong>ESP32-WROOM-32U-N16</strong>. That module carries its own EU type-examination under Module B of Directive 2014/53/EU, performed by <strong>Kiwa Nederland B.V., Notified Body 0063</strong>, certificate <strong>172141367/AA/02</strong> issued 2 March 2023. The certification covers EN 300 328 V2.2.2, EN 301 489-1 V2.2.3, and EN 301 489-17 V3.2.4. The HomeMaster product operates the module within its certified conditions of use and inherits the radio compliance.</p>
+<p>RoHS compliance (Directive 2011/65/EU) is documented through supplier declarations and material traceability in accordance with EN IEC 63000. The technical file is maintained by ISYSTEMS AUTOMATION S.R.L. and available to the relevant authorities on request.</p>
+<hr/>
+<h2 id="who-needs-what">Which Directive Applies to Which Product</h2>
+<p>So that the table makes intuitive sense: EMC and RoHS cover everything, LVD covers anywhere mains-level voltage can be present (which includes the relay-equipped modules, not just the mains-input ones), RED covers anything with Wi-Fi.</p>
+<table>
+<thead>
+<tr><th>Product</th><th>EMC</th><th>LVD</th><th>RED</th><th>RoHS</th></tr>
+</thead>
+<tbody>
+<tr><td>MiniPLC</td><td>✓</td><td>✓ (AC variant + 6 relays)</td><td>✓ (Wi-Fi)</td><td>✓</td></tr>
+<tr><td>MicroPLC</td><td>✓</td><td>✓ (1 relay)</td><td>✓ (Wi-Fi)</td><td>✓</td></tr>
+<tr><td>OpenTherm Gateway</td><td>✓</td><td>✓ (AC variant + 1 relay)</td><td>✓ (Wi-Fi)</td><td>✓</td></tr>
+<tr><td>DIM-420-R1 dimmer</td><td>✓</td><td>✓ (AC dimming)</td><td>—</td><td>✓</td></tr>
+<tr><td>ENM-223-R1 energy meter</td><td>✓</td><td>✓ (3-phase mains + 2 relays)</td><td>—</td><td>✓</td></tr>
+<tr><td>ALM-173-R1 alarm I/O</td><td>✓</td><td>✓ (3 relays)</td><td>—</td><td>✓</td></tr>
+<tr><td>DIO-430-R1 digital I/O</td><td>✓</td><td>✓ (3 relays)</td><td>—</td><td>✓</td></tr>
+<tr><td>RGB-621-R1 LED driver</td><td>✓</td><td>✓ (1 relay)</td><td>—</td><td>✓</td></tr>
+<tr><td>WLD-521-R1 leak detection</td><td>✓</td><td>✓ (2 relays)</td><td>—</td><td>✓</td></tr>
+<tr><td>AIO-422-R1 analog I/O</td><td>✓</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>STR-3221-R1 stair LED</td><td>✓</td><td>—</td><td>—</td><td>✓</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="what-this-means">What All of This Means</h2>
+<p>After pushing the entire HomeMaster ecosystem through two rounds of pre-compliance, a full accredited-lab EMC campaign, and an in-house LVD programme on every mains-touching product, here is the big picture in plain language.</p>
+<p><strong>The architecture proved itself.</strong> The November findings produced an eight-item engineering punch-list, and every one of those items is now closed on production hardware. The improvements aren't theoretical — they show up in the test results: November's DIO resets and DIM flicker under EFT are gone, the AIO conducted-RF deviations are gone, the USB-C ESD path no longer needs operator intervention, and the relay-to-SELV isolation barriers now pass reinforced-insulation dielectric testing with substantial margin.</p>
+<p><strong>The compliance documentation is complete and issued.</strong> Eleven products, each with its own EU Declaration of Conformity. EMC supported by an accredited-lab report (Idvorsky Labs Job #1648). LVD supported by an in-house lab under Module A self-declaration against EN 62368-1. RED via the pre-certified ESP32 module. RoHS through the EN IEC 63000 technical file. The HomeMaster® trademark is registered with EUIPO as EUTM 019082911.</p>
+<p><strong>Compliance maturity is built into the process.</strong> Each certified hardware revision is tied to controlled PCB revision identifiers, archived manufacturing files, compliance test records, and versioned technical documentation inside the product technical file. Every Declaration of Conformity references the specific hardware revision under which the assessment was performed, so future production runs remain traceable to the tested configuration.</p>
+<p><strong>Production hardware is now shipping.</strong> Each product ships with the certified hardware revision, updated user documentation, product labelling, and the EU Declaration of Conformity. Orders are open at <a href="https://www.home-master.eu/">home-master.eu</a>.</p>
+<hr/>
+<h2 id="whats-next">What's Next</h2>
+<p>The compliance assessment phase for the current hardware revisions is now complete. From here our focus moves back to the product side:</p>
+<ol>
+<li><strong>Production ramp.</strong> First production batches of all eleven modules are shipping now. Lead times will stabilise over the next few weeks.</li>
+<li><strong>Documentation rollout.</strong> Each product's page on home-master.eu links to its datasheet, user manual, Declaration of Conformity, and a downloadable technical file summary. The EMC and LVD reports are available on request to integrators and notified-body auditors.</li>
+<li><strong>Build guides.</strong> We'll keep publishing detailed write-ups like the <a href="/build/smart-chimney-microplc">smart chimney with MicroPLC</a> — real installations of the certified lineup with full schematics, ESPHome YAML, and Home Assistant integration.</li>
+<li><strong>Next hardware.</strong> Two new module concepts are already on the bench. We'll talk about those once the first revisions come back from the fab.</li>
+</ol>
+<p>Thanks to everyone who followed along through the November round, asked sharp questions, and pointed out the things that weren't quite right yet. The HomeMaster system is on the rail because of it.</p>
+<hr/>
+<h2 id="related">Related</h2>
+<div class="row g-3 related-cards">
+  <div class="col-12 col-md-6">
+    <a class="rc-card" href="https://www.reddit.com/r/HomeMaster/comments/1p928w3/homemaster_completes_intensive_precompliance/">
+      <div class="rc-img-wrap">
+        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/november-thumb.webp" alt="November 2025 pre-compliance Reddit post"/>
+      </div>
+      <div class="rc-body">
+        <strong>November 2025 pre-compliance round</strong>
+        <span class="rc-desc">The first lab campaign, the issues we hit, and the eight-item engineering punch-list that this article closes out.</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-12 col-md-6">
+    <a class="rc-card" href="/build/smart-chimney-microplc">
+      <div class="rc-img-wrap">
+        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/smart-chimney-microplc/main.webp" alt="Smart chimney controller build with HomeMaster MicroPLC"/>
+      </div>
+      <div class="rc-body">
+        <strong>Smart chimney with MicroPLC, ESPHome &amp; HA</strong>
+        <span class="rc-desc">A real installation using several of the now-certified modules.</span>
+      </div>
+    </a>
+  </div>
+</div>
+</div>

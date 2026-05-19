@@ -1,0 +1,85 @@
+<!-- JSON-LD for the full-CE article: Article, NewsArticle, FAQPage, BreadcrumbList. -->
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "HomeMaster is CE-Marked — Full Lineup Ready to Ship",
+  "description": "All eleven HomeMaster products have completed CE conformity assessment. EMC tested at the ISO/IEC 17025 accredited Idvorsky Laboratories, LVD assessed in-house against EN 62368-1, RED inherited from a Kiwa-certified ESP32 module, RoHS technical files in place. Declarations of Conformity issued; orders open.",
+  "image": "https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/main.webp",
+  "datePublished": "2026-05-17",
+  "dateModified": "2026-05-17",
+  "author": { "@type": "Organization", "name": "HomeMaster", "url": "https://www.home-master.eu/" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "ISYSTEMS AUTOMATION S.R.L.",
+    "logo": { "@type": "ImageObject", "url": "https://www.home-master.eu/web/image/website/1/logo/HOMEMASTER" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.home-master.eu/build/march-2026-certification-retest" }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "HomeMaster Completes CE Conformity Assessment Across the Full Eleven-Module Lineup",
+  "description": "Declarations of Conformity issued for every HomeMaster product. EMC at an accredited laboratory, LVD in-house under Module A, RED via a pre-certified ESP32 radio module, RoHS technical files. Orders are open at home-master.eu.",
+  "datePublished": "2026-05-17",
+  "dateModified": "2026-05-17",
+  "image": "https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/main.webp",
+  "author": { "@type": "Person", "name": "Dmitry Drezyulya" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "ISYSTEMS AUTOMATION S.R.L.",
+    "logo": { "@type": "ImageObject", "url": "https://www.home-master.eu/web/image/website/1/logo/HOMEMASTER" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.home-master.eu/build/march-2026-certification-retest" }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Which directives does each product comply with?",
+      "acceptedAnswer": { "@type": "Answer", "text": "EMC (2014/30/EU) and RoHS (2011/65/EU) apply to every product in the lineup. LVD (2014/35/EU) applies to every product where mains-level voltage can be present — that includes the modules with mains inputs (MiniPLC AC, OpenTherm AC, DIM, ENM) and also every module whose relay contacts can switch user-supplied mains up to 250 V AC (MiniPLC, MicroPLC, OpenTherm, ENM, ALM, DIO, RGB, WLD). Nine of eleven products are under LVD scope; the AIO-422-R1 (pure analog and SELV) and the STR-3221-R1 (MOSFET LED outputs only) are the two outside it. RED (2014/53/EU) applies to the three Wi-Fi products: MiniPLC, MicroPLC, and OpenTherm Gateway." }
+    },
+    {
+      "@type": "Question",
+      "name": "Why was LVD done in our own lab rather than at an external accredited laboratory?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Directive 2014/35/EU lets the manufacturer self-declare LVD conformity under Module A — internal production control — without a notified body. The methodology and pass criteria are taken verbatim from EN 62368-1:2020 plus A11:2020, the test equipment is calibrated against ISO 17025-traceable references, and the test sequences plus raw data are filed with the report. If any measurement falls within 10 percent of a limit or any single-fault outcome is unclear, an external accredited laboratory is consulted before the report is signed." }
+    },
+    {
+      "@type": "Question",
+      "name": "How is the Wi-Fi side certified?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Through the radio module itself. Every Wi-Fi product in the lineup uses the same Espressif ESP32-WROOM-32U-N16 module, which carries its own EU type-examination under Module B of Directive 2014/53/EU. That type-examination was performed by Kiwa Nederland B.V., Notified Body 0063, certificate 172141367/AA/02, issued 2 March 2023, covering EN 300 328 V2.2.2, EN 301 489-1 V2.2.3, and EN 301 489-17 V3.2.4. The HomeMaster product operates the module within its certified conditions of use." }
+    },
+    {
+      "@type": "Question",
+      "name": "Where can I find the Declaration of Conformity for a specific product?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The DoC for each product is published alongside the product page on home-master.eu, and is also available on request from compliance@home-master.eu. Each DoC names the product, the hardware revision under which the assessment was performed, the directives and harmonised standards applied, the references to the EMC and LVD test reports, and the radio module type-examination certificate where relevant." }
+    },
+    {
+      "@type": "Question",
+      "name": "Are the products available for purchase now?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The full lineup of eleven HomeMaster products is available for order at home-master.eu. Production hardware ships with the certified hardware revision, the CE-compliant labelling, the user manual reflecting the recommended installation, and the Declaration of Conformity in the box." }
+    }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "HomeMaster", "item": "https://www.home-master.eu/" },
+    { "@type": "ListItem", "position": 2, "name": "Build", "item": "https://www.home-master.eu/build" },
+    { "@type": "ListItem", "position": 3, "name": "HomeMaster CE Marking", "item": "https://www.home-master.eu/build/march-2026-certification-retest" }
+  ]
+}
+</script>
