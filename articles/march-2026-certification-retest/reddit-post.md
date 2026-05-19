@@ -27,12 +27,13 @@ We also added a TinySA spectrum analyser to the internal validation setup betwee
 
 Same idea as November — bring complete, real-world installations, not isolated modules — but with one key change. In the November round we had **two separate metal-backed panels**, one per system, wired and powered independently. For this round we consolidated everything onto **a single panel**: all eleven products on the same backplate, sharing the same chassis ground, the same earth bonding, and the same 24 V SELV bus.
 
-The two systems below are now a logical grouping rather than a physical one:
+The two systems plus the OpenTherm Gateway below are now a logical grouping rather than a physical one:
 
-**SYSTEM 1 (MiniPLC setup):** MiniPLC, AIO-422-R1, RGB-621-R1, STR-3221-R1, OpenTherm Gateway
-**SYSTEM 2 (MicroPLC setup):** MicroPLC, DIO-430-R1, WLD-521-R1, ENM-223-R1, DIM-420-R1, ALM-173-R1
+**SYSTEM 1 (MiniPLC):** MiniPLC, AIO-422-R1, WLD-521-R1, ALM-173-R1, DIO-430-R1
+**SYSTEM 2 (MicroPLC):** MicroPLC, RGB-621-R1, ENM-223-R1, DIM-420-R1, STR-3221-R1
+**OpenTherm Gateway** — standalone on the panel
 
-The RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on both segments, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work. Recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.
+The RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on both segments, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work, and the system has every channel type active in the configuration. Cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.
 
 ## The EMC Campaign
 
@@ -147,7 +148,7 @@ During the first hi-pot pass, a sample broke down at ~2.1 kV on the relay-to-SEL
 
 ## RED and RoHS — Inherited and Documented
 
-The three Wi-Fi products (MiniPLC, MicroPLC, OpenTherm Gateway) all use the same radio: **Espressif ESP32-WROOM-32U-N16**. That module carries its own EU type-examination under Module B of Directive 2014/53/EU, performed by **Kiwa Nederland B.V., Notified Body 0063**, certificate **172141367/AA/02** issued 2 March 2023. Covers EN 300 328 V2.2.2, EN 301 489-1 V2.2.3, EN 301 489-17 V3.2.4. We operate the module within its certified conditions of use and inherit the radio compliance.
+The three Wi-Fi products (MiniPLC, MicroPLC, OpenTherm Gateway) all use the same radio: **Espressif ESP32-WROOM-32U-N16**. That module carries its own EU type-examination under Module B of Directive 2014/53/EU, performed by **Kiwa Nederland B.V.**
 
 RoHS compliance is documented through supplier declarations and material traceability in accordance with EN IEC 63000.
 
@@ -177,7 +178,7 @@ After pushing the entire HomeMaster ecosystem through two rounds of pre-complian
 
 **The architecture proved itself.** Every item on the November punch-list is closed on production hardware. DIO resets and DIM flicker under EFT — gone. AIO conducted-RF deviations — gone. USB-C ESD path — no more manual restarts. Relay-to-SELV isolation barriers now pass reinforced-insulation dielectric testing with substantial margin.
 
-**The compliance documentation is complete and issued.** Eleven products, eleven Declarations of Conformity. EMC supported by Idvorsky Labs Report #1648. LVD supported by the in-house lab under Module A against EN 62368-1. RED via the pre-certified ESP32 module. RoHS via the EN IEC 63000 technical file.
+**The compliance documentation is complete and issued.** Eleven products, eleven Declarations of Conformity.
 
 **Compliance maturity is built into the process.** Each certified hardware revision is tied to controlled PCB revision identifiers, archived manufacturing files, compliance test records, and versioned technical documentation inside the product technical file. Every DoC references the specific hardware revision under which the assessment was performed.
 

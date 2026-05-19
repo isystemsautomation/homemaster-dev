@@ -1,0 +1,18 @@
+<!--
+  Shared QWeb wrapper template for every HomeMaster module WebConfig page.
+  Edit the structure here once - it applies to every module after the next
+  n8n sync. Placeholders:
+    ___VIEW_KEY___  -> external key, e.g. website.configtool_aio_422_r1
+    ___BODY___      -> module's sanitized ConfigToolPage.html content
+-->
+<t t-name="___VIEW_KEY___">
+  <t t-call="website.layout">
+    <div id="wrap" class="oe_structure oe_empty">
+      <section class="s_text_block pt32 pb32">
+        <div class="container">
+          ___BODY___
+        </div>
+      </section>
+    </div>
+  </t>
+</t>

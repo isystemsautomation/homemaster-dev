@@ -37,20 +37,22 @@
 <hr/>
 <h2 id="the-test-setup">All Eleven Modules on One Panel</h2>
 <p>Same idea as November — bring complete, real-world installations, not isolated modules — but with one key change. In the November round we had two separate metal-backed panels, one per system, wired and powered independently. For this round we consolidated everything onto a single panel: all eleven products on the same backplate, sharing the same chassis ground, the same earth bonding, the same 24 V SELV bus. Real loads on the dimmer and the LED driver, a current transformer on the energy meter, temperature sensors on the metering channels, Modbus traffic on the bus, and a laptop monitoring the system over Wi-Fi throughout.</p>
+<p>The two systems plus the OpenTherm Gateway below are now a logical grouping rather than a physical one:</p>
 <table>
 <thead>
-<tr><th>Logical system</th><th>Master</th><th>Expansion modules on the RS-485 bus</th></tr>
+<tr><th>Logical grouping</th><th>Master</th><th>Modules on the RS-485 bus</th></tr>
 </thead>
 <tbody>
-<tr><td>SYSTEM 1</td><td>MiniPLC</td><td>AIO-422-R1, RGB-621-R1, STR-3221-R1, OpenTherm Gateway</td></tr>
-<tr><td>SYSTEM 2</td><td>MicroPLC</td><td>DIO-430-R1, WLD-521-R1, ENM-223-R1, DIM-420-R1, ALM-173-R1</td></tr>
+<tr><td>SYSTEM 1</td><td>MiniPLC</td><td>AIO-422-R1, WLD-521-R1, ALM-173-R1, DIO-430-R1</td></tr>
+<tr><td>SYSTEM 2</td><td>MicroPLC</td><td>RGB-621-R1, ENM-223-R1, DIM-420-R1, STR-3221-R1</td></tr>
+<tr><td>OpenTherm Gateway</td><td>—</td><td>Standalone on the panel</td></tr>
 </tbody>
 </table>
 <figure class="text-center my-4">
   <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/eut-board.webp" alt="All eleven HomeMaster modules consolidated onto one metal backplate inside the test laboratory — both PLC systems combined on a single panel, shared earth bonding, shared 24 V SELV bus" class="img-fluid" loading="lazy"/>
   <figcaption>All eleven modules on a single panel — both logical systems combined onto one backplate, with shared earth bonding and a common 24 V SELV bus.</figcaption>
 </figure>
-<p>The two systems below are now a logical grouping rather than a physical one — they share the panel, the earth, and the SELV rail, but the RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). The recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used throughout. Every module had at least one active I/O channel doing real work.</p>
+<p>The RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on both segments, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work, and the system has every channel type active in the configuration. Cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.</p>
 <hr/>
 <h2 id="emc">The EMC Campaign</h2>
 <p><strong>Laboratory:</strong> Idvorsky Laboratories Ltd., Belgrade — ATS-accredited (ATS 01-404), ISO/IEC 17025, ilac-MRA recognised.<br/>
@@ -134,8 +136,8 @@
 <p>During the very first hi-pot pass, a sample broke down at approximately 2.1 kV on the relay-to-SELV barrier — and failed again during retest at a lower threshold. We investigated. The sample turned out to be the very first PCB revision: an early prototype build with a known design issue around the relay-output area, never released into series production. That board was quarantined and labelled "DO NOT USE", the tests were repeated on the current production-revision PCB, and every barrier passed the reinforced-insulation requirement with substantial margin. From now on, every test report we issue cites the PCB revision explicitly so this kind of confusion doesn't repeat.</p>
 <hr/>
 <h2 id="red-rohs">RED and RoHS</h2>
-<p>The Radio Equipment Directive is the only one in this CE package that needs a notified body. Three of our products carry Wi-Fi — MiniPLC, MicroPLC, and OpenTherm Gateway — and all three use the same radio: an Espressif <strong>ESP32-WROOM-32U-N16</strong>. That module carries its own EU type-examination under Module B of Directive 2014/53/EU, performed by <strong>Kiwa Nederland B.V., Notified Body 0063</strong>, certificate <strong>172141367/AA/02</strong> issued 2 March 2023. The certification covers EN 300 328 V2.2.2, EN 301 489-1 V2.2.3, and EN 301 489-17 V3.2.4. The HomeMaster product operates the module within its certified conditions of use and inherits the radio compliance.</p>
-<p>RoHS compliance (Directive 2011/65/EU) is documented through supplier declarations and material traceability in accordance with EN IEC 63000. The technical file is maintained by ISYSTEMS AUTOMATION S.R.L. and available to the relevant authorities on request.</p>
+<p>The Radio Equipment Directive is the only one in this CE package that needs a notified body. Three of our products carry Wi-Fi — MiniPLC, MicroPLC, and OpenTherm Gateway — and all three use the same radio: an Espressif <strong>ESP32-WROOM-32U-N16</strong>. That module carries its own EU type-examination under Module B of Directive 2014/53/EU, performed by <strong>Kiwa Nederland B.V.</strong></p>
+<p>RoHS compliance is documented through supplier declarations and material traceability in accordance with EN IEC 63000.</p>
 <hr/>
 <h2 id="who-needs-what">Which Directive Applies to Which Product</h2>
 <p>So that the table makes intuitive sense: EMC and RoHS cover everything, LVD covers anywhere mains-level voltage can be present (which includes the relay-equipped modules, not just the mains-input ones), RED covers anything with Wi-Fi.</p>
@@ -161,7 +163,7 @@
 <h2 id="what-this-means">What All of This Means</h2>
 <p>After pushing the entire HomeMaster ecosystem through two rounds of pre-compliance, a full accredited-lab EMC campaign, and an in-house LVD programme on every mains-touching product, here is the big picture in plain language.</p>
 <p><strong>The architecture proved itself.</strong> The November findings produced an eight-item engineering punch-list, and every one of those items is now closed on production hardware. The improvements aren't theoretical — they show up in the test results: November's DIO resets and DIM flicker under EFT are gone, the AIO conducted-RF deviations are gone, the USB-C ESD path no longer needs operator intervention, and the relay-to-SELV isolation barriers now pass reinforced-insulation dielectric testing with substantial margin.</p>
-<p><strong>The compliance documentation is complete and issued.</strong> Eleven products, each with its own EU Declaration of Conformity. EMC supported by an accredited-lab report (Idvorsky Labs Job #1648). LVD supported by an in-house lab under Module A self-declaration against EN 62368-1. RED via the pre-certified ESP32 module. RoHS through the EN IEC 63000 technical file. The HomeMaster® trademark is registered with EUIPO as EUTM 019082911.</p>
+<p><strong>The compliance documentation is complete and issued.</strong> Eleven products, eleven Declarations of Conformity.</p>
 <p><strong>Compliance maturity is built into the process.</strong> Each certified hardware revision is tied to controlled PCB revision identifiers, archived manufacturing files, compliance test records, and versioned technical documentation inside the product technical file. Every Declaration of Conformity references the specific hardware revision under which the assessment was performed, so future production runs remain traceable to the tested configuration.</p>
 <p><strong>Production hardware is now shipping.</strong> Each product ships with the certified hardware revision, updated user documentation, product labelling, and the EU Declaration of Conformity. Orders are open at <a href="https://www.home-master.eu/">home-master.eu</a>.</p>
 <hr/>
