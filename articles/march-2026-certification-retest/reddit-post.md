@@ -4,7 +4,7 @@ Hey everyone,
 
 Six months ago we walked into an accredited test laboratory with the whole HomeMaster system, and some early-revision boards exposed weak points under EMC and electrical-safety testing. Today every product in the lineup ships with a signed EU Declaration of Conformity issued by HomeMaster as the manufacturer. The CE marking is on. We're shipping.
 
-This post is the closure of the story we started in the [November pre-compliance write-up](https://www.reddit.com/r/HomeMaster/comments/1p928w3/homemaster_completes_intensive_precompliance/), with the engineering fixes we walked through in the [January follow-up](https://www.reddit.com/r/HomeMaster/) baked into production hardware. Same two systems on the bench, same tests, this time the verdicts come back in green.
+This post is the closure of the story we started in the [November pre-compliance write-up](https://www.reddit.com/r/HomeMaster/comments/1p928w3/homemaster_completes_intensive_precompliance/), with the engineering fixes we walked through in the [January follow-up](https://www.reddit.com/r/HomeMaster/) baked into production hardware. Same eleven modules on the bench, same tests, this time the verdicts come back in green.
 
 Here's the full breakdown.
 
@@ -23,14 +23,16 @@ The November punch-list became roughly four months of engineering work. Headline
 
 We also added a TinySA spectrum analyser to the internal validation setup between rounds and ran old-vs-new spectrum comparisons in-house — clear reduction in 30–150 MHz noise on the new boards before they went back to Belgrade.
 
-## The Two Systems on the Bench
+## All Eleven Modules on One Panel
 
-Same approach as November — instead of testing modules one at a time, we brought two complete HomeMaster installations to the lab, wired the way a real DIN-rail cabinet is wired:
+Same idea as November — bring complete, real-world installations, not isolated modules — but with one key change. In the November round we had **two separate metal-backed panels**, one per system, wired and powered independently. For this round we consolidated everything onto **a single panel**: all eleven products on the same backplate, sharing the same chassis ground, the same earth bonding, and the same 24 V SELV bus.
+
+The two systems below are now a logical grouping rather than a physical one:
 
 **SYSTEM 1 (MiniPLC setup):** MiniPLC, AIO-422-R1, RGB-621-R1, STR-3221-R1, OpenTherm Gateway
 **SYSTEM 2 (MicroPLC setup):** MicroPLC, DIO-430-R1, WLD-521-R1, ENM-223-R1, DIM-420-R1, ALM-173-R1
 
-Both systems on a single metal-backed board this time. Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on the bus, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work. The recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.
+The RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on both segments, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work. Recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.
 
 ## The EMC Campaign
 
@@ -65,11 +67,11 @@ Many of these tests involve kilovolt-level transients. Six months ago some tests
 
 **Standard:** EN 55032 (Class B), method EN 55016-2-3.
 
-**What the lab did:** both systems on a turntable in the semi-anechoic chamber, BiLog antenna 3 m away, height swept 1 / 2.5 / 4 m, both polarisations.
+**What the lab did:** unlike the other tests, radiated emissions were measured in two separate configurations rather than on the full consolidated panel. First configuration: every expansion module driven from a single MicroPLC master, with the OpenTherm Gateway also on the panel. Second configuration: MiniPLC placed in the chamber on its own, isolated from all other modules. Both configurations swept with the BiLog antenna at 3 m, height swept 1 / 2.5 / 4 m, both polarisations.
 
 **Purpose:** ensure the system doesn't unintentionally radiate RF into the environment.
 
-**What was observed:** the 30–80 MHz region that produced several peaks in November is now clean. Above 1 GHz the peak level stayed more than 10 dB under the limit across the full 1–2.7 GHz band.
+**What was observed:** the 30–80 MHz region that produced several peaks in November is now clean in both configurations. Above 1 GHz the peak level stayed more than 10 dB under the limit across the full 1–2.7 GHz band.
 
 **Verdict: PASS.**
 

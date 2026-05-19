@@ -3,7 +3,7 @@
   <div class="row align-items-center g-4">
     <div class="col-12 col-lg-7 article-hero-text">
       <h1 class="article-hero-title">HomeMaster Completes EMC, LVD and RED Conformity Assessment — Production Hardware Now Shipping</h1>
-      <p class="lead article-hero-lead">Six months ago we walked into a certified test laboratory with the whole HomeMaster system, and some early-revision boards exposed weak points under EMC and electrical-safety testing. Today every product in the lineup now ships with a signed EU Declaration of Conformity issued by HomeMaster as the manufacturer. Here's how the final round actually played out — same two systems on the bench, same tests, this time with the revised production hardware completing the campaign successfully.</p>
+      <p class="lead article-hero-lead">Six months ago we walked into a certified test laboratory with the whole HomeMaster system, and some early-revision boards exposed weak points under EMC and electrical-safety testing. Today every product in the lineup now ships with a signed EU Declaration of Conformity issued by HomeMaster as the manufacturer. Here's how the final round actually played out — same eleven modules on the bench, same tests, this time with the revised production hardware completing the campaign successfully.</p>
       <p class="article-hero-meta">By Dmitry Drezyulya · Published May 17, 2026 · ~14 min read</p>
     </div>
     <div class="col-12 col-lg-5">
@@ -35,11 +35,11 @@
 <h3 id="tinysa-validation">In-House Validation Before Returning to the Lab</h3>
 <p>Between the revision and the lab visit we added a TinySA spectrum analyser to the internal validation setup. Comparative scans of the old and the new PCBs under the same conditions showed a clear reduction in noise peaks and overall spectral activity, particularly in the 30–150 MHz band where the November lab had flagged elevated emissions. It is not a replacement for an accredited-lab measurement — but it is a useful sanity check that the fixes were working in the right direction before we shipped boards back to Belgrade.</p>
 <hr/>
-<h2 id="the-two-systems-on-the-bench">The Two Systems on the Bench</h2>
-<p>Same approach as November: instead of testing modules in isolation, we brought two complete HomeMaster installations into the lab — both wired the way a real DIN-rail cabinet is wired, with real loads on the dimmer and the LED driver, a current transformer on the energy meter, temperature sensors on the metering channels, Modbus traffic on the bus, and a laptop monitoring the system over Wi-Fi throughout.</p>
+<h2 id="the-test-setup">All Eleven Modules on One Panel</h2>
+<p>Same idea as November — bring complete, real-world installations, not isolated modules — but with one key change. In the November round we had two separate metal-backed panels, one per system, wired and powered independently. For this round we consolidated everything onto a single panel: all eleven products on the same backplate, sharing the same chassis ground, the same earth bonding, the same 24 V SELV bus. Real loads on the dimmer and the LED driver, a current transformer on the energy meter, temperature sensors on the metering channels, Modbus traffic on the bus, and a laptop monitoring the system over Wi-Fi throughout.</p>
 <table>
 <thead>
-<tr><th>System</th><th>Master</th><th>Expansion modules on the RS-485 bus</th></tr>
+<tr><th>Logical system</th><th>Master</th><th>Expansion modules on the RS-485 bus</th></tr>
 </thead>
 <tbody>
 <tr><td>SYSTEM 1</td><td>MiniPLC</td><td>AIO-422-R1, RGB-621-R1, STR-3221-R1, OpenTherm Gateway</td></tr>
@@ -47,10 +47,10 @@
 </tbody>
 </table>
 <figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/eut-board.webp" alt="Both HomeMaster systems mounted on a single metal backplate inside the test laboratory, with long cables, real loads, and active RS-485 communication" class="img-fluid" loading="lazy"/>
-  <figcaption>Eleven modules on a single backplate, powered up and exchanging Modbus traffic the way they would inside a real cabinet.</figcaption>
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/eut-board.webp" alt="All eleven HomeMaster modules consolidated onto one metal backplate inside the test laboratory — both PLC systems combined on a single panel, shared earth bonding, shared 24 V SELV bus" class="img-fluid" loading="lazy"/>
+  <figcaption>All eleven modules on a single panel — both logical systems combined onto one backplate, with shared earth bonding and a common 24 V SELV bus.</figcaption>
 </figure>
-<p>Eleven products in total. Same setup as November except that this time everything sat on a single metal-backed board, and the recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used throughout. Every module had at least one active I/O channel doing real work.</p>
+<p>The two systems below are now a logical grouping rather than a physical one — they share the panel, the earth, and the SELV rail, but the RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). The recommended cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used throughout. Every module had at least one active I/O channel doing real work.</p>
 <hr/>
 <h2 id="emc">The EMC Campaign</h2>
 <p><strong>Laboratory:</strong> Idvorsky Laboratories Ltd., Belgrade — ATS-accredited (ATS 01-404), ISO/IEC 17025, ilac-MRA recognised.<br/>
@@ -74,10 +74,10 @@
 <p><strong>Verdict:</strong> PASS.</p>
 <h3 id="radiated-emissions">2. Radiated RF Emissions (30 MHz – 2.7 GHz)</h3>
 <p><strong>Standard:</strong> EN 55032 (Class B), method EN 55016-2-3:2017 + A1:2019 + A2:2023.</p>
-<p><strong>What the lab did:</strong> both systems were placed in a semi-anechoic chamber, a calibrated BiLog antenna 3 m away scanned for radiated RF energy, the turntable rotated the setup, and antenna height (1 / 2.5 / 4 m) and polarisation (horizontal and vertical) were varied.</p>
+<p><strong>What the lab did:</strong> unlike the other tests, radiated emissions were measured in two separate configurations rather than on the full consolidated panel — to keep the master-and-slaves scenarios cleanly isolated from each other. In the first configuration, every expansion module was driven from a single MicroPLC master, with the OpenTherm Gateway also on the panel — this places the maximum number of modules on one Modbus master under test. In the second configuration, the MiniPLC was placed in the chamber on its own, isolated from all other modules, to characterise its emissions independently. Both configurations were swept with a calibrated BiLog antenna at 3 m, the turntable rotated the setup, and antenna height (1 / 2.5 / 4 m) and polarisation (horizontal / vertical) were varied.</p>
 <figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/sac-chamber.webp" alt="Two HomeMaster systems on the turntable of a semi-anechoic chamber, with the calibrated BiLog antenna at 3 m" class="img-fluid" loading="lazy"/>
-  <figcaption>The full HomeMaster system on the turntable for the radiated-emissions sweep.</figcaption>
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/sac-chamber.webp" alt="HomeMaster modules on the turntable of a semi-anechoic chamber for radiated-emissions testing, with the calibrated BiLog antenna at 3 m" class="img-fluid" loading="lazy"/>
+  <figcaption>The MicroPLC-led configuration on the turntable for the radiated-emissions sweep. The MiniPLC was placed on its own for a separate sweep.</figcaption>
 </figure>
 <p><strong>Purpose:</strong> ensure the system doesn't unintentionally radiate RF into the environment.</p>
 <p><strong>What was observed:</strong> the 30–80 MHz region that produced several peaks in November is now clean. Improved ground returns, smaller HF loop areas around the DC/DC converters, and additional ferrite cores on the MiniPLC DC mains input and on two earth-connection cables brought the whole sweep below the Class B limit line. Above 1 GHz the peak level stayed more than 10 dB under the limit across the full 1–2.7 GHz band.</p>
