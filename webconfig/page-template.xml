@@ -1,17 +1,19 @@
 <!--
   Shared QWeb wrapper template for every HomeMaster module WebConfig page.
-  Edit the structure here once - it applies to every module after the next
-  n8n sync. Placeholders:
-    ___VIEW_KEY___  -> external key, e.g. website.configtool_aio_422_r1
-    ___BODY___      -> module's sanitized ConfigToolPage.html content
+  Structure mirrors what the Odoo "Embed Code" snippet (s_embed_code) generates
+  when you paste raw HTML through the Website Editor - that way the n8n-pushed
+  arch_base matches the snippet conventions Odoo already uses for these pages.
+
+  Placeholders substituted by n8n:
+    ___VIEW_KEY___  -> view key, e.g. website.configtool_aio_422_r1
+    ___BODY___      -> sanitized ConfigToolPage.html (the <section> with the
+                       WebConfig UI; already sets its own max-width and margins)
 -->
 <t t-name="___VIEW_KEY___">
   <t t-call="website.layout">
     <div id="wrap" class="oe_structure oe_empty">
-      <section class="s_text_block pt32 pb32">
-        <div class="container">
-          ___BODY___
-        </div>
+      <section class="s_embed_code pt64 pb64 o_colored_level" data-snippet="s_embed_code" data-name="Embed Code">
+        ___BODY___
       </section>
     </div>
   </t>
