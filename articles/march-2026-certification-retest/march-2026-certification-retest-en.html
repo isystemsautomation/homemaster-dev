@@ -7,7 +7,7 @@
       <p class="article-hero-meta">By Dmitry Drezyulya · Published May 17, 2026 · ~14 min read</p>
     </div>
     <div class="col-12 col-lg-5">
-      <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/main.webp" alt="HomeMaster lineup of eleven DIN-rail modules on the certification test bench" class="img-fluid rounded shadow-sm article-hero-img"/>
+      <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/photo1.png" alt="All eleven HomeMaster modules consolidated on a single metal backplate for EMC certification testing" class="img-fluid rounded shadow-sm article-hero-img"/>
     </div>
   </div>
 </section>
@@ -49,7 +49,7 @@
 </tbody>
 </table>
 <figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/eut-board.webp" alt="All eleven HomeMaster modules consolidated onto one metal backplate inside the test laboratory — both PLC systems combined on a single panel, shared earth bonding, shared 24 V SELV bus" class="img-fluid" loading="lazy"/>
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/photo1.png" alt="Top-down view of the consolidated HomeMaster panel — all eleven modules on a single metal backplate, shared chassis ground, shared 24 V SELV bus" class="img-fluid" loading="lazy"/>
   <figcaption>All eleven modules on a single panel — both logical systems combined onto one backplate, with shared earth bonding and a common 24 V SELV bus.</figcaption>
 </figure>
 <p>The RS-485 bus is split into two segments off the respective master (MiniPLC for SYSTEM 1, MicroPLC for SYSTEM 2). Real loads on the dimmer and the LED driver, a current transformer on the energy meter, 1-Wire and RTD sensors on the metering channels, Modbus traffic on both segments, Wi-Fi monitoring throughout. Every module had at least one active I/O channel doing real work, and the system has every channel type active in the configuration. Cabling — shielded RS-485, shielded analog, shielded 3-core 1-Wire — was used everywhere.</p>
@@ -78,8 +78,8 @@
 <p><strong>Standard:</strong> EN 55032 (Class B), method EN 55016-2-3:2017 + A1:2019 + A2:2023.</p>
 <p><strong>What the lab did:</strong> unlike the other tests, radiated emissions were measured in two separate configurations rather than on the full consolidated panel — to keep the master-and-slaves scenarios cleanly isolated from each other. In the first configuration, every expansion module was driven from a single MicroPLC master, with the OpenTherm Gateway also on the panel — this places the maximum number of modules on one Modbus master under test. In the second configuration, the MiniPLC was placed in the chamber on its own, isolated from all other modules, to characterise its emissions independently. Both configurations were swept with a calibrated BiLog antenna at 3 m, the turntable rotated the setup, and antenna height (1 / 2.5 / 4 m) and polarisation (horizontal / vertical) were varied.</p>
 <figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/sac-chamber.webp" alt="HomeMaster modules on the turntable of a semi-anechoic chamber for radiated-emissions testing, with the calibrated BiLog antenna at 3 m" class="img-fluid" loading="lazy"/>
-  <figcaption>The MicroPLC-led configuration on the turntable for the radiated-emissions sweep. The MiniPLC was placed on its own for a separate sweep.</figcaption>
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/photo2.png" alt="HomeMaster MiniPLC placed on the turntable of a semi-anechoic chamber for the second radiated-emissions configuration" class="img-fluid" loading="lazy"/>
+  <figcaption>The MiniPLC on the turntable for its standalone radiated-emissions sweep. The MicroPLC-led configuration with all expansion modules and the OpenTherm Gateway was tested separately.</figcaption>
 </figure>
 <p><strong>Purpose:</strong> ensure the system doesn't unintentionally radiate RF into the environment.</p>
 <p><strong>What was observed:</strong> the 30–80 MHz region that produced several peaks in November is now clean. Improved ground returns, smaller HF loop areas around the DC/DC converters, and additional ferrite cores on the MiniPLC DC mains input and on two earth-connection cables brought the whole sweep below the Class B limit line. Above 1 GHz the peak level stayed more than 10 dB under the limit across the full 1–2.7 GHz band.</p>
@@ -98,8 +98,8 @@
 <p><strong>Standard:</strong> EN 55035, method EN IEC 61000-4-6:2023.</p>
 <p><strong>What the lab did:</strong> a CDN injected RF directly into the AC mains, the RS-485 bus, and an EM clamp coupled RF into the analog input, analog output, digital input, PWM, RTD and 1-Wire cables. Sweep 150 kHz → 80 MHz at 1 % steps, 1.5 s per step, levels 3 V (0.15–10 MHz) tapering to 1 V at 30–80 MHz.</p>
 <figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/cdn-injection.webp" alt="CDN-based RF injection into the AC mains port of the HomeMaster system on the lab bench" class="img-fluid" loading="lazy"/>
-  <figcaption>RF injected through a coupling/decoupling network (CDN) directly into the AC mains port.</figcaption>
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/photo3.png" alt="The consolidated HomeMaster panel in the test bay with a coupling/decoupling network for conducted RF immunity testing" class="img-fluid" loading="lazy"/>
+  <figcaption>The consolidated panel in the test bay during conducted-RF immunity testing — RF injected through a coupling/decoupling network (CDN) into the AC mains port.</figcaption>
 </figure>
 <p><strong>Purpose:</strong> simulate real-world noisy environments — motors, HVAC units, industrial wiring.</p>
 <p><strong>What was observed:</strong> the AIO analog-input deviations we had in November at 15–21 MHz and 73–80 MHz are gone — they were caused by unshielded twisted-pair analog cabling, and the shielded analog cable now specified in the manual suppresses them. All eight injected ports stayed inside criterion A across the full sweep.</p>
@@ -117,10 +117,7 @@
 <hr/>
 <h2 id="lvd">The LVD Programme — On Our Own Bench</h2>
 <p>The Low Voltage Directive lets the manufacturer self-declare conformity under Module A of Annex III — internal production control, no notified body required. We took that route. For it to mean anything, you need a real lab: calibrated equipment, traceability, and a test methodology that follows EN 62368-1 verbatim. So we built one.</p>
-<figure class="text-center my-4">
-  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/lvd-bench.webp" alt="In-house LVD compliance bench with GW Instek GPT-9804 hi-pot tester, calibrated DMM, calliper, and programmable AC source" class="img-fluid" loading="lazy"/>
-  <figcaption>The in-house compliance bench: GW Instek GPT-9804 hi-pot / IR tester, calibrated true-RMS DMM with K-type probe, programmable AC source, digital calliper. Calibration traceable to ISO 17025 references.</figcaption>
-</figure>
+
 <p><strong>Standard applied:</strong> EN 62368-1:2020 + A11:2020 — the harmonised safety standard for audio/video, IT and communication technology equipment that gives presumption of conformity to Directive 2014/35/EU.</p>
 <p><strong>Hazard classification per clause 5:</strong> mains and the relay output contacts are ES3 (hazardous), the 24 V SELV bus and internal logic rails are ES1.</p>
 <p><strong>Construction class:</strong> Class II throughout — no protective earth conductor, double / reinforced insulation between mains-side and SELV.</p>
@@ -182,7 +179,7 @@
   <div class="col-12 col-md-6">
     <a class="rc-card" href="https://www.reddit.com/r/HomeMaster/comments/1p928w3/homemaster_completes_intensive_precompliance/">
       <div class="rc-img-wrap">
-        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/november-thumb.webp" alt="November 2025 pre-compliance Reddit post"/>
+        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/articles/march-2026-certification-retest/photo1.png" alt="November 2025 pre-compliance Reddit post"/>
       </div>
       <div class="rc-body">
         <strong>November 2025 pre-compliance round</strong>
