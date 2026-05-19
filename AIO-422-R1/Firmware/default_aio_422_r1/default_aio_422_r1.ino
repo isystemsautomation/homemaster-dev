@@ -1,4 +1,5 @@
 // AIO-422-R1 (RP2350) – Analog I/O module firmware
+// Build / flash instructions: see README.md in this folder (../README.md)
 // ------------------------------------------------------------
 // Hardware:
 //  - ADS1115 (4x AI) on Wire1 (SDA=6, SCL=7)

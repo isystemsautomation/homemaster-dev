@@ -52,12 +52,9 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ## 📦 Firmware & Programming
 
-- Comes preloaded with **MicroPython firmware**
-- Programmable via:
-  - **MicroPython**
-  - **C/C++**
-  - **Arduino IDE**
-- Flexible customization for edge logic, timers, PID loops, etc.
+- Programmable via **Arduino IDE** (рекомендуется для полной прошивки Modbus + WebConfig)
+- Подробное руководство по установке среды, библиотек, сборке и загрузке: **[Firmware/README.md](./Firmware/README.md)**
+- Также доступны профили **ESPHome** в `Firmware/default_aio_422_r1_plc/`
 
 ---
 
