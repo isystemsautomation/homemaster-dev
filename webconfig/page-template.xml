@@ -6,8 +6,7 @@
 
   Placeholders substituted by n8n:
     ___VIEW_KEY___  -> view key, e.g. website.configtool_aio_422_r1
-    ___BODY___      -> sanitized ConfigToolPage.html (the <section> with the
-                       WebConfig UI; already sets its own max-width and margins)
+    ___BODY___      -> sanitized ConfigToolPage.html
 -->
 <t t-name="___VIEW_KEY___">
   <t t-call="website.layout">
