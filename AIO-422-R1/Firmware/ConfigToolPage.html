@@ -72,7 +72,7 @@
       </div>
       <div class="title">
         <h1>AIO-422-R1 Module Configuration</h1>
-        <p>Configure Modbus, analog/RTD channels, buttons, LEDs, and 4× PID controllers via Web Serial.</p>
+        <p>Configure Modbus, analog/RTD channels, buttons, and LEDs via Web Serial.</p>
       </div>
     </div>
     <div class="statusbar">
@@ -190,16 +190,6 @@
     </div>
   </section>
 
-  <!-- PID Controllers -->
-  <div class="sectiontitle" style="margin-top:2rem;">
-    <h3>PID Controllers (4)</h3>
-    <p class="hint">Live-only PV/SP/OUT trends and Web-configurable parameters per loop.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div id="pid-rows" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:.75rem;"></div>
-    </div>
-  </section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
@@ -208,7 +198,6 @@
       const NUM_DAC = 2;
       const NUM_BTN = 4;
       const NUM_LED = 4;
-      const NUM_PID = 4;
       const NUM_RTD = 2;
 
       const LOG_MAX = 6;
@@ -225,64 +214,13 @@
       };
       const rtdEditing = [false,false];
 
-      // ===== Button action selection (0..8) =====
+      // ===== Button action selection (0..4) =====
       const btnAction  = [0,0,0,0];
       const btnEditing = [false,false,false,false];
 
-      // LED source selection buffers (0..16)
+      // LED source selection buffers (0..4)
       const ledSrc = [0,0,0,0];
       const ledEditing = [false,false,false,false];
-
-      // PID buffers
-      const pidSp     = [0, 0, 0, 0];
-      const pidEn     = [0, 0, 0, 0];
-      const pidPvSrc  = [0, 0, 0, 0];
-      const pidSpSrc  = [0, 0, 0, 0];
-      const pidOutSel = [0, 0, 0, 0];
-      const pidKp     = [0, 0, 0, 0];
-      const pidKi     = [0, 0, 0, 0];
-      const pidKd     = [0, 0, 0, 0];
-
-      const pidPvMin  = [0, 0, 0, 0];
-      const pidPvMax  = [10000, 10000, 10000, 10000];
-      const pidOutMin = [0, 0, 0, 0];
-      const pidOutMax = [4095, 4095, 4095, 4095];
-
-      const pidMode   = [0, 0, 0, 0];
-      const pidEditing = [false, false, false, false];
-
-      const EXPECTED_SAMPLE_MS = 250;
-      const trend = Array.from({length: NUM_PID}, () => ({
-        winMin: 10,
-        maxPoints: Math.floor((10 * 60 * 1000) / EXPECTED_SAMPLE_MS),
-        t: [], pv: [], sp: [], out: [],
-        lastDrawMs: 0
-      }));
-
-      function setTrendWindow(i, minutes) {
-        const tr = trend[i];
-        tr.winMin = minutes;
-        tr.maxPoints = Math.max(10, Math.floor((minutes * 60 * 1000) / EXPECTED_SAMPLE_MS));
-        tr.t.length = 0; tr.pv.length = 0; tr.sp.length = 0; tr.out.length = 0;
-        drawTrend(i, true);
-      }
-
-      function pushTrend(i, pvPct, spPct, outPct) {
-        const tr = trend[i];
-        const now = Date.now();
-        tr.t.push(now);
-        tr.pv.push(pvPct);
-        tr.sp.push(spPct);
-        tr.out.push(outPct);
-
-        while (tr.t.length > tr.maxPoints) {
-          tr.t.shift(); tr.pv.shift(); tr.sp.shift(); tr.out.shift();
-        }
-        const cutoff = now - tr.winMin * 60 * 1000;
-        while (tr.t.length && tr.t[0] < cutoff) {
-          tr.t.shift(); tr.pv.shift(); tr.sp.shift(); tr.out.shift();
-        }
-      }
 
       const toList = (v) => {
         if (Array.isArray(v)) return v;
@@ -589,7 +527,7 @@
         if (!vals.length) return;
         for (let i=0;i<NUM_BTN;i++) {
           const v = Number(vals[i] ?? btnAction[i]) || 0;
-          btnAction[i] = Math.max(0, Math.min(8, v));
+          btnAction[i] = Math.max(0, Math.min(4, v));
           const sel = $("btn-act-" + i);
           if (sel && !btnEditing[i]) sel.value = String(btnAction[i]);
         }
@@ -600,13 +538,11 @@
         if (!container) return;
 
         const options = [
-          [0, "Manual LED toggle (legacy)"],
-          [1, "Toggle PID1 enable"],
-          [2, "Toggle PID2 enable"],
-          [3, "Toggle PID3 enable"],
-          [4, "Toggle PID4 enable"],
-          [5, "Toggle AO1 (0↔100%)"],
-          [6, "Toggle AO2 (0↔100%)"]
+          [0, "Manual LED toggle"],
+          [1, "Toggle AO1 (0↔100%)"],
+          [2, "Toggle AO2 (0↔100%)"],
+          [3, "AO1=max toggle"],
+          [4, "AO2=max toggle"]
         ];
 
         for (let i = 0; i < NUM_BTN; i++) {
@@ -657,7 +593,7 @@
         if (!arr.length) return;
         for (let i=0;i<NUM_LED;i++) {
           const v = Number(arr[i] ?? ledSrc[i]) || 0;
-          ledSrc[i] = Math.max(0, Math.min(16, v));
+          ledSrc[i] = Math.max(0, Math.min(4, v));
           const sel = $("led-src-" + i);
           if (sel && !ledEditing[i]) sel.value = String(ledSrc[i]);
         }
@@ -668,11 +604,11 @@
         if (!container) return;
 
         const options = [
-          [0,  "Manual (button toggle)"],
-          [1,  "PID1 Enabled"], [2,  "PID2 Enabled"], [3,  "PID3 Enabled"], [4,  "PID4 Enabled"],
-          [5,  "PID1 OUT = 0%"], [6,  "PID2 OUT = 0%"], [7,  "PID3 OUT = 0%"], [8,  "PID4 OUT = 0%"],
-          [9,  "PID1 OUT = 100%"], [10, "PID2 OUT = 100%"], [11, "PID3 OUT = 100%"], [12, "PID4 OUT = 100%"],
-          [13, "AO1 = 0%"], [14, "AO2 = 0%"], [15, "AO1 = 100%"], [16, "AO2 = 100%"]
+          [0, "Manual"],
+          [1, "AO1 = 0%"],
+          [2, "AO2 = 0%"],
+          [3, "AO1 = 100%"],
+          [4, "AO2 = 100%"]
         ];
 
         for (let i = 0; i < NUM_LED; i++) {
@@ -708,445 +644,6 @@
           }
         }
       })();
-
-      // PID: keep live display + auto-send on blur, but no "Apply" button
-      function markPidEditing(index, editing) { pidEditing[index] = editing; }
-
-      function drawTrend(pidIndex, force=false) {
-        const tr = trend[pidIndex];
-        const now = Date.now();
-        if (!force && (now - tr.lastDrawMs < 200)) return;
-        tr.lastDrawMs = now;
-
-        const canvas = $("pid-trend-" + pidIndex);
-        if (!canvas) return;
-
-        const ctx = canvas.getContext("2d");
-        const w = canvas.width;
-        const h = canvas.height;
-
-        ctx.clearRect(0,0,w,h);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0,0,w,h);
-
-        ctx.strokeStyle = "#cfcfcf";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0.5,0.5,w-1,h-1);
-
-        ctx.strokeStyle = "#e9e9e9";
-        ctx.lineWidth = 1;
-        for (let p = 0; p <= 4; p++) {
-          const y = Math.round((h-1) * (p/4)) + 0.5;
-          ctx.beginPath();
-          ctx.moveTo(0.5, y);
-          ctx.lineTo(w-0.5, y);
-          ctx.stroke();
-        }
-
-        ctx.fillStyle = "#666";
-        ctx.font = "11px Segoe UI, sans-serif";
-        ctx.fillText("100%", 6, 12);
-        ctx.fillText("0%", 6, h-6);
-
-        const n = tr.t.length;
-        if (n < 2) {
-          ctx.fillStyle = "#999";
-          ctx.fillText("Waiting for live data…", 10, Math.floor(h/2));
-          return;
-        }
-
-        const t0 = tr.t[0];
-        const t1 = tr.t[n-1];
-        const span = Math.max(1, (t1 - t0));
-
-        function xAt(i) { return ((tr.t[i] - t0) / span) * (w-1); }
-        function yPct(pct) {
-          const v = Math.max(0, Math.min(100, pct));
-          return (h-1) - (v/100)*(h-1);
-        }
-
-        function drawSeries(arr, stroke) {
-          ctx.strokeStyle = stroke;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(xAt(0), yPct(arr[0]));
-          for (let i=1;i<n;i++) ctx.lineTo(xAt(i), yPct(arr[i]));
-          ctx.stroke();
-        }
-
-        drawSeries(tr.pv,  "#1f77b4");
-        drawSeries(tr.sp,  "#2ca02c");
-        drawSeries(tr.out, "#ff7f0e");
-
-        ctx.font = "12px Segoe UI, sans-serif";
-        ctx.fillStyle = "#1f77b4"; ctx.fillText("PV", w-110, 16);
-        ctx.fillStyle = "#2ca02c"; ctx.fillText("SP", w-80, 16);
-        ctx.fillStyle = "#ff7f0e"; ctx.fillText("OUT", w-45, 16);
-      }
-
-      (function buildPidRows() {
-        const container = $("pid-rows");
-        if (!container) return;
-
-        for (let i = 0; i < NUM_PID; i++) {
-          const idx = i + 1;
-          const row = document.createElement("div");
-          row.innerHTML = `
-            <div style="display:grid;grid-template-columns: 1fr 1fr;gap:1rem;align-items:stretch;overflow:hidden;border:1px solid #dde3ea;border-radius:12px;background:#ffffff;padding:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);box-sizing:border-box;">
-              <div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-                  <span style="font-weight:700;color:#111827;">PID ${idx}</span>
-                  <div style="display:flex;gap:.6rem;align-items:center;font-size:.85rem;color:#4b5563;">
-                    <div>
-                      <label for="pid-en-${i}" style="margin-right:4px;">State</label>
-                      <select id="pid-en-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
-                        <option value="0">Disabled</option>
-                        <option value="1">Enabled</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label for="pid-mode-${i}" style="margin-right:4px;">Mode</label>
-                      <select id="pid-mode-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
-                        <option value="0">Direct</option>
-                        <option value="1">Reverse</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-                  <div style="grid-column:span 2;">
-                    <label style="font-size:.85rem;color:#4b5563;">Setpoint SP${idx} (raw)</label>
-                    <input type="number" id="pid-sp-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
-                  </div>
-
-                  <div style="grid-column:span 2;">
-                    <label style="font-size:.85rem;color:#4b5563;">PV Source</label>
-                    <select id="pid-pv-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      <option value="0">None</option>
-                      <option value="1">AI1 (mV)</option>
-                      <option value="2">AI2 (mV)</option>
-                      <option value="3">AI3 (mV)</option>
-                      <option value="4">AI4 (mV)</option>
-                      <option value="5">RTD1 (°C×10)</option>
-                      <option value="6">RTD2 (°C×10)</option>
-                      <option value="7">PV1 (Modbus)</option>
-                      <option value="8">PV2 (Modbus)</option>
-                      <option value="9">PV3 (Modbus)</option>
-                      <option value="10">PV4 (Modbus)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style="font-size:.85rem;color:#4b5563;">SP Source</label>
-                    <select id="pid-spsrc-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      <option value="0">Manual SP</option>
-                      <option value="1">SP1 (Modbus)</option>
-                      <option value="2">SP2 (Modbus)</option>
-                      <option value="3">SP3 (Modbus)</option>
-                      <option value="4">SP4 (Modbus)</option>
-                      <option value="5">PID1 OUT</option>
-                      <option value="6">PID2 OUT</option>
-                      <option value="7">PID3 OUT</option>
-                      <option value="8">PID4 OUT</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style="font-size:.85rem;color:#4b5563;">Output Target</label>
-                    <select id="pid-out-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      <option value="0">None</option>
-                      <option value="1">AO1</option>
-                      <option value="2">AO2</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style="font-size:.85rem;color:#4b5563;">Kp</label>
-                    <input type="number" id="pid-kp-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
-                  </div>
-                  <div>
-                    <label style="font-size:.85rem;color:#4b5563;">Ki</label>
-                    <input type="number" id="pid-ki-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
-                  </div>
-                  <div>
-                    <label style="font-size:.85rem;color:#4b5563;">Kd</label>
-                    <input type="number" id="pid-kd-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="0.01">
-                  </div>
-
-                  <div style="grid-column:span 2;border-top:1px dashed #e5e7eb;margin-top:.5rem;padding-top:.5rem;">
-                    <div style="font-weight:600;margin-bottom:.25rem;font-size:.85rem;color:#111827;">Scaling (raw → 0–100%)</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-                      <div>
-                        <label style="font-size:.8rem;color:#4b5563;">PV min</label>
-                        <input type="number" id="pid-pvmin-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
-                      </div>
-                      <div>
-                        <label style="font-size:.8rem;color:#4b5563;">PV max</label>
-                        <input type="number" id="pid-pvmax-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="10000" step="1">
-                      </div>
-                      <div>
-                        <label style="font-size:.8rem;color:#4b5563;">OUT min</label>
-                        <input type="number" id="pid-outmin-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="0" step="1">
-                      </div>
-                      <div>
-                        <label style="font-size:.8rem;color:#4b5563;">OUT max</label>
-                        <input type="number" id="pid-outmax-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;" value="4095" step="1">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="grid-column:span 2;margin-top:.25rem;font-size:.85rem;background:#f9fafb;border-radius:6px;padding:.5rem;color:#111827;">
-                    <div>
-                      PV: <span id="pid-pv-pct-${i}">--</span> % &nbsp; | &nbsp;
-                      SP: <span id="pid-sp-pct-${i}">--</span> % &nbsp; | &nbsp;
-                      OUT: <span id="pid-out-pct-${i}">--</span> %
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style="background:#ffffff;border:1px solid #dde3ea;border-radius:8px;padding:.75rem;height:100%;display:flex;flex-direction:column;box-sizing:border-box;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex:0 0 auto;">
-                  <div style="font-weight:700;color:#111827;">Trend (PV / SP / OUT)</div>
-                  <div style="display:flex;gap:.5rem;align-items:center;">
-                    <label style="font-size:.85rem;color:#4b5563;">Window</label>
-                    <select id="pid-win-${i}" style="padding:4px 6px;border-radius:6px;border:1px solid #d1d5db;">
-                      <option value="10" selected>10 min</option>
-                      <option value="30">30 min</option>
-                      <option value="60">1 hour</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style="font-size:.8rem;color:#4b5563;margin-bottom:.5rem;line-height:1.25;flex:0 0 auto;">
-                  PV/SP raw scale: <span id="pid-scale-pv-${i}">--</span>
-                  &nbsp; | &nbsp; OUT raw scale: <span id="pid-scale-out-${i}">--</span>
-                </div>
-
-                <div style="flex:1 1 auto;min-height:0;overflow:hidden;">
-                  <canvas id="pid-trend-${i}" width="420" height="380" style="width:100%;height:100%;display:block;border-radius:6px;"></canvas>
-                </div>
-
-                <div style="margin-top:.4rem;font-size:.8rem;color:#666;flex:0 0 auto;">
-                  Y axis: 0–100%
-                </div>
-              </div>
-            </div>
-          `;
-          container.appendChild(row);
-
-          const winSel = $("pid-win-" + i);
-          if (winSel) winSel.addEventListener("change", () => setTrendWindow(i, parseInt(winSel.value, 10) || 10));
-        }
-
-        for (let i = 0; i < NUM_PID; i++) {
-          const controls = [
-            $("pid-en-" + i), $("pid-mode-" + i), $("pid-sp-" + i),
-            $("pid-pv-" + i), $("pid-spsrc-" + i), $("pid-out-" + i),
-            $("pid-kp-" + i), $("pid-ki-" + i), $("pid-kd-" + i),
-            $("pid-pvmin-" + i), $("pid-pvmax-" + i),
-            $("pid-outmin-" + i), $("pid-outmax-" + i)
-          ];
-          controls.forEach((el) => {
-            if (!el) return;
-            el.addEventListener("focus", () => markPidEditing(i, true));
-            el.addEventListener("blur", () => { markPidEditing(i, false); sendPidConfig(); sendPidMode(); });
-          });
-        }
-
-        for (let i=0;i<NUM_PID;i++) drawTrend(i, true);
-      })();
-
-      async function sendPidConfig() {
-        try {
-          const spArr     = [];
-          const enArr     = [];
-          const pvArr     = [];
-          const spSrcArr  = [];
-          const outArr    = [];
-          const kpArr     = [];
-          const kiArr     = [];
-          const kdArr     = [];
-          const pvMinArr  = [];
-          const pvMaxArr  = [];
-          const outMinArr = [];
-          const outMaxArr = [];
-
-          for (let i = 0; i < NUM_PID; i++) {
-            const enEl     = $("pid-en-" + i);
-            const spEl     = $("pid-sp-" + i);
-            const pvEl     = $("pid-pv-" + i);
-            const spSrcEl  = $("pid-spsrc-" + i);
-            const outEl    = $("pid-out-" + i);
-            const kpEl     = $("pid-kp-" + i);
-            const kiEl     = $("pid-ki-" + i);
-            const kdEl     = $("pid-kd-" + i);
-            const pvMinEl  = $("pid-pvmin-" + i);
-            const pvMaxEl  = $("pid-pvmax-" + i);
-            const outMinEl = $("pid-outmin-" + i);
-            const outMaxEl = $("pid-outmax-" + i);
-
-            pidEn[i]     = enEl ? (parseInt(enEl.value, 10) || 0) : pidEn[i];
-            pidSp[i]     = spEl ? (parseInt(spEl.value, 10) || 0) : pidSp[i];
-            pidPvSrc[i]  = pvEl ? (parseInt(pvEl.value, 10) || 0) : pidPvSrc[i];
-            pidSpSrc[i]  = spSrcEl ? (parseInt(spSrcEl.value, 10) || 0) : pidSpSrc[i];
-            pidOutSel[i] = outEl ? (parseInt(outEl.value, 10) || 0) : pidOutSel[i];
-            pidKp[i]     = kpEl ? (parseFloat(kpEl.value) || 0) : pidKp[i];
-            pidKi[i]     = kiEl ? (parseFloat(kiEl.value) || 0) : pidKi[i];
-            pidKd[i]     = kdEl ? (parseFloat(kdEl.value) || 0) : pidKd[i];
-
-            pidPvMin[i]  = pvMinEl ? (parseFloat(pvMinEl.value) || 0) : pidPvMin[i];
-            pidPvMax[i]  = pvMaxEl ? (parseFloat(pvMaxEl.value) || 0) : pidPvMax[i];
-            pidOutMin[i] = outMinEl ? (parseFloat(outMinEl.value) || 0) : pidOutMin[i];
-            pidOutMax[i] = outMaxEl ? (parseFloat(outMaxEl.value) || 0) : pidOutMax[i];
-
-            spArr.push(pidSp[i]);
-            enArr.push(pidEn[i]);
-            pvArr.push(pidPvSrc[i]);
-            spSrcArr.push(pidSpSrc[i]);
-            outArr.push(pidOutSel[i]);
-
-            kpArr.push(Math.round(pidKp[i] * 100));
-            kiArr.push(Math.round(pidKi[i] * 100));
-            kdArr.push(Math.round(pidKd[i] * 100));
-
-            pvMinArr.push(pidPvMin[i]);
-            pvMaxArr.push(pidPvMax[i]);
-            outMinArr.push(pidOutMin[i]);
-            outMaxArr.push(pidOutMax[i]);
-          }
-
-          await connection.send("pid", {
-            sp: spArr, en: enArr, pv: pvArr, sp_src: spSrcArr, out: outArr,
-            kp: kpArr, ki: kiArr, kd: kdArr,
-            pv_min: pvMinArr, pv_max: pvMaxArr, out_min: outMinArr, out_max: outMaxArr
-          });
-          appendLog("UI", "PID config sent");
-        } catch (err) { appendLog("Error", err.message || err); }
-      }
-
-      async function sendPidMode() {
-        try {
-          const modeArr = [];
-          for (let i = 0; i < NUM_PID; i++) {
-            const modeEl = $("pid-mode-" + i);
-            pidMode[i] = modeEl ? (parseInt(modeEl.value, 10) || 0) : pidMode[i];
-            modeArr.push(pidMode[i] ? 1 : 0);
-          }
-          await connection.send("pidMode", { mode: modeArr });
-        } catch (err) { appendLog("FW?", "pidMode not accepted (PID config still OK)"); }
-      }
-
-      connection.on("pidState", (state) => {
-        if (!state) return;
-
-        const sp        = toList(state.sp);
-        const en        = toList(state.en);
-        const pvSel     = toList(state.pv);
-        const spSrc     = toList(state.sp_src);
-        const outSel    = toList(state.out);
-        const kpArr     = toList(state.kp);
-        const kiArr     = toList(state.ki);
-        const kdArr     = toList(state.kd);
-
-        const pvMinArr  = toList(state.pv_min || []);
-        const pvMaxArr  = toList(state.pv_max || []);
-        const outMinArr = toList(state.out_min || []);
-        const outMaxArr = toList(state.out_max || []);
-        const pvPctArr  = toList(state.pv_pct || []);
-        const spPctArr  = toList(state.sp_pct || []);
-        const outPctArr = toList(state.out_pct || []);
-        const modeArr   = toList(state.mode || []);
-
-        for (let i = 0; i < NUM_PID; i++) {
-          const pvPctVal   = Number(pvPctArr[i] ?? NaN);
-          const spPctVal   = Number(spPctArr[i] ?? NaN);
-          const outPctVal  = Number(outPctArr[i]?? NaN);
-
-          const pvMinVal   = Number(pvMinArr[i] ?? pidPvMin[i]);
-          const pvMaxVal   = Number(pvMaxArr[i] ?? pidPvMax[i]);
-          const outMinVal  = Number(outMinArr[i]?? pidOutMin[i]);
-          const outMaxVal  = Number(outMaxArr[i]?? pidOutMax[i]);
-
-          if (!isNaN(pvPctVal) && !isNaN(spPctVal) && !isNaN(outPctVal)) {
-            pushTrend(i, pvPctVal, spPctVal, outPctVal);
-            drawTrend(i, false);
-          }
-
-          const pvScaleEl = $("pid-scale-pv-" + i);
-          const outScaleEl = $("pid-scale-out-" + i);
-          if (pvScaleEl) pvScaleEl.textContent = `${pvMinVal} .. ${pvMaxVal}`;
-          if (outScaleEl) outScaleEl.textContent = `${outMinVal} .. ${outMaxVal}`;
-
-          if (!pidEditing[i]) {
-            const spVal      = Number(sp[i] ?? 0);
-            const enVal      = Number(en[i] ?? 0);
-            const pvVal      = Number(pvSel[i] ?? 0);
-            const spSrcVal   = Number(spSrc[i] ?? 0);
-            const outVal     = Number(outSel[i] ?? 0);
-            const kpVal      = Number(kpArr[i] ?? 0) / 100;
-            const kiVal      = Number(kiArr[i] ?? 0) / 100;
-            const kdVal      = Number(kdArr[i] ?? 0) / 100;
-
-            pidSp[i]     = spVal;
-            pidEn[i]     = enVal;
-            pidPvSrc[i]  = pvVal;
-            pidSpSrc[i]  = spSrcVal;
-            pidOutSel[i] = outVal;
-            pidKp[i]     = kpVal;
-            pidKi[i]     = kiVal;
-            pidKd[i]     = kdVal;
-
-            pidPvMin[i]  = pvMinVal;
-            pidPvMax[i]  = pvMaxVal;
-            pidOutMin[i] = outMinVal;
-            pidOutMax[i] = outMaxVal;
-
-            const enEl      = $("pid-en-" + i);
-            const spEl      = $("pid-sp-" + i);
-            const pvEl      = $("pid-pv-" + i);
-            const spSrcEl   = $("pid-spsrc-" + i);
-            const outEl     = $("pid-out-" + i);
-            const kpEl      = $("pid-kp-" + i);
-            const kiEl      = $("pid-ki-" + i);
-            const kdEl      = $("pid-kd-" + i);
-            const pvMinEl   = $("pid-pvmin-" + i);
-            const pvMaxEl   = $("pid-pvmax-" + i);
-            const outMinEl  = $("pid-outmin-" + i);
-            const outMaxEl  = $("pid-outmax-" + i);
-
-            const pvPctEl   = $("pid-pv-pct-" + i);
-            const spPctEl   = $("pid-sp-pct-" + i);
-            const outPctEl  = $("pid-out-pct-" + i);
-
-            if (enEl)     enEl.value    = String(enVal);
-            if (spEl)     spEl.value    = String(spVal);
-            if (pvEl)     pvEl.value    = String(pvVal);
-            if (spSrcEl)  spSrcEl.value = String(spSrcVal);
-            if (outEl)    outEl.value   = String(outVal);
-            if (kpEl)     kpEl.value    = kpVal.toString();
-            if (kiEl)     kiEl.value    = kiVal.toString();
-            if (kdEl)     kdEl.value    = kdVal.toString();
-
-            if (pvMinEl)  pvMinEl.value = pvMinVal.toString();
-            if (pvMaxEl)  pvMaxEl.value = pvMaxVal.toString();
-            if (outMinEl) outMinEl.value= outMinVal.toString();
-            if (outMaxEl) outMaxEl.value= outMaxVal.toString();
-
-            if (pvPctEl)  pvPctEl.textContent  = isNaN(pvPctVal)  ? "--" : pvPctVal.toFixed(1);
-            if (spPctEl)  spPctEl.textContent  = isNaN(spPctVal)  ? "--" : spPctVal.toFixed(1);
-            if (outPctEl) outPctEl.textContent = isNaN(outPctVal) ? "--" : outPctVal.toFixed(1);
-
-            if (modeArr.length) {
-              const modeEl = $("pid-mode-" + i);
-              const m = (Number(modeArr[i] ?? 0) ? 1 : 0);
-              pidMode[i] = m;
-              if (modeEl) modeEl.value = String(m);
-            }
-          }
-        }
-      });
 
       // Live updates
       connection.on("aiValues", (list) => {

@@ -1,8 +1,5 @@
-// AIO-422-R1 (RP2350) – Golden Firmware (FINAL)
+// AIO-422-R1 (RP2350) – Analog I/O module firmware
 // ------------------------------------------------------------
-// This is the production “golden build” firmware.
-// Code behavior is frozen; only comments were rewritten.
-//
 // Hardware:
 //  - ADS1115 (4x AI) on Wire1 (SDA=6, SCL=7)
 //  - 2x MCP4725 DAC (AO1=0x60, AO2=0x61) on Wire1
@@ -12,27 +9,56 @@
 //  - Modbus RTU on Serial2 (TX=4, RX=5)
 //
 // Key behaviors:
-//  - Web “manual setpoint” is separate from Modbus SP registers
-//  - PID parameters EN/KP/KI/KD mirror Modbus writes into runtime config
-//  - PID mode (direct/reverse), LED sources, button actions are Web-only + persisted
-//  - Cascade: PID outputs can feed other PID setpoints
-//  - RTD configuration + diagnostics are Web-only (no Modbus map changes)
+//  - Modbus: AI mV, RTD temp, DAC raw, button/LED discrete inputs
+//  - WebSerial: Modbus address/baud, DAC, RTD config, LED/button mapping
+//  - LED sources and button actions are Web-only and persisted (LittleFS)
+//  - RTD configuration + diagnostics are Web-only
 //  - Web traffic is throttled so Modbus stays responsive
 // ------------------------------------------------------------
 
 #include <Arduino.h>
+// Modbus before Adafruit/SPI headers (they pull in std::byte and break Modbus.h).
+#include <ModbusSerial.h>
+
 #include <Wire.h>
 #include <ADS1X15.h>
 #include <Adafruit_MCP4725.h>
 #include <Adafruit_MAX31865.h>
 
-#include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
-#include <utility>
 #include <math.h>
 #include "hardware/watchdog.h"
+
+// ================== Persistence (LittleFS) — must be before any function using it
+// (Arduino IDE inserts function prototypes at the top of the generated .cpp). =====
+struct PersistConfig {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+
+  uint16_t dacRaw[2];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint8_t  led_src[4];
+  uint8_t  btn_action[4];
+
+  uint8_t  rtd_wires[2];
+  uint16_t rtd_rnominal[2];
+  uint16_t rtd_rref[2];
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+static const uint32_t CFG_MAGIC   = 0x314F4941UL;
+static const uint16_t CFG_VERSION = 0x0008;
+static const char*    CFG_PATH    = "/cfg.bin";
+
+volatile bool  cfgDirty        = false;
+uint32_t       lastCfgTouchMs  = 0;
+const uint32_t CFG_AUTOSAVE_MS = 1500;
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2   4
@@ -94,6 +120,38 @@ float     rtdLastGoodTempC[2]   = {0, 0};
 int16_t   rtdLastGoodTempX10[2] = {0, 0};
 bool      rtdHasGoodValue[2]    = {false, false};
 
+// ===== RTD async recovery (non-blocking, no delay()) =====
+static const uint32_t RTD_REC_WAIT_MS    = 2;
+static const uint32_t RTD_REC_SETTLE_MS  = 5;
+
+enum : uint8_t {
+  RTD_REC_IDLE = 0,
+  RTD_REC_RUNNING,
+  RTD_REC_DONE_OK,
+  RTD_REC_DONE_FAIL
+};
+
+struct RtdRecoverFsm {
+  uint8_t  state;
+  uint8_t  triggerCh;
+  uint8_t  chip;
+  uint8_t  step;
+  uint32_t stepMs;
+  float    resultTempC;
+} rtdRec = { RTD_REC_IDLE, 0, 0, 0, 0, 0.0f };
+
+static inline bool rtdRecoveryIdle() {
+  return rtdRec.state == RTD_REC_IDLE;
+}
+
+static inline bool rtdRecoveryBusy() {
+  return rtdRec.state != RTD_REC_IDLE;
+}
+
+static void rtdRecoveryReset();
+static void rtdRecoveryRequest(uint8_t ch);
+static bool rtdRecoveryTakeResult(uint8_t ch, float &tempOut, bool &ok);
+
 // ===== RTD diagnostics (Web-only) =====
 uint8_t  rtdFault[2]     = {0, 0};
 String   rtdError[2]     = {"", ""};
@@ -121,9 +179,6 @@ const unsigned long sendInterval   = 1000;
 unsigned long lastSensorRead = 0;
 const unsigned long sensorInterval = 200;
 
-unsigned long lastPidUpdateMs = 0;
-const unsigned long pidIntervalMs = 200;
-
 // FIX B: RTD full info only every 2 seconds
 unsigned long lastRtdInfoSend = 0;
 const unsigned long rtdInfoInterval = 2000;
@@ -137,82 +192,18 @@ enum : uint16_t {
   ISTS_BTN_BASE   = 1,
   ISTS_LED_BASE   = 20,
 
-  HREG_AI_BASE     = 100,
   HREG_TEMP_BASE   = 120,
   HREG_AI_MV_BASE  = 140,
   HREG_DAC_BASE    = 200,
-
-  HREG_SP_BASE        = 300, // 300..303 = SP1..SP4 (MODBUS)
-  HREG_PID_EN_BASE    = 310,
-  HREG_PID_PVSEL_BASE = 320,  // declared but not used (kept for compatibility)
-  HREG_PID_SPSEL_BASE = 330,  // declared but not used
-  HREG_PID_OUTSEL_BASE= 340,  // declared but not used
-  HREG_PID_KP_BASE    = 350,
-  HREG_PID_KI_BASE    = 360,
-  HREG_PID_KD_BASE    = 370,
-  HREG_PID_OUT_BASE   = 380,
-  HREG_PID_PVVAL_BASE = 390,
-  HREG_PID_ERR_BASE   = 400,
-
-  HREG_MBPV_BASE      = 410   // 410..413 = MBPV1..MBPV4
 };
-
-// ================== PID state ==================
-struct PIDState {
-  bool    enabled;
-  uint8_t pvSource;     // 0 none, 1..4 AI1..4(mV), 5 RTD1, 6 RTD2, 7..10 MBPV1..MBPV4
-  uint8_t spSource;     // 0 manual (Web), 1..4 SP1..SP4(Modbus), 5..8 PID1..PID4 OUT
-  uint8_t outTarget;    // 0 none, 1 AO1, 2 AO2, 3 virtual-only
-  uint8_t mode;         // 0 direct, 1 reverse (Web-only persisted)
-
-  float   Kp;
-  float   Ki;
-  float   Kd;
-
-  float   integral;
-  float   prevError;
-  float   output;       // RAW output (0..4095)
-
-  float   pvMin;
-  float   pvMax;
-  float   outMin;
-  float   outMax;
-
-  float   pvPct;
-  float   spPct;
-  float   outPct;
-};
-
-PIDState pid[4];
-
-float pidVirtRaw[4] = {0,0,0,0};
-float pidVirtPct[4] = {0,0,0,0};
-
-// ===== Manual setpoints (Web only), per PID (NOT Modbus) =====
-int16_t pidManualSp[4] = {0,0,0,0};
 
 // ================== LED source selection (Web-only, persisted) ==================
 enum : uint8_t {
-  LEDSRC_MANUAL = 0,
-
-  LEDSRC_PID1_EN = 1,
-  LEDSRC_PID2_EN = 2,
-  LEDSRC_PID3_EN = 3,
-  LEDSRC_PID4_EN = 4,
-
-  LEDSRC_PID1_AT0   = 5,
-  LEDSRC_PID2_AT0   = 6,
-  LEDSRC_PID3_AT0   = 7,
-  LEDSRC_PID4_AT0   = 8,
-  LEDSRC_PID1_AT100 = 9,
-  LEDSRC_PID2_AT100 = 10,
-  LEDSRC_PID3_AT100 = 11,
-  LEDSRC_PID4_AT100 = 12,
-
-  LEDSRC_AO1_AT0    = 13,
-  LEDSRC_AO2_AT0    = 14,
-  LEDSRC_AO1_AT100  = 15,
-  LEDSRC_AO2_AT100  = 16,
+  LEDSRC_MANUAL    = 0,
+  LEDSRC_AO1_AT0   = 1,
+  LEDSRC_AO2_AT0   = 2,
+  LEDSRC_AO1_AT100 = 3,
+  LEDSRC_AO2_AT100 = 4,
 };
 
 uint8_t ledSrc[4] = { LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL };
@@ -223,50 +214,14 @@ static const uint16_t AO_FULL_TH = 4090;
 // ================== Button actions (Web-only, persisted) ==================
 enum : uint8_t {
   BTNACT_LED_MANUAL_TOGGLE = 0,
-  BTNACT_TOGGLE_PID1       = 1,
-  BTNACT_TOGGLE_PID2       = 2,
-  BTNACT_TOGGLE_PID3       = 3,
-  BTNACT_TOGGLE_PID4       = 4,
-
-  BTNACT_TOGGLE_AO1_0      = 5,
-  BTNACT_TOGGLE_AO2_0      = 6,
-  BTNACT_TOGGLE_AO1_MAX    = 7,
-  BTNACT_TOGGLE_AO2_MAX    = 8
+  BTNACT_TOGGLE_AO1_0      = 1,
+  BTNACT_TOGGLE_AO2_0      = 2,
+  BTNACT_TOGGLE_AO1_MAX    = 3,
+  BTNACT_TOGGLE_AO2_MAX    = 4,
 };
 
 uint8_t btnAction[4] = { BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE,
                          BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE };
-
-// ================== Persistence (LittleFS) ==================
-struct PersistConfig {
-  uint32_t magic;
-  uint16_t version;
-  uint16_t size;
-
-  uint16_t dacRaw[2];
-  uint8_t  mb_address;
-  uint32_t mb_baud;
-
-  uint8_t  pid_mode[4];
-  int16_t  pid_manual_sp[4];
-
-  uint8_t  led_src[4];
-  uint8_t  btn_action[4];
-
-  uint8_t  rtd_wires[2];
-  uint16_t rtd_rnominal[2];
-  uint16_t rtd_rref[2];
-
-  uint32_t crc32;
-} __attribute__((packed));
-
-static const uint32_t CFG_MAGIC   = 0x314F4941UL;
-static const uint16_t CFG_VERSION = 0x0007;
-static const char*    CFG_PATH    = "/cfg.bin";
-
-volatile bool  cfgDirty        = false;
-uint32_t       lastCfgTouchMs  = 0;
-const uint32_t CFG_AUTOSAVE_MS = 1500;
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -328,19 +283,139 @@ static void sanitizeRtdCfg() {
   }
 }
 
+// ===== RTD async recovery implementation (after RTD cfg + helpers) =====
+static void rtdRecoveryReset() {
+  rtdRec.state       = RTD_REC_IDLE;
+  rtdRec.triggerCh   = 0;
+  rtdRec.chip        = 0;
+  rtdRec.step        = 0;
+  rtdRec.stepMs      = 0;
+  rtdRec.resultTempC = 0.0f;
+}
+
+static void rtdRecoveryFinishFail() {
+  rtdRec.state = RTD_REC_DONE_FAIL;
+  rtdRec.step  = 0;
+}
+
+static void rtdRecoveryRequest(uint8_t ch) {
+  if (!rtdRecoveryIdle()) return;
+  rtdRec.state       = RTD_REC_RUNNING;
+  rtdRec.triggerCh   = ch;
+  rtdRec.chip        = 0;
+  rtdRec.step        = 0;
+  rtdRec.stepMs      = millis();
+  rtdRec.resultTempC = 0.0f;
+}
+
+static bool rtdRecoveryTakeResult(uint8_t ch, float &tempOut, bool &ok) {
+  if (rtdRec.state != RTD_REC_DONE_OK && rtdRec.state != RTD_REC_DONE_FAIL) return false;
+  if (rtdRec.triggerCh != ch) return false;
+
+  ok = (rtdRec.state == RTD_REC_DONE_OK);
+  tempOut = rtdRec.resultTempC;
+  rtdRecoveryReset();
+  return true;
+}
+
+static void rtdRecoveryVerifyTrigger() {
+  uint8_t i = rtdRec.triggerCh;
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  if (i > 1 || !rtd_ok[i]) {
+    rtdRecoveryFinishFail();
+    return;
+  }
+
+  float rnom = (float)rtdRnominalCfg[i];
+  float rref = (float)rtdRrefCfg[i];
+  uint8_t f2 = rtds[i]->readFault();
+  float temp2 = rtds[i]->temperature(rnom, rref);
+
+  rtdFault[i] = f2;
+  rtdError[i] = decodeMax31865Fault(f2);
+
+  bool tempFinite2 = (!isnan(temp2) && !isinf(temp2));
+  bool tempInRange2 = (temp2 >= -250.0f && temp2 <= 850.0f);
+  bool retryValid = (f2 == 0) && tempFinite2 && tempInRange2;
+
+  if (retryValid) {
+    rtdRec.resultTempC = temp2;
+    rtdRec.state = RTD_REC_DONE_OK;
+  } else {
+    rtdRecoveryFinishFail();
+  }
+}
+
+static void rtdRecoveryAdvanceChipStep(Adafruit_MAX31865 &dev, uint8_t chipIdx) {
+  uint32_t now = millis();
+
+  switch (rtdRec.step) {
+    case 0:
+      dev.clearFault();
+      rtdRec.step = 1;
+      rtdRec.stepMs = now;
+      break;
+
+    case 1:
+      if (now - rtdRec.stepMs < RTD_REC_WAIT_MS) return;
+      rtdRec.step = 2;
+      break;
+
+    case 2: {
+      bool ok = dev.begin(wiresToEnum(rtdWiresCfg[chipIdx]));
+      rtd_ok[chipIdx] = ok;
+      if (!ok) {
+        rtdRecoveryFinishFail();
+        return;
+      }
+      rtdRec.step = 3;
+      rtdRec.stepMs = now;
+      break;
+    }
+
+    case 3:
+      dev.clearFault();
+      rtdRec.step = 4;
+      rtdRec.stepMs = now;
+      break;
+
+    case 4:
+      if (now - rtdRec.stepMs < RTD_REC_WAIT_MS) return;
+      rtdRec.step = 5;
+      break;
+
+    case 5:
+      (void)dev.readRTD();
+      rtdRec.step = 6;
+      rtdRec.stepMs = now;
+      break;
+
+    case 6:
+      if (now - rtdRec.stepMs < RTD_REC_SETTLE_MS) return;
+      if (chipIdx == 0) {
+        rtdRec.chip = 1;
+        rtdRec.step = 0;
+        rtdRec.stepMs = now;
+      } else {
+        rtdRecoveryVerifyTrigger();
+      }
+      break;
+
+    default:
+      rtdRecoveryFinishFail();
+      break;
+  }
+}
+
+void rtdRecoveryTick() {
+  if (!rtdRecoveryBusy()) return;
+
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  rtdRecoveryAdvanceChipStep(*rtds[rtdRec.chip], rtdRec.chip);
+  mb.task();
+}
+
 bool getLedAutoState(uint8_t src) {
-  if (src >= LEDSRC_PID1_EN && src <= LEDSRC_PID4_EN) {
-    uint8_t i = src - LEDSRC_PID1_EN;
-    return pid[i].enabled;
-  }
-  if (src >= LEDSRC_PID1_AT0 && src <= LEDSRC_PID4_AT0) {
-    uint8_t i = src - LEDSRC_PID1_AT0;
-    return (pidVirtPct[i] <= 0.01f);
-  }
-  if (src >= LEDSRC_PID1_AT100 && src <= LEDSRC_PID4_AT100) {
-    uint8_t i = src - LEDSRC_PID1_AT100;
-    return (pidVirtPct[i] >= 99.99f);
-  }
   if (src == LEDSRC_AO1_AT0)   return (dacRaw[0] <= AO_ZERO_TH);
   if (src == LEDSRC_AO2_AT0)   return (dacRaw[1] <= AO_ZERO_TH);
   if (src == LEDSRC_AO1_AT100) return (dacRaw[0] >= AO_FULL_TH);
@@ -360,8 +435,6 @@ void setDefaults() {
   g_mb_baud    = 19200;
 
   for (int i=0;i<4;i++) {
-    pid[i].mode = 0;
-    pidManualSp[i] = 0;
     ledSrc[i] = LEDSRC_MANUAL;
     btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
   }
@@ -394,8 +467,6 @@ void captureToPersist(PersistConfig &pc) {
   pc.mb_baud    = g_mb_baud;
 
   for (int i=0;i<4;i++) {
-    pc.pid_mode[i] = pid[i].mode;
-    pc.pid_manual_sp[i] = pidManualSp[i];
     pc.led_src[i] = ledSrc[i];
     pc.btn_action[i] = btnAction[i];
   }
@@ -409,141 +480,6 @@ void captureToPersist(PersistConfig &pc) {
 
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
-}
-
-// ---- older format apply helpers (same as your code) ----
-bool applyFromPersist_v2(const uint8_t* buf, size_t len) {
-  struct PersistConfigV2 {
-    uint32_t magic; uint16_t version; uint16_t size;
-    uint16_t dacRaw[2]; uint8_t mb_address; uint32_t mb_baud;
-    uint8_t  pid_mode[4];
-    uint32_t crc32;
-  } __attribute__((packed));
-
-  if (len != sizeof(PersistConfigV2)) return false;
-  PersistConfigV2 pc{}; memcpy(&pc, buf, sizeof(pc));
-
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV2)) return false;
-  uint32_t crc = pc.crc32; pc.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV2)) != crc) return false;
-  if (pc.version != 0x0002) return false;
-
-  dacRaw[0] = pc.dacRaw[0]; dacRaw[1] = pc.dacRaw[1];
-  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
-
-  for (int i=0;i<4;i++) {
-    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = 0;
-    ledSrc[i] = LEDSRC_MANUAL;
-    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
-  }
-
-  rtdWiresCfg[0]=2; rtdWiresCfg[1]=2;
-  rtdRnominalCfg[0]=100; rtdRnominalCfg[1]=100;
-  rtdRrefCfg[0]=200; rtdRrefCfg[1]=200;
-  sanitizeRtdCfg();
-  return true;
-}
-
-bool applyFromPersist_v3(const uint8_t* buf, size_t len) {
-  struct PersistConfigV3 {
-    uint32_t magic; uint16_t version; uint16_t size;
-    uint16_t dacRaw[2]; uint8_t mb_address; uint32_t mb_baud;
-    uint8_t  pid_mode[4]; int16_t  pid_manual_sp[4];
-    uint32_t crc32;
-  } __attribute__((packed));
-
-  if (len != sizeof(PersistConfigV3)) return false;
-  PersistConfigV3 pc{}; memcpy(&pc, buf, sizeof(pc));
-
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV3)) return false;
-  uint32_t crc = pc.crc32; pc.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV3)) != crc) return false;
-  if (pc.version != 0x0003) return false;
-
-  dacRaw[0] = pc.dacRaw[0]; dacRaw[1] = pc.dacRaw[1];
-  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
-
-  for (int i=0;i<4;i++) {
-    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = pc.pid_manual_sp[i];
-    ledSrc[i] = LEDSRC_MANUAL;
-    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
-  }
-
-  rtdWiresCfg[0]=2; rtdWiresCfg[1]=2;
-  rtdRnominalCfg[0]=100; rtdRnominalCfg[1]=100;
-  rtdRrefCfg[0]=200; rtdRrefCfg[1]=200;
-  sanitizeRtdCfg();
-  return true;
-}
-
-bool applyFromPersist_v4(const uint8_t* buf, size_t len) {
-  struct PersistConfigV4 {
-    uint32_t magic; uint16_t version; uint16_t size;
-    uint16_t dacRaw[2]; uint8_t mb_address; uint32_t mb_baud;
-    uint8_t  pid_mode[4]; int16_t  pid_manual_sp[4];
-    uint8_t  led_src[4];
-    uint32_t crc32;
-  } __attribute__((packed));
-
-  if (len != sizeof(PersistConfigV4)) return false;
-  PersistConfigV4 pc{}; memcpy(&pc, buf, sizeof(pc));
-
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV4)) return false;
-  uint32_t crc = pc.crc32; pc.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV4)) != crc) return false;
-  if (pc.version != 0x0004) return false;
-
-  dacRaw[0] = pc.dacRaw[0]; dacRaw[1] = pc.dacRaw[1];
-  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
-
-  for (int i=0;i<4;i++) {
-    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = pc.pid_manual_sp[i];
-    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
-    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
-  }
-
-  rtdWiresCfg[0]=2; rtdWiresCfg[1]=2;
-  rtdRnominalCfg[0]=100; rtdRnominalCfg[1]=100;
-  rtdRrefCfg[0]=200; rtdRrefCfg[1]=200;
-  sanitizeRtdCfg();
-  return true;
-}
-
-bool applyFromPersist_v5(const uint8_t* buf, size_t len) {
-  struct PersistConfigV5 {
-    uint32_t magic; uint16_t version; uint16_t size;
-    uint16_t dacRaw[2]; uint8_t mb_address; uint32_t mb_baud;
-    uint8_t  pid_mode[4]; int16_t  pid_manual_sp[4];
-    uint8_t  led_src[4]; uint8_t  btn_action[4];
-    uint32_t crc32;
-  } __attribute__((packed));
-
-  if (len != sizeof(PersistConfigV5)) return false;
-  PersistConfigV5 pc{}; memcpy(&pc, buf, sizeof(pc));
-
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV5)) return false;
-  uint32_t crc = pc.crc32; pc.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV5)) != crc) return false;
-  if (pc.version != 0x0005) return false;
-
-  dacRaw[0] = pc.dacRaw[0]; dacRaw[1] = pc.dacRaw[1];
-  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
-
-  for (int i=0;i<4;i++) {
-    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = pc.pid_manual_sp[i];
-    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
-    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 8);
-  }
-
-  rtdWiresCfg[0]=2; rtdWiresCfg[1]=2;
-  rtdRnominalCfg[0]=100; rtdRnominalCfg[1]=100;
-  rtdRrefCfg[0]=200; rtdRrefCfg[1]=200;
-  sanitizeRtdCfg();
-  return true;
 }
 
 bool applyFromPersist(const PersistConfig &pc) {
@@ -560,10 +496,8 @@ bool applyFromPersist(const PersistConfig &pc) {
   g_mb_baud    = pc.mb_baud;
 
   for (int i=0;i<4;i++) {
-    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = pc.pid_manual_sp[i];
-    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
-    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 8);
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 4);
   }
 
   rtdWiresCfg[0]    = pc.rtd_wires[0];
@@ -621,28 +555,18 @@ bool loadConfigFS() {
 
   size_t sz = (size_t)f.size();
 
-  if (sz == sizeof(PersistConfig)) {
-    PersistConfig pc{};
-    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+  if (sz != sizeof(PersistConfig)) {
+    WebSerial.send("message", String("load: size ")+sz+" unsupported (expected v0008)");
     f.close();
-    if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
-    if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
-    return true;
+    return false;
   }
 
-  uint8_t buf[256];
-  if (sz > sizeof(buf)) { WebSerial.send("message", "load: file too big"); f.close(); return false; }
-  size_t n = f.read(buf, sz);
+  PersistConfig pc{};
+  size_t n = f.read((uint8_t*)&pc, sizeof(pc));
   f.close();
-  if (n != sz) { WebSerial.send("message", "load: short read"); return false; }
-
-  if (applyFromPersist_v5(buf, sz)) return true;
-  if (applyFromPersist_v4(buf, sz)) return true;
-  if (applyFromPersist_v3(buf, sz)) return true;
-  if (applyFromPersist_v2(buf, sz)) return true;
-
-  WebSerial.send("message", String("load: size ")+sz+" unsupported");
-  return false;
+  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
+  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  return true;
 }
 
 bool initFilesystemAndConfig() {
@@ -670,11 +594,9 @@ bool initFilesystemAndConfig() {
   return false;
 }
 
-// ================== SFINAE helper for ModbusSerial ==================
-template <class M>
-inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
-  -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
-inline void setSlaveIdIfAvailable(...) {}
+static inline void setSlaveIdIfAvailable(ModbusSerial& m, uint8_t id) {
+  m.setSlaveId(id);
+}
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   if ((uint32_t)modbusStatus["baud"] != baud) {
@@ -693,23 +615,17 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 void handleValues(JSONVar values);
 void handleCommand(JSONVar obj);
 void handleDac(JSONVar obj);
-void handlePid(JSONVar obj);
-void handlePidMode(JSONVar obj);
 void handleLedCfg(JSONVar obj);
 void handleBtnCfg(JSONVar obj);
 void handleRtdCfg(JSONVar obj);
 
 void performReset();
 void sendAllEchoesOnce();
-void sendPidSnapshot();
 void writeDac(int idx, uint16_t value);
 void readSensors();
-void updatePids();
 void applyRtdHardwareCfg();
+void rtdRecoveryTick();
 void updateRtdDiagnostics();   // FIX C
-
-float getPidPvValue(uint8_t src, bool &ok);
-float getPidSpValue(uint8_t pidIndex, uint8_t src, bool &ok);
 
 // ================== Command handler / reset ==================
 void handleCommand(JSONVar obj) {
@@ -833,95 +749,6 @@ void handleRtdCfg(JSONVar obj) {
   lastCfgTouchMs = millis();
 }
 
-void handlePid(JSONVar obj) {
-  JSONVar sp     = obj["sp"];
-  JSONVar en     = obj["en"];
-  JSONVar pv     = obj["pv"];
-  JSONVar spSrc  = obj["sp_src"];
-  JSONVar out    = obj["out"];
-  JSONVar kp     = obj["kp"];
-  JSONVar ki     = obj["ki"];
-  JSONVar kd     = obj["kd"];
-
-  JSONVar pvMin  = obj["pv_min"];
-  JSONVar pvMax  = obj["pv_max"];
-  JSONVar outMin = obj["out_min"];
-  JSONVar outMax = obj["out_max"];
-
-  for (int i = 0; i < 4; i++) {
-    PIDState &p = pid[i];
-
-    if (JSON.typeof(sp) == "array" && i < (int)sp.length()) {
-      int16_t spv = (int16_t)((int)sp[i]);
-      pidManualSp[i] = spv;
-    }
-
-    if (JSON.typeof(en) == "array" && i < (int)en.length()) {
-      int v = (int)en[i];
-      p.enabled = (v != 0);
-      mb.Hreg(HREG_PID_EN_BASE + i, (uint16_t)(p.enabled ? 1 : 0));
-    }
-
-    if (JSON.typeof(pv) == "array" && i < (int)pv.length()) {
-      int v = (int)pv[i];
-      p.pvSource = clamp_u8(v, 0, 10);
-    }
-
-    if (JSON.typeof(spSrc) == "array" && i < (int)spSrc.length()) {
-      int v = (int)spSrc[i];
-      p.spSource = clamp_u8(v, 0, 8);
-    }
-
-    if (JSON.typeof(out) == "array" && i < (int)out.length()) {
-      int v = (int)out[i];
-      p.outTarget = clamp_u8(v, 0, 3);
-    }
-
-    if (JSON.typeof(kp) == "array" && i < (int)kp.length()) {
-      int16_t raw = (int16_t)((int)kp[i]);
-      p.Kp = (float)raw / 100.0f;
-      mb.Hreg(HREG_PID_KP_BASE + i, (uint16_t)raw);
-    }
-    if (JSON.typeof(ki) == "array" && i < (int)ki.length()) {
-      int16_t raw = (int16_t)((int)ki[i]);
-      p.Ki = (float)raw / 100.0f;
-      mb.Hreg(HREG_PID_KI_BASE + i, (uint16_t)raw);
-    }
-    if (JSON.typeof(kd) == "array" && i < (int)kd.length()) {
-      int16_t raw = (int16_t)((int)kd[i]);
-      p.Kd = (float)raw / 100.0f;
-      mb.Hreg(HREG_PID_KD_BASE + i, (uint16_t)raw);
-    }
-
-    if (JSON.typeof(pvMin) == "array" && i < (int)pvMin.length()) p.pvMin = (float)((double)pvMin[i]);
-    if (JSON.typeof(pvMax) == "array" && i < (int)pvMax.length()) p.pvMax = (float)((double)pvMax[i]);
-    if (JSON.typeof(outMin)== "array" && i < (int)outMin.length()) p.outMin = (float)((double)outMin[i]);
-    if (JSON.typeof(outMax)== "array" && i < (int)outMax.length()) p.outMax = (float)((double)outMax[i]);
-  }
-
-  WebSerial.send("message", "PID configuration updated via WebSerial");
-  cfgDirty = true;
-  lastCfgTouchMs = millis();
-}
-
-void handlePidMode(JSONVar obj) {
-  JSONVar mode = obj["mode"];
-  if (JSON.typeof(mode) != "array") {
-    WebSerial.send("message", "pidMode: missing 'mode' array");
-    return;
-  }
-
-  for (int i = 0; i < 4; i++) {
-    if (i >= (int)mode.length()) break;
-    int m = (int)mode[i];
-    pid[i].mode = clamp_u8(m, 0, 1);
-  }
-
-  WebSerial.send("message", "PID mode updated via WebSerial (pidMode)");
-  cfgDirty = true;
-  lastCfgTouchMs = millis();
-}
-
 void handleLedCfg(JSONVar obj) {
   JSONVar src = obj["src"];
   if (JSON.typeof(src) != "array") {
@@ -932,7 +759,7 @@ void handleLedCfg(JSONVar obj) {
   for (int i = 0; i < 4; i++) {
     if (i >= (int)src.length()) break;
     int v = (int)src[i];
-    ledSrc[i] = clamp_u8(v, 0, 16);
+    ledSrc[i] = clamp_u8(v, 0, 4);
   }
 
   WebSerial.send("message", "LED source configuration updated");
@@ -950,7 +777,7 @@ void handleBtnCfg(JSONVar obj) {
   for (int i = 0; i < 4; i++) {
     if (i >= (int)act.length()) break;
     int v = (int)act[i];
-    btnAction[i] = clamp_u8(v, 0, 8);
+    btnAction[i] = clamp_u8(v, 0, 4);
   }
 
   WebSerial.send("message", "Button actions updated");
@@ -966,6 +793,7 @@ void writeDac(int idx, uint16_t value) {
 
 // ================== Apply RTD hardware config (wire mode) ==================
 void applyRtdHardwareCfg() {
+  rtdRecoveryReset();
   Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
   for (int i=0;i<2;i++) {
     bool ok = rtds[i]->begin(wiresToEnum(rtdWiresCfg[i]));
@@ -978,75 +806,6 @@ void applyRtdHardwareCfg() {
       WebSerial.send("message", String("ERROR: MAX31865 RTD") + (i+1) + " init failed");
     }
   }
-}
-
-// ================== RTD recovery helper (ESD / latched MAX31865) ==================
-// MAX31865 can become upset after an ESD event and sometimes latch an invalid
-// internal state (e.g. stuck fault / wrong value). This helper forces a
-// full clear + reconfiguration over SPI so the channel can recover
-// automatically without manual reinit.
-bool recoverRtd(Adafruit_MAX31865& dev, int idx) {
-  // 1) Clear any latched fault state first
-  dev.clearFault();
-  delay(2);
-
-  // 2) Reinitialize the chip with the currently selected wire type
-  bool ok = dev.begin(wiresToEnum(rtdWiresCfg[idx]));
-  if (!ok) return false;
-
-  // 3) Clear fault again after reconfiguration
-  delay(2);
-  dev.clearFault();
-  delay(2);
-
-  // 4) Dummy read to settle the chip after begin() reconfiguration
-  (void)dev.readRTD();
-  delay(5);
-
-  return true;
-}
-
-// ================== Fast RTD recovery helper ==================
-// Keep delays short so recovery is fast after ESD-upset.
-// Anti-flapping is handled in readSensors(); this helper only does a single
-// clear + reinit + settle sequence for the affected RTD.
-bool recoverRtdFast(Adafruit_MAX31865& dev, int idx) {
-  dev.clearFault();
-  delay(2);
-
-  bool ok = dev.begin(wiresToEnum(rtdWiresCfg[idx]));
-  if (!ok) return false;
-
-  dev.clearFault();
-  delay(2);
-
-  // Dummy read to settle after reconfiguration
-  (void)dev.readRTD();
-  delay(5);
-
-  return true;
-}
-
-// ================== Re-apply RTD hardware configuration (one channel) ==================
-// This is the essential “same effect as applying RTD settings” recovery:
-// it forces a full MAX31865 runtime re-init for the selected wire mode
-// (rtdWiresCfg) and clears any latched fault state after ESD upset.
-bool reapplyRtdHardwareCfgOne(Adafruit_MAX31865& dev, int idx) {
-  // The Web UI "Apply RTD settings" triggers applyRtdHardwareCfg(),
-  // which reinitializes BOTH MAX31865 chips sequentially.
-  // In practice, after ESD one channel can be latched and only
-  // clears reliably when the other channel is reinitialized too.
-  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
-  bool okAll = true;
-  for (int i=0;i<2;i++) {
-    bool ok = rtds[i]->begin(wiresToEnum(rtdWiresCfg[i]));
-    rtd_ok[i] = ok;
-    okAll = okAll && ok;
-    if (ok) {
-      rtds[i]->clearFault();
-    }
-  }
-  return okAll;
 }
 
 // ================== FIX C: update RTD diagnostics only every rtdInfoInterval ==================
@@ -1108,6 +867,42 @@ void readSensors() {
   const uint8_t  RTD_ZERO_AFTER_BAD_COUNT = 3;
   Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
   for (int i=0;i<2;i++) {
+    float recoveredTemp = 0.0f;
+    bool  recoveredOk   = false;
+    if (rtdRecoveryTakeResult((uint8_t)i, recoveredTemp, recoveredOk)) {
+      if (recoveredOk) {
+        rtdBadCount[i] = 0;
+        rtdHasGoodValue[i] = true;
+        rtdLastGoodTempC[i] = recoveredTemp;
+        rtdLastGoodTempX10[i] = (int16_t)lroundf(recoveredTemp * 10.0f);
+        rtdTempC[i] = recoveredTemp;
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+        rtdTempC[i]    = rtdLastGoodTempC[i];
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else {
+        rtdTemp_x10[i] = 0;
+        rtdTempC[i]    = 0;
+        mb.Hreg(HREG_TEMP_BASE + i, 0);
+      }
+      continue;
+    }
+
+    if (rtdRecoveryBusy()) {
+      if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+        rtdTempC[i]    = rtdLastGoodTempC[i];
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else if (!rtdHasGoodValue[i]) {
+        rtdTemp_x10[i] = 0;
+        rtdTempC[i]    = 0;
+        mb.Hreg(HREG_TEMP_BASE + i, 0);
+      }
+      continue;
+    }
+
     if (!rtd_ok[i]) {
       // If channel is not initialized, suppress bad values.
       // Publish last known good value if we have one, otherwise publish 0.
@@ -1215,44 +1010,14 @@ void readSensors() {
     // Invalid reading: increment bad counter (anti-flapping)
     rtdBadCount[i]++;
 
-    // Try one fast recovery if cooldown allows
-    bool retryValid = false;
-    float tempRetry = 0.0f;
-    // Try one fast recovery if cooldown allows, or immediately if a jump was detected.
-    if (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS)) {
+    // Start async recovery if cooldown allows (non-blocking; see rtdRecoveryTick()).
+    if (rtdRecoveryIdle() &&
+        (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
       rtdLastRecoverMs[i] = nowMs;
-
-      uint16_t rawDbg = rawCode;
-      if (reapplyRtdHardwareCfgOne(dev, i)) {
-        uint8_t f2 = dev.readFault();
-        float temp2 = dev.temperature(rnom, rref);
-
-        bool tempFinite2 = (!isnan(temp2) && !isinf(temp2));
-        bool tempInRange2 = (temp2 >= -250.0f && temp2 <= 850.0f);
-        retryValid = (f2 == 0) && tempFinite2 && tempInRange2;
-
-        // Update diagnostics after retry
-        rtdFault[i] = f2;
-        rtdError[i] = decodeMax31865Fault(f2);
-
-        if (retryValid) tempRetry = temp2;
-      }
+      rtdRecoveryRequest((uint8_t)i);
     }
 
-    if (retryValid) {
-      // Publish recovered value immediately and reset bad counter
-      rtdBadCount[i] = 0;
-      rtdHasGoodValue[i] = true;
-      rtdLastGoodTempC[i] = tempRetry;
-      rtdLastGoodTempX10[i] = (int16_t)lroundf(tempRetry * 10.0f);
-
-      rtdTempC[i] = tempRetry;
-      rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-      mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
-      continue;
-    }
-
-    // Still invalid after recovery attempt (or no recovery attempted yet):
+    // Still invalid while recovery is pending or not yet started:
     // Avoid immediate 0 output on first/second bad reads. Hold last-good briefly.
     if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
       rtdTempC[i]    = rtdLastGoodTempC[i];
@@ -1264,235 +1029,6 @@ void readSensors() {
       mb.Hreg(HREG_TEMP_BASE + i, 0);
     }
   }
-}
-
-// ================== PID helpers ==================
-float getPidPvValue(uint8_t src, bool &ok) {
-  ok = false;
-  if (src >= 1 && src <= 4) {
-    uint8_t idx = src - 1;
-    ok = true;
-    return (float)((int32_t)aiMv[idx]);
-  } else if (src == 5) {
-    ok = true;
-    return (float)rtdTemp_x10[0];
-  } else if (src == 6) {
-    ok = true;
-    return (float)rtdTemp_x10[1];
-  } else if (src >= 7 && src <= 10) {
-    uint8_t idx = src - 7;
-    ok = true;
-    return (float)((int32_t)(uint16_t)mb.Hreg(HREG_MBPV_BASE + idx));
-  }
-  return 0.0f;
-}
-
-float getPidSpValue(uint8_t pidIndex, uint8_t src, bool &ok) {
-  ok = false;
-
-  if (src == 0) {
-    ok = true;
-    return (float)pidManualSp[pidIndex];
-  } else if (src >= 1 && src <= 4) {
-    uint8_t idx = src - 1;
-    int16_t raw = (int16_t)mb.Hreg(HREG_SP_BASE + idx);
-    ok = true;
-    return (float)raw;
-  } else if (src >= 5 && src <= 8) {
-    uint8_t idx = src - 5;
-    ok = true;
-    return pidVirtRaw[idx];
-  }
-  return 0.0f;
-}
-
-// ================== PID update (2-pass for PID->PID SP stability) ==================
-void updatePids() {
-  unsigned long now = millis();
-  if (now - lastPidUpdateMs < pidIntervalMs) return;
-
-  float dt = (now - lastPidUpdateMs) / 1000.0f;
-  if (dt <= 0.0f) dt = pidIntervalMs / 1000.0f;
-  lastPidUpdateMs = now;
-
-  float newOutRaw[4] = { pidVirtRaw[0], pidVirtRaw[1], pidVirtRaw[2], pidVirtRaw[3] };
-  float newOutPct[4] = { pidVirtPct[0], pidVirtPct[1], pidVirtPct[2], pidVirtPct[3] };
-
-  bool active[4] = { false, false, false, false };
-
-  for (int i = 0; i < 4; i++) {
-    PIDState &p = pid[i];
-
-    bool  pvOk   = false;
-    bool  spOk   = false;
-    float pvRaw  = getPidPvValue(p.pvSource, pvOk);
-    float spRaw  = getPidSpValue((uint8_t)i, p.spSource, spOk);
-
-    if (p.pvMax <= p.pvMin) { p.pvMin = 0.0f; p.pvMax = 10000.0f; }
-    if (p.outMax <= p.outMin) { p.outMin = 0.0f; p.outMax = 4095.0f; }
-
-    mb.Hreg(HREG_PID_PVVAL_BASE + i, (uint16_t)lroundf(pvRaw));
-
-    active[i] = (p.enabled && pvOk && spOk);
-
-    if (!active[i]) {
-      p.integral  = 0.0f;
-      p.prevError = 0.0f;
-      p.output    = 0.0f;
-      p.pvPct     = 0.0f;
-      p.spPct     = 0.0f;
-      p.outPct    = 0.0f;
-
-      newOutRaw[i] = 0.0f;
-      newOutPct[i] = 0.0f;
-
-      mb.Hreg(HREG_PID_OUT_BASE + i, 0);
-      mb.Hreg(HREG_PID_ERR_BASE + i, 0);
-      continue;
-    }
-
-    float pvPct = (pvRaw - p.pvMin) * 100.0f / (p.pvMax - p.pvMin);
-    float spPct = (spRaw - p.pvMin) * 100.0f / (p.pvMax - p.pvMin);
-
-    pvPct = constrain(pvPct, 0.0f, 100.0f);
-    spPct = constrain(spPct, 0.0f, 100.0f);
-
-    float errorPct = spPct - pvPct;
-    if (p.mode == 1) errorPct = -errorPct;
-
-    // publish error
-    mb.Hreg(HREG_PID_ERR_BASE + i, (uint16_t)lroundf(errorPct));
-
-    float derivPct = (dt > 0.0f) ? ((errorPct - p.prevError) / dt) : 0.0f;
-
-    float pd = p.Kp * errorPct + p.Kd * derivPct;
-
-    float uPct_unclamped = pd + p.integral;
-    float uPct_clamped   = constrain(uPct_unclamped, 0.0f, 100.0f);
-
-    bool saturated_low  = (uPct_unclamped <= 0.0f);
-    bool saturated_high = (uPct_unclamped >= 100.0f);
-
-    bool allow_integrate =
-        (!saturated_low && !saturated_high) ||
-        (saturated_low  && (errorPct > 0.0f)) ||
-        (saturated_high && (errorPct < 0.0f));
-
-    if (allow_integrate) {
-      p.integral += errorPct * dt * p.Ki;
-      p.integral = constrain(p.integral, -100.0f, 100.0f);
-      uPct_unclamped = pd + p.integral;
-      uPct_clamped   = constrain(uPct_unclamped, 0.0f, 100.0f);
-    }
-
-    p.prevError = errorPct;
-
-    float uPct = uPct_clamped;
-
-    float outSpan = (p.outMax - p.outMin);
-    if (outSpan < 1.0f) outSpan = 1.0f;
-
-    float outRawF = p.outMin + (uPct / 100.0f) * outSpan;
-    outRawF = constrain(outRawF, 0.0f, 4095.0f);
-
-    p.output = outRawF;
-    p.pvPct  = pvPct;
-    p.spPct  = spPct;
-    p.outPct = uPct;
-
-    newOutRaw[i] = outRawF;
-    newOutPct[i] = uPct;
-
-    mb.Hreg(HREG_PID_OUT_BASE + i, (uint16_t)lroundf(outRawF));
-  }
-
-  for (int i=0;i<4;i++) {
-    pidVirtRaw[i] = newOutRaw[i];
-    pidVirtPct[i] = newOutPct[i];
-  }
-
-  // write AO only for active PIDs
-  for (int i = 0; i < 4; i++) {
-    if (!active[i]) continue;
-    PIDState &p = pid[i];
-    if (p.outTarget == 1 || p.outTarget == 2) {
-      int ch = p.outTarget - 1;
-      uint16_t val = (uint16_t)lroundf(pidVirtRaw[i]);
-      dacRaw[ch] = val;
-      mb.Hreg(HREG_DAC_BASE + ch, dacRaw[ch]);
-      writeDac(ch, dacRaw[ch]);
-    }
-  }
-}
-
-// ================== PID snapshot helper ==================
-void sendPidSnapshot() {
-  JSONVar pidObj;
-  JSONVar spArr, enArr, pvArr, spSrcArr, outArr, kpArr, kiArr, kdArr;
-  JSONVar pvMinArr, pvMaxArr, outMinArr, outMaxArr;
-  JSONVar pvPctArr, spPctArr, outPctArr;
-  JSONVar modeArr;
-  JSONVar virtRawArr, virtPctArr;
-
-  for (int i = 0; i < 4; i++) {
-    int16_t spShow = 0;
-    uint8_t src = pid[i].spSource;
-    if (src == 0) {
-      spShow = pidManualSp[i];
-    } else if (src >= 1 && src <= 4) {
-      spShow = (int16_t)mb.Hreg(HREG_SP_BASE + (src - 1));
-    } else if (src >= 5 && src <= 8) {
-      spShow = (int16_t)lroundf(pidVirtRaw[src - 5]);
-    }
-    spArr[i] = spShow;
-
-    enArr[i]      = (int)(pid[i].enabled ? 1 : 0);
-    pvArr[i]      = (int)pid[i].pvSource;
-    spSrcArr[i]   = (int)pid[i].spSource;
-    outArr[i]     = (int)pid[i].outTarget;
-    modeArr[i]    = (int)pid[i].mode;
-
-    kpArr[i]      = (int16_t)lroundf(pid[i].Kp * 100.0f);
-    kiArr[i]      = (int16_t)lroundf(pid[i].Ki * 100.0f);
-    kdArr[i]      = (int16_t)lroundf(pid[i].Kd * 100.0f);
-
-    pvMinArr[i]   = pid[i].pvMin;
-    pvMaxArr[i]   = pid[i].pvMax;
-    outMinArr[i]  = pid[i].outMin;
-    outMaxArr[i]  = pid[i].outMax;
-
-    pvPctArr[i]   = pid[i].pvPct;
-    spPctArr[i]   = pid[i].spPct;
-    outPctArr[i]  = pid[i].outPct;
-
-    virtRawArr[i] = pidVirtRaw[i];
-    virtPctArr[i] = pidVirtPct[i];
-  }
-
-  pidObj["sp"]       = spArr;
-  pidObj["en"]       = enArr;
-  pidObj["pv"]       = pvArr;
-  pidObj["sp_src"]   = spSrcArr;
-  pidObj["out"]      = outArr;
-  pidObj["kp"]       = kpArr;
-  pidObj["ki"]       = kiArr;
-  pidObj["kd"]       = kdArr;
-
-  pidObj["pv_min"]   = pvMinArr;
-  pidObj["pv_max"]   = pvMaxArr;
-  pidObj["out_min"]  = outMinArr;
-  pidObj["out_max"]  = outMaxArr;
-
-  pidObj["pv_pct"]   = pvPctArr;
-  pidObj["sp_pct"]   = spPctArr;
-  pidObj["out_pct"]  = outPctArr;
-
-  pidObj["mode"]     = modeArr;
-
-  pidObj["virt_raw"] = virtRawArr;
-  pidObj["virt_pct"] = virtPctArr;
-
-  WebSerial.send("pidState", pidObj);
 }
 
 // ================== Setup ==================
@@ -1509,41 +1045,11 @@ void setup() {
     buttonState[i] = buttonPrev[i] = false;
   }
 
-  for (int i=0;i<4;i++) {
-    pid[i].enabled   = false;
-    pid[i].pvSource  = 0;
-    pid[i].spSource  = 0;
-    pid[i].outTarget = 0;
-    pid[i].mode      = 0;
-    pid[i].Kp = pid[i].Ki = pid[i].Kd = 0.0f;
-    pid[i].integral  = 0.0f;
-    pid[i].prevError = 0.0f;
-    pid[i].output    = 0.0f;
-
-    pid[i].pvMin     = 0.0f;
-    pid[i].pvMax     = 10000.0f;
-    pid[i].outMin    = 0.0f;
-    pid[i].outMax    = 4095.0f;
-
-    pid[i].pvPct     = 0.0f;
-    pid[i].spPct     = 0.0f;
-    pid[i].outPct    = 0.0f;
-
-    pidVirtRaw[i]    = 0.0f;
-    pidVirtPct[i]    = 0.0f;
-
-    pidManualSp[i]   = 0;
-    ledSrc[i]        = LEDSRC_MANUAL;
-    btnAction[i]     = BTNACT_LED_MANUAL_TOGGLE;
-  }
-
   setDefaults();
 
   WebSerial.on("values",  handleValues);
   WebSerial.on("command", handleCommand);
   WebSerial.on("dac",     handleDac);
-  WebSerial.on("pid",     handlePid);
-  WebSerial.on("pidMode", handlePidMode);
   WebSerial.on("ledCfg",  handleLedCfg);
   WebSerial.on("btnCfg",  handleBtnCfg);
   WebSerial.on("rtdCfg",  handleRtdCfg);
@@ -1594,21 +1100,8 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
 
-  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_SP_BASE + i, 0);
-  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_MBPV_BASE + i, 0);
-
-  for (uint16_t i=0;i<4;i++) {
-    mb.addHreg(HREG_PID_EN_BASE     + i, 0);
-    mb.addHreg(HREG_PID_KP_BASE     + i, 0);
-    mb.addHreg(HREG_PID_KI_BASE     + i, 0);
-    mb.addHreg(HREG_PID_KD_BASE     + i, 0);
-    mb.addHreg(HREG_PID_OUT_BASE    + i, 0);
-    mb.addHreg(HREG_PID_PVVAL_BASE  + i, 0);
-    mb.addHreg(HREG_PID_ERR_BASE    + i, 0);
-  }
-
   WebSerial.send("message",
-    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, 4xPID + Web-only RTD config/diagnostics)");
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
 
   sendAllEchoesOnce();
 }
@@ -1670,8 +1163,6 @@ void sendAllEchoesOnce() {
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
   WebSerial.send("status", modbusStatus);
-
-  sendPidSnapshot();
 }
 
 // ================== Button action executor ==================
@@ -1686,15 +1177,6 @@ void runButtonAction(uint8_t btnIndex) {
 
   if (act == BTNACT_LED_MANUAL_TOGGLE) {
     if (ledSrc[btnIndex] == LEDSRC_MANUAL) ledState[btnIndex] = !ledState[btnIndex];
-    return;
-  }
-
-  if (act >= BTNACT_TOGGLE_PID1 && act <= BTNACT_TOGGLE_PID4) {
-    uint8_t pidIdx = act - BTNACT_TOGGLE_PID1;
-    pid[pidIdx].enabled = !pid[pidIdx].enabled;
-    mb.Hreg(HREG_PID_EN_BASE + pidIdx, (uint16_t)(pid[pidIdx].enabled ? 1 : 0));
-    cfgDirty = true;
-    lastCfgTouchMs = millis();
     return;
   }
 
@@ -1733,24 +1215,7 @@ void loop() {
   unsigned long now = millis();
 
   mb.task();
-
-  // Sync PID config FROM Modbus
-  for (int i = 0; i < 4; i++) {
-    bool en = (mb.Hreg(HREG_PID_EN_BASE + i) != 0);
-    if (pid[i].enabled != en) { pid[i].enabled = en; cfgDirty = true; lastCfgTouchMs = now; }
-
-    int16_t kpRaw = (int16_t)mb.Hreg(HREG_PID_KP_BASE + i);
-    int16_t kiRaw = (int16_t)mb.Hreg(HREG_PID_KI_BASE + i);
-    int16_t kdRaw = (int16_t)mb.Hreg(HREG_PID_KD_BASE + i);
-
-    float kp = (float)kpRaw / 100.0f;
-    float ki = (float)kiRaw / 100.0f;
-    float kd = (float)kdRaw / 100.0f;
-
-    if (pid[i].Kp != kp) { pid[i].Kp = kp; cfgDirty = true; lastCfgTouchMs = now; }
-    if (pid[i].Ki != ki) { pid[i].Ki = ki; cfgDirty = true; lastCfgTouchMs = now; }
-    if (pid[i].Kd != kd) { pid[i].Kd = kd; cfgDirty = true; lastCfgTouchMs = now; }
-  }
+  rtdRecoveryTick();
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
@@ -1771,7 +1236,7 @@ void loop() {
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
-  // DAC from Modbus (manual control stays available; PID overwrites only when active)
+  // DAC from Modbus
   for (int i=0;i<2;i++) {
     uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
     if (regVal != dacRaw[i]) {
@@ -1786,8 +1251,6 @@ void loop() {
     lastSensorRead = now;
     readSensors();
   }
-
-  updatePids();
 
   // LEDs
   for (int i=0;i<NUM_LED;i++) {
@@ -1832,8 +1295,6 @@ void loop() {
     JSONVar btnList;
     for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
     WebSerial.send("ButtonStateList", btnList);
-
-    sendPidSnapshot();
   }
 
   // FIX B + FIX C: full RTD diagnostics only every 2 seconds
@@ -1872,4 +1333,6 @@ void loop() {
     cfg["rref"]     = rr;
     WebSerial.send("rtdCfg", cfg);
   }
+
+  mb.task();
 }
