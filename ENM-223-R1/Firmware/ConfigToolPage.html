@@ -42,30 +42,13 @@
     .toast.show{opacity:1;transform:translateY(0)}
     .badge{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
 
-    /* RAW tables */
-    .raw-wrap{background:#f7f7f7;padding:1rem 1.5rem;margin-top:1.25rem;border-radius:8px;border-left:4px solid #6c757d;}
-    .raw-box{background:#fff;border:1px solid #e6e6e6;border-radius:8px;overflow:hidden;}
-    .raw-head{padding:.6rem .8rem;border-bottom:1px solid #eee;font-weight:600;display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;}
-    .raw-scroll{overflow:auto;max-height:420px;}
-    .raw-table{width:100%;border-collapse:collapse;font-size:.92rem;}
-    .raw-table thead{position:sticky;top:0;background:#fafafa;border-bottom:1px solid #eee;}
-    .raw-table th{ text-align:left;padding:.45rem .6rem; }
-    .raw-table td{ padding:.42rem .6rem; border-bottom:1px solid #f0f0f0; }
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
-    .raw-changed{background:#fff3cd;}
-
-    /* ChipCfg */
-    .chipcfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-top:1rem}
-    .chipcfg-card{border:1px solid #e6e6e6;border-radius:10px;background:#fff;padding:1rem}
-    .chipcfg-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
-    .chipcfg-mini{font-size:.85rem;color:#6b7280}
-    .chipcfg-kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
     <p style="margin:.25rem 0 0;color:#333;">
-      Modbus address and baud are applied automatically when changed.
+      Modbus address, baud, and calibration load automatically when you connect (no sync button).
       Calibration: press <b>Enter</b> in a field to send.
       <span id="conn-pill" class="badge" style="margin-left:.5rem;display:none">connected</span>
     </p>
@@ -88,7 +71,6 @@
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;align-items:center">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="req-sync" type="button" style="padding:10px 14px;background:#6c757d;color:#fff;border:none;border-radius:6px;">Request Sync</button>
     </div>
   </form>
 
@@ -152,54 +134,8 @@
   <section style="margin-bottom:1.25rem;">
     <h3 style="font-size:1.1rem;margin-bottom:.5rem;">Energies</h3>
     <div id="energy-grid" class="energy-grid"></div>
-    <div class="muted" style="margin-top:.3rem">Chip-sourced counters. Units: kWh / kvarh / kVAh.</div>
+    <div class="muted" style="margin-top:.3rem">Chip-sourced counters (saved in flash). New boards start at <b>0</b>; values rise only when real power flows (check Live Meter P/S). Units: kWh / kvarh / kVAh.</div>
   </section>
-
-  <!-- ================== ATM CHIP CONFIG (REAL READBACK) ================== -->
-  <div class="raw-wrap">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-      <div>
-        <strong>ATM90E32 Chip Config (Readback)</strong><br>
-        <span class="muted" style="font-size:.9rem;">
-          These values come from <b>reading</b> the ATM registers (calibration + key config). This is what is actually stored in the chip.
-        </span>
-      </div>
-      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-        <label style="font-size:.9rem;color:#444;">
-          <input id="raw-show-hex" type="checkbox" checked style="transform:translateY(1px);"> show HEX
-        </label>
-        <label style="font-size:.9rem;color:#444;">
-          <input id="raw-freeze" type="checkbox" style="transform:translateY(1px);"> freeze
-        </label>
-        <span style="font-size:.9rem;color:#444;">
-          Updated: <span id="raw-last-ts" style="font-weight:600;">--</span>
-        </span>
-      </div>
-    </div>
-
-    <div id="chipcfg-grid" class="chipcfg-grid"></div>
-
-    <div class="raw-box" style="margin-top:1rem;">
-      <div class="raw-head">
-        <span>ATM_RawReads</span>
-        <span class="pill">reads</span>
-      </div>
-      <div class="raw-scroll">
-        <table class="raw-table">
-          <thead>
-            <tr>
-              <th>Reg</th><th>Name</th><th style="text-align:right;">Value</th>
-            </tr>
-          </thead>
-          <tbody id="raw-reads-body"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="muted" style="margin-top:.75rem;font-size:.85rem;">
-      Tip: change <b>Calibration</b> or <b>Meter Options</b> and watch the <b>readback</b> values update (chip-stored).
-    </div>
-  </div>
 
   <section style="margin-bottom:1.25rem;margin-top:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
@@ -255,6 +191,7 @@
   let lastKnownMbAddr = null;
   let lastKnownMbBaud = null;
   let modbusSendTimer = null;
+  let deviceSynced = false;
 
   function parseEventPayload(p) {
     if (p == null) return null;
@@ -264,16 +201,98 @@
     return p;
   }
 
+  function applyModbusFromDevice(st) {
+    if (!st) return;
+    const addr = (st.address !== undefined) ? st.address : st.mb_address;
+    const baud = (st.baud !== undefined) ? st.baud : st.mb_baud;
+    const fw   = st.fw || st.FW_TAG || st.firmware;
+    $('live-address').textContent = (addr !== undefined) ? addr : '--';
+    $('live-baud').textContent    = (baud !== undefined) ? baud : '--';
+    $('live-fw').textContent      = fw ? fw : '(old FW)';
+    if (addr !== undefined) lastKnownMbAddr = parseInt(addr, 10);
+    if (baud !== undefined) lastKnownMbBaud = parseInt(baud, 10);
+    const addrEl = $('modbus-address');
+    const baudEl = $('modbus-baud');
+    const userEditing = document.activeElement === addrEl || document.activeElement === baudEl;
+    if (!userEditing) {
+      suppressModbusPush = true;
+      if (addr !== undefined && addrEl) addrEl.value = String(addr);
+      if (baud !== undefined && baudEl) baudEl.value = String(baud);
+      suppressModbusPush = false;
+    }
+  }
+
+  function normalizeCalArray(cal) {
+    if (!cal) return null;
+    if (Array.isArray(cal)) return cal;
+    if (typeof cal !== 'object') return null;
+    const out = [null, null, null];
+    for (const [k, v] of Object.entries(cal)) {
+      if (!v || typeof v !== 'object') continue;
+      let ch = parseInt(k, 10);
+      if (Number.isNaN(ch)) {
+        const names = ['A', 'B', 'C', 'a', 'b', 'c'];
+        const idx = names.indexOf(k);
+        if (idx >= 0) ch = idx % 3;
+        else continue;
+      }
+      if (ch >= 0 && ch < 3) out[ch] = v;
+    }
+    return out.some(Boolean) ? out : null;
+  }
+
+  function applyEnergiesFromMeter(m) {
+    const setE = (idx, src)=>{
+      const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number' && isFinite(val)) ? val.toFixed(dec) : '--'; };
+      if(!src || typeof src!=='object') {
+        set(`e-ap-${idx}`, NaN); set(`e-an-${idx}`, NaN); set(`e-rp-${idx}`, NaN); set(`e-rn-${idx}`, NaN); set(`e-s-${idx}`, NaN);
+        return;
+      }
+      set(`e-ap-${idx}`, Number(src.AP_kWh), 3);
+      set(`e-an-${idx}`, Number(src.AN_kWh), 3);
+      set(`e-rp-${idx}`, Number(src.RP_kvarh), 3);
+      set(`e-rn-${idx}`, Number(src.RN_kvarh), 3);
+      set(`e-s-${idx}`,  Number(src.S_kVAh), 3);
+    };
+    if (Array.isArray(m?.E_phase) || (m?.E_tot && typeof m.E_tot === 'object')) {
+      const Ep = Array.isArray(m.E_phase) ? m.E_phase : [];
+      const Et = (m.E_tot && typeof m.E_tot === 'object') ? m.E_tot : null;
+      for(let i=0;i<3;i++) setE(i, Ep[i]);
+      setE(3, Et);
+    } else {
+      const E = m?.E || {};
+      setE(0, E[0]); setE(1, E[1]); setE(2, E[2]); setE(3, E.tot);
+    }
+  }
+
+  function applyEnmSync(s) {
+    s = parseEventPayload(s);
+    if (!s) return;
+    const first = !deviceSynced;
+    deviceSynced = true;
+    if (first) appendLog('ENM_Sync', s);
+    applyModbusFromDevice(s);
+    if (s.lineHz !== undefined) $('opt-lineHz').value = String(s.lineHz);
+    if (s.sumAbs !== undefined) $('opt-sumAbs').value = String(s.sumAbs);
+    const cal = normalizeCalArray(s.cal);
+    if (cal) applyCalibFromCfg({ cal });
+    else applyCalibFromCfg(s);
+    applyEnergiesFromMeter(s);
+  }
+
   connection.on('open', ()=>{
     appendLog('port','open');
+    deviceSynced = false;
+    lastKnownMbAddr = null;
+    lastKnownMbBaud = null;
     const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
-    toast('Connected');
-    connection.send('getAll', {}).catch(e=>appendLog('err', String(e)));
-    appendLog('getAll','requested');
+    toast('Connected — config loads from device (~1 s)');
+    appendLog('sync','waiting for automatic pushes from firmware');
   });
 
   connection.on('close', ()=>{
     appendLog('port','close');
+    deviceSynced = false;
     const pill=$('conn-pill'); if(pill){ pill.style.display='none'; }
     toast('Disconnected');
   });
@@ -373,7 +392,7 @@
       card.innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
           <strong>Phase ${PH[ch]}</strong>
-          <span class="chipcfg-mini">Press Enter to write → chip readback updates</span>
+          <span class="muted" style="font-size:.85rem">Press Enter to write</span>
         </div>
         <div class="cal-row">
           <div>
@@ -461,6 +480,7 @@
     if(typeof cal === 'string'){
       try{ cal = JSON.parse(cal); }catch(e){ return; }
     }
+    cal = normalizeCalArray(cal) ?? cal;
     if(!cal) return;
     for(let ch=0; ch<3; ch++){
       let p = null;
@@ -758,7 +778,7 @@
 
   /* ===== Modbus: auto-apply on change (like AIO-422) ===== */
   async function pushModbusSettings(){
-    if (suppressModbusPush) return;
+    if (suppressModbusPush || !deviceSynced) return;
     const mb_address = parseInt($('modbus-address')?.value || '30', 10);
     const mb_baud    = parseInt($('modbus-baud')?.value || '19200', 10);
     if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
@@ -780,102 +800,17 @@
   $('modbus-address')?.addEventListener('change', scheduleModbusPush);
   $('modbus-baud')?.addEventListener('change', scheduleModbusPush);
 
-  /* ===== Request Sync ===== */
-  $('req-sync')?.addEventListener('click', ()=>{
-    connection.send('getAll', {});
-    appendLog('getAll','requested');
-    toast('Sync requested');
-  });
-
-  /* ===== RAW + CHIPCFG RENDERING ===== */
-  const rawPrevReads = new Map();
-
-  function fmtVal(v, showHex){
-    if(!showHex) return String(v);
-    const u=(Number(v)>>>0)&0xFFFF;
-    return "0x"+u.toString(16).toUpperCase().padStart(4,"0")+" ("+u+")";
-  }
-  function setUpdatedTs(){
-    const ts=new Date();
-    const pad2=n=>String(n).padStart(2,"0");
-    $('raw-last-ts').textContent=`${pad2(ts.getHours())}:${pad2(ts.getMinutes())}:${pad2(ts.getSeconds())}`;
-  }
-  function renderRawTable(tbodyId, arr, prevMap){
-    const freeze = $('raw-freeze')?.checked;
-    if(freeze) return;
-    const showHex = $('raw-show-hex')?.checked;
-    const tbody = $(tbodyId);
-    if(!tbody || !Array.isArray(arr)) return;
-
-    let html="";
-    for(const o of arr){
-      const reg=String(o.reg ?? "");
-      const name=String(o.name ?? "");
-      const val=Number(o.val ?? 0);
-      const prev=prevMap.get(reg);
-      const changed=(prev!==undefined && prev!==val);
-      html += `
-        <tr class="${changed?'raw-changed':''}">
-          <td class="mono">${reg}</td>
-          <td>${name}</td>
-          <td class="mono" style="text-align:right;">${fmtVal(val, showHex)}</td>
-        </tr>`;
-      prevMap.set(reg,val);
-    }
-    tbody.innerHTML=html;
-    setUpdatedTs();
-  }
-
-  function ensureChipCfgCards(){
-    const grid=$('chipcfg-grid'); if(!grid) return;
-    if(grid.dataset.built) return;
-    grid.dataset.built="1";
-    const mk=(id,title,subtitle,rowsHtml)=>`
-      <div class="chipcfg-card" id="${id}">
-        <div class="chipcfg-title">
-          <div><strong>${title}</strong><div class="chipcfg-mini">${subtitle||''}</div></div>
-          <span class="pill">readback</span>
-        </div>
-        <div class="chipcfg-kv">${rowsHtml}</div>
-      </div>`;
-    const kv=(k,id)=>`<div>${k}</div><div class="mono" id="${id}" style="text-align:right">--</div>`;
-
-    grid.innerHTML =
-      mk("chipcalA","Phase A","U/I gains + offsets",  kv("Ugain","ccA-Ug")+kv("Igain","ccA-Ig")+kv("Uoffset","ccA-Uo")+kv("Ioffset","ccA-Io")) +
-      mk("chipcalB","Phase B","U/I gains + offsets",  kv("Ugain","ccB-Ug")+kv("Igain","ccB-Ig")+kv("Uoffset","ccB-Uo")+kv("Ioffset","ccB-Io")) +
-      mk("chipcalC","Phase C","U/I gains + offsets",  kv("Ugain","ccC-Ug")+kv("Igain","ccC-Ig")+kv("Uoffset","ccC-Uo")+kv("Ioffset","ccC-Io")) +
-      mk("chipmodes","Modes / Constants","Key config registers",
-        kv("MMode0","cc-M0")+kv("MMode1","cc-M1")+kv("PLconstH","cc-PLH")+kv("PLconstL","cc-PLL")+
-        kv("SagPeakDetCfg","cc-SPD")+kv("SagTh","cc-STH")+kv("FreqHiTh","cc-FHH")+kv("FreqLoTh","cc-FHL")+kv("ZXConfig","cc-ZXC")
-      );
-  }
-
-  function setMono(id, val){
-    const el=$(id); if(!el) return;
-    const showHex=$('raw-show-hex')?.checked;
-    if(typeof val!=='number') { el.textContent='--'; return; }
-    el.textContent = showHex ? fmtVal(val,true) : String(val);
-  }
-
   /* ===== Incoming firmware pushes ===== */
+
+  connection.on('ENM_Sync', applyEnmSync);
 
   connection.on('status', function(st){
     st = parseEventPayload(st);
     if (!st) return;
-    $('live-address').textContent=(st.address!==undefined)?st.address:'--';
-    $('live-baud').textContent=(st.baud!==undefined)?st.baud:'--';
-    $('live-fw').textContent=st.fw ? st.fw : '(old FW)';
-    if(st.address!==undefined) lastKnownMbAddr = parseInt(st.address, 10);
-    if(st.baud!==undefined) lastKnownMbBaud = parseInt(st.baud, 10);
-    const addrEl=$('modbus-address');
-    const baudEl=$('modbus-baud');
-    const userEditing = document.activeElement===addrEl || document.activeElement===baudEl;
-    if (!userEditing) {
-      suppressModbusPush = true;
-      if(st && st.address!==undefined && addrEl) addrEl.value=String(st.address);
-      if(st && st.baud!==undefined && baudEl) baudEl.value=String(st.baud);
-      suppressModbusPush = false;
-    }
+    const first = !deviceSynced;
+    deviceSynced = true;
+    if (first) appendLog('status', st);
+    applyModbusFromDevice(st);
   });
 
   /* ===== default_enm_223_r1 firmware protocol ===== */
@@ -899,6 +834,9 @@
   connection.on('atmCfg', function(cfg){
     cfg = parseEventPayload(cfg);
     if(!cfg) return;
+    const first = !deviceSynced;
+    deviceSynced = true;
+    if (first) appendLog('atmCfg', cfg);
     if(cfg.lineHz!==undefined) $('opt-lineHz').value=String(cfg.lineHz);
     if(cfg.sumAbs!==undefined) $('opt-sumAbs').value=String(cfg.sumAbs);
     applyCalibFromCfg(cfg);
@@ -930,34 +868,13 @@
   connection.on('CalibCfg', function(payload){
     try{
       payload = parseEventPayload(payload);
+      if(!payload) return;
+      const first = !deviceSynced;
+      deviceSynced = true;
+      if (first) appendLog('CalibCfg', payload);
       if(Array.isArray(payload)) applyCalibFromCfg({cal: payload});
       else if(payload && typeof payload === 'object') applyCalibFromCfg(payload);
     }catch(e){ appendLog('CalibCfg','parse error'); }
-  });
-
-  // ATM_ChipCfg (REAL CHIP READBACK)
-  connection.on('ATM_ChipCfg', function(cfg){
-    try{
-      ensureChipCfgCards();
-      if(!cfg || typeof cfg!=='object') return;
-
-      const ph = cfg.phase || cfg.ph || cfg.phases;
-      if(ph){
-        const A=ph[0]||ph.A||ph.a, B=ph[1]||ph.B||ph.b, C=ph[2]||ph.C||ph.c;
-        if(A){ setMono("ccA-Ug", +A.Ugain); setMono("ccA-Ig", +A.Igain); setMono("ccA-Uo", +A.Uoffset); setMono("ccA-Io", +A.Ioffset); }
-        if(B){ setMono("ccB-Ug", +B.Ugain); setMono("ccB-Ig", +B.Igain); setMono("ccB-Uo", +B.Uoffset); setMono("ccB-Io", +B.Ioffset); }
-        if(C){ setMono("ccC-Ug", +C.Ugain); setMono("ccC-Ig", +C.Igain); setMono("ccC-Uo", +C.Uoffset); setMono("ccC-Io", +C.Ioffset); }
-      }
-
-      const keys=[
-        ["MMode0","cc-M0"],["MMode1","cc-M1"],["PLconstH","cc-PLH"],["PLconstL","cc-PLL"],
-        ["SagPeakDetCfg","cc-SPD"],["SagTh","cc-STH"],["FreqHiTh","cc-FHH"],["FreqLoTh","cc-FHL"],["ZXConfig","cc-ZXC"]
-      ];
-      for(const [k,id] of keys){
-        if(cfg[k]!==undefined) setMono(id, +cfg[k]);
-      }
-      setUpdatedTs();
-    }catch(e){}
   });
 
   connection.on('LedConfigList', (list)=>{
@@ -1084,40 +1001,10 @@
       $('f') && ( $('f').textContent = (typeof FreqHz==='number') ? FreqHz.toFixed(2) : '--' );
       $('t') && ( $('t').textContent = (TempC!==undefined) ? TempC : '--' );
 
-      // -------- Energies (NEW + OLD compatible) --------
-      const setE = (idx, src)=>{
-        const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number' && isFinite(val)) ? val.toFixed(dec) : '--'; };
-        if(!src || typeof src!=='object') {
-          set(`e-ap-${idx}`, NaN); set(`e-an-${idx}`, NaN); set(`e-rp-${idx}`, NaN); set(`e-rn-${idx}`, NaN); set(`e-s-${idx}`, NaN);
-          return;
-        }
-        set(`e-ap-${idx}`, Number(src.AP_kWh), 3);
-        set(`e-an-${idx}`, Number(src.AN_kWh), 3);
-        set(`e-rp-${idx}`, Number(src.RP_kvarh), 3);
-        set(`e-rn-${idx}`, Number(src.RN_kvarh), 3);
-        set(`e-s-${idx}`,  Number(src.S_kVAh), 3);
-      };
-
-      if (Array.isArray(m?.E_phase) || (m?.E_tot && typeof m.E_tot === 'object')) {
-        // NEW firmware format
-        const Ep = Array.isArray(m.E_phase) ? m.E_phase : [];
-        const Et = (m.E_tot && typeof m.E_tot === 'object') ? m.E_tot : null;
-        for(let i=0;i<3;i++) setE(i, Ep[i]);
-        setE(3, Et);
-      } else {
-        // OLD format fallback: m.E[0..2] + m.E.tot
-        const E = m?.E || {};
-        setE(0, E[0]);
-        setE(1, E[1]);
-        setE(2, E[2]);
-        setE(3, E.tot);
-      }
+      applyEnergiesFromMeter(m);
 
     }catch(e){}
   });
-
-  // ATM_RawReads (single table now)
-  connection.on('ATM_RawReads',  (arr)=>{ try{ renderRawTable('raw-reads-body',  arr, rawPrevReads ); }catch(e){} });
 
 })();
 </script>

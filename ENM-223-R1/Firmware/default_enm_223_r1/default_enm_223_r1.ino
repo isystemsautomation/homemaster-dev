@@ -2,12 +2,43 @@
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
+#include <LittleFS.h>
+#include <cstring>
 #include <math.h>
 
 #include "atm90e32.h"
 
+// LittleFS blob — must be before any function using EnmPersistCfg (Arduino inserts prototypes at top).
+struct EnmPersistCfg {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t lineHz;
+  uint8_t  sumAbs;
+  uint16_t ucal;
+  uint16_t Ugain[3];
+  uint16_t Igain[3];
+  int16_t  Uoffset[3];
+  int16_t  Ioffset[3];
+  uint64_t ap_cnt[4];
+  uint64_t an_cnt[4];
+  uint64_t rp_cnt[4];
+  uint64_t rn_cnt[4];
+  uint64_t s_cnt[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
+static const uint16_t CFG_VERSION     = 0x0001;
+static const char*    CFG_PATH        = "/enm_cfg.bin";
+static volatile bool  cfgDirty        = false;
+static unsigned long  lastCfgTouchMs  = 0;
+static const uint32_t CFG_AUTOSAVE_MS = 1500;
+
 // SimpleWebSerial: MaximumNumberOfEvents = 8 (library default). Never register more than 8 handlers.
-static const char* FW_TAG = "ENM-v18";
+static const char* FW_TAG = "ENM-v20";
 
 // Arduino_JSON: (int)obj["key"] → ASCII первой буквы ключа, не число.
 static inline String jsonBlob(const JSONVar& v) {
@@ -85,6 +116,9 @@ static JSONVar modbusStatus;
 
 static unsigned long lastSend = 0;
 static const unsigned long sendInterval = 1000;
+static unsigned long lastWebCfgPush = 0;
+static const unsigned long webCfgPushMs = 1000;
+static bool webHostWasConnected = false;
 
 static unsigned long lastBlinkToggle = 0;
 static const unsigned long blinkPeriodMs = 400;
@@ -124,12 +158,10 @@ static volatile bool dirtyBtnCfg   = false;
 static volatile bool dirtyLedCfg   = false;
 static volatile bool dirtyAtmCfg   = false;
 
-static volatile bool pendingEchoAll = false;
 static volatile bool pendingStatus  = false;
 static volatile bool pendingAtmCfg  = false;
 static volatile bool pendingMsg      = false;
 static const char*   pendingMsgText  = nullptr;
-static uint8_t       echoStep        = 0;
 
 // Modbus V2 map (matches default_enm_223_r1_plc_full.yaml / old firmware)
 enum : uint16_t {
@@ -236,6 +268,113 @@ static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
 static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
 static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
 static uint32_t g_MC_imp_per_kWh = 3200;
+
+static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks);
+
+static uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
+  crc = ~crc;
+  while (len--) {
+    crc ^= *data++;
+    for (uint8_t k = 0; k < 8; k++)
+      crc = (crc >> 1) ^ (0xEDB88320UL & (-(int32_t)(crc & 1)));
+  }
+  return ~crc;
+}
+
+static void markCfgDirty() {
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+static void captureToPersist(EnmPersistCfg& pc) {
+  memset(&pc, 0, sizeof(pc));
+  pc.magic      = CFG_MAGIC;
+  pc.version    = CFG_VERSION;
+  pc.size       = sizeof(EnmPersistCfg);
+  pc.mb_address = g_mb_address;
+  pc.mb_baud    = g_mb_baud;
+  pc.lineHz     = g_atm_cfg.lineHz;
+  pc.sumAbs     = g_atm_cfg.sumAbs;
+  pc.ucal       = g_atm_cfg.ucal;
+  for (int i = 0; i < 3; i++) {
+    pc.Ugain[i]   = g_atm_cfg.cal[i].Ugain;
+    pc.Igain[i]   = g_atm_cfg.cal[i].Igain;
+    pc.Uoffset[i] = g_atm_cfg.cal[i].Uoffset;
+    pc.Ioffset[i] = g_atm_cfg.cal[i].Ioffset;
+  }
+  memcpy(pc.ap_cnt, g_ap_cnt, sizeof(g_ap_cnt));
+  memcpy(pc.an_cnt, g_an_cnt, sizeof(g_an_cnt));
+  memcpy(pc.rp_cnt, g_rp_cnt, sizeof(g_rp_cnt));
+  memcpy(pc.rn_cnt, g_rn_cnt, sizeof(g_rn_cnt));
+  memcpy(pc.s_cnt,  g_s_cnt,  sizeof(g_s_cnt));
+  pc.crc32 = 0;
+  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmPersistCfg));
+}
+
+static bool applyFromPersist(const EnmPersistCfg& pc) {
+  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(EnmPersistCfg))
+    return false;
+  EnmPersistCfg tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmPersistCfg)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.ucal   = pc.ucal ? pc.ucal : 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
+    g_atm_cfg.cal[i].Igain   = pc.Igain[i];
+    g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
+    g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
+  }
+
+  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
+  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
+  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
+  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
+  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
+
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
+    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
+    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
+    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
+    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+  }
+  return true;
+}
+
+static bool saveConfigFS() {
+  EnmPersistCfg pc;
+  captureToPersist(pc);
+  File f = LittleFS.open(CFG_PATH, "w");
+  if (!f) return false;
+  const size_t n = f.write(reinterpret_cast<const uint8_t*>(&pc), sizeof(pc));
+  f.close();
+  return n == sizeof(pc);
+}
+
+static bool loadConfigFS() {
+  File f = LittleFS.open(CFG_PATH, "r");
+  if (!f) return false;
+  if (f.size() != sizeof(EnmPersistCfg)) {
+    f.close();
+    return false;
+  }
+  EnmPersistCfg pc;
+  const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+  f.close();
+  if (n != sizeof(pc)) return false;
+  return applyFromPersist(pc);
+}
 
 static bool     meter_job = false;
 static uint8_t  meter_step = 0;
@@ -384,6 +523,25 @@ static void sampleEnergyCounters() {
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
   }
+  markCfgDirty();
+}
+
+static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
+  auto to_k = [](uint32_t Wh) -> double { return Wh / 1000.0; };
+  for (int i = 0; i < 3; i++) {
+    JSONVar ph;
+    ph["AP_kWh"]   = to_k(g_e_ap_Wh[i]);
+    ph["AN_kWh"]   = to_k(g_e_an_Wh[i]);
+    ph["RP_kvarh"] = to_k(g_e_rp_varh[i]);
+    ph["RN_kvarh"] = to_k(g_e_rn_varh[i]);
+    ph["S_kVAh"]   = to_k(g_e_s_VAh[i]);
+    Ephase[i] = ph;
+  }
+  Etot["AP_kWh"]   = to_k(g_e_ap_Wh[3]);
+  Etot["AN_kWh"]   = to_k(g_e_an_Wh[3]);
+  Etot["RP_kvarh"] = to_k(g_e_rp_varh[3]);
+  Etot["RN_kvarh"] = to_k(g_e_rn_varh[3]);
+  Etot["S_kVAh"]   = to_k(g_e_s_VAh[3]);
 }
 
 static void sendMeterEcho() {
@@ -411,23 +569,8 @@ static void sendMeterEcho() {
   m["TempC"] = (int)g_tempC;
   m["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
 
-  auto to_k = [](uint32_t Wh) -> double { return Wh / 1000.0; };
-  JSONVar Ephase;
-  for (int i = 0; i < 3; i++) {
-    JSONVar ph;
-    ph["AP_kWh"] = to_k(g_e_ap_Wh[i]);
-    ph["AN_kWh"] = to_k(g_e_an_Wh[i]);
-    ph["RP_kvarh"] = to_k(g_e_rp_varh[i]);
-    ph["RN_kvarh"] = to_k(g_e_rn_varh[i]);
-    ph["S_kVAh"] = to_k(g_e_s_VAh[i]);
-    Ephase[i] = ph;
-  }
-  JSONVar Etot;
-  Etot["AP_kWh"] = to_k(g_e_ap_Wh[3]);
-  Etot["AN_kWh"] = to_k(g_e_an_Wh[3]);
-  Etot["RP_kvarh"] = to_k(g_e_rp_varh[3]);
-  Etot["RN_kvarh"] = to_k(g_e_rn_varh[3]);
-  Etot["S_kVAh"] = to_k(g_e_s_VAh[3]);
+  JSONVar Ephase, Etot;
+  energiesToJson(Ephase, Etot);
   m["E_phase"] = Ephase;
   m["E_tot"] = Etot;
 
@@ -484,16 +627,36 @@ static JSONVar ledCfgListToJson() {
 }
 static JSONVar calPhasesArrayFromCfg() {
   JSONVar cal;
-  static const char* names[] = {"A", "B", "C"};
+  static const char* phName[] = { "A", "B", "C" };
   for (int i = 0; i < 3; i++) {
     JSONVar p;
     p["Ugain"]   = (int)g_atm_cfg.cal[i].Ugain;
     p["Igain"]   = (int)g_atm_cfg.cal[i].Igain;
     p["Uoffset"] = (int)g_atm_cfg.cal[i].Uoffset;
     p["Ioffset"] = (int)g_atm_cfg.cal[i].Ioffset;
-    cal[names[i]] = p;
+    cal[(int)i] = p;
+    cal[phName[i]] = p;
   }
   return cal;
+}
+
+static void sendEnmSyncToWeb() {
+  updateModbusStatusJson();
+  JSONVar o;
+  o["address"] = (int)g_mb_address;
+  o["baud"]    = (int)g_mb_baud;
+  o["fw"]      = FW_TAG;
+  o["lineHz"]  = (int)g_atm_cfg.lineHz;
+  o["sumAbs"]  = (int)g_atm_cfg.sumAbs;
+  o["ucal"]    = (int)g_atm_cfg.ucal;
+  o["cal"]     = calPhasesArrayFromCfg();
+  JSONVar Ephase, Etot;
+  energiesToJson(Ephase, Etot);
+  o["E_phase"] = Ephase;
+  o["E_tot"]   = Etot;
+  o["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
+  WebSerial.send("ENM_Sync", o);
+  yield();
 }
 
 static JSONVar calibCfgToJson() {
@@ -511,40 +674,29 @@ static JSONVar atmCfgToJson() {
   return o;
 }
 
-static JSONVar atmChipCfgToJson() {
-  M90PhaseCal chip[3];
-  g_atm.readPhaseCal(chip);
-  JSONVar ph;
-  static const char* names[] = {"A", "B", "C"};
-  for (int i = 0; i < 3; i++) {
-    JSONVar p;
-    p["Ugain"]   = (int)chip[i].Ugain;
-    p["Igain"]   = (int)chip[i].Igain;
-    p["Uoffset"] = (int)chip[i].Uoffset;
-    p["Ioffset"] = (int)chip[i].Ioffset;
-    ph[names[i]] = p;
-  }
-  JSONVar o;
-  o["phase"] = ph;
-  return o;
-}
-
 static void sendCalibEcho() {
-  updateModbusStatusJson();
-  WebSerial.send("status", modbusStatus);
-  yield();
+  sendEnmSyncToWeb();
   WebSerial.send("CalibCfg", calibCfgToJson());
   yield();
   WebSerial.send("atmCfg", atmCfgToJson());
   yield();
+}
+
+static void pushWebConfigPeriodic() {
+  updateModbusStatusJson();
+  WebSerial.send("status", modbusStatus);
+  yield();
+  sendEnmSyncToWeb();
   if (!atmBusy) {
-    WebSerial.send("ATM_ChipCfg", atmChipCfgToJson());
+    WebSerial.send("atmCfg", atmCfgToJson());
+    yield();
+    WebSerial.send("CalibCfg", calibCfgToJson());
     yield();
   }
 }
 
 static void sendFullSyncToWeb() {
-  sendCalibEcho();
+  pushWebConfigPeriodic();
   WebSerial.send("relayEnableList", relayEnableListToJson());
   yield();
   WebSerial.send("relayInvertList", relayInvertListToJson());
@@ -553,6 +705,25 @@ static void sendFullSyncToWeb() {
   yield();
   WebSerial.send("LedConfigList", ledCfgListToJson());
   yield();
+}
+
+// USB host opened the WebSerial port (browser Connect): push config immediately + every 1s.
+static void serviceWebHostConfig(unsigned long now) {
+  const bool hostUp = Serial && Serial.dtr();
+  if (hostUp && !webHostWasConnected) {
+    webHostWasConnected = true;
+    sendFullSyncToWeb();
+    lastWebCfgPush = now;
+    return;
+  }
+  if (!hostUp) {
+    webHostWasConnected = false;
+    return;
+  }
+  if (now - lastWebCfgPush >= webCfgPushMs) {
+    lastWebCfgPush = now;
+    pushWebConfigPeriodic();
+  }
 }
 
 static void updateModbusStatusJson() {
@@ -580,23 +751,7 @@ static void applyModbusSettings(uint8_t addr, uint32_t baud) {
   SlaveId = (int)addr;
   updateModbusStatusJson();
   mbSyncHolding();
-}
-
-static void echoStepSend() {
-  switch (echoStep) {
-    case 0: updateModbusStatusJson(); WebSerial.send("status", modbusStatus); break;
-    case 1: WebSerial.send("CalibCfg", calibCfgToJson()); break;
-    case 2: WebSerial.send("atmCfg", atmCfgToJson()); break;
-    case 3: WebSerial.send("relayEnableList", relayEnableListToJson()); break;
-    case 4: WebSerial.send("relayInvertList", relayInvertListToJson()); break;
-    case 5: WebSerial.send("ButtonGroupList", buttonGroupListToJson()); break;
-    case 6: WebSerial.send("LedConfigList", ledCfgListToJson()); break;
-    case 7:
-      if (!atmBusy) WebSerial.send("ATM_ChipCfg", atmChipCfgToJson());
-      break;
-    default: echoStep = 0; pendingEchoAll = false; return;
-  }
-  echoStep++;
+  markCfgDirty();
 }
 
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
@@ -622,20 +777,6 @@ static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16(jvGetInt(obj, "Ioffset", (int)g_atm_cfg.cal[phase].Ioffset));
 }
 
-static void handleHello(JSONVar) {
-  echoStep = 0;
-  pendingEchoAll = true;
-  pendingMsgText = "OK: Hello";
-  pendingMsg = true;
-}
-static void handleGetAll(JSONVar) {
-  pendingEchoAll = false;
-  echoStep = 0;
-  sendFullSyncToWeb();
-  pendingMsgText = "OK: Refreshed";
-  pendingMsg = true;
-}
-
 static void handleValues(JSONVar values) {
   const int addr = jvGetInt(values, "mb_address", (int)g_mb_address);
   const int baud = jvGetInt(values, "mb_baud",    (int)g_mb_baud);
@@ -652,6 +793,7 @@ static void handleRelayCfg(JSONVar obj) {
     if (JSON.typeof(inv[i]) != "undefined")  rlyCfg[i].inverted = (bool)inv[i];
   }
   dirtyRelayCfg = true;
+  markCfgDirty();
   pendingMsgText = "OK: Relays updated";
   pendingMsg = true;
 }
@@ -664,6 +806,7 @@ static void handleBtnCfg(JSONVar obj) {
     btnCfg[i].action = (uint8_t)((v==0 || v==5 || v==6) ? v : 0);
   }
   dirtyBtnCfg = true;
+  markCfgDirty();
   pendingMsgText = "OK: Buttons updated";
   pendingMsg = true;
 }
@@ -679,6 +822,7 @@ static void handleLedCfg(JSONVar obj) {
     }
   }
   dirtyLedCfg = true;
+  markCfgDirty();
   pendingMsgText = "OK: LEDs updated";
   pendingMsg = true;
 }
@@ -700,6 +844,7 @@ static void handleAtm(JSONVar obj) {
     }
   }
   queueAtmApply();
+  markCfgDirty();
   pendingMsgText = "OK: ATM queued";
   pendingMsg = true;
   sendCalibEcho();
@@ -708,17 +853,19 @@ static void handleAtm(JSONVar obj) {
 void setup() {
   Serial.begin(57600);
 
+  if (!LittleFS.begin()) {
+    LittleFS.format();
+    LittleFS.begin();
+  }
+  if (!loadConfigFS()) setDefaults();
+
   for (uint8_t i=0;i<NUM_RLY;i++) { pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); }
   for (uint8_t i=0;i<NUM_LED;i++) { pinMode(LED_PINS[i],   OUTPUT); digitalWrite(LED_PINS[i],   LOW); }
   for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
 
-  setDefaults();
-
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
-  Serial2.begin(g_mb_baud);
-  mb.config(g_mb_baud);
-  setSlaveIdIfAvailable(mb, (uint8_t)g_mb_address);
+  applyModbusSettings(g_mb_address, g_mb_baud);
   mb.setAdditionalServerData("ENM223-ENM");
   mbBuildRegisterMap();
   mbSyncHolding();
@@ -727,7 +874,6 @@ void setup() {
 
   // SimpleWebSerial allows max 8 events — do not add more without changing the library.
   WebSerial.on("values",   handleValues);
-  WebSerial.on("getAll",   handleGetAll);
   WebSerial.on("relayCfg", handleRelayCfg);
   WebSerial.on("btnCfg",   handleBtnCfg);
   WebSerial.on("ledCfg",   handleLedCfg);
@@ -741,11 +887,14 @@ void setup() {
   atmBusy = true;
   atmApplyFromCfg_NOW();
   atmBusy = false;
+  sampleEnergyCounters();
+  mbPublishMeter();
 
-  pendingMsgText = "Boot OK ENM-v18";
+  pendingMsgText = "Boot OK ENM-v20 (config saved to flash)";
   pendingMsg = true;
   lastMeterSample = millis();
   lastEnergySample = millis();
+  lastWebCfgPush = 0;
 }
 
 void loop() {
@@ -763,9 +912,15 @@ void loop() {
     atmApplyFromCfg_NOW();
     atmBusy = false;
     atmLastApplyMs = now;
+    markCfgDirty();
     pendingAtmCfg = true;
     pendingMsgText = "OK: ATM applied";
     pendingMsg = true;
+  }
+
+  if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
+    cfgDirty = false;
+    saveConfigFS();
   }
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
@@ -812,7 +967,6 @@ void loop() {
     mb.setIsts(DI_LED_BASE + i, physLed);
   }
 
-  if (pendingEchoAll) echoStepSend();
   if (pendingStatus) {
     pendingStatus = false;
     updateModbusStatusJson();
@@ -820,7 +974,7 @@ void loop() {
   }
   if (pendingAtmCfg) {
     pendingAtmCfg = false;
-    sendCalibEcho();
+    sendEnmSyncToWeb();
   }
   if (pendingMsg && pendingMsgText) {
     pendingMsg = false;
@@ -840,10 +994,12 @@ void loop() {
     mbPublishMeter();
   }
 
+  serviceWebHostConfig(now);
+
   if (now - lastSend >= sendInterval) {
     lastSend = now;
 
-    if (!pendingEchoAll && !atmBusy) {
+    if (!atmBusy) {
       JSONVar relayStateList;
       for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
       WebSerial.send("relayStateList", relayStateList);
