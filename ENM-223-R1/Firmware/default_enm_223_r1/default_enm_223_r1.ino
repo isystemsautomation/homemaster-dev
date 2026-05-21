@@ -132,11 +132,11 @@ static inline int16_t clamp_i16(int v) {
 static void setAtmDefaults() {
   g_atm_cfg.lineHz = 50;
   g_atm_cfg.sumAbs = 1;
-  g_atm_cfg.ucal   = 117; // your UI screenshot expectation
+  g_atm_cfg.ucal   = 36000; // sag-detector reference (был 117 — переполнение vSagTh)
 
   for (int i = 0; i < 3; i++) {
-    g_atm_cfg.cal[i].Ugain   = 8000;
-    g_atm_cfg.cal[i].Igain   = 2000;
+    g_atm_cfg.cal[i].Ugain   = 43000; // voltage divider 6×220k+1k, 230V mains
+    g_atm_cfg.cal[i].Igain   = 49000; // ZEMCTK05 1:3000 + 10Ω burden, PGA=2×, 50A scale
     g_atm_cfg.cal[i].Uoffset = 0;
     g_atm_cfg.cal[i].Ioffset = 0;
   }
