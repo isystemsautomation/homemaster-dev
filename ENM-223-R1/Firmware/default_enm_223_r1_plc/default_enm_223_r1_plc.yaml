@@ -212,7 +212,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "V"
     accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
+    filters:
+      - multiply: 0.01
+      - lambda: "return round(x * 100.0f) / 100.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Urms L2"
@@ -221,7 +223,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "V"
     accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
+    filters:
+      - multiply: 0.01
+      - lambda: "return round(x * 100.0f) / 100.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Urms L3"
@@ -230,7 +234,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "V"
     accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
+    filters:
+      - multiply: 0.01
+      - lambda: "return round(x * 100.0f) / 100.0f;"
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -240,7 +246,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "A"
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L2"
@@ -249,7 +257,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "A"
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L3"
@@ -258,7 +268,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "A"
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
 
   # --- PF (×1000) & Angle (×0.1°) ---
   - platform: modbus_controller
@@ -268,7 +280,9 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L2"
@@ -276,7 +290,9 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L3"
@@ -284,7 +300,9 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF Total"
@@ -292,7 +310,9 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
+    filters:
+      - multiply: 0.001
+      - lambda: "return round(x * 1000.0f) / 1000.0f;"
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -302,7 +322,9 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
-    filters: [{ multiply: 0.1 }]
+    filters:
+      - multiply: 0.1
+      - lambda: "return round(x * 10.0f) / 10.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L2"
@@ -311,7 +333,9 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
-    filters: [{ multiply: 0.1 }]
+    filters:
+      - multiply: 0.1
+      - lambda: "return round(x * 10.0f) / 10.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L3"
@@ -320,7 +344,9 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
-    filters: [{ multiply: 0.1 }]
+    filters:
+      - multiply: 0.1
+      - lambda: "return round(x * 10.0f) / 10.0f;"
 
   # --- Frequency & Temperature ---
   - platform: modbus_controller
@@ -331,7 +357,9 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "Hz"
     accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
+    filters:
+      - multiply: 0.01
+      - lambda: "return round(x * 100.0f) / 100.0f;"
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -341,7 +369,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
 
-  # --- P/Q/S (s32) ---
+  # --- P/Q/S (s32, whole watts/var/VA) ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L1"
@@ -349,6 +377,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L2"
@@ -356,6 +387,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L3"
@@ -363,6 +397,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P Total"
@@ -370,6 +407,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -378,6 +418,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L2"
@@ -385,6 +428,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L3"
@@ -392,6 +438,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q Total"
@@ -399,6 +448,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -407,6 +459,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L2"
@@ -414,6 +469,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L3"
@@ -421,6 +479,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S Total"
@@ -428,6 +489,9 @@ sensor:
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
 
   # --- Energies (u32 Wh/varh/VAh) — Total Increasing ---
   # Energy table base = 60:

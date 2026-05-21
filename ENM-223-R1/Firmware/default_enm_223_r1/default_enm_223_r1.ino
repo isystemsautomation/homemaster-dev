@@ -7,7 +7,7 @@
 #include "atm90e32.h"
 
 // SimpleWebSerial: MaximumNumberOfEvents = 8 (library default). Never register more than 8 handlers.
-static const char* FW_TAG = "ENM-v17";
+static const char* FW_TAG = "ENM-v18";
 
 // Arduino_JSON: (int)obj["key"] → ASCII первой буквы ключа, не число.
 static inline String jsonBlob(const JSONVar& v) {
@@ -484,13 +484,14 @@ static JSONVar ledCfgListToJson() {
 }
 static JSONVar calPhasesArrayFromCfg() {
   JSONVar cal;
+  static const char* names[] = {"A", "B", "C"};
   for (int i = 0; i < 3; i++) {
     JSONVar p;
     p["Ugain"]   = (int)g_atm_cfg.cal[i].Ugain;
     p["Igain"]   = (int)g_atm_cfg.cal[i].Igain;
     p["Uoffset"] = (int)g_atm_cfg.cal[i].Uoffset;
     p["Ioffset"] = (int)g_atm_cfg.cal[i].Ioffset;
-    cal[(int)i] = p;
+    cal[names[i]] = p;
   }
   return cal;
 }
@@ -514,13 +515,14 @@ static JSONVar atmChipCfgToJson() {
   M90PhaseCal chip[3];
   g_atm.readPhaseCal(chip);
   JSONVar ph;
+  static const char* names[] = {"A", "B", "C"};
   for (int i = 0; i < 3; i++) {
     JSONVar p;
     p["Ugain"]   = (int)chip[i].Ugain;
     p["Igain"]   = (int)chip[i].Igain;
     p["Uoffset"] = (int)chip[i].Uoffset;
     p["Ioffset"] = (int)chip[i].Ioffset;
-    ph[(int)i] = p;
+    ph[names[i]] = p;
   }
   JSONVar o;
   o["phase"] = ph;
@@ -528,9 +530,29 @@ static JSONVar atmChipCfgToJson() {
 }
 
 static void sendCalibEcho() {
+  updateModbusStatusJson();
+  WebSerial.send("status", modbusStatus);
+  yield();
   WebSerial.send("CalibCfg", calibCfgToJson());
+  yield();
   WebSerial.send("atmCfg", atmCfgToJson());
-  if (!atmBusy) WebSerial.send("ATM_ChipCfg", atmChipCfgToJson());
+  yield();
+  if (!atmBusy) {
+    WebSerial.send("ATM_ChipCfg", atmChipCfgToJson());
+    yield();
+  }
+}
+
+static void sendFullSyncToWeb() {
+  sendCalibEcho();
+  WebSerial.send("relayEnableList", relayEnableListToJson());
+  yield();
+  WebSerial.send("relayInvertList", relayInvertListToJson());
+  yield();
+  WebSerial.send("ButtonGroupList", buttonGroupListToJson());
+  yield();
+  WebSerial.send("LedConfigList", ledCfgListToJson());
+  yield();
 }
 
 static void updateModbusStatusJson() {
@@ -607,8 +629,9 @@ static void handleHello(JSONVar) {
   pendingMsg = true;
 }
 static void handleGetAll(JSONVar) {
+  pendingEchoAll = false;
   echoStep = 0;
-  pendingEchoAll = true;
+  sendFullSyncToWeb();
   pendingMsgText = "OK: Refreshed";
   pendingMsg = true;
 }
@@ -617,7 +640,7 @@ static void handleValues(JSONVar values) {
   const int addr = jvGetInt(values, "mb_address", (int)g_mb_address);
   const int baud = jvGetInt(values, "mb_baud",    (int)g_mb_baud);
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
-  WebSerial.send("status", modbusStatus);
+  sendCalibEcho();
   WebSerial.send("message", "Modbus configuration updated");
 }
 
@@ -718,12 +741,9 @@ void setup() {
   atmBusy = true;
   atmApplyFromCfg_NOW();
   atmBusy = false;
-  sendCalibEcho();
 
-  pendingMsgText = "Boot OK ENM-v17 (calib echo)";
+  pendingMsgText = "Boot OK ENM-v18";
   pendingMsg = true;
-  echoStep = 0;
-  pendingEchoAll = true;
   lastMeterSample = millis();
   lastEnergySample = millis();
 }
