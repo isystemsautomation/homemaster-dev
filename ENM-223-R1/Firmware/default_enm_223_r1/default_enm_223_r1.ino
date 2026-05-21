@@ -42,8 +42,12 @@ static JSONVar modbusStatus;
 
 // ================== Timing ==================
 static unsigned long lastSend = 0;
+static unsigned long lastStatusSend = 0;
+static unsigned long lastEnergyAccumMs = 0;
 // Slower push = MUCH more stable on USB/WebSerial stacks
-static const unsigned long sendInterval = 500;
+static const unsigned long sendInterval = 1000;
+static const unsigned long statusIntervalMs = 2000;
+static const unsigned long energyIntervalMs = 5000;
 
 static unsigned long lastBlinkToggle = 0;
 static const unsigned long blinkPeriodMs = 400;
@@ -56,6 +60,10 @@ static uint32_t g_mb_baud    = 19200;
 static volatile bool pendingModbusApply = false;
 static uint8_t  pending_mb_addr = 30;
 static uint32_t pending_mb_baud = 19200;
+static unsigned long modbusCooldownUntil = 0;
+static const unsigned long modbusCooldownMs = 400;
+static unsigned long lastAtmCfgPushMs = 0;
+static const unsigned long atmCfgPushIntervalMs = 5000;
 
 // During ATM SPI sampling: only Modbus/yield — never WebSerial.check() (reentrancy).
 static inline void yieldMbOnly() {
@@ -138,7 +146,7 @@ static void setAtmDefaults() {
   g_atm_cfg.ucal   = 117; // your UI screenshot expectation
 
   for (int i = 0; i < 3; i++) {
-    g_atm_cfg.cal[i].Ugain   = 8000;
+    g_atm_cfg.cal[i].Ugain   = 43000; // 6×220k+1k divider @ 230 V (calibrate on-site)
     g_atm_cfg.cal[i].Igain   = 2000;
     g_atm_cfg.cal[i].Uoffset = 0;
     g_atm_cfg.cal[i].Ioffset = 0;
@@ -303,20 +311,32 @@ static void atmLiveComputePQS() {
   g_atm_live.Q_var[3] = g_atm_live.Q_var[0] + g_atm_live.Q_var[1] + g_atm_live.Q_var[2];
 }
 
-static void atmLiveAccumulateEnergy() {
-  g_e_ap_Wh[0]  += g_atm.rdAP_A();  g_e_ap_Wh[1]  += g_atm.rdAP_B();  g_e_ap_Wh[2]  += g_atm.rdAP_C();  g_e_ap_Wh[3]  += g_atm.rdAP_T();
-  yieldMbOnly();
-  g_e_an_Wh[0]  += g_atm.rdAN_A();  g_e_an_Wh[1]  += g_atm.rdAN_B();  g_e_an_Wh[2]  += g_atm.rdAN_C();  g_e_an_Wh[3]  += g_atm.rdAN_T();
-  yieldMbOnly();
-  g_e_rp_varh[0] += g_atm.rdRP_A(); g_e_rp_varh[1] += g_atm.rdRP_B(); g_e_rp_varh[2] += g_atm.rdRP_C(); g_e_rp_varh[3] += g_atm.rdRP_T();
-  yieldMbOnly();
-  g_e_rn_varh[0] += g_atm.rdRN_A(); g_e_rn_varh[1] += g_atm.rdRN_B(); g_e_rn_varh[2] += g_atm.rdRN_C(); g_e_rn_varh[3] += g_atm.rdRN_T();
-  yieldMbOnly();
-  g_e_s_VAh[0]  += g_atm.rdSA_A();  g_e_s_VAh[1]  += g_atm.rdSA_B();  g_e_s_VAh[2]  += g_atm.rdSA_C();  g_e_s_VAh[3]  += g_atm.rdSA_T();
+static void atmLiveAccumulateEnergyStep(uint8_t sub) {
+  switch (sub) {
+    case 0:
+      g_e_ap_Wh[0] += g_atm.rdAP_A(); g_e_ap_Wh[1] += g_atm.rdAP_B(); g_e_ap_Wh[2] += g_atm.rdAP_C();
+      break;
+    case 1:
+      g_e_ap_Wh[3] += g_atm.rdAP_T();
+      g_e_an_Wh[0] += g_atm.rdAN_A(); g_e_an_Wh[1] += g_atm.rdAN_B(); g_e_an_Wh[2] += g_atm.rdAN_C();
+      break;
+    case 2:
+      g_e_an_Wh[3] += g_atm.rdAN_T();
+      g_e_rp_varh[0] += g_atm.rdRP_A(); g_e_rp_varh[1] += g_atm.rdRP_B(); g_e_rp_varh[2] += g_atm.rdRP_C();
+      break;
+    case 3:
+      g_e_rp_varh[3] += g_atm.rdRP_T();
+      g_e_rn_varh[0] += g_atm.rdRN_A(); g_e_rn_varh[1] += g_atm.rdRN_B(); g_e_rn_varh[2] += g_atm.rdRN_C();
+      g_e_rn_varh[3] += g_atm.rdRN_T();
+      g_e_s_VAh[0]  += g_atm.rdSA_A();  g_e_s_VAh[1]  += g_atm.rdSA_B();  g_e_s_VAh[2]  += g_atm.rdSA_C();
+      g_e_s_VAh[3]  += g_atm.rdSA_T();
+      break;
+    default: break;
+  }
 }
 
 static void atmLiveJobStep() {
-  if (!atmLiveJob || atmBusy || pendingModbusApply) return;
+  if (!atmLiveJob || atmBusy || (millis() < modbusCooldownUntil)) return;
   switch (atmLiveStep) {
     case 0: g_atm_live.Ua_V = g_atm.readUrmsA_V(); g_atm_live.Ub_V = g_atm.readUrmsB_V(); yieldMbOnly(); atmLiveStep++; break;
     case 1: g_atm_live.Uc_V = g_atm.readUrmsC_V(); g_atm_live.Ia_A = g_atm.readIrmsA_A(); yieldMbOnly(); atmLiveStep++; break;
@@ -329,44 +349,62 @@ static void atmLiveJobStep() {
       g_atm_live.AngA_raw = g_atm.readPAngleA(); g_atm_live.AngB_raw = g_atm.readPAngleB(); g_atm_live.AngC_raw = g_atm.readPAngleC();
       yieldMbOnly(); atmLiveStep++; break;
     case 5: g_atm_live.Freq_x100 = g_atm.readFreq_x100(); g_atm_live.Temp_C = g_atm.readTempC(); yieldMbOnly(); atmLiveStep++; break;
-    case 6: atmLiveComputePQS(); yieldMbOnly(); atmLiveStep++; break;
-    case 7: atmLiveAccumulateEnergy(); g_atm_live.valid = true; atmLiveJob = false; yieldMbOnly(); break;
+    case 6: atmLiveComputePQS(); g_atm_live.valid = true; atmLiveStep++; break;
+    case 7: case 8: case 9: case 10:
+      if (millis() - lastEnergyAccumMs >= energyIntervalMs) {
+        atmLiveAccumulateEnergyStep((uint8_t)(atmLiveStep - 7));
+        yieldMbOnly();
+        atmLiveStep++;
+      } else {
+        atmLiveJob = false;
+      }
+      break;
     default: atmLiveJob = false; break;
   }
+  if (atmLiveStep > 10) {
+    lastEnergyAccumMs = millis();
+    atmLiveJob = false;
+  }
+}
+
+static inline double roundTo(double v, int dec) {
+  long scale = 1;
+  for (int i = 0; i < dec; i++) scale *= 10;
+  return ((double)lround(v * (double)scale)) / (double)scale;
 }
 
 static JSONVar enmMeterToJson() {
   JSONVar m;
-  m["Urms"][0] = g_atm_live.Ua_V;
-  m["Urms"][1] = g_atm_live.Ub_V;
-  m["Urms"][2] = g_atm_live.Uc_V;
-  m["Irms"][0] = g_atm_live.Ia_A;
-  m["Irms"][1] = g_atm_live.Ib_A;
-  m["Irms"][2] = g_atm_live.Ic_A;
+  m["Urms"][0] = roundTo(g_atm_live.Ua_V, 2);
+  m["Urms"][1] = roundTo(g_atm_live.Ub_V, 2);
+  m["Urms"][2] = roundTo(g_atm_live.Uc_V, 2);
+  m["Irms"][0] = roundTo(g_atm_live.Ia_A, 3);
+  m["Irms"][1] = roundTo(g_atm_live.Ib_A, 3);
+  m["Irms"][2] = roundTo(g_atm_live.Ic_A, 3);
 
   JSONVar pW, qV, sVA, pfR, ang;
   for (int i = 0; i < 4; i++) {
-    pW[i]  = g_atm_live.P_W[i];
-    qV[i]  = g_atm_live.Q_var[i];
-    sVA[i] = g_atm_live.S_VA[i];
+    pW[i]  = roundTo(g_atm_live.P_W[i], 1);
+    qV[i]  = roundTo(g_atm_live.Q_var[i], 1);
+    sVA[i] = roundTo(g_atm_live.S_VA[i], 1);
   }
-  pfR[0] = g_atm_live.PF_A_raw / 1000.0;
-  pfR[1] = g_atm_live.PF_B_raw / 1000.0;
-  pfR[2] = g_atm_live.PF_C_raw / 1000.0;
-  pfR[3] = g_atm_live.PF_T_raw / 1000.0;
+  pfR[0] = roundTo(g_atm_live.PF_A_raw / 1000.0, 3);
+  pfR[1] = roundTo(g_atm_live.PF_B_raw / 1000.0, 3);
+  pfR[2] = roundTo(g_atm_live.PF_C_raw / 1000.0, 3);
+  pfR[3] = roundTo(g_atm_live.PF_T_raw / 1000.0, 3);
   m["P_W"] = pW;
   m["Q_var"] = qV;
   m["S_VA"] = sVA;
   m["PF"] = pfR;
 
-  ang[0] = g_atm_live.AngA_raw / 10.0;
-  ang[1] = g_atm_live.AngB_raw / 10.0;
-  ang[2] = g_atm_live.AngC_raw / 10.0;
+  ang[0] = roundTo(g_atm_live.AngA_raw / 10.0, 1);
+  ang[1] = roundTo(g_atm_live.AngB_raw / 10.0, 1);
+  ang[2] = roundTo(g_atm_live.AngC_raw / 10.0, 1);
   m["Angle_deg"] = ang;
-  m["FreqHz"] = g_atm_live.Freq_x100 / 100.0;
+  m["FreqHz"] = roundTo(g_atm_live.Freq_x100 / 100.0, 2);
   m["TempC"]  = (int)g_atm_live.Temp_C;
 
-  auto toKwh = [](uint32_t w)->double { return w / 1000.0; };
+  auto toKwh = [](uint32_t w)->double { return roundTo(w / 1000.0, 3); };
   JSONVar ePhase;
   for (int i = 0; i < 3; i++) {
     JSONVar ph;
@@ -420,18 +458,22 @@ static void applyModbusSettingsDirect(uint8_t addr, uint32_t baud) {
 
   if (g_mb_baud != baud) {
     Serial2.end();
-    delay(20);
+    delay(2);
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
     Serial2.begin(baud);
     while (Serial2.available()) (void)Serial2.read();
     mb.config(baud);
     g_mb_baud = baud;
+    mb.task();
+    yield();
   }
   if (g_mb_address != addr) {
     setSlaveIdIfAvailable(mb, addr);
     g_mb_address = addr;
   }
+  mb.task();
+  yield();
 }
 
 static void handleValues(JSONVar values) {
@@ -594,20 +636,23 @@ void loop() {
   // 1) Inbound WebSerial (handlers must not touch UART/SPI)
   WebSerial.check();
 
-  // 2) Modbus apply in loop only (never inside WebSerial callback / breathe)
-  if (pendingModbusApply && !atmBusy) {
+  // 2) Modbus apply in loop only — pause ATM SPI (never overlap Serial2 with SPI)
+  if (pendingModbusApply) {
     pendingModbusApply = false;
     atmLiveJob = false;
+    atmBusy = true;
     if (pending_mb_addr == g_mb_address && pending_mb_baud == g_mb_baud) {
       pendingMsgText = "OK: Modbus unchanged";
     } else {
       applyModbusSettingsDirect(pending_mb_addr, pending_mb_baud);
       updateModbusStatusJson();
       pendingStatus = true;
+      pendingAtmCfg = true;
       pendingMsgText = "OK: Modbus applied";
     }
+    modbusCooldownUntil = now + modbusCooldownMs;
+    atmBusy = false;
     pendingMsg = true;
-    atmLiveJobBegin();
   }
 
   atmLiveJobStep();
@@ -709,10 +754,11 @@ void loop() {
     lastSend = now;
     if (!atmLiveJob) atmLiveJobBegin();
 
-    if (pendingStatus) {
+    if (pendingStatus || (now - lastStatusSend >= statusIntervalMs)) {
       pendingStatus = false;
       updateModbusStatusJson();
       WebSerial.send("status", modbusStatus);
+      lastStatusSend = now;
     }
 
     JSONVar relayStateList;
@@ -727,8 +773,13 @@ void loop() {
     for (int i = 0; i < NUM_LED; i++) ledStateList[i] = ledPhysState[i];
     WebSerial.send("LedStateList", ledStateList);
 
-    if (!atmBusy && g_atm_live.valid) {
+    if (!atmBusy && g_atm_live.valid && (now >= modbusCooldownUntil)) {
       WebSerial.send("ENM_Meter", enmMeterToJson());
+    }
+
+    if (now - lastAtmCfgPushMs >= atmCfgPushIntervalMs) {
+      lastAtmCfgPushMs = now;
+      WebSerial.send("atmCfg", atmCfgToJson());
     }
 
     if (dirtyRelayCfg) {

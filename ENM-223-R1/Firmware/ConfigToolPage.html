@@ -87,6 +87,7 @@
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
+      <button id="apply-modbus" type="button" style="padding:10px 14px;background:#198754;color:#fff;border:none;border-radius:6px;">Apply Modbus</button>
       <button id="req-sync" type="button" style="padding:10px 14px;background:#6c757d;color:#fff;border:none;border-radius:6px;">Request Sync</button>
     </div>
   </form>
@@ -295,7 +296,7 @@
   (function populateAddresses(){
     const sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
     for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
-    sel.value='3';
+    sel.value='30';
   })();
 
   /* ===== Build Live Meter cards ===== */
@@ -415,16 +416,26 @@
     connection.send(evt, payload);
     appendLog(evt, payload);
   }
-  function applyCalibCh(ch, obj){
+  function unlockCalibKeys(ch){
+    for(const k of ['cal-ugain-','cal-igain-','cal-uoff-','cal-ioff-']){
+      const key = k+ch;
+      locked.delete(key);
+      const el = $(k+ch);
+      if(el){ el.classList.remove('locked'); const hint=el.nextElementSibling; if(hint&&hint.classList.contains('lock-badge')) hint.style.display='none'; }
+    }
+  }
+  function applyCalibCh(ch, obj, force){
     if(!obj || typeof obj!=='object') return;
+    if(force) unlockCalibKeys(ch);
     const Ug = (obj.Ug ?? obj.Ugain);
     const Ig = (obj.Ig ?? obj.Igain);
     const Uo = (obj.Uo ?? obj.Uoffset);
     const Io = (obj.Io ?? obj.Ioffset);
-    if(Ug !== undefined && canApply('cal-ugain-'+ch)) $('cal-ugain-'+ch).value = String(Ug);
-    if(Ig !== undefined && canApply('cal-igain-'+ch)) $('cal-igain-'+ch).value = String(Ig);
-    if(Uo !== undefined && canApply('cal-uoff-'+ch))  $('cal-uoff-'+ch).value  = String(Uo);
-    if(Io !== undefined && canApply('cal-ioff-'+ch))  $('cal-ioff-'+ch).value  = String(Io);
+    const ok = (key)=> force || canApply(key);
+    if(Ug !== undefined && ok('cal-ugain-'+ch)) $('cal-ugain-'+ch).value = String(Ug);
+    if(Ig !== undefined && ok('cal-igain-'+ch)) $('cal-igain-'+ch).value = String(Ig);
+    if(Uo !== undefined && ok('cal-uoff-'+ch))  $('cal-uoff-'+ch).value  = String(Uo);
+    if(Io !== undefined && ok('cal-ioff-'+ch))  $('cal-ioff-'+ch).value  = String(Io);
   }
 
   /* ===== Alarms UI ===== */
@@ -713,28 +724,23 @@
   $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
 
-  /* ===== Modbus (send only on explicit change — not while device echoes status) ===== */
-  let modbusPushTimer = null;
+  /* ===== Modbus — apply only via button (avoids hang on accidental dropdown change) ===== */
   function pushModbus(){
     if (suppressModbusPush) return;
-    if (modbusPushTimer) clearTimeout(modbusPushTimer);
-    modbusPushTimer = setTimeout(() => {
-      modbusPushTimer = null;
-      const mb_address=parseInt($('modbus-address')?.value||"30",10);
-      const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
-      if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
-      connection.send("values",{mb_address,mb_baud});
-      appendLog("values",{mb_address,mb_baud});
-      toast('Modbus sent');
-    }, 400);
+    const mb_address=parseInt($('modbus-address')?.value||"30",10);
+    const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
+    if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
+    connection.send("values",{mb_address,mb_baud});
+    appendLog("values",{mb_address,mb_baud});
+    toast('Modbus sent — wait for Active address update');
   }
-  $('modbus-address')?.addEventListener('change', pushModbus);
-  $('modbus-baud')?.addEventListener('change', pushModbus);
+  $('apply-modbus')?.addEventListener('click', pushModbus);
 
   /* ===== Request Sync ===== */
   $('req-sync')?.addEventListener('click', ()=>{
-    appendLog("sync","requested (device pushes every 1s)");
-    toast('Sync: waiting 1s');
+    connection.send('getAll', {});
+    appendLog('getAll','requested');
+    toast('Sync requested');
   });
 
   /* ===== RAW + CHIPCFG RENDERING ===== */
@@ -844,7 +850,7 @@
     if(cal){
       for(let ch=0; ch<3; ch++){
         const p = Array.isArray(cal) ? cal[ch] : cal[ch];
-        if(p) applyCalibCh(ch, p);
+        if(p) applyCalibCh(ch, p, true);
       }
     }
   });
@@ -875,7 +881,7 @@
   connection.on('CalibCfg', function(payload){
     try{
       if(Array.isArray(payload)){
-        for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{});
+        for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{}, true);
       }
     }catch(e){}
   });
