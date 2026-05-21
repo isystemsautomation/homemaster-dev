@@ -210,10 +210,10 @@ static inline int16_t clamp_i16(int v) {
 static void setAtmDefaults() {
   g_atm_cfg.lineHz = 50;
   g_atm_cfg.sumAbs = 1;
-  g_atm_cfg.ucal   = 25256;
+  g_atm_cfg.ucal   = 36000;  // sag detector reference
   for (int i = 0; i < 3; i++) {
-    g_atm_cfg.cal[i].Ugain   = 25256;
-    g_atm_cfg.cal[i].Igain   = 2000;
+    g_atm_cfg.cal[i].Ugain   = 39500;  // divider 6×220k+1k, calibrated @ 230V
+    g_atm_cfg.cal[i].Igain   = 49000;  // ZEMCTK05 + PGA=2×, 50A full-scale
     g_atm_cfg.cal[i].Uoffset = 0;
     g_atm_cfg.cal[i].Ioffset = 0;
   }
