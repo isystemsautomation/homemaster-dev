@@ -52,17 +52,9 @@ static bool blinkPhase = false;
 static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
 
-// ===== SAFE queued Modbus apply (NO UART CHANGES IN CALLBACKS) =====
-static volatile bool mbApplyPending = false;
-static uint8_t  mb_req_address = 30;
-static uint32_t mb_req_baud    = 19200;
-static unsigned long mbLastApplyMs = 0;
-static const unsigned long mbApplyMinIntervalMs = 250;
-static bool mbBusy = false;
-
 static inline void breathe() {
   WebSerial.check();
-  if (!mbBusy) mb.task();
+  mb.task();
   yield();
 }
 
@@ -156,9 +148,6 @@ static void setDefaults() {
 
   g_mb_address = 30;
   g_mb_baud    = 19200;
-
-  mb_req_address = g_mb_address;
-  mb_req_baud    = g_mb_baud;
 
   setAtmDefaults();
 }
@@ -262,48 +251,6 @@ static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16((int)obj["Ioffset"]);
 }
 
-// ================== Safe queued Modbus apply (ONLY in loop) ==================
-static void queueModbusApply(uint8_t addr, uint32_t baud) {
-  addr = constrain(addr, 1, 247);
-  baud = constrain((int)baud, 9600, 115200);
-  mb_req_address = addr;
-  mb_req_baud    = baud;
-  mbApplyPending = true;
-}
-
-static void applyModbusPendingIfNeeded() {
-  const unsigned long now = millis();
-  if (!mbApplyPending) return;
-  if (mbBusy) return;
-  if (now - mbLastApplyMs < mbApplyMinIntervalMs) return;
-
-  mbApplyPending = false;
-  mbBusy = true;
-
-  if (g_mb_baud != mb_req_baud) {
-    Serial2.end();
-    Serial2.setTX(TX2);
-    Serial2.setRX(RX2);
-    Serial2.begin(mb_req_baud);
-    while (Serial2.available()) (void)Serial2.read();
-    mb.config(mb_req_baud);
-    g_mb_baud = mb_req_baud;
-  }
-  if (g_mb_address != mb_req_address) {
-    setSlaveIdIfAvailable(mb, mb_req_address);
-    g_mb_address = mb_req_address;
-  }
-
-  breathe();
-
-  mbLastApplyMs = now;
-  mbBusy = false;
-
-  pendingStatus = true;
-  pendingMsgText = "OK: Modbus applied";
-  pendingMsg = true;
-}
-
 // ================== ATM live (chunked — keeps USB/Modbus alive) ==================
 struct AtmLiveCache {
   double Ua_V, Ub_V, Uc_V;
@@ -398,22 +345,34 @@ static void handleGetAll(JSONVar) {
   pendingMsg = true;
 }
 
+static void applyModbusSettingsDirect(uint8_t addr, uint32_t baud) {
+  addr = (uint8_t)constrain((int)addr, 1, 247);
+  baud = (uint32_t)constrain((int)baud, 9600, 115200);
+
+  if (g_mb_baud != baud) {
+    Serial2.end();
+    delay(20);
+    Serial2.setTX(TX2);
+    Serial2.setRX(RX2);
+    Serial2.begin(baud);
+    while (Serial2.available()) (void)Serial2.read();
+    mb.config(baud);
+    g_mb_baud = baud;
+  }
+  if (g_mb_address != addr) {
+    setSlaveIdIfAvailable(mb, addr);
+    g_mb_address = addr;
+  }
+}
+
 static void handleValues(JSONVar values) {
   int addr = values.hasOwnProperty("mb_address") ? (int)values["mb_address"] : (int)g_mb_address;
   int baud = values.hasOwnProperty("mb_baud")    ? (int)values["mb_baud"]    : (int)g_mb_baud;
-  addr = constrain(addr, 1, 247);
-  baud = constrain(baud, 9600, 115200);
 
-  if ((uint8_t)addr == g_mb_address && (uint32_t)baud == g_mb_baud) {
-    pendingMsgText = "OK: Modbus unchanged";
-    pendingMsg = true;
-    return;
-  }
-
-  queueModbusApply((uint8_t)addr, (uint32_t)baud);
-
-  pendingMsgText = "OK: Modbus queued";
-  pendingMsg = true;
+  applyModbusSettingsDirect((uint8_t)addr, (uint32_t)baud);
+  updateModbusStatusJson();
+  WebSerial.send("status", modbusStatus);
+  WebSerial.send("message", "OK: Modbus applied");
 }
 
 static void handleRelayCfg(JSONVar obj) {
@@ -568,10 +527,7 @@ void loop() {
 
   atmLiveJobStep();
 
-  // 2) Apply queued Modbus safely (before mb.task)
-  applyModbusPendingIfNeeded();
-
-  // 3) Apply queued ATM safely (rate-limited, no live reads while busy)
+  // 2) Apply queued ATM safely (rate-limited, no live reads while busy)
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
     atmApplyPending = false;
     atmBusy = true;
@@ -585,11 +541,9 @@ void loop() {
     pendingMsg = true;
   }
 
-  // 4) Modbus tasking
-  if (!mbBusy) {
-    mb.task();
-    processModbusCommandPulses();
-  }
+  // 3) Modbus tasking
+  mb.task();
+  processModbusCommandPulses();
 
   // 5) Blink scheduler
   if (now - lastBlinkToggle >= blinkPeriodMs) {
