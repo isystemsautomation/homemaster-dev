@@ -270,7 +270,7 @@
 
   connection.on('message', (m)=>{
     if (typeof m === 'string') {
-      if (m.indexOf('Modbus') >= 0 || m.indexOf('Boot OK') >= 0) toast(m);
+      if (m.indexOf('Modbus') >= 0 || m.indexOf('Boot OK') >= 0 || m.indexOf('configuration updated') >= 0) toast(m);
       const i = m.indexOf(':');
       const ev = i > 0 ? m.slice(0, i) : m;
       if (!LOG_SKIP.has(ev)) appendLog('log', m);

@@ -126,7 +126,7 @@ static unsigned long lastSend = 0;
 static unsigned long lastStatusSend = 0;
 static unsigned long lastEnergyAccumMs = 0;
 // Slower push = MUCH more stable on USB/WebSerial stacks
-static const unsigned long sendInterval = 2000;
+static const unsigned long sendInterval = 1000;
 static const unsigned long statusIntervalMs = 2000;
 static const unsigned long energyIntervalMs = 5000;
 
@@ -138,13 +138,8 @@ static bool blinkPhase = false;
 static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
 
-static volatile bool pendingModbusApply = false;
 static volatile bool pendingPhaseCalApply = false;
-static uint8_t  pending_mb_addr = 30;
-static uint32_t pending_mb_baud = 19200;
-static unsigned long mbTaskHoldUntil = 0;
-static bool deferredSlaveIdApply = false;
-static uint8_t deferredSlaveId = 30;
+static unsigned long atmMeterPausedUntil = 0;
 
 // During ATM SPI sampling: only Modbus/yield — never WebSerial.check() (reentrancy).
 static inline void yieldMbOnly() {
@@ -414,7 +409,7 @@ static bool atmLiveJob = false;
 static uint8_t atmLiveStep = 0;
 
 static void atmLiveJobBegin() {
-  if (atmBusy) return;
+  if (atmBusy || millis() < atmMeterPausedUntil) return;
   atmLiveJob = true;
   atmLiveStep = 0;
 }
@@ -468,7 +463,7 @@ static void atmLiveAccumulateEnergyStep(uint8_t sub) {
 }
 
 static void atmLiveJobStep() {
-  if (!atmLiveJob || atmBusy) return;
+  if (!atmLiveJob || atmBusy || millis() < atmMeterPausedUntil) return;
   switch (atmLiveStep) {
     case 0: g_atm_live.Ua_V = g_atm.readUrmsA_V(); g_atm_live.Ub_V = g_atm.readUrmsB_V(); yieldMbOnly(); atmLiveStep++; break;
     case 1: g_atm_live.Uc_V = g_atm.readUrmsC_V(); g_atm_live.Ia_A = g_atm.readIrmsA_A(); yieldMbOnly(); atmLiveStep++; break;
@@ -586,36 +581,38 @@ static void handleGetAll(JSONVar) {
   pendingMsg = true;
 }
 
-static void applyModbusSettingsDirect(uint8_t addr, uint32_t baud) {
+// Same pattern as AIO-422: apply immediately inside the WebSerial handler.
+static void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = (uint8_t)constrain((int)addr, 1, 247);
   baud = (uint32_t)constrain((int)baud, 9600, 115200);
 
-  if (g_mb_baud != baud) {
+  if ((uint32_t)g_mb_baud != baud) {
     Serial2.end();
-    delay(20);
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
     Serial2.begin(baud);
     while (Serial2.available()) (void)Serial2.read();
     mb.config(baud);
     g_mb_baud = baud;
-    mbTaskHoldUntil = millis() + 500;
   }
-  if (g_mb_address != addr) {
-    g_mb_address = addr;
-    SlaveId = (int)addr;
-    deferredSlaveId = addr;
-    deferredSlaveIdApply = true;
-    mbTaskHoldUntil = millis() + 500;
-  }
+  setSlaveIdIfAvailable(mb, addr);
+  g_mb_address = addr;
+  SlaveId = (int)addr;
+  updateModbusStatusJson();
 }
 
 static void handleValues(JSONVar values) {
   const int addr = jsonParseKey(values, "mb_address", (int)g_mb_address);
   const int baud = jsonParseKey(values, "mb_baud",    (int)g_mb_baud);
-  pending_mb_addr = (uint8_t)constrain(addr, 1, 247);
-  pending_mb_baud = (uint32_t)constrain(baud, 9600, 115200);
-  pendingModbusApply = true;
+
+  applyModbusSettings((uint8_t)addr, (uint32_t)baud);
+
+  // Pause ATM SPI polling so USB reply goes out (ENM has no SPI on AIO)
+  atmLiveJob = false;
+  atmMeterPausedUntil = millis() + 800;
+
+  WebSerial.send("status", modbusStatus);
+  WebSerial.send("message", "Modbus configuration updated");
 }
 
 static void handleRelayCfg(JSONVar obj) {
@@ -756,7 +753,7 @@ void setup() {
   atmLiveJobBegin();
 
   // Defer this message to loop (safe)
-  pendingMsgText = "Boot OK v4: Modbus USB-first, mb.task paused 500ms";
+  pendingMsgText = "Boot OK v5: Modbus like AIO (immediate apply)";
   pendingMsg = true;
   echoStep = 0;
   pendingEchoAll = true;
@@ -766,24 +763,9 @@ void setup() {
 void loop() {
   const unsigned long now = millis();
 
-  // 0) USB in first
   WebSerial.check();
 
-  // 1) Modbus — immediate ack in same iteration as values
-  if (pendingModbusApply) {
-    pendingModbusApply = false;
-    atmLiveJob = false;
-    if (pending_mb_addr != g_mb_address || pending_mb_baud != g_mb_baud) {
-      applyModbusSettingsDirect(pending_mb_addr, pending_mb_baud);
-    }
-    updateModbusStatusJson();
-    WebSerial.send("status", modbusStatus);
-    static char mbAck[56];
-    snprintf(mbAck, sizeof(mbAck), "OK: Modbus addr=%u baud=%lu",
-             (unsigned)g_mb_address, (unsigned long)g_mb_baud);
-    WebSerial.send("message", mbAck);
-    yield();
-  }
+  mb.task();
 
   atmLiveJobStep();
 
@@ -813,15 +795,7 @@ void loop() {
     pendingMsg = true;
   }
 
-  // 4) Modbus tasking — pause after address/baud change (mb.task can block on RS485)
-  if (!atmBusy && now >= mbTaskHoldUntil) {
-    if (deferredSlaveIdApply) {
-      deferredSlaveIdApply = false;
-      setSlaveIdIfAvailable(mb, deferredSlaveId);
-    }
-    mb.task();
-    processModbusCommandPulses();
-  }
+  processModbusCommandPulses();
 
   // 5) Blink scheduler
   if (now - lastBlinkToggle >= blinkPeriodMs) {
@@ -897,9 +871,12 @@ void loop() {
     pendingMsgText = nullptr;
   }
 
-  // 10) Periodic live updates
+  // 10) Periodic live updates (AIO: WebSerial.check + status in this block)
   if (now - lastSend >= sendInterval) {
     lastSend = now;
+
+    WebSerial.check();
+
     if (!atmLiveJob) atmLiveJobBegin();
 
     if (pendingStatus || (now - lastStatusSend >= statusIntervalMs)) {
@@ -938,4 +915,5 @@ void loop() {
     }
   }
 
+  mb.task();
 }
