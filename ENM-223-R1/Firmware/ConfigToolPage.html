@@ -247,11 +247,15 @@
     requestElement:'connect-button'
   });
 
+  let suppressModbusPush = false;
+  const LOG_SKIP = new Set(['atmLive','status','relayStateList','ButtonStateList','LedStateList']);
+
   connection.on('open', ()=>{
     appendLog('port','open');
     const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
     toast('Connected');
-    appendLog('sync','waiting for 1Hz pushes…');
+    connection.send('getAll', {});
+    appendLog('getAll','requested');
   });
 
   connection.on('close', ()=>{
@@ -260,7 +264,15 @@
     toast('Disconnected');
   });
 
-  connection.on('message', (m)=>appendLog('log', m));
+  connection.on('message', (m)=>{
+    if (typeof m === 'string') {
+      const i = m.indexOf(':');
+      const ev = i > 0 ? m.slice(0, i) : m;
+      if (!LOG_SKIP.has(ev)) appendLog('log', m);
+    } else {
+      appendLog('log', m);
+    }
+  });
 
   /* ===== Field lock system ===== */
   const locked = new Set();
@@ -395,8 +407,13 @@
   }
   function sendCalibCh(ch){
     const cfg=collectCalibCh(ch);
-    connection.send("CalibCfg",{ ph: ch, cfg });
-    appendLog("CalibCfg",{ ph: ch, cfg });
+    const evt = ch===0 ? 'atmA' : (ch===1 ? 'atmB' : 'atmC');
+    const payload = {
+      Ugain: cfg.Ug, Igain: cfg.Ig,
+      Uoffset: cfg.Uo, Ioffset: cfg.Io
+    };
+    connection.send(evt, payload);
+    appendLog(evt, payload);
   }
   function applyCalibCh(ch, obj){
     if(!obj || typeof obj!=='object') return;
@@ -583,7 +600,11 @@
             mode:[modes[0]|0, modes[1]|0],
             alarm:[ {ch:(chsel[0]??3)|0, mask:maskFor(0)}, {ch:(chsel[1]??3)|0, mask:maskFor(1)} ]
           };
-          connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg); toast('Relays updated');
+          connection.send("relayCfg", {
+            enabled: [!!$('enable-relay1')?.checked, !!$('enable-relay2')?.checked],
+            inverted: [!!$('invert-relay1')?.checked, !!$('invert-relay2')?.checked]
+          });
+          appendLog("relayCfg", "enabled/inverted"); toast('Relays updated');
         };
         modeSel.addEventListener('change', ()=>{ sendCfg(); updateVis(); });
         updateVis();
@@ -619,8 +640,14 @@
         const el = $('action-button'+j);
         list.push({ action: +(el?.value ?? 0) });
       }
-      connection.send("Config",{t:"buttons",list});
-      appendLog("Config.buttons", list);
+      const actions = list.map(x => {
+        const v = x.action|0;
+        if (v === 1) return 5;
+        if (v === 2) return 6;
+        return 0;
+      });
+      connection.send("btnCfg", { action: actions });
+      appendLog("btnCfg", actions);
       toast('Buttons updated');
     }
     for(let i=1;i<=4;i++){
@@ -658,8 +685,16 @@
         const m=$('mode-led'+j), s=$('source-led'+j);
         list.push({ mode:+(m?.value ?? 0), source:+(s?.value ?? 0) });
       }
-      connection.send("Config",{t:"leds",list});
-      appendLog("Config.leds", list);
+      const modes = [], sources = [];
+      for (const x of list) {
+        modes.push(x.mode|0);
+        let s = x.source|0;
+        if (s === 8) s = 5;
+        if (s === 9) s = 6;
+        sources.push((s===5||s===6) ? s : 0);
+      }
+      connection.send("ledCfg", { mode: modes, source: sources });
+      appendLog("ledCfg", { mode: modes, source: sources });
       toast('LEDs updated');
     };
     for(let i=1;i<=4;i++){
@@ -671,22 +706,30 @@
 
   /* ===== Meter Options send ===== */
   function sendMeterCfg(partial){
-    connection.send("Config",{t:"meter", cfg: partial});
-    appendLog("Config.meter", partial);
+    connection.send("atm", partial);
+    appendLog("atm", partial);
   }
   $('opt-lineHz')?.addEventListener('change', ()=>{ sendMeterCfg({lineHz:+$('opt-lineHz').value}); toast('Meter option sent'); });
   $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
 
-  /* ===== Modbus live push on change ===== */
+  /* ===== Modbus (send only on explicit change — not while device echoes status) ===== */
+  let modbusPushTimer = null;
   function pushModbus(){
-    const mb_address=parseInt($('modbus-address')?.value||"3",10);
-    const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
-    connection.send("values",{mb_address,mb_baud}); appendLog("values",{mb_address,mb_baud});
-    toast('Modbus sent');
+    if (suppressModbusPush) return;
+    if (modbusPushTimer) clearTimeout(modbusPushTimer);
+    modbusPushTimer = setTimeout(() => {
+      modbusPushTimer = null;
+      const mb_address=parseInt($('modbus-address')?.value||"30",10);
+      const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
+      if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
+      connection.send("values",{mb_address,mb_baud});
+      appendLog("values",{mb_address,mb_baud});
+      toast('Modbus sent');
+    }, 400);
   }
-  $('modbus-address')?.addEventListener('input', pushModbus);
-  $('modbus-baud')?.addEventListener('input', pushModbus);
+  $('modbus-address')?.addEventListener('change', pushModbus);
+  $('modbus-baud')?.addEventListener('change', pushModbus);
 
   /* ===== Request Sync ===== */
   $('req-sync')?.addEventListener('click', ()=>{
@@ -769,8 +812,56 @@
   connection.on('status', function(st){
     $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
     $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
+    suppressModbusPush = true;
     if(st && st.address!==undefined) $('modbus-address').value=String(st.address);
     if(st && st.baud!==undefined) $('modbus-baud').value=String(st.baud);
+    suppressModbusPush = false;
+  });
+
+  /* ===== default_enm_223_r1 firmware protocol ===== */
+  connection.on('atmLive', function(m){
+    if(!m) return;
+    const pf = (raw)=> (typeof raw==='number') ? (raw/1000).toFixed(3) : '--';
+    const set = (id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
+    set('u0', m.Ua_V, 2); set('u1', m.Ub_V, 2); set('u2', m.Uc_V, 2);
+    set('i0', m.Ia_A, 3); set('i1', m.Ib_A, 3); set('i2', m.Ic_A, 3);
+    const setTxt = (id,t)=>{ const el=$(id); if(el) el.textContent=t; };
+    setTxt('pf0', pf(m.PF_A_raw)); setTxt('pf1', pf(m.PF_B_raw)); setTxt('pf2', pf(m.PF_C_raw)); setTxt('pft', pf(m.PF_T_raw));
+    set('ang0', m.AngA_raw, 0); set('ang1', m.AngB_raw, 0); set('ang2', m.AngC_raw, 0);
+    if(typeof m.Freq_x100==='number') set('f', m.Freq_x100/100, 2);
+    if(m.Temp_C!==undefined) set('t', m.Temp_C, 0);
+    $('p0')&&($('p0').textContent='--'); $('q0')&&($('q0').textContent='--'); $('s0')&&($('s0').textContent='--');
+    $('p1')&&($('p1').textContent='--'); $('q1')&&($('q1').textContent='--'); $('s1')&&($('s1').textContent='--');
+    $('p2')&&($('p2').textContent='--'); $('q2')&&($('q2').textContent='--'); $('s2')&&($('s2').textContent='--');
+    $('p3')&&($('p3').textContent='--'); $('q3')&&($('q3').textContent='--'); $('s3')&&($('s3').textContent='--');
+  });
+
+  connection.on('atmCfg', function(cfg){
+    if(!cfg) return;
+    if(cfg.lineHz!==undefined) $('opt-lineHz').value=String(cfg.lineHz);
+    if(cfg.sumAbs!==undefined) $('opt-sumAbs').value=String(cfg.sumAbs);
+    const cal = cfg.cal;
+    if(cal){
+      for(let ch=0; ch<3; ch++){
+        const p = Array.isArray(cal) ? cal[ch] : cal[ch];
+        if(p) applyCalibCh(ch, p);
+      }
+    }
+  });
+
+  connection.on('relayEnableList', (list)=>{
+    if(!Array.isArray(list)) return;
+    for(let i=0;i<2;i++){ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!list[i]; }
+  });
+  connection.on('relayInvertList', (list)=>{
+    if(!Array.isArray(list)) return;
+    const v=!!list[0];
+    $('invert-relay1')&&($('invert-relay1').checked=v);
+    $('invert-relay2')&&($('invert-relay2').checked=v);
+  });
+  connection.on('relayStateList', (list)=>{
+    if(!Array.isArray(list)) return;
+    for(let i=0;i<2;i++){ const el=$('state-relay'+(i+1)); if(el) el.checked=!!list[i]; }
   });
 
   connection.on('MeterOptions', function(mo){

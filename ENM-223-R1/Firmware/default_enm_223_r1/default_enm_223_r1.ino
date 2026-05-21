@@ -60,6 +60,12 @@ static unsigned long mbLastApplyMs = 0;
 static const unsigned long mbApplyMinIntervalMs = 250;
 static bool mbBusy = false;
 
+static inline void breathe() {
+  WebSerial.check();
+  if (!mbBusy) mb.task();
+  yield();
+}
+
 // ================== ATM90E32 (RP2350 / ENM hardware) ==================
 static const uint8_t ATM_SCK  = 10;
 static const uint8_t ATM_MOSI = 11;
@@ -276,7 +282,10 @@ static void applyModbusPendingIfNeeded() {
 
   if (g_mb_baud != mb_req_baud) {
     Serial2.end();
+    Serial2.setTX(TX2);
+    Serial2.setRX(RX2);
     Serial2.begin(mb_req_baud);
+    while (Serial2.available()) (void)Serial2.read();
     mb.config(mb_req_baud);
     g_mb_baud = mb_req_baud;
   }
@@ -284,6 +293,8 @@ static void applyModbusPendingIfNeeded() {
     setSlaveIdIfAvailable(mb, mb_req_address);
     g_mb_address = mb_req_address;
   }
+
+  breathe();
 
   mbLastApplyMs = now;
   mbBusy = false;
@@ -293,40 +304,71 @@ static void applyModbusPendingIfNeeded() {
   pendingMsg = true;
 }
 
-// ================== ATM live ==================
+// ================== ATM live (chunked — keeps USB/Modbus alive) ==================
+struct AtmLiveCache {
+  double Ua_V, Ub_V, Uc_V;
+  double Ia_A, Ib_A, Ic_A;
+  int16_t PF_A_raw, PF_B_raw, PF_C_raw, PF_T_raw;
+  int16_t AngA_raw, AngB_raw, AngC_raw;
+  uint16_t Freq_x100;
+  int16_t Temp_C;
+  M90DiagRegs diag{};
+  bool valid = false;
+};
+static AtmLiveCache g_atm_live;
+static bool atmLiveJob = false;
+static uint8_t atmLiveStep = 0;
+
+static void atmLiveJobBegin() {
+  if (atmBusy) return;
+  atmLiveJob = true;
+  atmLiveStep = 0;
+}
+
+static void atmLiveJobStep() {
+  if (!atmLiveJob || atmBusy) return;
+  switch (atmLiveStep) {
+    case 0: g_atm_live.Ua_V = g_atm.readUrmsA_V(); g_atm_live.Ub_V = g_atm.readUrmsB_V(); breathe(); atmLiveStep++; break;
+    case 1: g_atm_live.Uc_V = g_atm.readUrmsC_V(); g_atm_live.Ia_A = g_atm.readIrmsA_A(); breathe(); atmLiveStep++; break;
+    case 2: g_atm_live.Ib_A = g_atm.readIrmsB_A(); g_atm_live.Ic_A = g_atm.readIrmsC_A(); breathe(); atmLiveStep++; break;
+    case 3:
+      g_atm_live.PF_A_raw = g_atm.readPFmeanA(); g_atm_live.PF_B_raw = g_atm.readPFmeanB();
+      g_atm_live.PF_C_raw = g_atm.readPFmeanC(); g_atm_live.PF_T_raw = g_atm.readPFmeanT();
+      breathe(); atmLiveStep++; break;
+    case 4:
+      g_atm_live.AngA_raw = g_atm.readPAngleA(); g_atm_live.AngB_raw = g_atm.readPAngleB(); g_atm_live.AngC_raw = g_atm.readPAngleC();
+      breathe(); atmLiveStep++; break;
+    case 5: g_atm_live.Freq_x100 = g_atm.readFreq_x100(); g_atm_live.Temp_C = g_atm.readTempC(); breathe(); atmLiveStep++; break;
+    case 6: g_atm_live.diag = g_atm.readDiag(); g_atm_live.valid = true; atmLiveJob = false; breathe(); break;
+    default: atmLiveJob = false; break;
+  }
+}
+
 static JSONVar atmLiveToJson() {
   JSONVar o;
-
-  o["Ua_V"] = g_atm.readUrmsA_V();
-  o["Ub_V"] = g_atm.readUrmsB_V();
-  o["Uc_V"] = g_atm.readUrmsC_V();
-
-  o["Ia_A"] = g_atm.readIrmsA_A();
-  o["Ib_A"] = g_atm.readIrmsB_A();
-  o["Ic_A"] = g_atm.readIrmsC_A();
-
-  o["PF_A_raw"] = (int)g_atm.readPFmeanA();
-  o["PF_B_raw"] = (int)g_atm.readPFmeanB();
-  o["PF_C_raw"] = (int)g_atm.readPFmeanC();
-  o["PF_T_raw"] = (int)g_atm.readPFmeanT();
-
-  o["AngA_raw"] = (int)g_atm.readPAngleA();
-  o["AngB_raw"] = (int)g_atm.readPAngleB();
-  o["AngC_raw"] = (int)g_atm.readPAngleC();
-
-  o["Freq_x100"] = (int)g_atm.readFreq_x100();
-  o["Temp_C"]    = (int)g_atm.readTempC();
-
-  M90DiagRegs d = g_atm.readDiag();
+  o["Ua_V"] = g_atm_live.Ua_V;
+  o["Ub_V"] = g_atm_live.Ub_V;
+  o["Uc_V"] = g_atm_live.Uc_V;
+  o["Ia_A"] = g_atm_live.Ia_A;
+  o["Ib_A"] = g_atm_live.Ib_A;
+  o["Ic_A"] = g_atm_live.Ic_A;
+  o["PF_A_raw"] = (int)g_atm_live.PF_A_raw;
+  o["PF_B_raw"] = (int)g_atm_live.PF_B_raw;
+  o["PF_C_raw"] = (int)g_atm_live.PF_C_raw;
+  o["PF_T_raw"] = (int)g_atm_live.PF_T_raw;
+  o["AngA_raw"] = (int)g_atm_live.AngA_raw;
+  o["AngB_raw"] = (int)g_atm_live.AngB_raw;
+  o["AngC_raw"] = (int)g_atm_live.AngC_raw;
+  o["Freq_x100"] = (int)g_atm_live.Freq_x100;
+  o["Temp_C"]    = (int)g_atm_live.Temp_C;
   JSONVar diag;
-  diag["EMMState0"]     = (int)d.EMMState0;
-  diag["EMMState1"]     = (int)d.EMMState1;
-  diag["EMMIntState0"]  = (int)d.EMMIntState0;
-  diag["EMMIntState1"]  = (int)d.EMMIntState1;
-  diag["CRCErrStatus"]  = (int)d.CRCErrStatus;
-  diag["LastSPIData"]   = (int)d.LastSPIData;
+  diag["EMMState0"]    = (int)g_atm_live.diag.EMMState0;
+  diag["EMMState1"]    = (int)g_atm_live.diag.EMMState1;
+  diag["EMMIntState0"] = (int)g_atm_live.diag.EMMIntState0;
+  diag["EMMIntState1"] = (int)g_atm_live.diag.EMMIntState1;
+  diag["CRCErrStatus"] = (int)g_atm_live.diag.CRCErrStatus;
+  diag["LastSPIData"]  = (int)g_atm_live.diag.LastSPIData;
   o["diag"] = diag;
-
   return o;
 }
 
@@ -361,6 +403,12 @@ static void handleValues(JSONVar values) {
   int baud = values.hasOwnProperty("mb_baud")    ? (int)values["mb_baud"]    : (int)g_mb_baud;
   addr = constrain(addr, 1, 247);
   baud = constrain(baud, 9600, 115200);
+
+  if ((uint8_t)addr == g_mb_address && (uint32_t)baud == g_mb_baud) {
+    pendingMsgText = "OK: Modbus unchanged";
+    pendingMsg = true;
+    return;
+  }
 
   queueModbusApply((uint8_t)addr, (uint32_t)baud);
 
@@ -503,6 +551,7 @@ void setup() {
   atmBusy = true;
   atmApplyFromCfg_NOW();
   atmBusy = false;
+  atmLiveJobBegin();
 
   // Defer this message to loop (safe)
   pendingMsgText = "Boot OK (stable): callbacks do not send; all sends happen in loop";
@@ -517,6 +566,8 @@ void loop() {
   // 1) Process inbound WebSerial
   WebSerial.check();
 
+  atmLiveJobStep();
+
   // 2) Apply queued Modbus safely (before mb.task)
   applyModbusPendingIfNeeded();
 
@@ -527,6 +578,7 @@ void loop() {
     atmApplyFromCfg_NOW();
     atmBusy = false;
     atmLastApplyMs = now;
+    atmLiveJobBegin();
 
     pendingAtmCfg = true;
     pendingMsgText = "OK: ATM applied";
@@ -616,6 +668,7 @@ void loop() {
   // 10) Periodic live updates
   if (now - lastSend >= sendInterval) {
     lastSend = now;
+    if (!atmLiveJob) atmLiveJobBegin();
 
     updateModbusStatusJson();
     WebSerial.send("status", modbusStatus);
@@ -632,7 +685,7 @@ void loop() {
     for (int i = 0; i < NUM_LED; i++) ledStateList[i] = ledPhysState[i];
     WebSerial.send("LedStateList", ledStateList);
 
-    if (!atmBusy) {
+    if (!atmBusy && g_atm_live.valid) {
       WebSerial.send("atmLive", atmLiveToJson());
     }
 
