@@ -166,7 +166,7 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
   m0 &= ~0b111u; m0 |= 0b101u;
 
   auto gainCode = [](uint8_t g)->uint8_t{ if(g==1)return 0; if(g==2)return 1; if(g==4)return 2; return 1; };
-  const uint8_t gIA=2,gIB=2,gIC=2;  // PGA=2× for ZEMCTK05 (167 mV @ 50A)
+  const uint8_t gIA=1,gIB=1,gIC=1;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
   write16(PLconstH, 0x0861);
