@@ -248,7 +248,7 @@
   });
 
   let suppressModbusPush = false;
-  const LOG_SKIP = new Set(['atmLive','status','relayStateList','ButtonStateList','LedStateList']);
+  const LOG_SKIP = new Set(['ENM_Meter','atmLive','status','relayStateList','ButtonStateList','LedStateList']);
 
   connection.on('open', ()=>{
     appendLog('port','open');
