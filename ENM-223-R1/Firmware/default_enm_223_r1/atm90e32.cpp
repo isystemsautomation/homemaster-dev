@@ -202,6 +202,23 @@ void ATM90E32::applyCalibration(const M90PhaseCal cal[3]) {
   write16(CfgRegAccEn, 0x0000);
 }
 
+void ATM90E32::readPhaseCal(M90PhaseCal out[3]) {
+  write16(CfgRegAccEn, 0x55AA);
+  out[0].Ugain   = read16(UgainA);
+  out[0].Igain   = read16(IgainA);
+  out[0].Uoffset = (int16_t)read16(UoffsetA);
+  out[0].Ioffset = (int16_t)read16(IoffsetA);
+  out[1].Ugain   = read16(UgainB);
+  out[1].Igain   = read16(IgainB);
+  out[1].Uoffset = (int16_t)read16(UoffsetB);
+  out[1].Ioffset = (int16_t)read16(IoffsetB);
+  out[2].Ugain   = read16(UgainC);
+  out[2].Igain   = read16(IgainC);
+  out[2].Uoffset = (int16_t)read16(UoffsetC);
+  out[2].Ioffset = (int16_t)read16(IoffsetC);
+  write16(CfgRegAccEn, 0x0000);
+}
+
 // RMS helpers
 double ATM90E32::readUrmsA_V(){ return readRmsLike(UrmsA, UrmsALSB, 0.01, 0.01/256.0); }
 double ATM90E32::readUrmsB_V(){ return readRmsLike(UrmsB, UrmsBLSB, 0.01, 0.01/256.0); }

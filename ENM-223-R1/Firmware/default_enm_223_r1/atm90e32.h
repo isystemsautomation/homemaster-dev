@@ -33,6 +33,7 @@ public:
 
   void begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90PhaseCal cal[3]);
   void applyCalibration(const M90PhaseCal cal[3]);
+  void readPhaseCal(M90PhaseCal out[3]);
 
   // Live helpers (scales chosen to match typical UI: V in 0.01, A in 0.001)
   double readUrmsA_V(); double readUrmsB_V(); double readUrmsC_V();

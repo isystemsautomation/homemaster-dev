@@ -65,8 +65,8 @@
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
     <p style="margin:.25rem 0 0;color:#333;">
-      Live config every 1s from device. Edit a field and press <b>Enter</b> to send.
-      While editing, that field won’t auto-update.
+      Set Modbus address/baud, then click <b>Apply Modbus</b> (do not rely on auto-send).
+      Calibration: press <b>Enter</b> in a field to send.
       <span id="conn-pill" class="badge" style="margin-left:.5rem;display:none">connected</span>
     </p>
   </div>
@@ -86,7 +86,8 @@
         <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
-    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
+    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;align-items:center">
+      <button id="apply-modbus" type="button" style="padding:10px 16px;background:#198754;color:#fff;border:none;border-radius:4px;">Apply Modbus</button>
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
       <button id="req-sync" type="button" style="padding:10px 14px;background:#6c757d;color:#fff;border:none;border-radius:6px;">Request Sync</button>
     </div>
@@ -245,22 +246,27 @@
   /* ===== Serial connection ===== */
   const connection = SimpleWebSerial.setupSerialConnection({
     requestAccessOnPageLoad:false,
-    requestElement:'connect-button'
+    requestElement:'connect-button',
+    baudRate:57600,
+    logIncomingSerialData:false,
+    logOutgoingSerialData:false
   });
 
   let suppressModbusPush = false;
   let lastKnownMbAddr = null;
   let lastKnownMbBaud = null;
+  let modbusApplyPending = false;
+  let modbusApplyTimer = null;
+  let lastStatusRxMs = 0;
   const LOG_SKIP = new Set(['ENM_Meter','atmLive','relayStateList','ButtonStateList','LedStateList']);
 
   connection.on('open', ()=>{
     appendLog('port','open');
     const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
     toast('Connected');
-    const reqSync=()=>{ connection.send('getAll', {}); appendLog('getAll','requested'); };
-    reqSync();
-    setTimeout(reqSync, 600);
-    setTimeout(reqSync, 2000);
+    connection.send('getAll', {}).catch(e=>appendLog('err', String(e)));
+    appendLog('getAll','requested');
+    lastStatusRxMs = 0;
   });
 
   connection.on('close', ()=>{
@@ -270,13 +276,13 @@
   });
 
   connection.on('message', (m)=>{
+    appendLog('message', m);
+    if (modbusApplyPending) {
+      modbusApplyPending = false;
+      if (modbusApplyTimer) clearTimeout(modbusApplyTimer);
+    }
     if (typeof m === 'string') {
       if (m.indexOf('Modbus') >= 0 || m.indexOf('Boot OK') >= 0 || m.indexOf('configuration updated') >= 0) toast(m);
-      const i = m.indexOf(':');
-      const ev = i > 0 ? m.slice(0, i) : m;
-      if (!LOG_SKIP.has(ev)) appendLog('log', m);
-    } else {
-      appendLog('log', m);
     }
   });
 
@@ -425,10 +431,9 @@
     const v=readCalNumber(spec.id, spec.signed);
     if(v===null){ toast('Invalid or empty value'); return; }
     if(spec.min!==null && v<spec.min){ toast(field+' must be >= '+spec.min); return; }
-    const evt = ch===0 ? 'atmA' : (ch===1 ? 'atmB' : 'atmC');
-    const payload = {}; payload[field]=v;
-    connection.send(evt, payload);
-    appendLog(evt, payload);
+    const payload = { ph: ch }; payload[field]=v;
+    connection.send('atm', payload);
+    appendLog('atm', payload);
   }
   function unlockCalibKeys(ch){
     for(const k of ['cal-ugain-','cal-igain-','cal-uoff-','cal-ioff-']){
@@ -452,12 +457,15 @@
   }
   function applyCalibFromCfg(cfg){
     if(!cfg) return;
-    const cal = cfg.cal;
+    let cal = cfg.cal ?? cfg.phases ?? cfg.phase ?? cfg.ph;
+    if(typeof cal === 'string'){
+      try{ cal = JSON.parse(cal); }catch(e){ return; }
+    }
     if(!cal) return;
     for(let ch=0; ch<3; ch++){
       let p = null;
       if(Array.isArray(cal)) p = cal[ch];
-      else if(typeof cal==='object') p = cal[ch] ?? cal[''+ch] ?? cal['ph'+ch];
+      else if(typeof cal==='object') p = cal[ch] ?? cal[''+ch] ?? cal['ph'+ch] ?? cal[['A','B','C'][ch]];
       if(p) applyCalibCh(ch, p, true);
     }
   }
@@ -748,24 +756,37 @@
   $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
 
-  /* ===== Modbus (send on change, debounced; suppressed while device echoes status) ===== */
-  let modbusPushTimer = null;
-  function pushModbus(){
-    if (suppressModbusPush) return;
-    if (modbusPushTimer) clearTimeout(modbusPushTimer);
-    modbusPushTimer = setTimeout(() => {
-      modbusPushTimer = null;
-      const mb_address=parseInt($('modbus-address')?.value||"30",10);
-      const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
-      if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
-      if (lastKnownMbAddr === mb_address && lastKnownMbBaud === mb_baud) return;
-      connection.send("values",{mb_address,mb_baud});
-      appendLog("values",{mb_address,mb_baud});
-      toast('Modbus sent');
-    }, 400);
+  /* ===== Modbus: manual Apply only (like AIO uses values; no auto-send on select change) ===== */
+  async function applyModbus(){
+    const mb_address=parseInt($('modbus-address')?.value||"30",10);
+    const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
+    if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) {
+      toast('Invalid Modbus address'); return;
+    }
+    if (lastKnownMbAddr === mb_address && lastKnownMbBaud === mb_baud) {
+      toast('Modbus unchanged'); return;
+    }
+    const payload = { mb_address, mb_baud };
+    appendLog('TX values', payload);
+    modbusApplyPending = true;
+    if (modbusApplyTimer) clearTimeout(modbusApplyTimer);
+    modbusApplyTimer = setTimeout(()=>{
+      if (modbusApplyPending) {
+        modbusApplyPending = false;
+        appendLog('timeout','No device response after Modbus apply (6s)');
+        toast('No response — reset module, flash ENM-v14');
+      }
+    }, 6000);
+    try {
+      await connection.send('values', payload);
+    } catch (e) {
+      modbusApplyPending = false;
+      if (modbusApplyTimer) clearTimeout(modbusApplyTimer);
+      appendLog('err', String(e));
+      toast('USB send failed');
+    }
   }
-  $('modbus-address')?.addEventListener('change', pushModbus);
-  $('modbus-baud')?.addEventListener('change', pushModbus);
+  $('apply-modbus')?.addEventListener('click', applyModbus);
 
   /* ===== Request Sync ===== */
   $('req-sync')?.addEventListener('click', ()=>{
@@ -847,16 +868,26 @@
   /* ===== Incoming firmware pushes ===== */
 
   connection.on('status', function(st){
-    appendLog('status', st);
+    lastStatusRxMs = Date.now();
+    if (modbusApplyPending) {
+      modbusApplyPending = false;
+      if (modbusApplyTimer) clearTimeout(modbusApplyTimer);
+      toast('Modbus applied');
+    }
     $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
     $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
-    $('live-fw').textContent=(st&&st.fw)?st.fw:'(old FW)';
+    $('live-fw').textContent=(st&&st.fw)?st.fw:'(old FW — need ENM-v14)';
     if(st && st.address!==undefined) lastKnownMbAddr = parseInt(st.address, 10);
     if(st && st.baud!==undefined) lastKnownMbBaud = parseInt(st.baud, 10);
-    suppressModbusPush = true;
-    if(st && st.address!==undefined) $('modbus-address').value=String(st.address);
-    if(st && st.baud!==undefined) $('modbus-baud').value=String(st.baud);
-    suppressModbusPush = false;
+    const addrEl=$('modbus-address');
+    const baudEl=$('modbus-baud');
+    const userEditing = document.activeElement===addrEl || document.activeElement===baudEl;
+    if (!userEditing) {
+      suppressModbusPush = true;
+      if(st && st.address!==undefined && addrEl) addrEl.value=String(st.address);
+      if(st && st.baud!==undefined && baudEl) baudEl.value=String(st.baud);
+      suppressModbusPush = false;
+    }
   });
 
   /* ===== default_enm_223_r1 firmware protocol ===== */
@@ -911,9 +942,8 @@
   connection.on('CalibCfg', function(payload){
     try{
       appendLog('CalibCfg','received');
-      if(Array.isArray(payload)){
-        for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{}, true);
-      }
+      if(Array.isArray(payload)) applyCalibFromCfg({cal: payload});
+      else if(payload && typeof payload === 'object') applyCalibFromCfg(payload);
     }catch(e){ appendLog('CalibCfg','parse error'); }
   });
 
