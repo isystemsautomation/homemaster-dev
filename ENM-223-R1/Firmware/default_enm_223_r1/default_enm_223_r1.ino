@@ -7,6 +7,87 @@
 
 #include "atm90e32.h"   // your external driver
 
+// ================== Safe JSON value extraction ==================
+// Баг Arduino_JSON на Linux: (int)obj["key"] и obj["key"] дают ASCII буквы ключа.
+// Надёжно: парсим число из JSON.stringify(всего объекта) по имени ключа.
+static inline String jsonBlob(const JSONVar& v) {
+  return JSON.stringify((JSONVar&)v);
+}
+
+static int jsonParseKey(const JSONVar& obj, const char* key, int fallback) {
+  if (!obj.hasOwnProperty(key)) return fallback;
+  const String blob = jsonBlob(obj);
+  if (blob.length() == 0 || blob == "null" || blob == "undefined") return fallback;
+
+  String pat = String("\"") + key + "\":";
+  int pos = blob.indexOf(pat);
+  if (pos < 0) {
+    pat = String(key) + ":";
+    pos = blob.indexOf(pat);
+    if (pos < 0) return fallback;
+    pos += pat.length();
+  } else {
+    pos += pat.length();
+  }
+
+  while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == '\t')) pos++;
+  if (pos >= (int)blob.length()) return fallback;
+
+  int end = pos;
+  if (blob[end] == '"') {
+    end++;
+    while (end < (int)blob.length() && blob[end] != '"') end++;
+  } else {
+    while (end < (int)blob.length() && blob[end] != ',' && blob[end] != '}' && blob[end] != ']') end++;
+  }
+  return blob.substring(pos, end).toInt();
+}
+
+static bool jsonParseKeyBool(const JSONVar& obj, const char* key, bool fallback) {
+  if (!obj.hasOwnProperty(key)) return fallback;
+  const String blob = jsonBlob(obj);
+  String pat = String("\"") + key + "\":";
+  int pos = blob.indexOf(pat);
+  if (pos < 0) return fallback;
+  pos += pat.length();
+  while (pos < (int)blob.length() && blob[pos] == ' ') pos++;
+  if (blob.startsWith("true", pos))  return true;
+  if (blob.startsWith("false", pos)) return false;
+  return jsonParseKey(obj, key, fallback ? 1 : 0) != 0;
+}
+
+static int jsonParseArrayInt(const JSONVar& arr, int idx, int fallback) {
+  const String blob = jsonBlob(arr);
+  if (blob.length() < 2 || blob[0] != '[') return fallback;
+  int pos = 1;
+  for (int i = 0; i < idx; i++) {
+    while (pos < (int)blob.length() && blob[pos] != ',' && blob[pos] != ']') pos++;
+    if (pos >= (int)blob.length() || blob[pos] == ']') return fallback;
+    pos++;
+    while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == ',')) pos++;
+  }
+  while (pos < (int)blob.length() && (blob[pos] == ' ')) pos++;
+  int end = pos;
+  while (end < (int)blob.length() && blob[end] != ',' && blob[end] != ']') end++;
+  return blob.substring(pos, end).toInt();
+}
+
+static bool jsonParseArrayBool(const JSONVar& arr, int idx, bool fallback) {
+  const String blob = jsonBlob(arr);
+  if (blob.length() < 2 || blob[0] != '[') return fallback;
+  int pos = 1;
+  for (int i = 0; i < idx; i++) {
+    while (pos < (int)blob.length() && blob[pos] != ',' && blob[pos] != ']') pos++;
+    if (pos >= (int)blob.length() || blob[pos] == ']') return fallback;
+    pos++;
+    while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == ',')) pos++;
+  }
+  while (pos < (int)blob.length() && (blob[pos] == ' ')) pos++;
+  if (blob.startsWith("true", pos))  return true;
+  if (blob.startsWith("false", pos)) return false;
+  return jsonParseArrayInt(arr, idx, fallback ? 1 : 0) != 0;
+}
+
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
 #define RX2 5
@@ -45,7 +126,7 @@ static unsigned long lastSend = 0;
 static unsigned long lastStatusSend = 0;
 static unsigned long lastEnergyAccumMs = 0;
 // Slower push = MUCH more stable on USB/WebSerial stacks
-static const unsigned long sendInterval = 1000;
+static const unsigned long sendInterval = 2000;
 static const unsigned long statusIntervalMs = 2000;
 static const unsigned long energyIntervalMs = 5000;
 
@@ -58,12 +139,12 @@ static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
 
 static volatile bool pendingModbusApply = false;
+static volatile bool pendingPhaseCalApply = false;
 static uint8_t  pending_mb_addr = 30;
 static uint32_t pending_mb_baud = 19200;
-static unsigned long modbusCooldownUntil = 0;
-static const unsigned long modbusCooldownMs = 400;
-static unsigned long lastAtmCfgPushMs = 0;
-static const unsigned long atmCfgPushIntervalMs = 5000;
+static unsigned long mbTaskHoldUntil = 0;
+static bool deferredSlaveIdApply = false;
+static uint8_t deferredSlaveId = 30;
 
 // During ATM SPI sampling: only Modbus/yield — never WebSerial.check() (reentrancy).
 static inline void yieldMbOnly() {
@@ -108,6 +189,7 @@ static volatile bool pendingStatus    = false;
 static volatile bool pendingAtmCfg    = false;
 static volatile bool pendingMsg       = false;
 static const char*   pendingMsgText   = nullptr;
+static uint8_t       echoStep         = 0;
 
 // ================== SFINAE helper ==================
 template <class M>
@@ -179,6 +261,18 @@ static void queueAtmApply() {
   pendingAtmCfg = true;
 }
 
+static void queuePhaseCalApply() {
+  pendingPhaseCalApply = true;
+  dirtyAtmCfg = true;
+  pendingAtmCfg = true;
+}
+
+static void atmApplyPhaseCalOnly() {
+  M90PhaseCal tmp[3];
+  for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
+  g_atm.applyCalibration(tmp);
+}
+
 // ================== JSON builders (built ONLY in loop) ==================
 static JSONVar relayEnableListToJson() {
   JSONVar a;
@@ -230,27 +324,65 @@ static void updateModbusStatusJson() {
   modbusStatus["state"]   = 0;
 }
 
-static void sendAllConfigEcho_NOW() {
-  updateModbusStatusJson();
-  WebSerial.send("status", modbusStatus);
-  WebSerial.send("relayEnableList", relayEnableListToJson());
-  WebSerial.send("relayInvertList", relayInvertListToJson());
-  WebSerial.send("ButtonGroupList", buttonGroupListToJson());
-  WebSerial.send("LedConfigList",   ledCfgListToJson());
-  WebSerial.send("atmCfg",          atmCfgToJson());
+static JSONVar calibCfgToJson() {
+  JSONVar a;
+  for (int i = 0; i < 3; i++) {
+    JSONVar p;
+    p["Ugain"]   = (int)g_atm_cfg.cal[i].Ugain;
+    p["Igain"]   = (int)g_atm_cfg.cal[i].Igain;
+    p["Uoffset"] = (int)g_atm_cfg.cal[i].Uoffset;
+    p["Ioffset"] = (int)g_atm_cfg.cal[i].Ioffset;
+    a[i] = p;
+  }
+  return a;
+}
+
+// One USB frame per loop — avoids host/WebSerial stall on connect
+static void echoStepSend() {
+  switch (echoStep) {
+    case 0:
+      updateModbusStatusJson();
+      WebSerial.send("status", modbusStatus);
+      break;
+    case 1:
+      WebSerial.send("CalibCfg", calibCfgToJson());
+      break;
+    case 2:
+      WebSerial.send("atmCfg", atmCfgToJson());
+      break;
+    case 3:
+      WebSerial.send("relayEnableList", relayEnableListToJson());
+      break;
+    case 4:
+      WebSerial.send("relayInvertList", relayInvertListToJson());
+      break;
+    case 5:
+      WebSerial.send("ButtonGroupList", buttonGroupListToJson());
+      break;
+    case 6:
+      WebSerial.send("LedConfigList", ledCfgListToJson());
+      pendingEchoAll = false;
+      echoStep = 0;
+      return;
+    default:
+      pendingEchoAll = false;
+      echoStep = 0;
+      return;
+  }
+  echoStep++;
 }
 
 // ================== Update-from-JSON (NO send, no hardware) ==================
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
   if (obj.hasOwnProperty("lineHz")) {
-    int hz = (int)obj["lineHz"];
+    int hz = jsonParseKey(obj, "lineHz", (int)g_atm_cfg.lineHz);
     g_atm_cfg.lineHz = (hz == 60) ? 60 : 50;
   }
   if (obj.hasOwnProperty("sumAbs")) {
-    g_atm_cfg.sumAbs = ((int)obj["sumAbs"]) ? 1 : 0;
+    g_atm_cfg.sumAbs = jsonParseKey(obj, "sumAbs", (int)g_atm_cfg.sumAbs) ? 1 : 0;
   }
   if (obj.hasOwnProperty("ucal")) {
-    int u = (int)obj["ucal"];
+    int u = jsonParseKey(obj, "ucal", (int)g_atm_cfg.ucal);
     if (u < 1) u = 1;
     if (u > 65535) u = 65535;
     g_atm_cfg.ucal = (uint16_t)u;
@@ -258,10 +390,10 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
 }
 static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (phase < 0 || phase > 2) return;
-  if (obj.hasOwnProperty("Ugain"))   g_atm_cfg.cal[phase].Ugain   = clamp_u16((int)obj["Ugain"]);
-  if (obj.hasOwnProperty("Igain"))   g_atm_cfg.cal[phase].Igain   = clamp_u16((int)obj["Igain"]);
-  if (obj.hasOwnProperty("Uoffset")) g_atm_cfg.cal[phase].Uoffset = clamp_i16((int)obj["Uoffset"]);
-  if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16((int)obj["Ioffset"]);
+  if (obj.hasOwnProperty("Ugain"))   g_atm_cfg.cal[phase].Ugain   = clamp_u16(jsonParseKey(obj, "Ugain",   (int)g_atm_cfg.cal[phase].Ugain));
+  if (obj.hasOwnProperty("Igain"))   g_atm_cfg.cal[phase].Igain   = clamp_u16(jsonParseKey(obj, "Igain",   (int)g_atm_cfg.cal[phase].Igain));
+  if (obj.hasOwnProperty("Uoffset")) g_atm_cfg.cal[phase].Uoffset = clamp_i16(jsonParseKey(obj, "Uoffset", (int)g_atm_cfg.cal[phase].Uoffset));
+  if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16(jsonParseKey(obj, "Ioffset", (int)g_atm_cfg.cal[phase].Ioffset));
 }
 
 // ================== ATM live (chunked — keeps USB/Modbus alive) ==================
@@ -336,7 +468,7 @@ static void atmLiveAccumulateEnergyStep(uint8_t sub) {
 }
 
 static void atmLiveJobStep() {
-  if (!atmLiveJob || atmBusy || (millis() < modbusCooldownUntil)) return;
+  if (!atmLiveJob || atmBusy) return;
   switch (atmLiveStep) {
     case 0: g_atm_live.Ua_V = g_atm.readUrmsA_V(); g_atm_live.Ub_V = g_atm.readUrmsB_V(); yieldMbOnly(); atmLiveStep++; break;
     case 1: g_atm_live.Uc_V = g_atm.readUrmsC_V(); g_atm_live.Ia_A = g_atm.readIrmsA_A(); yieldMbOnly(); atmLiveStep++; break;
@@ -442,11 +574,13 @@ static void processModbusCommandPulses() {
 
 // ================== WebSerial handlers (ABSOLUTELY NO send/hardware) ==================
 static void handleHello(JSONVar) {
+  echoStep = 0;
   pendingEchoAll = true;
   pendingMsgText = "OK: Hello";
   pendingMsg = true;
 }
 static void handleGetAll(JSONVar) {
+  echoStep = 0;
   pendingEchoAll = true;
   pendingMsgText = "OK: Refreshed from device";
   pendingMsg = true;
@@ -458,40 +592,38 @@ static void applyModbusSettingsDirect(uint8_t addr, uint32_t baud) {
 
   if (g_mb_baud != baud) {
     Serial2.end();
-    delay(2);
+    delay(20);
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
     Serial2.begin(baud);
     while (Serial2.available()) (void)Serial2.read();
     mb.config(baud);
     g_mb_baud = baud;
-    mb.task();
-    yield();
+    mbTaskHoldUntil = millis() + 500;
   }
   if (g_mb_address != addr) {
-    setSlaveIdIfAvailable(mb, addr);
     g_mb_address = addr;
+    SlaveId = (int)addr;
+    deferredSlaveId = addr;
+    deferredSlaveIdApply = true;
+    mbTaskHoldUntil = millis() + 500;
   }
-  mb.task();
-  yield();
 }
 
 static void handleValues(JSONVar values) {
-  int addr = values.hasOwnProperty("mb_address") ? (int)values["mb_address"] : (int)g_mb_address;
-  int baud = values.hasOwnProperty("mb_baud")    ? (int)values["mb_baud"]    : (int)g_mb_baud;
+  const int addr = jsonParseKey(values, "mb_address", (int)g_mb_address);
+  const int baud = jsonParseKey(values, "mb_baud",    (int)g_mb_baud);
   pending_mb_addr = (uint8_t)constrain(addr, 1, 247);
   pending_mb_baud = (uint32_t)constrain(baud, 9600, 115200);
   pendingModbusApply = true;
-  pendingMsg = true;
-  pendingMsgText = "OK: Modbus queued";
 }
 
 static void handleRelayCfg(JSONVar obj) {
   JSONVar en  = obj["enabled"];
   JSONVar inv = obj["inverted"];
   for (int i = 0; i < NUM_RLY; i++) {
-    if (JSON.typeof(en[i])  != "undefined")  rlyCfg[i].enabled  = (bool)en[i];
-    if (JSON.typeof(inv[i]) != "undefined")  rlyCfg[i].inverted = (bool)inv[i];
+    if (JSON.typeof(en[i])  != "undefined")  rlyCfg[i].enabled  = jsonParseArrayBool(en, i, rlyCfg[i].enabled);
+    if (JSON.typeof(inv[i]) != "undefined")  rlyCfg[i].inverted = jsonParseArrayBool(inv, i, rlyCfg[i].inverted);
   }
   dirtyRelayCfg = true;
   pendingMsgText = "OK: Relays updated";
@@ -502,7 +634,7 @@ static void handleBtnCfg(JSONVar obj) {
   JSONVar a = obj["action"];
   for (int i = 0; i < NUM_BTN; i++) {
     if (JSON.typeof(a[i]) == "undefined") continue;
-    int v = (int)a[i];
+    int v = jsonParseArrayInt(a, i, (int)btnCfg[i].action);
     btnCfg[i].action = (uint8_t)((v==0 || v==5 || v==6) ? v : 0);
   }
   dirtyBtnCfg = true;
@@ -514,9 +646,9 @@ static void handleLedCfg(JSONVar obj) {
   JSONVar m = obj["mode"];
   JSONVar s = obj["source"];
   for (int i = 0; i < NUM_LED; i++) {
-    if (JSON.typeof(m[i]) != "undefined") ledCfg[i].mode   = (uint8_t)constrain((int)m[i], 0, 1);
+    if (JSON.typeof(m[i]) != "undefined") ledCfg[i].mode   = (uint8_t)constrain(jsonParseArrayInt(m, i, (int)ledCfg[i].mode), 0, 1);
     if (JSON.typeof(s[i]) != "undefined") {
-      int sv = (int)s[i];
+      int sv = jsonParseArrayInt(s, i, (int)ledCfg[i].source);
       ledCfg[i].source = (uint8_t)((sv==0 || sv==5 || sv==6) ? sv : 0);
     }
   }
@@ -534,20 +666,20 @@ static void handleAtmBase(JSONVar obj) {
 }
 static void handleAtmA(JSONVar obj) {
   atmUpdatePhaseFromJson(0, obj);
-  queueAtmApply();
-  pendingMsgText = "OK: Phase A queued";
+  queuePhaseCalApply();
+  pendingMsgText = "OK: Phase A cal queued";
   pendingMsg = true;
 }
 static void handleAtmB(JSONVar obj) {
   atmUpdatePhaseFromJson(1, obj);
-  queueAtmApply();
-  pendingMsgText = "OK: Phase B queued";
+  queuePhaseCalApply();
+  pendingMsgText = "OK: Phase B cal queued";
   pendingMsg = true;
 }
 static void handleAtmC(JSONVar obj) {
   atmUpdatePhaseFromJson(2, obj);
-  queueAtmApply();
-  pendingMsgText = "OK: Phase C queued";
+  queuePhaseCalApply();
+  pendingMsgText = "OK: Phase C cal queued";
   pendingMsg = true;
 }
 
@@ -624,8 +756,9 @@ void setup() {
   atmLiveJobBegin();
 
   // Defer this message to loop (safe)
-  pendingMsgText = "Boot OK (stable): callbacks do not send; all sends happen in loop";
+  pendingMsgText = "Boot OK v4: Modbus USB-first, mb.task paused 500ms";
   pendingMsg = true;
+  echoStep = 0;
   pendingEchoAll = true;
 }
 
@@ -633,29 +766,38 @@ void setup() {
 void loop() {
   const unsigned long now = millis();
 
-  // 1) Inbound WebSerial (handlers must not touch UART/SPI)
+  // 0) USB in first
   WebSerial.check();
 
-  // 2) Modbus apply in loop only — pause ATM SPI (never overlap Serial2 with SPI)
+  // 1) Modbus — immediate ack in same iteration as values
   if (pendingModbusApply) {
     pendingModbusApply = false;
     atmLiveJob = false;
-    atmBusy = true;
-    if (pending_mb_addr == g_mb_address && pending_mb_baud == g_mb_baud) {
-      pendingMsgText = "OK: Modbus unchanged";
-    } else {
+    if (pending_mb_addr != g_mb_address || pending_mb_baud != g_mb_baud) {
       applyModbusSettingsDirect(pending_mb_addr, pending_mb_baud);
-      updateModbusStatusJson();
-      pendingStatus = true;
-      pendingAtmCfg = true;
-      pendingMsgText = "OK: Modbus applied";
     }
-    modbusCooldownUntil = now + modbusCooldownMs;
-    atmBusy = false;
-    pendingMsg = true;
+    updateModbusStatusJson();
+    WebSerial.send("status", modbusStatus);
+    static char mbAck[56];
+    snprintf(mbAck, sizeof(mbAck), "OK: Modbus addr=%u baud=%lu",
+             (unsigned)g_mb_address, (unsigned long)g_mb_baud);
+    WebSerial.send("message", mbAck);
+    yield();
   }
 
   atmLiveJobStep();
+
+  // 2b) Phase cal only (no chip soft-reset)
+  if (pendingPhaseCalApply && !atmBusy) {
+    pendingPhaseCalApply = false;
+    atmLiveJob = false;
+    atmBusy = true;
+    atmApplyPhaseCalOnly();
+    atmBusy = false;
+    atmLiveJobBegin();
+    pendingMsgText = "OK: Phase cal applied";
+    pendingMsg = true;
+  }
 
   // 3) Apply queued ATM safely (rate-limited, no live reads while busy)
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
@@ -671,9 +813,15 @@ void loop() {
     pendingMsg = true;
   }
 
-  // 4) Modbus tasking
-  mb.task();
-  processModbusCommandPulses();
+  // 4) Modbus tasking — pause after address/baud change (mb.task can block on RS485)
+  if (!atmBusy && now >= mbTaskHoldUntil) {
+    if (deferredSlaveIdApply) {
+      deferredSlaveIdApply = false;
+      setSlaveIdIfAvailable(mb, deferredSlaveId);
+    }
+    mb.task();
+    processModbusCommandPulses();
+  }
 
   // 5) Blink scheduler
   if (now - lastBlinkToggle >= blinkPeriodMs) {
@@ -729,10 +877,9 @@ void loop() {
     mb.setIsts(ISTS_LED_BASE + i, physLed);
   }
 
-  // 9) SAFE outbound sends (deferred from handlers)
+  // 9) SAFE outbound sends (deferred from handlers; one config chunk per loop)
   if (pendingEchoAll) {
-    pendingEchoAll = false;
-    sendAllConfigEcho_NOW();
+    echoStepSend();
   }
   if (pendingStatus) {
     pendingStatus = false;
@@ -741,6 +888,7 @@ void loop() {
   }
   if (pendingAtmCfg) {
     pendingAtmCfg = false;
+    WebSerial.send("CalibCfg", calibCfgToJson());
     WebSerial.send("atmCfg", atmCfgToJson());
   }
   if (pendingMsg && pendingMsgText) {
@@ -761,25 +909,14 @@ void loop() {
       lastStatusSend = now;
     }
 
-    JSONVar relayStateList;
-    for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
-    WebSerial.send("relayStateList", relayStateList);
+    if (!pendingEchoAll) {
+      JSONVar relayStateList;
+      for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
+      WebSerial.send("relayStateList", relayStateList);
 
-    JSONVar buttonStateList;
-    for (int i = 0; i < NUM_BTN; i++) buttonStateList[i] = buttonState[i];
-    WebSerial.send("ButtonStateList", buttonStateList);
-
-    JSONVar ledStateList;
-    for (int i = 0; i < NUM_LED; i++) ledStateList[i] = ledPhysState[i];
-    WebSerial.send("LedStateList", ledStateList);
-
-    if (!atmBusy && g_atm_live.valid && (now >= modbusCooldownUntil)) {
-      WebSerial.send("ENM_Meter", enmMeterToJson());
-    }
-
-    if (now - lastAtmCfgPushMs >= atmCfgPushIntervalMs) {
-      lastAtmCfgPushMs = now;
-      WebSerial.send("atmCfg", atmCfgToJson());
+      if (!atmBusy && g_atm_live.valid) {
+        WebSerial.send("ENM_Meter", enmMeterToJson());
+      }
     }
 
     if (dirtyRelayCfg) {
@@ -800,4 +937,5 @@ void loop() {
       dirtyAtmCfg = false;
     }
   }
+
 }

@@ -87,7 +87,6 @@
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="apply-modbus" type="button" style="padding:10px 14px;background:#198754;color:#fff;border:none;border-radius:6px;">Apply Modbus</button>
       <button id="req-sync" type="button" style="padding:10px 14px;background:#6c757d;color:#fff;border:none;border-radius:6px;">Request Sync</button>
     </div>
   </form>
@@ -249,14 +248,18 @@
   });
 
   let suppressModbusPush = false;
-  const LOG_SKIP = new Set(['ENM_Meter','atmLive','status','relayStateList','ButtonStateList','LedStateList']);
+  let lastKnownMbAddr = null;
+  let lastKnownMbBaud = null;
+  const LOG_SKIP = new Set(['ENM_Meter','atmLive','relayStateList','ButtonStateList','LedStateList']);
 
   connection.on('open', ()=>{
     appendLog('port','open');
     const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
     toast('Connected');
-    connection.send('getAll', {});
-    appendLog('getAll','requested');
+    const reqSync=()=>{ connection.send('getAll', {}); appendLog('getAll','requested'); };
+    reqSync();
+    setTimeout(reqSync, 600);
+    setTimeout(reqSync, 2000);
   });
 
   connection.on('close', ()=>{
@@ -267,6 +270,7 @@
 
   connection.on('message', (m)=>{
     if (typeof m === 'string') {
+      if (m.indexOf('Modbus') >= 0 || m.indexOf('Boot OK') >= 0) toast(m);
       const i = m.indexOf(':');
       const ev = i > 0 ? m.slice(0, i) : m;
       if (!LOG_SKIP.has(ev)) appendLog('log', m);
@@ -277,14 +281,15 @@
 
   /* ===== Field lock system ===== */
   const locked = new Set();
-  function attachLockHandlers(input, key, sendFn){
+  function attachLockHandlers(input, key, sendFn, lockOnFocus){
     if(!input) return;
     input.setAttribute('data-lock-key', key);
     const hint = input.nextElementSibling && input.nextElementSibling.classList.contains('lock-badge') ? input.nextElementSibling : null;
     const lock=()=>{ locked.add(key); input.classList.add('locked'); if(hint) hint.style.display='inline'; };
     const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
-    input.addEventListener('focus', lock);
+    if(lockOnFocus!==false) input.addEventListener('focus', lock);
     input.addEventListener('input', lock);
+    input.addEventListener('wheel', (ev)=>{ if(document.activeElement===input) ev.preventDefault(); }, {passive:false});
     input.addEventListener('keydown', (ev)=>{
       if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); toast('Sent'); }
       else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); toast('Unlocked'); }
@@ -390,29 +395,37 @@
         </div>`;
       grid.appendChild(card);
 
-      const sendCh=()=>sendCalibCh(ch);
-      attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, sendCh);
-      attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, sendCh);
-      attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  sendCh);
-      attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  sendCh);
+      attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendCalibField(ch,'Ugain'), false);
+      attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendCalibField(ch,'Igain'), false);
+      attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendCalibField(ch,'Uoffset'), false);
+      attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendCalibField(ch,'Ioffset'), false);
     }
   }
   buildCalibrationUI();
 
-  function collectCalibCh(ch){
-    const ug=+$('cal-ugain-'+ch)?.value || 0;
-    const ig=+$('cal-igain-'+ch)?.value || 0;
-    const uo=+$('cal-uoff-'+ch )?.value || 0;
-    const io=+$('cal-ioff-'+ch )?.value || 0;
-    return { Ug: ug, Ig: ig, Uo: uo, Io: io };
+  function readCalNumber(id, signed){
+    const el=$(id); if(!el) return null;
+    const raw=String(el.value ?? '').trim();
+    if(raw==='') return null;
+    const v=+raw;
+    if(!Number.isFinite(v)) return null;
+    if(signed){ if(v<-32768||v>32767) return null; }
+    else { if(v<0||v>65535) return null; }
+    return v;
   }
-  function sendCalibCh(ch){
-    const cfg=collectCalibCh(ch);
-    const evt = ch===0 ? 'atmA' : (ch===1 ? 'atmB' : 'atmC');
-    const payload = {
-      Ugain: cfg.Ug, Igain: cfg.Ig,
-      Uoffset: cfg.Uo, Ioffset: cfg.Io
+  function sendCalibField(ch, field){
+    const map={
+      Ugain:  { id:'cal-ugain-'+ch, signed:false, min:1000 },
+      Igain:  { id:'cal-igain-'+ch, signed:false, min:100  },
+      Uoffset:{ id:'cal-uoff-'+ch,  signed:true,  min:null },
+      Ioffset:{ id:'cal-ioff-'+ch,  signed:true,  min:null }
     };
+    const spec=map[field]; if(!spec) return;
+    const v=readCalNumber(spec.id, spec.signed);
+    if(v===null){ toast('Invalid or empty value'); return; }
+    if(spec.min!==null && v<spec.min){ toast(field+' must be >= '+spec.min); return; }
+    const evt = ch===0 ? 'atmA' : (ch===1 ? 'atmB' : 'atmC');
+    const payload = {}; payload[field]=v;
     connection.send(evt, payload);
     appendLog(evt, payload);
   }
@@ -424,18 +437,28 @@
       if(el){ el.classList.remove('locked'); const hint=el.nextElementSibling; if(hint&&hint.classList.contains('lock-badge')) hint.style.display='none'; }
     }
   }
-  function applyCalibCh(ch, obj, force){
+  function applyCalibCh(ch, obj, fromDevice){
     if(!obj || typeof obj!=='object') return;
-    if(force) unlockCalibKeys(ch);
     const Ug = (obj.Ug ?? obj.Ugain);
     const Ig = (obj.Ig ?? obj.Igain);
     const Uo = (obj.Uo ?? obj.Uoffset);
     const Io = (obj.Io ?? obj.Ioffset);
-    const ok = (key)=> force || canApply(key);
-    if(Ug !== undefined && ok('cal-ugain-'+ch)) $('cal-ugain-'+ch).value = String(Ug);
-    if(Ig !== undefined && ok('cal-igain-'+ch)) $('cal-igain-'+ch).value = String(Ig);
-    if(Uo !== undefined && ok('cal-uoff-'+ch))  $('cal-uoff-'+ch).value  = String(Uo);
-    if(Io !== undefined && ok('cal-ioff-'+ch))  $('cal-ioff-'+ch).value  = String(Io);
+    const ok = (key)=> fromDevice || canApply(key);
+    if(Ug !== undefined && ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
+    if(Ig !== undefined && ok('cal-igain-'+ch)){ const el=$('cal-igain-'+ch); if(el) el.value=String(Ig); }
+    if(Uo !== undefined && ok('cal-uoff-'+ch)) { const el=$('cal-uoff-'+ch);  if(el) el.value=String(Uo); }
+    if(Io !== undefined && ok('cal-ioff-'+ch)) { const el=$('cal-ioff-'+ch);  if(el) el.value=String(Io); }
+  }
+  function applyCalibFromCfg(cfg){
+    if(!cfg) return;
+    const cal = cfg.cal;
+    if(!cal) return;
+    for(let ch=0; ch<3; ch++){
+      let p = null;
+      if(Array.isArray(cal)) p = cal[ch];
+      else if(typeof cal==='object') p = cal[ch] ?? cal[''+ch] ?? cal['ph'+ch];
+      if(p) applyCalibCh(ch, p, true);
+    }
   }
 
   /* ===== Alarms UI ===== */
@@ -724,17 +747,24 @@
   $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
 
-  /* ===== Modbus — apply only via button (avoids hang on accidental dropdown change) ===== */
+  /* ===== Modbus (send on change, debounced; suppressed while device echoes status) ===== */
+  let modbusPushTimer = null;
   function pushModbus(){
     if (suppressModbusPush) return;
-    const mb_address=parseInt($('modbus-address')?.value||"30",10);
-    const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
-    if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
-    connection.send("values",{mb_address,mb_baud});
-    appendLog("values",{mb_address,mb_baud});
-    toast('Modbus sent — wait for Active address update');
+    if (modbusPushTimer) clearTimeout(modbusPushTimer);
+    modbusPushTimer = setTimeout(() => {
+      modbusPushTimer = null;
+      const mb_address=parseInt($('modbus-address')?.value||"30",10);
+      const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
+      if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
+      if (lastKnownMbAddr === mb_address && lastKnownMbBaud === mb_baud) return;
+      connection.send("values",{mb_address,mb_baud});
+      appendLog("values",{mb_address,mb_baud});
+      toast('Modbus sent');
+    }, 400);
   }
-  $('apply-modbus')?.addEventListener('click', pushModbus);
+  $('modbus-address')?.addEventListener('change', pushModbus);
+  $('modbus-baud')?.addEventListener('change', pushModbus);
 
   /* ===== Request Sync ===== */
   $('req-sync')?.addEventListener('click', ()=>{
@@ -816,8 +846,11 @@
   /* ===== Incoming firmware pushes ===== */
 
   connection.on('status', function(st){
+    appendLog('status', st);
     $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
     $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
+    if(st && st.address!==undefined) lastKnownMbAddr = parseInt(st.address, 10);
+    if(st && st.baud!==undefined) lastKnownMbBaud = parseInt(st.baud, 10);
     suppressModbusPush = true;
     if(st && st.address!==undefined) $('modbus-address').value=String(st.address);
     if(st && st.baud!==undefined) $('modbus-baud').value=String(st.baud);
@@ -844,15 +877,10 @@
 
   connection.on('atmCfg', function(cfg){
     if(!cfg) return;
+    appendLog('atmCfg','received');
     if(cfg.lineHz!==undefined) $('opt-lineHz').value=String(cfg.lineHz);
     if(cfg.sumAbs!==undefined) $('opt-sumAbs').value=String(cfg.sumAbs);
-    const cal = cfg.cal;
-    if(cal){
-      for(let ch=0; ch<3; ch++){
-        const p = Array.isArray(cal) ? cal[ch] : cal[ch];
-        if(p) applyCalibCh(ch, p, true);
-      }
-    }
+    applyCalibFromCfg(cfg);
   });
 
   connection.on('relayEnableList', (list)=>{
@@ -880,10 +908,11 @@
   // CalibCfg (FS config echo)
   connection.on('CalibCfg', function(payload){
     try{
+      appendLog('CalibCfg','received');
       if(Array.isArray(payload)){
         for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{}, true);
       }
-    }catch(e){}
+    }catch(e){ appendLog('CalibCfg','parse error'); }
   });
 
   // ATM_ChipCfg (REAL CHIP READBACK)
