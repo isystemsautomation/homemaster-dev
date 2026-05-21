@@ -74,7 +74,8 @@
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:1.25rem;border-radius:6px;border-left:4px solid #007bff;">
     <strong>Active Modbus Configuration</strong><br>
     Address: <span id="live-address" style="font-weight:600;">--</span> |
-    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
+    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span> |
+    Firmware: <span id="live-fw" style="font-weight:600;">--</span>
   </div>
 
   <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:.75rem;">
@@ -849,6 +850,7 @@
     appendLog('status', st);
     $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
     $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
+    $('live-fw').textContent=(st&&st.fw)?st.fw:'(old FW)';
     if(st && st.address!==undefined) lastKnownMbAddr = parseInt(st.address, 10);
     if(st && st.baud!==undefined) lastKnownMbBaud = parseInt(st.baud, 10);
     suppressModbusPush = true;
