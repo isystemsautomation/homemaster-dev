@@ -1,11 +1,3 @@
-# 🚧 Project Status: Under Active Development & Testing
-
-> **Important Notice:** This documentation, hardware designs, and firmware are for the **pre-release version** of the HomeMaster system. All information is preliminary and may contain errors or be subject to change.
->
-> - **Hardware:** Modules are currently in the prototyping and testing phase. Final production versions may differ.
-> - **Firmware:** Firmware is under active development and is considered **beta**. Features, configurations, and stability are being refined.
->
-> Please use this information for evaluation and development purposes only
 # HOMEMASTER – Modular, Resilient Smart Automation System
 
 ![License: CERN-OHL-W v2 + GPLv3 + MIT](https://img.shields.io/badge/license-CERN--OHL--W_v2%20%7C%20GPLv3%20%7C%20MIT-informational)
