@@ -8,7 +8,7 @@
 
 ## Description
 
-HomeMaster MicroPLC is a compact open-source automation controller based on `ESP32-WROOM-32U`.
+HomeMaster MicroPLC is a compact open-source automation controller based on `ESP32-WROOM-32U-N16`.
 It is designed for Home Assistant integration via ESPHome and supports local control, sensor
 inputs, and industrial communication with RS-485 Modbus RTU.
 
@@ -34,7 +34,7 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 
 ## Features
 
-- `ESP32-WROOM-32U` microcontroller with Wi-Fi and Bluetooth
+- `ESP32-WROOM-32U-N16` microcontroller with Wi-Fi and Bluetooth (16 MB flash)
 - ESPHome-compatible firmware for Home Assistant integration
 - RS-485 Modbus RTU interface for extension module communication
 - USB Type-C for programming, debugging, and power
@@ -98,7 +98,7 @@ Click **Take Control** to import the official configuration from GitHub.
 
 | Feature | Details |
 |---|---|
-| Microcontroller | ESP32-WROOM-32U |
+| Microcontroller | ESP32-WROOM-32U-N16 (16 MB flash) |
 | Power Supply | 5 V via USB-C (programming) or 24 V via terminal |
 | Relay Output | 1× 16 A (optically isolated) |
 | Digital Input | 1× 24 V DI (ISO1212-based) |

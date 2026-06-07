@@ -65,7 +65,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 ## Features
 
-- ESP32-WROOM-32U (dual-core, Wi-Fi + Bluetooth, external antenna)
+- ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
 - 4 × isolated 24 V DC digital inputs (ISO1212), per-channel PTC fuse, TVS and EMI filtering
 - 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 12 A but the board/system rating governs.
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
