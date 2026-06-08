@@ -126,6 +126,7 @@ static bool blinkPhase = false;
 
 static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
+static bool     g_mbSerialReady = false;
 
 static bool isAllowedBaud(uint32_t b) {
   return b == 9600 || b == 19200 || b == 38400 || b == 57600 || b == 115200;
@@ -735,9 +736,11 @@ static void updateModbusStatusJson() {
 
 static void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = (uint8_t)constrain((int)addr, 1, 247);
-  if (!isAllowedBaud(baud)) baud = g_mb_baud;
+  if (!isAllowedBaud(baud)) baud = isAllowedBaud(g_mb_baud) ? g_mb_baud : 19200;
 
-  if (g_mb_baud != baud) {
+  // Must run on first boot too — v18 called Serial2.begin() in setup(); only
+  // re-initing when baud changed left UART off when loaded baud == 19200.
+  if (!g_mbSerialReady || g_mb_baud != baud) {
     Serial2.end();
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
@@ -745,6 +748,7 @@ static void applyModbusSettings(uint8_t addr, uint32_t baud) {
     while (Serial2.available()) (void)Serial2.read();
     mb.config(baud);
     g_mb_baud = baud;
+    g_mbSerialReady = true;
   }
   setSlaveIdIfAvailable(mb, addr);
   g_mb_address = addr;
