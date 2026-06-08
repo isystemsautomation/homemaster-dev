@@ -28,6 +28,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev) |
 | 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
 | ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
+| 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
 | 🔧 Schematics | [Schematic/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematic) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
@@ -57,7 +58,6 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Support & Community](#support--community)
 - [Compliance & Certifications](#compliance--certifications)
 - [License](#license)
-- [Changelog](#changelog)
 
 ## Features
 
@@ -909,13 +909,7 @@ All firmware, ESPHome configurations, and software components are licensed under
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 See LICENSE files in each directory for full terms.
 
-## Changelog
-
-### v1.0.6 — current (documentation update)
-- **Safety:** Added relay output use-restriction warning to comply with the Basic-insulation rating between mains primary (L/N) and relay output (C, NC) tracks on the Relay board, REV1.0. The restriction will be lifted in REV2 of the hardware where Reinforced insulation is achieved by PCB redesign.
-
-### v1.0.6 — current
-- Initial public firmware release for OpenTherm Gateway-R1 hardware V1.0.
+Firmware release history: [Firmware/CHANGELOG.md](Firmware/CHANGELOG.md)
 
 ---
 

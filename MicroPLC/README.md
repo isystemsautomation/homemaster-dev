@@ -17,6 +17,7 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/esp32-microplc-56) |
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC) |
 | ⚙️ Default Firmware (YAML) | [microplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml) |
+| 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
 | 🔧 Schematics | [Schematic/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematic) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
@@ -130,6 +131,8 @@ All firmware, ESPHome configurations, and software components are licensed under
 
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 See LICENSE files in each directory for full terms.
+
+Firmware release history: [Firmware/CHANGELOG.md](Firmware/CHANGELOG.md)
 
 ---
 
