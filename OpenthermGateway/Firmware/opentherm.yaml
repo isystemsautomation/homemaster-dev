@@ -335,7 +335,7 @@ text_sensor:
 
   - platform: wifi_info
     ip_address:
-      id: wifi_ip_address
+      id: esp_ip_address
       name: "ESP IP Address"
       entity_category: diagnostic
 

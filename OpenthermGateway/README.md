@@ -513,7 +513,7 @@ esphome:
   friendly_name: HomeMaster OpenTherm Gateway
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.6"
+    version: "1.0.7"
 
 esp32:
   variant: esp32
@@ -843,11 +843,13 @@ text_sensor:
       return {to_string(minutes) + "m"};
 
   - platform: version
+    id: esphome_version
     name: "ESPHome Version"
     entity_category: diagnostic
 
   - platform: wifi_info
     ip_address:
+      id: esp_ip_address
       name: "ESP IP Address"
       entity_category: diagnostic
 
