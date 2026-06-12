@@ -1,5 +1,11 @@
 #include <Arduino.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   2
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -735,8 +741,8 @@ static void updateModbusStatusJson() {
 }
 
 static void applyModbusSettings(uint8_t addr, uint32_t baud) {
-  addr = (uint8_t)constrain((int)addr, 1, 247);
-  if (!isAllowedBaud(baud)) baud = isAllowedBaud(g_mb_baud) ? g_mb_baud : 19200;
+  addr = hmValidAddress(addr);
+  baud = hmValidBaud(baud);
 
   // Must run on first boot too — v18 called Serial2.begin() in setup(); only
   // re-initing when baud changed left UART off when loaded baud == 19200.
@@ -872,6 +878,7 @@ void setup() {
   applyModbusSettings(g_mb_address, g_mb_baud);
   mb.setAdditionalServerData("ENM223-ENM");
   mbBuildRegisterMap();
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
   mbSyncHolding();
 
   updateModbusStatusJson();
@@ -899,9 +906,11 @@ void setup() {
   lastMeterSample = millis();
   lastEnergySample = millis();
   lastWebCfgPush = 0;
+  hmWatchdogArm(4000);
 }
 
 void loop() {
+  hmWatchdogFeed();
   const unsigned long now = millis();
 
   mb.task();
@@ -1003,32 +1012,34 @@ void loop() {
   if (now - lastSend >= sendInterval) {
     lastSend = now;
 
-    if (!atmBusy) {
-      JSONVar relayStateList;
-      for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
-      WebSerial.send("relayStateList", relayStateList);
-    }
+    if (hmUsbCanSend()) {
+      if (!atmBusy) {
+        JSONVar relayStateList;
+        for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
+        WebSerial.send("relayStateList", relayStateList);
+      }
 
-    if (dirtyRelayCfg) {
-      WebSerial.send("relayEnableList", relayEnableListToJson());
-      WebSerial.send("relayInvertList", relayInvertListToJson());
-      dirtyRelayCfg = false;
-    }
-    if (dirtyBtnCfg) {
-      WebSerial.send("ButtonGroupList", buttonGroupListToJson());
-      dirtyBtnCfg = false;
-    }
-    if (dirtyLedCfg) {
-      WebSerial.send("LedConfigList", ledCfgListToJson());
-      dirtyLedCfg = false;
-    }
-    if (dirtyAtmCfg) {
-      WebSerial.send("atmCfg", atmCfgToJson());
-      dirtyAtmCfg = false;
-    }
+      if (dirtyRelayCfg) {
+        WebSerial.send("relayEnableList", relayEnableListToJson());
+        WebSerial.send("relayInvertList", relayInvertListToJson());
+        dirtyRelayCfg = false;
+      }
+      if (dirtyBtnCfg) {
+        WebSerial.send("ButtonGroupList", buttonGroupListToJson());
+        dirtyBtnCfg = false;
+      }
+      if (dirtyLedCfg) {
+        WebSerial.send("LedConfigList", ledCfgListToJson());
+        dirtyLedCfg = false;
+      }
+      if (dirtyAtmCfg) {
+        WebSerial.send("atmCfg", atmCfgToJson());
+        dirtyAtmCfg = false;
+      }
 
-    if (g_haveMeter && !meter_job && !atmBusy) {
-      sendMeterEcho();
+      if (g_haveMeter && !meter_job && !atmBusy) {
+        sendMeterEcho();
+      }
     }
   }
 }

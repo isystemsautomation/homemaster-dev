@@ -14,6 +14,12 @@ struct PersistConfig;
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   3
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -395,6 +401,8 @@ void setup(){
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_EN_BASE + i);  mb.setCoil(CMD_DI_EN_BASE + i, false); }
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_DIS_BASE + i); mb.setCoil(CMD_DI_DIS_BASE + i, false); }
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
 
   // WebSerial handlers
@@ -403,6 +411,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
 
   wsLog("boot: ready");
+  hmWatchdogArm(4000);
 }
 
 // ================== Command handler ==================
@@ -420,7 +429,7 @@ void applyModbusSettings(uint8_t addr,uint32_t baud){
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values){
-  int addr=(int)values["mb_address"], baud=(int)values["mb_baud"]; addr=constrain(addr,1,255); baud=constrain(baud,9600,115200);
+  int addr=(int)values["mb_address"], baud=(int)values["mb_baud"]; addr=hmValidAddress(addr); baud=hmValidBaud(baud);
   applyModbusSettings((uint8_t)addr,(uint32_t)baud); cfgDirty=true; lastCfgTouchMs=millis();
 }
 void handleUnifiedConfig(JSONVar obj){
@@ -545,6 +554,7 @@ static inline void onePingPongStep(int ch, int8_t &dir){
 
 // ================== Main loop ==================
 void loop(){
+  hmWatchdogFeed();
   unsigned long now=millis();
   mb.task(); processModbusCommandPulses();
   if(now-lastBlinkToggle>=blinkPeriodMs){ lastBlinkToggle=now; blinkPhase=!blinkPhase; }
@@ -785,7 +795,7 @@ void loop(){
   for(int c=0;c<NUM_CH;c++){ bool onb=(chCfg[c].enabled && chLevel[c]>0); mb.setIsts(ISTS_CH_BASE + c, onb); }
 
   // Periodic snapshot
-  if(millis()-lastSend>=sendInterval){ lastSend=millis(); WebSerial.check(); sendConfigSnapshot(); }
+  if(millis()-lastSend>=sendInterval){ lastSend=millis(); WebSerial.check(); if(hmUsbCanSend()) sendConfigSnapshot(); }
 }
 
 // ================== Modbus helpers ==================

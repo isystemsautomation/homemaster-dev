@@ -14,6 +14,12 @@
 #include <Wire.h>
 #include <PCF8574.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   1
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -267,8 +273,8 @@ void ackGroup(uint8_t g);
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  addr = constrain(addr, 1, 255);
-  baud = constrain(baud, 9600, 115200);
+  addr = hmValidAddress(addr);
+  baud = hmValidBaud(baud);
 
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
   WebSerial.send("message", "Modbus configuration updated");
@@ -392,6 +398,8 @@ void setup() {
   mb.addCoil(CMD_AL_G2_PULSE);
   mb.addCoil(CMD_AL_G3_PULSE);
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   // Status defaults for UI
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -404,6 +412,7 @@ void setup() {
 
   WebSerial.send("message", "Boot OK");
   sendAllEchoesOnce();
+  hmWatchdogArm(4000);
 }
 
 // ================== Command handler (reset + persistence ops) ==================
@@ -466,6 +475,7 @@ void ackGroup(uint8_t g) { if (g >= 1 && g <= 3) latchedGroup[g] = false; }
 
 // ================== Main loop ==================
 void loop() {
+  hmWatchdogFeed();
   unsigned long now = millis();
 
   // Blink phase
@@ -648,24 +658,26 @@ void loop() {
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
-    WebSerial.send("status", modbusStatus);
-    WebSerial.send("inputs", inputs);
-    WebSerial.send("invertList", invertList);
-    WebSerial.send("groupList", groupList);
-    WebSerial.send("enableList", enableList);
-    WebSerial.send("relayStateList", relayStateList);
-    WebSerial.send("relayEnableList", relayEnableList);
-    WebSerial.send("relayInvertList", relayInvertList);
-    WebSerial.send("relayGroupList", relayGroupList);
-    WebSerial.send("ButtonStateList", ButtonStateList);
-    WebSerial.send("ButtonGroupList", ButtonGroupList);
-    WebSerial.send("LedConfigList", LedConfigList);
-    WebSerial.send("LedStateList", LedStateList);
-    JSONVar am; for (int g = 0; g < 3; g++) am[g] = alarmModeList[g];
-    WebSerial.send("AlarmModeList", am);
-    JSONVar AlarmState; AlarmState["any"] = anyAlarmActive;
-    { JSONVar groups; for (int g=1; g<=3; g++) groups[g-1] = grpAlarmActive[g]; AlarmState["groups"] = groups; }
-    WebSerial.send("AlarmState", AlarmState);
+    if (hmUsbCanSend()) {
+      WebSerial.send("status", modbusStatus);
+      WebSerial.send("inputs", inputs);
+      WebSerial.send("invertList", invertList);
+      WebSerial.send("groupList", groupList);
+      WebSerial.send("enableList", enableList);
+      WebSerial.send("relayStateList", relayStateList);
+      WebSerial.send("relayEnableList", relayEnableList);
+      WebSerial.send("relayInvertList", relayInvertList);
+      WebSerial.send("relayGroupList", relayGroupList);
+      WebSerial.send("ButtonStateList", ButtonStateList);
+      WebSerial.send("ButtonGroupList", ButtonGroupList);
+      WebSerial.send("LedConfigList", LedConfigList);
+      WebSerial.send("LedStateList", LedStateList);
+      JSONVar am; for (int g = 0; g < 3; g++) am[g] = alarmModeList[g];
+      WebSerial.send("AlarmModeList", am);
+      JSONVar AlarmState; AlarmState["any"] = anyAlarmActive;
+      { JSONVar groups; for (int g=1; g<=3; g++) groups[g-1] = grpAlarmActive[g]; AlarmState["groups"] = groups; }
+      WebSerial.send("AlarmState", AlarmState);
+    }
   }
 
   // Clear PLC pulse flags at end of scan

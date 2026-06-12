@@ -7,6 +7,12 @@
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   6
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -889,6 +895,8 @@ void setup(){
     mb.addHreg(b+0,0); mb.addHreg(b+1,0);
   }
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
 
   WebSerial.on("values",  handleValues);
@@ -898,6 +906,7 @@ void setup(){
 
   WebSerial.send("message","Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control).");
   sendAllEchoesOnce();
+  hmWatchdogArm(4000);
 }
 
 // ================== Command handlers ==================
@@ -908,7 +917,7 @@ void applyModbusSettings(uint8_t addr, uint32_t baud){
 }
 void handleValues(JSONVar values){
   int addr=(int)values["mb_address"]; int baud=(int)values["mb_baud"];
-  addr=constrain(addr,1,255); baud=constrain(baud,9600,115200);
+  addr=hmValidAddress(addr); baud=hmValidBaud(baud);
   applyModbusSettings((uint8_t)addr,(uint32_t)baud);
   WebSerial.send("message","Modbus configuration updated");
   cfgDirty=true; lastCfgTouchMs=millis();
@@ -1312,6 +1321,7 @@ void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
 
 // ================== Loop ==================
 void loop(){
+  hmWatchdogFeed();
   unsigned long now=millis();
   mb.task(); processModbusCommands();
 
@@ -1529,6 +1539,7 @@ void loop(){
   if (millis()-lastSend>=sendInterval){
     lastSend=millis();
     WebSerial.check();
+    if (hmUsbCanSend()) {
     WebSerial.send("status", modbusStatus);
 
     JSONVar invertList, enableList, actionList, targetList, typeList;
@@ -1630,6 +1641,7 @@ void loop(){
     WebSerial.send("relayCtrlMode", rcList);
 
     owdbSendList();
+    }
   }
 
   if (cfgDirty && (now-lastCfgTouchMs>=CFG_AUTOSAVE_MS)){

@@ -1,5 +1,11 @@
 #include <Arduino.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   5
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -261,6 +267,8 @@ void setup() {
   for (uint16_t i=0;i<NUM_DI;i++)  { mb.addCoil(CMD_DI_EN_BASE   + i);  mb.setCoil(CMD_DI_EN_BASE   + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++)  { mb.addCoil(CMD_DI_DIS_BASE  + i);  mb.setCoil(CMD_DI_DIS_BASE  + i, false); }
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   // Status for UI
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -272,6 +280,7 @@ void setup() {
 
   WebSerial.send("message", "Boot OK (DI actions: None/Toggle/Pulse; targets: None/All/R1/R2/R3; LED source: None/Overridden R1..R3)");
   sendAllEchoesOnce();
+  hmWatchdogArm(4000);
 }
 
 // ================== Command handler ==================
@@ -304,7 +313,7 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  addr = constrain(addr, 1, 255); baud = constrain(baud, 9600, 115200);
+  addr = hmValidAddress(addr); baud = hmValidBaud(baud);
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
   WebSerial.send("message", "Modbus configuration updated");
   cfgDirty = true; lastCfgTouchMs = millis();
@@ -413,6 +422,7 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
 
 // ================== Main loop ==================
 void loop() {
+  hmWatchdogFeed();
   unsigned long now = millis();
 
   mb.task();                     // Modbus polling
@@ -518,6 +528,7 @@ for (int i = 0; i < NUM_DI; i++) {
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
+    if (hmUsbCanSend()) {
     WebSerial.send("status", modbusStatus);
 
     JSONVar invertList, enableList, actionList, targetList;
@@ -551,6 +562,7 @@ for (int i = 0; i < NUM_DI; i++) {
 
     WebSerial.send("LedConfigList", LedConfigList);
     WebSerial.send("LedStateList", LedStateList);
+    }
   }
 }
 

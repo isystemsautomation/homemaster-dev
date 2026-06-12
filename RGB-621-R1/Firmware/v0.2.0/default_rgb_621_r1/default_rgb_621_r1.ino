@@ -1,5 +1,11 @@
 #include <Arduino.h>
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   7
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -273,6 +279,8 @@ void setup() {
   mb.addHreg(HR_MB_ADDR); mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD); mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   // Status for UI
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -287,6 +295,7 @@ void setup() {
 
   // Apply restored PWM levels to outputs
   applyPwmFromHoldingRegs();
+  hmWatchdogArm(4000);
 }
 
 // ================== Filesystem init ==================
@@ -375,8 +384,8 @@ void handleValues(JSONVar values) {
   // Optional: Update Modbus settings
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  if (addr) { addr = constrain(addr, 1, 255); g_mb_address = (uint8_t)addr; }
-  if (baud) { baud = constrain(baud, 9600, 115200); g_mb_baud = (uint32_t)baud; }
+  if (addr) { addr = hmValidAddress(addr); g_mb_address = (uint8_t)addr; }
+  if (baud) { baud = hmValidBaud(baud); g_mb_baud = (uint32_t)baud; }
   applyModbusSettings(g_mb_address, g_mb_baud);
 
   // Optionally accept direct PWM payloads: {"rgb":[r,g,b],"cct":[ww,cw]} (0..255)
@@ -518,6 +527,7 @@ void applyPwmFromHoldingRegs() {
 
 // ================== Main loop ==================
 void loop() {
+  hmWatchdogFeed();
   unsigned long now = millis();
 
   mb.task();                     // Modbus polling
@@ -630,6 +640,7 @@ void loop() {
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
+    if (hmUsbCanSend()) {
     WebSerial.send("status", modbusStatus);
 
     JSONVar invertList, enableList, actionList, targetList;
@@ -668,6 +679,7 @@ void loop() {
     WebSerial.send("LedStateList", LedStateList);
 
     WebSerial.send("PwmLevels", PwmLevels); // R,G,B,WW,CW (0..255)
+    }
   }
 }
 

@@ -20,6 +20,12 @@
 #include <Arduino.h>
 // Modbus before Adafruit/SPI headers (they pull in std::byte and break Modbus.h).
 #include <ModbusSerial.h>
+#include "hm_common.h"
+#define HM_MODEL_ID   4
+#define HM_FW_MAJOR   0
+#define HM_FW_MINOR   2
+#define HM_FW_PATCH   0
+#define HM_MAP_VERSION 1
 
 #include <Wire.h>
 #include <ADS1X15.h>
@@ -682,8 +688,8 @@ void performReset() {
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  addr = constrain(addr, 1, 255);
-  baud = constrain(baud, 9600, 115200);
+  addr = hmValidAddress(addr);
+  baud = hmValidBaud(baud);
 
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
   WebSerial.send("message", "Modbus configuration updated");
@@ -1101,10 +1107,13 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
 
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
   WebSerial.send("message",
     "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
 
   sendAllEchoesOnce();
+  hmWatchdogArm(4000);
 }
 
 // ================== send initial state ==================
@@ -1213,6 +1222,7 @@ void runButtonAction(uint8_t btnIndex) {
 
 // ================== Main loop ==================
 void loop() {
+  hmWatchdogFeed();
   unsigned long now = millis();
 
   mb.task();
@@ -1266,36 +1276,38 @@ void loop() {
     lastSend = now;
 
     WebSerial.check();
-    WebSerial.send("status", modbusStatus);
+    if (hmUsbCanSend()) {
+      WebSerial.send("status", modbusStatus);
 
-    JSONVar aiList;
-    for (int i=0;i<4;i++) aiList[i] = aiMv[i];
-    WebSerial.send("aiValues", aiList);
+      JSONVar aiList;
+      for (int i=0;i<4;i++) aiList[i] = aiMv[i];
+      WebSerial.send("aiValues", aiList);
 
-    JSONVar tempList;
-    for (int i=0;i<2;i++) tempList[i] = rtdTemp_x10[i];
-    WebSerial.send("rtdTemps_x10", tempList);
+      JSONVar tempList;
+      for (int i=0;i<2;i++) tempList[i] = rtdTemp_x10[i];
+      WebSerial.send("rtdTemps_x10", tempList);
 
-    JSONVar dacList;
-    dacList[0] = dacRaw[0];
-    dacList[1] = dacRaw[1];
-    WebSerial.send("dacValues", dacList);
+      JSONVar dacList;
+      dacList[0] = dacRaw[0];
+      dacList[1] = dacRaw[1];
+      WebSerial.send("dacValues", dacList);
 
-    JSONVar ledList;
-    for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
-    WebSerial.send("LedStateList", ledList);
+      JSONVar ledList;
+      for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
+      WebSerial.send("LedStateList", ledList);
 
-    JSONVar ledSrcList;
-    for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
-    WebSerial.send("LedSourceList", ledSrcList);
+      JSONVar ledSrcList;
+      for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
+      WebSerial.send("LedSourceList", ledSrcList);
 
-    JSONVar btnActList;
-    for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
-    WebSerial.send("ButtonActionList", btnActList);
+      JSONVar btnActList;
+      for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
+      WebSerial.send("ButtonActionList", btnActList);
 
-    JSONVar btnList;
-    for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
-    WebSerial.send("ButtonStateList", btnList);
+      JSONVar btnList;
+      for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
+      WebSerial.send("ButtonStateList", btnList);
+    }
   }
 
   // FIX B + FIX C: full RTD diagnostics only every 2 seconds
@@ -1304,6 +1316,7 @@ void loop() {
 
     updateRtdDiagnostics();
 
+    if (hmUsbCanSend()) {
     JSONVar info;
     JSONVar t10, tc, fault, err, raw, ratio, ohm;
     t10[0] = rtdTemp_x10[0]; t10[1] = rtdTemp_x10[1];
@@ -1333,6 +1346,7 @@ void loop() {
     cfg["rnominal"] = rn;
     cfg["rref"]     = rr;
     WebSerial.send("rtdCfg", cfg);
+    }
   }
 
   mb.task();
