@@ -45,7 +45,7 @@ static const uint8_t NUM_RLY = 2;
 enum : uint8_t { IT_WATER=0, IT_HUMIDITY=1, IT_WCOUNTER=2 };
 
 struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t type; };
-struct RlyCfg { bool enabled; bool inverted; };
+struct RlyCfg { bool enabled; bool inverted; uint8_t powerOn; /*0=OFF,1=ON,2=RESTORE_LAST*/ };
 
 InCfg  diCfg[NUM_DI];
 RlyCfg rlyCfg[NUM_RLY];
@@ -138,13 +138,15 @@ uint32_t lastBlinkToggle=0;
 const uint32_t blinkPeriodMs=500;
 
 // ================== Persistence (LittleFS) ==================
-// Legacy V5/V6 kept so we can migrate forward to V7 (current)
+struct RlyCfgV7 { bool enabled; bool inverted; };
+
+// Legacy V5/V6/V7 kept so we can migrate forward to V8 (current)
 
 struct PersistConfigV5 {
   uint32_t magic;  uint16_t version;  uint16_t size;
 
-  InCfg   diCfg[NUM_DI];
-  RlyCfg  rlyCfg[NUM_RLY];
+  InCfg    diCfg[NUM_DI];
+  RlyCfgV7 rlyCfg[NUM_RLY];
   bool    desiredRelay[NUM_RLY]; // legacy -> maps to localDesiredRelay
 
   uint8_t  mb_address;
@@ -170,8 +172,8 @@ struct PersistConfigV5 {
 struct PersistConfigV6 {
   uint32_t magic;  uint16_t version;  uint16_t size;
 
-  InCfg   diCfg[NUM_DI];
-  RlyCfg  rlyCfg[NUM_RLY];
+  InCfg    diCfg[NUM_DI];
+  RlyCfgV7 rlyCfg[NUM_RLY];
   bool    desiredRelay[NUM_RLY]; // legacy -> maps to localDesiredRelay
 
   uint8_t  mb_address;
@@ -201,9 +203,9 @@ struct PersistConfigV6 {
 struct PersistConfigV7 {
   uint32_t magic;  uint16_t version;  uint16_t size;
 
-  InCfg   diCfg[NUM_DI];
-  RlyCfg  rlyCfg[NUM_RLY];
-  bool    localDesiredRelay[NUM_RLY];
+  InCfg    diCfg[NUM_DI];
+  RlyCfgV7 rlyCfg[NUM_RLY];
+  bool     localDesiredRelay[NUM_RLY];
 
   uint8_t  mb_address;
   uint32_t mb_baud;
@@ -231,13 +233,52 @@ struct PersistConfigV7 {
   uint32_t crc32;
 } __attribute__((packed));
 
-using PersistConfig = PersistConfigV7;
+// V8: powerOn per relay; localDesiredRelay moved to /cfg_out.bin
+struct PersistConfig {
+  uint32_t magic;  uint16_t version;  uint16_t size;
+
+  InCfg   diCfg[NUM_DI];
+  RlyCfg  rlyCfg[NUM_RLY];
+
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint32_t flowPPL[NUM_DI];
+  float    flowCalibRate[NUM_DI];
+  float    flowCalibAccum[NUM_DI];
+  uint32_t flowCounterBase[NUM_DI];
+
+  bool     heatEnabled[NUM_DI];
+  uint64_t heatAddrA[NUM_DI];
+  uint64_t heatAddrB[NUM_DI];
+  float    heatCp[NUM_DI];
+  float    heatRho[NUM_DI];
+  float    heatCalib[NUM_DI];
+  double   heatEnergyJ[NUM_DI];
+
+  LedCfg   ledCfg[NUM_LED];
+  BtnCfg   btnCfg[NUM_BTN];
+
+  uint8_t  relayCtrlMode[NUM_RLY];
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct OutputStateSnapshot {
+  uint32_t magic; uint16_t version; uint16_t size;
+  bool localDesiredRelay[NUM_RLY];
+  uint32_t crc32;
+} __attribute__((packed));
 
 static const uint32_t CFG_MAGIC       = 0x31524C57UL; // 'WLR1'
 static const uint16_t CFG_VERSION_V5  = 0x0005;
 static const uint16_t CFG_VERSION_V6  = 0x0006;
-static const uint16_t CFG_VERSION     = 0x0007;  // <— bumped to V7
+static const uint16_t CFG_VERSION_V7  = 0x0007;
+static const uint16_t CFG_VERSION     = 0x0008;  // Phase B: powerOn, output state decoupled
 static const char*    CFG_PATH        = "/cfg.bin";
+static const char*    OUT_STATE_PATH  = "/cfg_out.bin";
+static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL; // 'HMOS'
+static const uint16_t OUT_STATE_VERSION = 0x0001;
 
 // ---- 1-Wire DB ----
 static const char* ONEWIRE_DB_PATH = "/ow_sensors.json";
@@ -255,6 +296,11 @@ const uint32_t OW_FAIL_HIDE_MS = 15000;
 volatile bool   cfgDirty       = false;
 uint32_t        lastCfgTouchMs = 0;
 const uint32_t  CFG_AUTOSAVE_MS = 1500;
+uint32_t        lastOutChangeMs = 0;
+uint32_t        lastOutSaveMs   = 0;
+const uint32_t  OUT_AUTOSAVE_MS = 10000;
+bool            prevLocalDesiredRelay[NUM_RLY] = {false, false};
+bool            outTrackInit    = false;
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -382,7 +428,7 @@ static bool jsonGetPos(JSONVar obj, const char* key, uint32_t &out){
 // ================== Defaults / persist ==================
 void setDefaults() {
   for (int i=0;i<NUM_DI;i++)  diCfg[i]  = (InCfg){ true, false, 0, 0, IT_WATER };
-  for (int i=0;i<NUM_RLY;i++) rlyCfg[i] = (RlyCfg){ true, false };
+  for (int i=0;i<NUM_RLY;i++) rlyCfg[i] = (RlyCfg){ true, false, HM_PWR_OFF };
 
   for (int i=0;i<NUM_RLY;i++){
     localDesiredRelay[i]=false; modbusDesiredRelay[i]=false; rlyPulseUntil[i]=0;
@@ -423,10 +469,61 @@ void setDefaults() {
 
 }
 
+bool readOutputStateSnapshot(bool out[NUM_RLY]) {
+  File f = LittleFS.open(OUT_STATE_PATH, "r");
+  if (!f) return false;
+  if ((size_t)f.size() != sizeof(OutputStateSnapshot)) { f.close(); return false; }
+  OutputStateSnapshot snap{};
+  size_t n = f.read((uint8_t*)&snap, sizeof(snap));
+  f.close();
+  if (n != sizeof(snap)) return false;
+  if (snap.magic != OUT_STATE_MAGIC || snap.version != OUT_STATE_VERSION || snap.size != sizeof(OutputStateSnapshot)) return false;
+  OutputStateSnapshot tmp = snap; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) return false;
+  memcpy(out, snap.localDesiredRelay, sizeof(snap.localDesiredRelay));
+  return true;
+}
+
+bool saveOutputStateSnapshot() {
+  OutputStateSnapshot snap{};
+  snap.magic = OUT_STATE_MAGIC; snap.version = OUT_STATE_VERSION; snap.size = sizeof(OutputStateSnapshot);
+  memcpy(snap.localDesiredRelay, localDesiredRelay, sizeof(localDesiredRelay));
+  snap.crc32 = 0; snap.crc32 = crc32_update(0, (const uint8_t*)&snap, sizeof(snap));
+  File f = LittleFS.open(OUT_STATE_PATH, "w");
+  if (!f) return false;
+  size_t n = f.write((const uint8_t*)&snap, sizeof(snap));
+  f.flush(); f.close();
+  return n == sizeof(snap);
+}
+
+void applyPowerOnOutputs() {
+  bool restored[NUM_RLY] = {false, false};
+  bool haveSnap = readOutputStateSnapshot(restored);
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyPulseUntil[i] = 0;
+    if (rlyCfg[i].powerOn == HM_PWR_ON) localDesiredRelay[i] = true;
+    else if (rlyCfg[i].powerOn == HM_PWR_RESTORE && haveSnap) localDesiredRelay[i] = restored[i];
+    else localDesiredRelay[i] = false;
+  }
+  memcpy(prevLocalDesiredRelay, localDesiredRelay, sizeof(prevLocalDesiredRelay));
+  outTrackInit = true;
+  lastOutChangeMs = millis();
+}
+
+void maybePersistOutputState(uint32_t now) {
+  bool needRestore = false;
+  for (int i = 0; i < NUM_RLY; i++) {
+    if (rlyCfg[i].powerOn == HM_PWR_RESTORE) { needRestore = true; break; }
+  }
+  if (!needRestore) return;
+  if ((uint32_t)(now - lastOutChangeMs) < OUT_AUTOSAVE_MS) return;
+  if (lastOutSaveMs && (uint32_t)(now - lastOutSaveMs) < OUT_AUTOSAVE_MS) return;
+  if (saveOutputStateSnapshot()) lastOutSaveMs = now;
+}
+
 void captureToPersist(PersistConfig &pc){
   pc.magic=CFG_MAGIC; pc.version=CFG_VERSION; pc.size=sizeof(PersistConfig);
   memcpy(pc.diCfg,diCfg,sizeof(diCfg)); memcpy(pc.rlyCfg,rlyCfg,sizeof(rlyCfg));
-  memcpy(pc.localDesiredRelay,localDesiredRelay,sizeof(localDesiredRelay));
   pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud;
   for (int i=0;i<NUM_DI;i++){
     pc.flowPPL[i]        = flowPulsesPerL[i];
@@ -461,7 +558,7 @@ bool applyFromPersistV5(const PersistConfigV5 &pc){
   if (pc.version!=CFG_VERSION_V5) return false;
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
-  memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
+  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { pc.rlyCfg[i].enabled, pc.rlyCfg[i].inverted, HM_PWR_OFF };
   // legacy desired -> localDesired
   memcpy(localDesiredRelay, pc.desiredRelay, sizeof(localDesiredRelay));
   modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
@@ -502,7 +599,7 @@ bool applyFromPersistV6(const PersistConfigV6 &pc){
   if (pc.version!=CFG_VERSION_V6) return false;
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
-  memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
+  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { pc.rlyCfg[i].enabled, pc.rlyCfg[i].inverted, HM_PWR_OFF };
   memcpy(localDesiredRelay, pc.desiredRelay, sizeof(localDesiredRelay));
   modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
   rlyCtrlMode[0]=rlyCtrlMode[1]=RCTRL_LOCAL;
@@ -532,6 +629,41 @@ bool applyFromPersistV6(const PersistConfigV6 &pc){
   return true;
 }
 
+bool applyFromPersistV7(const PersistConfigV7 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV7)) return false;
+  PersistConfigV7 tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV7)) != crc) return false;
+  if (pc.version != CFG_VERSION_V7) return false;
+
+  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
+  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { pc.rlyCfg[i].enabled, pc.rlyCfg[i].inverted, HM_PWR_OFF };
+  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+  modbusDesiredRelay[0] = modbusDesiredRelay[1] = false;
+  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
+
+  for (int i=0;i<NUM_DI;i++){
+    flowPulsesPerL[i] = pc.flowPPL[i] ? pc.flowPPL[i] : 1;
+    flowCalibRate[i]  = (isnan(pc.flowCalibRate[i]) || pc.flowCalibRate[i]<=0) ? 1.0f : pc.flowCalibRate[i];
+    flowCalibAccum[i] = (isnan(pc.flowCalibAccum[i])|| pc.flowCalibAccum[i]<=0)? 1.0f : pc.flowCalibAccum[i];
+    flowCounterBase[i]= pc.flowCounterBase[i];
+    flowRateLmin[i]   = 0.0f;
+    lastPulseSnapshot[i] = 0;
+
+    heatEnabled[i] = pc.heatEnabled[i];
+    heatAddrA[i]   = pc.heatAddrA[i];
+    heatAddrB[i]   = pc.heatAddrB[i];
+    heatCp[i]      = (isnan(pc.heatCp[i]) || pc.heatCp[i]<=0) ? 4186.0f : pc.heatCp[i];
+    heatRho[i]     = (isnan(pc.heatRho[i])|| pc.heatRho[i]<=0)? 1.0f    : pc.heatRho[i];
+    heatCalib[i]   = (isnan(pc.heatCalib[i])||pc.heatCalib[i]<=0)?1.0f  : pc.heatCalib[i];
+    heatEnergyJ[i] = isfinite(pc.heatEnergyJ[i]) ? pc.heatEnergyJ[i] : 0.0;
+  }
+  for (int i=0;i<NUM_RLY;i++) rlyCtrlMode[i] = (pc.relayCtrlMode[i]==1)?RCTRL_MODBUS:RCTRL_LOCAL;
+
+  nextRateTickMs = millis() + 1000;
+  return true;
+}
+
 bool applyFromPersist(const PersistConfig &pc){
   if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
   PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
@@ -540,7 +672,6 @@ bool applyFromPersist(const PersistConfig &pc){
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
-  memcpy(localDesiredRelay, pc.localDesiredRelay, sizeof(localDesiredRelay));
   modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
 
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
@@ -589,18 +720,27 @@ bool loadConfigFS(){
     PersistConfigV5 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v5)"); return false; }
     if(!applyFromPersistV5(pc)){ WebSerial.send("message","load: v5 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v5 → migrated to v7 (LED/BTN defaults + Local control).");
+    WebSerial.send("message","Loaded legacy config v5 → migrated to v8 (LED/BTN defaults + Local control).");
+    cfgDirty=true; lastCfgTouchMs=millis();
     return true;
   } else if (sz==sizeof(PersistConfigV6)){
     PersistConfigV6 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v6)"); return false; }
     if(!applyFromPersistV6(pc)){ WebSerial.send("message","load: v6 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v6 → migrated to v7 (relay control mode defaults to Local).");
+    WebSerial.send("message","Loaded legacy config v6 → migrated to v8 (relay control mode defaults to Local).");
+    cfgDirty=true; lastCfgTouchMs=millis();
+    return true;
+  } else if (sz==sizeof(PersistConfigV7)){
+    PersistConfigV7 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v7)"); return false; }
+    if(!applyFromPersistV7(pc)){ WebSerial.send("message","load: v7 magic/version/crc mismatch"); return false; }
+    WebSerial.send("message","Loaded legacy config v7 → migrated to v8 (powerOn defaults OFF).");
+    cfgDirty=true; lastCfgTouchMs=millis();
     return true;
   } else if (sz==sizeof(PersistConfig)){
     PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v7)"); return false; }
-    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v7 magic/version/crc mismatch"); return false; }
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v8)"); return false; }
+    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v8 magic/version/crc mismatch"); return false; }
     return true;
   } else {
     WebSerial.send("message",String("load: unexpected size ")+sz); f.close(); return false;
@@ -611,12 +751,14 @@ bool initFilesystemAndConfig(){
     WebSerial.send("message","LittleFS mount failed. Formatting…");
     if(!LittleFS.format() || !LittleFS.begin()){ WebSerial.send("message","FATAL: FS mount/format failed"); return false; }
   }
-  if (loadConfigFS()){ WebSerial.send("message","Config loaded from flash"); return true; }
+  if (loadConfigFS()){ WebSerial.send("message","Config loaded from flash"); applyPowerOnOutputs(); return true; }
   WebSerial.send("message","No valid config. Using defaults."); setDefaults();
+  applyPowerOnOutputs();
   if (saveConfigFS()){ WebSerial.send("message","Defaults saved"); return true; }
   WebSerial.send("message","First save failed. Formatting FS…");
   if(!LittleFS.format() || !LittleFS.begin()){ WebSerial.send("message","FATAL: FS format failed"); return false; }
   setDefaults();
+  applyPowerOnOutputs();
   if (saveConfigFS()){ WebSerial.send("message","FS formatted and config saved"); return true; }
   WebSerial.send("message","FATAL: save still failing after format"); return false;
 }
@@ -1019,6 +1161,9 @@ void handleUnifiedConfig(JSONVar obj){
     for (int i=0;i<NUM_RLY && i<list.length();i++){
       rlyCfg[i].enabled = (bool)list[i]["enabled"];
       rlyCfg[i].inverted= (bool)list[i]["inverted"];
+      if (list[i].hasOwnProperty("powerOn")) {
+        rlyCfg[i].powerOn = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
+      }
     }
     WebSerial.send("message","Relay Configuration updated");
     changed = true;
@@ -1160,11 +1305,13 @@ void handleCommand(JSONVar obj){
   String act=String(actC); act.toLowerCase();
 
   if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); return; }
-  if (act=="load"){ if (loadConfigFS()){ WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
+  if (act=="load"){ if (loadConfigFS()){ applyPowerOnOutputs(); WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
                     else WebSerial.send("message","ERROR: Load failed/invalid"); return; }
   if (act=="factory"){
-    setDefaults(); saveConfigFS();
-    WebSerial.send("message","Factory defaults restored & saved");
+    LittleFS.remove(OUT_STATE_PATH);
+    setDefaults(); applyPowerOnOutputs();
+    if (saveConfigFS()) WebSerial.send("message","Factory defaults restored & saved");
+    else WebSerial.send("message","ERROR: Save after factory reset failed");
     sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud);
     return;
   }
@@ -1316,7 +1463,6 @@ void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
   if(action==0 || tgt==4) return;
   if(tgt==0){ for(int r=0;r<NUM_RLY;r++) doRelay(r); }
   else if(tgt>=1 && tgt<=2) doRelay(tgt-1);
-  cfgDirty=true; lastCfgTouchMs=now;
 }
 
 // ================== Loop ==================
@@ -1376,10 +1522,10 @@ void loop(){
     // rising edge => immediate action types
     if(!buttonPrev[i] && buttonState[i]){
       switch(btnCfg[i].action){
-        case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); } break;
-        case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); } break;
-        case BTN_PULSE_R1:  if(rlyCfg[0].enabled) { localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); } break;
-        case BTN_PULSE_R2:  if(rlyCfg[1].enabled) { localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); } break;
+        case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; WebSerial.send("message","button: toggle R1"); } break;
+        case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; WebSerial.send("message","button: toggle R2"); } break;
+        case BTN_PULSE_R1:  if(rlyCfg[0].enabled) { localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; WebSerial.send("message","button: pulse R1"); } break;
+        case BTN_PULSE_R2:  if(rlyCfg[1].enabled) { localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; WebSerial.send("message","button: pulse R2"); } break;
         default: break;
       }
     }
@@ -1388,6 +1534,19 @@ void loop(){
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
     mb.setHreg(HREG_BTN_BASE + i, pressed ? 1 : 0); // Mirror to HREG
   }
+
+  if (!outTrackInit) {
+    memcpy(prevLocalDesiredRelay, localDesiredRelay, sizeof(prevLocalDesiredRelay));
+    outTrackInit = true;
+  } else {
+    for (int i = 0; i < NUM_RLY; i++) {
+      if (localDesiredRelay[i] != prevLocalDesiredRelay[i]) {
+        prevLocalDesiredRelay[i] = localDesiredRelay[i];
+        lastOutChangeMs = now;
+      }
+    }
+  }
+  maybePersistOutputState(now);
 
   JSONVar relayStateList;
   // compute relay state from selected source (Modbus or Local)
@@ -1412,7 +1571,7 @@ void loop(){
     mb.setCoil(CMD_RLY_STATE_BASE + i, outVal);
 
     // expire local pulse
-    if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
+    if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; }
   }
 
   // LEDs (srcActive + optional blink)
@@ -1665,10 +1824,15 @@ void sendAllEchoesOnce(){
   WebSerial.send("inputTypeList", typeList);
   WebSerial.send("counterList", counters);
 
-  JSONVar relayEnableList, relayInvertList;
-  for (int i=0;i<NUM_RLY;i++){ relayEnableList[i]=rlyCfg[i].enabled; relayInvertList[i]=rlyCfg[i].inverted; }
+  JSONVar relayEnableList, relayInvertList, relayPowerOnList;
+  for (int i=0;i<NUM_RLY;i++){
+    relayEnableList[i]=rlyCfg[i].enabled;
+    relayInvertList[i]=rlyCfg[i].inverted;
+    relayPowerOnList[i]=rlyCfg[i].powerOn;
+  }
   WebSerial.send("relayEnableList", relayEnableList);
   WebSerial.send("relayInvertList", relayInvertList);
+  WebSerial.send("relayPowerOnList", relayPowerOnList);
 
   JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList, flowCalibRateList, flowCalibAccumList;
   for (int i=0;i<NUM_DI;i++){

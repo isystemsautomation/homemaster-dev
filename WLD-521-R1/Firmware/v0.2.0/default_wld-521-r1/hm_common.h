@@ -35,3 +35,5 @@ inline void hmWatchdogFeed() { watchdog_update(); }
 inline bool hmUsbCanSend(size_t need = 64) {
   return (bool)Serial && (Serial.availableForWrite() >= (int)need);
 }
+// ---- Power-on output policy (v0.2.0 Phase B) ----
+enum HmPowerOn : uint8_t { HM_PWR_OFF = 0, HM_PWR_ON = 1, HM_PWR_RESTORE = 2 };

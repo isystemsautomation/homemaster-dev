@@ -57,7 +57,7 @@ static const uint8_t NUM_PWM  = 5; // R,G,B,WW,CW
 
 // ================== Config & runtime ==================
 struct InCfg  { bool enabled; bool inverted; uint8_t action; /*0=None,1=Toggle,2=Pulse*/ uint8_t target; /*4=None,0=All,1..N*/ };
-struct RlyCfg { bool enabled; bool inverted; };
+struct RlyCfg { bool enabled; bool inverted; uint8_t powerOn; /*0=OFF,1=ON,2=RESTORE_LAST*/ };
 struct LedCfg { uint8_t mode;   /*0=steady,1=blink*/
                 uint8_t source; /*0=None, 5..(5+NUM_RLY-1)=Overridden relay index+5*/ };
 struct BtnCfg { uint8_t action; /*0=None, 5..(5+NUM_RLY-1)=Relay override toggle*/ };
@@ -81,6 +81,7 @@ const uint32_t PULSE_MS = 500; // default pulse width
 
 // PWM levels 0..255 (R,G,B,WW,CW)
 uint16_t pwmLevel[NUM_PWM] = {0,0,0,0,0}; // store as 16-bit for Modbus HR, but clamp to 0..255
+uint8_t  pwmPowerOn[NUM_PWM];             // per-channel power-on behavior (HM_PWR_*)
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
@@ -104,20 +105,51 @@ struct PersistConfig {
   RlyCfg  rlyCfg[NUM_RLY];
   LedCfg  ledCfg[NUM_LED];
   BtnCfg  btnCfg[NUM_BTN];
-  bool    desiredRelay[NUM_RLY];
-  uint16_t pwmLevel[NUM_PWM]; // store 0..255
+  uint8_t pwmPowerOn[NUM_PWM];
   uint8_t mb_address;
   uint32_t mb_baud;
   uint32_t crc32;
 } __attribute__((packed));
 
+struct RlyCfgV2 { bool enabled; bool inverted; };
+
+struct PersistConfigV2 {
+  uint32_t magic;  uint16_t version;  uint16_t size;
+  InCfg    diCfg[NUM_DI];
+  RlyCfgV2 rlyCfg[NUM_RLY];
+  LedCfg   ledCfg[NUM_LED];
+  BtnCfg   btnCfg[NUM_BTN];
+  bool     desiredRelay[NUM_RLY];
+  uint16_t pwmLevel[NUM_PWM];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct OutputStateSnapshot {
+  uint32_t magic; uint16_t version; uint16_t size;
+  bool     desiredRelay[NUM_RLY];
+  uint16_t pwmLevel[NUM_PWM];
+  uint32_t crc32;
+} __attribute__((packed));
+
 static const uint32_t CFG_MAGIC   = 0x52474231UL; // '1BGR'
-static const uint16_t CFG_VERSION = 0x0002;
+static const uint16_t CFG_VERSION = 0x0003;       // Phase B: powerOn, output state decoupled
+static const uint16_t CFG_VERSION_V2 = 0x0002;
 static const char*    CFG_PATH    = "/cfg_rgb.bin";
+static const char*    OUT_STATE_PATH = "/cfg_out.bin";
+static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL; // 'HMOS'
+static const uint16_t OUT_STATE_VERSION = 0x0001;
 
 volatile bool   cfgDirty        = false;
 uint32_t        lastCfgTouchMs  = 0;
 const uint32_t  CFG_AUTOSAVE_MS = 1500;
+uint32_t        lastOutChangeMs = 0;
+uint32_t        lastOutSaveMs   = 0;
+const uint32_t  OUT_AUTOSAVE_MS = 10000;
+bool            prevDesiredRelay[NUM_RLY] = {false};
+uint16_t        prevPwmLevel[NUM_PWM] = {0, 0, 0, 0, 0};
+bool            outTrackInit    = false;
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -134,12 +166,78 @@ inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; 
 // ================== Defaults / persist ==================
 void setDefaults() {
   for (int i = 0; i < NUM_DI;  i++) diCfg[i]  = { true, false, 0 /*None*/, 0 /*All*/ };
-  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { true, false };
+  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { true, false, HM_PWR_OFF };
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0 /*steady*/, 0 /*source: None*/ };
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
   for (int i = 0; i < NUM_RLY; i++) { desiredRelay[i] = false; rlyPulseUntil[i] = 0; }
-  for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = 0;
+  for (int i = 0; i < NUM_PWM; i++) { pwmLevel[i] = 0; pwmPowerOn[i] = HM_PWR_OFF; }
   g_mb_address = 3; g_mb_baud = 19200;
+}
+
+bool readOutputStateSnapshot(bool outRelay[NUM_RLY], uint16_t outPwm[NUM_PWM]) {
+  File f = LittleFS.open(OUT_STATE_PATH, "r");
+  if (!f) return false;
+  if ((size_t)f.size() != sizeof(OutputStateSnapshot)) { f.close(); return false; }
+  OutputStateSnapshot snap{};
+  size_t n = f.read((uint8_t*)&snap, sizeof(snap));
+  f.close();
+  if (n != sizeof(snap)) return false;
+  if (snap.magic != OUT_STATE_MAGIC || snap.version != OUT_STATE_VERSION || snap.size != sizeof(OutputStateSnapshot)) return false;
+  OutputStateSnapshot tmp = snap; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) return false;
+  memcpy(outRelay, snap.desiredRelay, sizeof(snap.desiredRelay));
+  memcpy(outPwm, snap.pwmLevel, sizeof(snap.pwmLevel));
+  return true;
+}
+
+bool saveOutputStateSnapshot() {
+  OutputStateSnapshot snap{};
+  snap.magic = OUT_STATE_MAGIC; snap.version = OUT_STATE_VERSION; snap.size = sizeof(OutputStateSnapshot);
+  memcpy(snap.desiredRelay, desiredRelay, sizeof(desiredRelay));
+  memcpy(snap.pwmLevel, pwmLevel, sizeof(pwmLevel));
+  snap.crc32 = 0; snap.crc32 = crc32_update(0, (const uint8_t*)&snap, sizeof(snap));
+  File f = LittleFS.open(OUT_STATE_PATH, "w");
+  if (!f) return false;
+  size_t n = f.write((const uint8_t*)&snap, sizeof(snap));
+  f.flush(); f.close();
+  return n == sizeof(snap);
+}
+
+void applyPowerOnOutputs() {
+  bool restoredRelay[NUM_RLY] = {false};
+  uint16_t restoredPwm[NUM_PWM] = {0, 0, 0, 0, 0};
+  bool haveSnap = readOutputStateSnapshot(restoredRelay, restoredPwm);
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyPulseUntil[i] = 0;
+    if (rlyCfg[i].powerOn == HM_PWR_ON) desiredRelay[i] = true;
+    else if (rlyCfg[i].powerOn == HM_PWR_RESTORE && haveSnap) desiredRelay[i] = restoredRelay[i];
+    else desiredRelay[i] = false;
+  }
+  for (int i = 0; i < NUM_PWM; i++) {
+    if (pwmPowerOn[i] == HM_PWR_ON) pwmLevel[i] = 255;
+    else if (pwmPowerOn[i] == HM_PWR_RESTORE && haveSnap) pwmLevel[i] = restoredPwm[i];
+    else pwmLevel[i] = 0;
+  }
+  memcpy(prevDesiredRelay, desiredRelay, sizeof(prevDesiredRelay));
+  memcpy(prevPwmLevel, pwmLevel, sizeof(prevPwmLevel));
+  outTrackInit = true;
+  lastOutChangeMs = millis();
+}
+
+void maybePersistOutputState(uint32_t now) {
+  bool needRestore = false;
+  for (int i = 0; i < NUM_RLY; i++) {
+    if (rlyCfg[i].powerOn == HM_PWR_RESTORE) { needRestore = true; break; }
+  }
+  if (!needRestore) {
+    for (int i = 0; i < NUM_PWM; i++) {
+      if (pwmPowerOn[i] == HM_PWR_RESTORE) { needRestore = true; break; }
+    }
+  }
+  if (!needRestore) return;
+  if ((uint32_t)(now - lastOutChangeMs) < OUT_AUTOSAVE_MS) return;
+  if (lastOutSaveMs && (uint32_t)(now - lastOutSaveMs) < OUT_AUTOSAVE_MS) return;
+  if (saveOutputStateSnapshot()) lastOutSaveMs = now;
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -148,10 +246,30 @@ void captureToPersist(PersistConfig &pc) {
   memcpy(pc.rlyCfg,       rlyCfg,       sizeof(rlyCfg));
   memcpy(pc.ledCfg,       ledCfg,       sizeof(ledCfg));
   memcpy(pc.btnCfg,       btnCfg,       sizeof(btnCfg));
-  memcpy(pc.desiredRelay, desiredRelay, sizeof(desiredRelay));
-  memcpy(pc.pwmLevel,     pwmLevel,     sizeof(pwmLevel));
+  memcpy(pc.pwmPowerOn,   pwmPowerOn,   sizeof(pwmPowerOn));
   pc.mb_address = g_mb_address; pc.mb_baud = g_mb_baud;
   pc.crc32 = 0; pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
+}
+
+bool applyFromPersistV2(const PersistConfigV2 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV2)) return false;
+  PersistConfigV2 tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV2)) != crc) return false;
+  if (pc.version != CFG_VERSION_V2) return false;
+  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
+  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { pc.rlyCfg[i].enabled, pc.rlyCfg[i].inverted, HM_PWR_OFF };
+  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+  for (int i = 0; i < NUM_PWM; i++) pwmPowerOn[i] = HM_PWR_OFF;
+  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
+  OutputStateSnapshot snap{};
+  snap.magic = OUT_STATE_MAGIC; snap.version = OUT_STATE_VERSION; snap.size = sizeof(OutputStateSnapshot);
+  memcpy(snap.desiredRelay, pc.desiredRelay, sizeof(snap.desiredRelay));
+  memcpy(snap.pwmLevel, pc.pwmLevel, sizeof(snap.pwmLevel));
+  snap.crc32 = 0; snap.crc32 = crc32_update(0, (const uint8_t*)&snap, sizeof(snap));
+  File f = LittleFS.open(OUT_STATE_PATH, "w");
+  if (f) { f.write((const uint8_t*)&snap, sizeof(snap)); f.flush(); f.close(); }
+  return true;
 }
 
 bool applyFromPersist(const PersistConfig &pc) {
@@ -164,8 +282,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(rlyCfg,       pc.rlyCfg,       sizeof(rlyCfg));
   memcpy(ledCfg,       pc.ledCfg,       sizeof(ledCfg));
   memcpy(btnCfg,       pc.btnCfg,       sizeof(btnCfg));
-  memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
-  memcpy(pwmLevel,     pc.pwmLevel,     sizeof(pwmLevel));
+  memcpy(pwmPowerOn,   pc.pwmPowerOn,   sizeof(pwmPowerOn));
   g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
   return true;
 }
@@ -190,7 +307,15 @@ bool saveConfigFS() {
 }
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r"); if (!f) { WebSerial.send("message", "load: open failed"); return false; }
-  if (f.size() != sizeof(PersistConfig)) { WebSerial.send("message", String("load: size ")+f.size()+" != "+sizeof(PersistConfig)); f.close(); return false; }
+  size_t sz = f.size();
+  if (sz == sizeof(PersistConfigV2)) {
+    PersistConfigV2 pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
+    if (n != sizeof(pc)) { WebSerial.send("message", "load: short read (v2)"); return false; }
+    if (!applyFromPersistV2(pc)) { WebSerial.send("message", "load: v2 magic/version/crc mismatch"); return false; }
+    cfgDirty = true; lastCfgTouchMs = millis();
+    return true;
+  }
+  if (sz != sizeof(PersistConfig)) { WebSerial.send("message", String("load: size ")+sz+" unsupported"); f.close(); return false; }
   PersistConfig pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
   if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
   if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
@@ -310,11 +435,13 @@ bool initFilesystemAndConfig() {
 
   if (loadConfigFS()) {
     WebSerial.send("message", "Config loaded from flash");
+    applyPowerOnOutputs();
     return true;
   }
 
   WebSerial.send("message", "No valid config. Using defaults.");
   setDefaults();
+  applyPowerOnOutputs();
   if (saveConfigFS()) {
     WebSerial.send("message", "Defaults saved");
     return true;
@@ -327,6 +454,7 @@ bool initFilesystemAndConfig() {
   }
 
   setDefaults();
+  applyPowerOnOutputs();
   if (saveConfigFS()) {
     WebSerial.send("message", "FS formatted and config saved");
     return true;
@@ -349,15 +477,25 @@ void handleCommand(JSONVar obj) {
   } else if (act == "save") {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved"); else WebSerial.send("message", "ERROR: Save failed");
   } else if (act == "load") {
-    if (loadConfigFS()) { WebSerial.send("message", "Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address, g_mb_baud); applyPwmFromHoldingRegs(); }
+    if (loadConfigFS()) {
+      applyPowerOnOutputs();
+      for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
+      applyPwmFromHoldingRegs();
+      WebSerial.send("message", "Configuration loaded");
+      sendAllEchoesOnce();
+      applyModbusSettings(g_mb_address, g_mb_baud);
+    }
     else WebSerial.send("message", "ERROR: Load failed/invalid");
   } else if (act == "factory") {
-    setDefaults(); if (saveConfigFS()) { WebSerial.send("message", "Factory defaults restored & saved"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address, g_mb_baud); applyPwmFromHoldingRegs(); }
+    LittleFS.remove(OUT_STATE_PATH);
+    setDefaults(); applyPowerOnOutputs();
+    for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
+    applyPwmFromHoldingRegs();
+    if (saveConfigFS()) { WebSerial.send("message", "Factory defaults restored & saved"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address, g_mb_baud); }
     else WebSerial.send("message", "ERROR: Save after factory reset failed");
   } else if (act == "off") {
     for (int i=0;i<NUM_PWM;i++){ pwmLevel[i]=0; mb.Hreg(HR_PWM_BASE+i,0); }
     applyPwmFromHoldingRegs();
-    cfgDirty = true; lastCfgTouchMs = millis();
     WebSerial.send("message", "All PWM channels set to 0");
   } else {
     WebSerial.send("message", String("Unknown command: ") + actC);
@@ -381,11 +519,12 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values) {
+  bool settingsChanged = false;
   // Optional: Update Modbus settings
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  if (addr) { addr = hmValidAddress(addr); g_mb_address = (uint8_t)addr; }
-  if (baud) { baud = hmValidBaud(baud); g_mb_baud = (uint32_t)baud; }
+  if (addr) { addr = hmValidAddress(addr); g_mb_address = (uint8_t)addr; settingsChanged = true; }
+  if (baud) { baud = hmValidBaud(baud); g_mb_baud = (uint32_t)baud; settingsChanged = true; }
   applyModbusSettings(g_mb_address, g_mb_baud);
 
   // Optionally accept direct PWM payloads: {"rgb":[r,g,b],"cct":[ww,cw]} (0..255)
@@ -412,10 +551,10 @@ void handleValues(JSONVar values) {
 
   applyPwmFromHoldingRegs();
   WebSerial.send("message", "Values updated");
-  cfgDirty = true; lastCfgTouchMs = millis();
+  if (settingsChanged) { cfgDirty = true; lastCfgTouchMs = millis(); }
 }
 
-// Supported types: inputEnable, inputInvert, inputAction, inputTarget, relays, buttons, leds
+// Supported types: inputEnable, inputInvert, inputAction, inputTarget, relays, pwmPowerOn, buttons, leds
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"]; JSONVar list = obj["list"]; if (!t) return;
   String type = String(t); bool changed = false;
@@ -447,8 +586,17 @@ void handleUnifiedConfig(JSONVar obj) {
     for (int i = 0; i < NUM_RLY && i < list.length(); i++) {
       rlyCfg[i].enabled  = (bool)list[i]["enabled"];
       rlyCfg[i].inverted = (bool)list[i]["inverted"];
+      if (list[i].hasOwnProperty("powerOn")) {
+        rlyCfg[i].powerOn = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
+      }
     }
     WebSerial.send("message", "Relay Configuration updated"); changed = true;
+
+  } else if (type == "pwmPowerOn") {
+    for (int i = 0; i < NUM_PWM && i < list.length(); i++) {
+      pwmPowerOn[i] = (uint8_t)constrain((int)list[i], 0, 2);
+    }
+    WebSerial.send("message", "PWM Power-On list updated"); changed = true;
 
   } else if (type == "buttons") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) {
@@ -476,8 +624,8 @@ void handleUnifiedConfig(JSONVar obj) {
 void processModbusCommandPulses() {
   // Relay ON/OFF
   for (int r=0; r<NUM_RLY; r++) {
-    if (mb.Coil(CMD_RLY_ON_BASE + r))  { mb.setCoil(CMD_RLY_ON_BASE + r,  false); desiredRelay[r] = true;  rlyPulseUntil[r] = 0; cfgDirty = true; lastCfgTouchMs = millis(); }
-    if (mb.Coil(CMD_RLY_OFF_BASE + r)) { mb.setCoil(CMD_RLY_OFF_BASE + r, false); desiredRelay[r] = false; rlyPulseUntil[r] = 0; cfgDirty = true; lastCfgTouchMs = millis(); }
+    if (mb.Coil(CMD_RLY_ON_BASE + r))  { mb.setCoil(CMD_RLY_ON_BASE + r,  false); desiredRelay[r] = true;  rlyPulseUntil[r] = 0; }
+    if (mb.Coil(CMD_RLY_OFF_BASE + r)) { mb.setCoil(CMD_RLY_OFF_BASE + r, false); desiredRelay[r] = false; rlyPulseUntil[r] = 0; }
   }
   // DI enable/disable
   for (int i=0; i<NUM_DI; i++) {
@@ -507,7 +655,6 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   } else if (target >= 1 && target <= NUM_RLY) {
     doRelay(target - 1);
   }
-  cfgDirty = true; lastCfgTouchMs = now;
 }
 
 // ================== PWM helpers ==================
@@ -540,17 +687,18 @@ void loop() {
     uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE+i);
     if (v != prevPwm[i]) { prevPwm[i] = v; pwmChanged = true; }
   }
-  if (pwmChanged) { applyPwmFromHoldingRegs(); cfgDirty = true; lastCfgTouchMs = now; }
+  if (pwmChanged) { applyPwmFromHoldingRegs(); }
 
   // Blink phase (for LED blink mode)
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
 
-  // Auto-save after quiet period
+  // Auto-save settings after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
     else                WebSerial.send("message", "ERROR: Save failed");
     cfgDirty = false;
   }
+  maybePersistOutputState(now);
 
   // -------- Buttons: read (ACTIVE-LOW), rising edge ----------
   for (int i = 0; i < NUM_BTN; i++) {
@@ -565,7 +713,6 @@ void loop() {
         int r = act - 5; if (r >= 0 && r < NUM_RLY) {
           desiredRelay[r] = !desiredRelay[r];
           rlyPulseUntil[r] = 0; // cancel any pending pulse
-          cfgDirty = true; lastCfgTouchMs = millis();
         }
       }
     }
@@ -606,6 +753,25 @@ void loop() {
   }
 
   // -------- Relays: drive outputs from desiredRelay + relay config ----------
+  if (!outTrackInit) {
+    memcpy(prevDesiredRelay, desiredRelay, sizeof(prevDesiredRelay));
+    memcpy(prevPwmLevel, pwmLevel, sizeof(prevPwmLevel));
+    outTrackInit = true;
+  } else {
+    for (int i = 0; i < NUM_RLY; i++) {
+      if (desiredRelay[i] != prevDesiredRelay[i]) {
+        prevDesiredRelay[i] = desiredRelay[i];
+        lastOutChangeMs = now;
+      }
+    }
+    for (int i = 0; i < NUM_PWM; i++) {
+      if (pwmLevel[i] != prevPwmLevel[i]) {
+        prevPwmLevel[i] = pwmLevel[i];
+        lastOutChangeMs = now;
+      }
+    }
+  }
+
   JSONVar relayStateList;
   for (int i = 0; i < NUM_RLY; i++) {
     bool outVal = desiredRelay[i];
@@ -708,10 +874,19 @@ void sendAllEchoesOnce() {
   WebSerial.send("inputActionList", actionList);
   WebSerial.send("inputTargetList", targetList);
 
-  JSONVar relayEnableList, relayInvertList;
-  for (int i = 0; i < NUM_RLY; i++) { relayEnableList[i] = rlyCfg[i].enabled; relayInvertList[i] = rlyCfg[i].inverted; }
+  JSONVar relayEnableList, relayInvertList, relayPowerOnList;
+  for (int i = 0; i < NUM_RLY; i++) {
+    relayEnableList[i] = rlyCfg[i].enabled;
+    relayInvertList[i] = rlyCfg[i].inverted;
+    relayPowerOnList[i] = rlyCfg[i].powerOn;
+  }
   WebSerial.send("relayEnableList", relayEnableList);
   WebSerial.send("relayInvertList", relayInvertList);
+  WebSerial.send("relayPowerOnList", relayPowerOnList);
+
+  JSONVar pwmPowerOnList;
+  for (int i = 0; i < NUM_PWM; i++) pwmPowerOnList[i] = pwmPowerOn[i];
+  WebSerial.send("pwmPowerOnList", pwmPowerOnList);
 
   JSONVar ButtonGroupList; for (int i = 0; i < NUM_BTN; i++) ButtonGroupList[i] = btnCfg[i].action;
   WebSerial.send("ButtonGroupList", ButtonGroupList);

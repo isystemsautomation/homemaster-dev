@@ -75,7 +75,7 @@ enum DiLatchMode  : uint8_t { LATCH_TOGGLE_TO_PRESET_OR_0=0, LATCH_PINGPONG_UNTI
 
 // ================== Config & runtime ==================
 struct InCfg { bool enabled; bool inverted; uint8_t switchType; uint8_t pressAction[PRESS_COUNT]; uint8_t pressTarget[PRESS_COUNT]; uint8_t latchMode; uint8_t latchTarget; };
-struct ChCfg { bool enabled; };
+struct ChCfg { bool enabled; uint8_t powerOn; };
 struct LedCfg { uint8_t mode; uint8_t source; };
 struct BtnCfg { uint8_t action; };   // see mapping below
 
@@ -164,17 +164,41 @@ unsigned long lastBlinkToggle=0; const unsigned long blinkPeriodMs=400; bool bli
 uint8_t  g_mb_address=3; uint32_t g_mb_baud=19200;
 
 // ================== Persistence (LittleFS) ==================
-struct PersistConfig {
+struct ChCfgV6 { bool enabled; };
+
+struct PersistConfigV6 {
   uint32_t magic; uint16_t version; uint16_t size;
-  InCfg  diCfg[NUM_DI]; ChCfg chCfg[NUM_CH]; LedCfg ledCfg[NUM_LED]; BtnCfg btnCfg[NUM_BTN];
+  InCfg  diCfg[NUM_DI]; ChCfgV6 chCfg[NUM_CH]; LedCfg ledCfg[NUM_LED]; BtnCfg btnCfg[NUM_BTN];
   uint8_t chLevel[NUM_CH]; uint8_t chLastNonZero[NUM_CH]; uint8_t chLower[NUM_CH]; uint8_t chUpper[NUM_CH];
   uint8_t chLoadType[NUM_CH]; uint16_t chPctX10[NUM_CH]; uint8_t chCutMode[NUM_CH]; uint8_t chPreset[NUM_CH];
   uint8_t mb_address; uint32_t mb_baud; uint32_t crc32;
 } __attribute__((packed));
 
-static const uint32_t CFG_MAGIC=0x314D4449UL; static const uint16_t CFG_VERSION=0x0006; static const char* CFG_PATH="/cfg.bin";
+struct PersistConfig {
+  uint32_t magic; uint16_t version; uint16_t size;
+  InCfg  diCfg[NUM_DI]; ChCfg chCfg[NUM_CH]; LedCfg ledCfg[NUM_LED]; BtnCfg btnCfg[NUM_BTN];
+  uint8_t chLower[NUM_CH]; uint8_t chUpper[NUM_CH];
+  uint8_t chLoadType[NUM_CH]; uint16_t chPctX10[NUM_CH]; uint8_t chCutMode[NUM_CH]; uint8_t chPreset[NUM_CH];
+  uint8_t mb_address; uint32_t mb_baud; uint32_t crc32;
+} __attribute__((packed));
+
+struct OutputStateSnapshot {
+  uint32_t magic; uint16_t version; uint16_t size;
+  uint8_t chLevel[NUM_CH]; uint8_t chLastNonZero[NUM_CH];
+  uint32_t crc32;
+} __attribute__((packed));
+
+static const uint32_t CFG_MAGIC=0x314D4449UL;
+static const uint16_t CFG_VERSION=0x0007;
+static const uint16_t CFG_VERSION_V6=0x0006;
+static const char* CFG_PATH="/cfg.bin";
+static const char* OUT_STATE_PATH="/cfg_out.bin";
+static const uint32_t OUT_STATE_MAGIC=0x484D4F53UL;
+static const uint16_t OUT_STATE_VERSION=0x0001;
 
 volatile bool cfgDirty=false; uint32_t lastCfgTouchMs=0; const uint32_t CFG_AUTOSAVE_MS=1500;
+uint32_t lastOutChangeMs=0; uint32_t lastOutSaveMs=0; const uint32_t OUT_AUTOSAVE_MS=10000;
+uint8_t prevChLevel[NUM_CH]={0,0}; bool outTrackInit=false;
 volatile bool diCfgEchoPending=false;
 
 // ================== Utils ==================
@@ -251,33 +275,115 @@ void setDefaults(){
   for(int i=0;i<NUM_DI;i++){ diCfg[i].enabled=true; diCfg[i].inverted=false; diCfg[i].switchType=DI_SW_MOMENTARY;
     for(int p=0;p<PRESS_COUNT;p++){ diCfg[i].pressAction[p]=DI_ACT_NONE; diCfg[i].pressTarget[p]=DI_TGT_NONE; }
     diCfg[i].latchMode=LATCH_TOGGLE_TO_PRESET_OR_0; diCfg[i].latchTarget=DI_TGT_NONE; }
-  for(int i=0;i<NUM_CH;i++) chCfg[i]={true}; for(int i=0;i<NUM_LED;i++) ledCfg[i]={0,0}; for(int i=0;i<NUM_BTN;i++) btnCfg[i]={0};
+  for(int i=0;i<NUM_CH;i++) chCfg[i]={true,HM_PWR_OFF}; for(int i=0;i<NUM_LED;i++) ledCfg[i]={0,0}; for(int i=0;i<NUM_BTN;i++) btnCfg[i]={0};
   for(int i=0;i<NUM_CH;i++){ chLevel[i]=0; chLastNonZero[i]=200; chPulseUntil[i]=0; zcLastEdgeMs[i]=0; zcOk[i]=zcPrevOk[i]=false; zcOkStreak[i]=zcFaultStreak[i]=0; chLower[i]=20; chUpper[i]=255; chLoadType[i]=LOAD_LAMP; chPctX10[i]=0; chCutMode[i]=CUT_LEADING; chPreset[i]=200; }
   g_mb_address=3; g_mb_baud=19200; initFreqEstimator();
 }
 
 // ===== Persist helpers =====
+bool readOutputStateSnapshot(uint8_t levelOut[NUM_CH], uint8_t lnzOut[NUM_CH]){
+  File f=LittleFS.open(OUT_STATE_PATH,"r"); if(!f) return false;
+  if((size_t)f.size()!=sizeof(OutputStateSnapshot)){ f.close(); return false; }
+  OutputStateSnapshot snap{}; size_t n=f.read((uint8_t*)&snap,sizeof(snap)); f.close();
+  if(n!=sizeof(snap)) return false;
+  if(snap.magic!=OUT_STATE_MAGIC || snap.version!=OUT_STATE_VERSION || snap.size!=sizeof(OutputStateSnapshot)) return false;
+  OutputStateSnapshot tmp=snap; uint32_t crc=tmp.crc32; tmp.crc32=0;
+  if(crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
+  memcpy(levelOut,snap.chLevel,sizeof(snap.chLevel)); memcpy(lnzOut,snap.chLastNonZero,sizeof(snap.chLastNonZero));
+  return true;
+}
+bool saveOutputStateSnapshot(){
+  OutputStateSnapshot snap{};
+  snap.magic=OUT_STATE_MAGIC; snap.version=OUT_STATE_VERSION; snap.size=sizeof(OutputStateSnapshot);
+  for(int i=0;i<NUM_CH;i++){ snap.chLevel[i]=chLevel[i]; snap.chLastNonZero[i]=chLastNonZero[i]; }
+  snap.crc32=0; snap.crc32=crc32_update(0,(const uint8_t*)&snap,sizeof(snap));
+  File f=LittleFS.open(OUT_STATE_PATH,"w"); if(!f) return false;
+  size_t n=f.write((const uint8_t*)&snap,sizeof(snap)); f.flush(); f.close();
+  return n==sizeof(snap);
+}
+void applyPowerOnOutputs(){
+  uint8_t restoredLevel[NUM_CH]={0,0}, restoredLNZ[NUM_CH]={200,200};
+  bool haveSnap=readOutputStateSnapshot(restoredLevel,restoredLNZ);
+  for(int i=0;i<NUM_CH;i++){
+    chPulseUntil[i]=0;
+    uint8_t lvl=0;
+    if(chCfg[i].powerOn==HM_PWR_ON){
+      lvl=chPreset[i]?chPreset[i]:chLower[i];
+    } else if(chCfg[i].powerOn==HM_PWR_RESTORE && haveSnap){
+      chLastNonZero[i]=constrain(restoredLNZ[i],chLower[i],chUpper[i]);
+      lvl=restoredLevel[i];
+      if(lvl>0 && lvl<chLower[i]) lvl=0; else if(lvl>chUpper[i]) lvl=chUpper[i];
+    }
+    setLevelDirect(i,lvl);
+  }
+  for(int i=0;i<NUM_CH;i++) prevChLevel[i]=chLevel[i];
+  outTrackInit=true; lastOutChangeMs=millis();
+}
+void maybePersistOutputState(uint32_t now){
+  bool needRestore=false;
+  for(int i=0;i<NUM_CH;i++){ if(chCfg[i].powerOn==HM_PWR_RESTORE){ needRestore=true; break; } }
+  if(!needRestore) return;
+  if((uint32_t)(now-lastOutChangeMs)<OUT_AUTOSAVE_MS) return;
+  if(lastOutSaveMs && (uint32_t)(now-lastOutSaveMs)<OUT_AUTOSAVE_MS) return;
+  if(saveOutputStateSnapshot()) lastOutSaveMs=now;
+}
 void captureToPersist(PersistConfig &pc){
   pc.magic=CFG_MAGIC; pc.version=CFG_VERSION; pc.size=sizeof(PersistConfig);
   memcpy(pc.diCfg,diCfg,sizeof(diCfg)); memcpy(pc.chCfg,chCfg,sizeof(chCfg)); memcpy(pc.ledCfg,ledCfg,sizeof(ledCfg)); memcpy(pc.btnCfg,btnCfg,sizeof(btnCfg));
-  for(int i=0;i<NUM_CH;i++){ pc.chLevel[i]=chLevel[i]; pc.chLastNonZero[i]=chLastNonZero[i]; pc.chLower[i]=chLower[i]; pc.chUpper[i]=chUpper[i]; pc.chLoadType[i]=chLoadType[i]; pc.chPctX10[i]=chPctX10[i]; pc.chCutMode[i]=chCutMode[i]; pc.chPreset[i]=chPreset[i]; }
+  for(int i=0;i<NUM_CH;i++){ pc.chLower[i]=chLower[i]; pc.chUpper[i]=chUpper[i]; pc.chLoadType[i]=chLoadType[i]; pc.chPctX10[i]=chPctX10[i]; pc.chCutMode[i]=chCutMode[i]; pc.chPreset[i]=chPreset[i]; }
   pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud; pc.crc32=0; pc.crc32=crc32_update(0,(const uint8_t*)&pc,sizeof(PersistConfig));
+}
+bool applyFromPersistV6(const PersistConfigV6 &pc){
+  if(pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfigV6)) return false; PersistConfigV6 tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
+  if(crc32_update(0,(const uint8_t*)&tmp,sizeof(PersistConfigV6))!=crc) return false; if(pc.version!=CFG_VERSION_V6) return false;
+  memcpy(diCfg,pc.diCfg,sizeof(diCfg));
+  for(int i=0;i<NUM_CH;i++) chCfg[i]={pc.chCfg[i].enabled,HM_PWR_OFF};
+  memcpy(ledCfg,pc.ledCfg,sizeof(ledCfg)); memcpy(btnCfg,pc.btnCfg,sizeof(btnCfg));
+  for(int i=0;i<NUM_CH;i++){ chLower[i]=pc.chLower[i]; chUpper[i]=pc.chUpper[i];
+    chLoadType[i]=(pc.chLoadType[i]<=LOAD_KEY)?pc.chLoadType[i]:LOAD_LAMP; chPctX10[i]=(pc.chPctX10[i]>1000)?1000:pc.chPctX10[i];
+    chCutMode[i]=(pc.chCutMode[i]<=CUT_TRAILING)?pc.chCutMode[i]:CUT_LEADING; chPreset[i]=pc.chPreset[i]; clampAndApplyPreset(i); }
+  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud; return true;
 }
 bool applyFromPersist(const PersistConfig &pc){
   if(pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false; PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
   if(crc32_update(0,(const uint8_t*)&tmp,sizeof(PersistConfig))!=crc) return false; if(pc.version!=CFG_VERSION) return false;
   memcpy(diCfg,pc.diCfg,sizeof(diCfg)); memcpy(chCfg,pc.chCfg,sizeof(chCfg)); memcpy(ledCfg,pc.ledCfg,sizeof(ledCfg)); memcpy(btnCfg,pc.btnCfg,sizeof(btnCfg));
-  for(int i=0;i<NUM_CH;i++){ chLower[i]=pc.chLower[i]; chUpper[i]=pc.chUpper[i]; chLastNonZero[i]=constrain(pc.chLastNonZero[i],chLower[i],chUpper[i]);
+  for(int i=0;i<NUM_CH;i++){ chLower[i]=pc.chLower[i]; chUpper[i]=pc.chUpper[i];
     chLoadType[i]=(pc.chLoadType[i]<=LOAD_KEY)?pc.chLoadType[i]:LOAD_LAMP; chPctX10[i]=(pc.chPctX10[i]>1000)?1000:pc.chPctX10[i];
-    chCutMode[i]=(pc.chCutMode[i]<=CUT_TRAILING)?pc.chCutMode[i]:CUT_LEADING; chPreset[i]=pc.chPreset[i]; clampAndApplyPreset(i);
-    uint8_t lvl=pc.chLevel[i]; if(lvl==0) chLevel[i]=0; else if(lvl<chLower[i]) chLevel[i]=0; else if(lvl>chUpper[i]) chLevel[i]=chUpper[i]; else chLevel[i]=lvl; }
+    chCutMode[i]=(pc.chCutMode[i]<=CUT_TRAILING)?pc.chCutMode[i]:CUT_LEADING; chPreset[i]=pc.chPreset[i]; clampAndApplyPreset(i); }
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud; return true;
 }
 bool saveConfigFS(){ PersistConfig pc{}; captureToPersist(pc); File f=LittleFS.open(CFG_PATH,"w"); if(!f) return false; size_t n=f.write((const uint8_t*)&pc,sizeof(pc)); f.flush(); f.close(); if(n!=sizeof(pc)) return false;
   File r=LittleFS.open(CFG_PATH,"r"); if(!r) return false; if((size_t)r.size()!=sizeof(PersistConfig)){ r.close(); return false; } PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close(); if(n!=sizeof(back)) return false;
   PersistConfig tmp2=back; uint32_t crc=tmp2.crc32; tmp2.crc32=0; if(crc32_update(0,(const uint8_t*)&tmp2,sizeof(tmp2))!=crc) return false; wsLog("config: saved to FS"); return true; }
-bool loadConfigFS(){ File f=LittleFS.open(CFG_PATH,"r"); if(!f) return false; if(f.size()!=sizeof(PersistConfig)){ f.close(); return false; } PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close(); if(n!=sizeof(pc)) return false; if(!applyFromPersist(pc)) return false; wsLog("config: loaded from FS"); return true; }
-bool initFilesystemAndConfig(){ if(!LittleFS.begin()){ if(!LittleFS.format()||!LittleFS.begin()){ wsLog("fs: init failed"); return false; } } if(loadConfigFS()) return true; setDefaults(); if(saveConfigFS()) return true; if(!LittleFS.format()||!LittleFS.begin()) return false; setDefaults(); if(saveConfigFS()) return true; return false; }
+bool loadConfigFS(){
+  File f=LittleFS.open(CFG_PATH,"r"); if(!f) return false;
+  size_t sz=f.size();
+  if(sz==sizeof(PersistConfigV6)){
+    PersistConfigV6 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)) return false;
+    if(!applyFromPersistV6(pc)) return false;
+    cfgDirty=true; lastCfgTouchMs=millis();
+    wsLog("config: loaded v6, migrated");
+    return true;
+  }
+  if(sz!=sizeof(PersistConfig)){ f.close(); return false; }
+  PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+  if(n!=sizeof(pc)) return false;
+  if(!applyFromPersist(pc)) return false;
+  wsLog("config: loaded from FS");
+  return true;
+}
+bool initFilesystemAndConfig(){
+  if(!LittleFS.begin()){ if(!LittleFS.format()||!LittleFS.begin()){ wsLog("fs: init failed"); return false; } }
+  if(loadConfigFS()){ applyPowerOnOutputs(); return true; }
+  setDefaults(); applyPowerOnOutputs();
+  if(saveConfigFS()) return true;
+  if(!LittleFS.format()||!LittleFS.begin()) return false;
+  setDefaults(); applyPowerOnOutputs();
+  if(saveConfigFS()) return true;
+  return false;
+}
 
 // ================== SFINAE helper ==================
 template <class M> inline auto setSlaveIdIfAvailable(M& m,uint8_t id)->decltype(std::declval<M&>().setSlaveId(uint8_t{}),void()){ m.setSlaveId(id); }
@@ -346,7 +452,7 @@ static inline bool ledSrcActive(uint8_t src){
 void sendConfigSnapshot(){
   JSONVar cfg;
   cfg["mb"]["address"]=(int)g_mb_address; cfg["mb"]["baud"]=(int)g_mb_baud;
-  for(int i=0;i<NUM_CH;i++){ JSONVar ch; ch["enabled"]=chCfg[i].enabled; ch["level"]=(int)chLevel[i]; ch["lower"]=(int)chLower[i]; ch["upper"]=(int)chUpper[i]; ch["loadType"]=(int)chLoadType[i]; ch["percent"]=(int)min((int)(chPctX10[i]/10),100); ch["cutMode"]=(int)chCutMode[i]; ch["preset"]=(int)chPreset[i]; ch["freq_x100"]=(int)freq_x100[i]; ch["zc_ok"]=zcOk[i]; cfg["ch"][i]=ch; }
+  for(int i=0;i<NUM_CH;i++){ JSONVar ch; ch["enabled"]=chCfg[i].enabled; ch["powerOn"]=(int)chCfg[i].powerOn; ch["level"]=(int)chLevel[i]; ch["lower"]=(int)chLower[i]; ch["upper"]=(int)chUpper[i]; ch["loadType"]=(int)chLoadType[i]; ch["percent"]=(int)min((int)(chPctX10[i]/10),100); ch["cutMode"]=(int)chCutMode[i]; ch["preset"]=(int)chPreset[i]; ch["freq_x100"]=(int)freq_x100[i]; ch["zc_ok"]=zcOk[i]; cfg["ch"][i]=ch; }
   for(int i=0;i<NUM_DI;i++){ JSONVar d; d["enabled"]=diCfg[i].enabled; d["invert"]=diCfg[i].inverted; d["switchType"]=diCfg[i].switchType; d["state"]=diRt[i].cur;
     d["press"]["short"]["action"]=diCfg[i].pressAction[PRESS_SHORT]; d["press"]["short"]["target"]=diCfg[i].pressTarget[PRESS_SHORT];
     d["press"]["long"]["action"]=diCfg[i].pressAction[PRESS_LONG]; d["press"]["long"]["target"]=diCfg[i].pressTarget[PRESS_LONG];
@@ -418,8 +524,8 @@ void setup(){
 void handleCommand(JSONVar obj){
   const char* actC=(const char*)obj["action"]; if(!actC) return; String act=String(actC); act.toLowerCase();
   if(act=="save"){ wsLog("cmd: save"); saveConfigFS(); }
-  else if(act=="load"){ wsLog("cmd: load"); if(loadConfigFS()){ applyModbusSettings(g_mb_address,g_mb_baud); } }
-  else if(act=="factory"){ wsLog("cmd: factory"); setDefaults(); if(saveConfigFS()){ applyModbusSettings(g_mb_address,g_mb_baud); } }
+  else if(act=="load"){ wsLog("cmd: load"); if(loadConfigFS()){ applyPowerOnOutputs(); applyModbusSettings(g_mb_address,g_mb_baud); } }
+  else if(act=="factory"){ wsLog("cmd: factory"); LittleFS.remove(OUT_STATE_PATH); setDefaults(); applyPowerOnOutputs(); if(saveConfigFS()){ applyModbusSettings(g_mb_address,g_mb_baud); } }
 }
 void applyModbusSettings(uint8_t addr,uint32_t baud){
   bool baudChanged=((uint32_t)modbusStatus["baud"]!=baud); if(baudChanged){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
@@ -452,22 +558,21 @@ void handleUnifiedConfig(JSONVar obj){
   else if(type=="inputLatchTarget"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchTarget=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputLatchTarget"); }
 
   else if(type=="channels"){
+    bool settingsChanged=false;
     for(int i=0;i<NUM_CH && i<list.length();i++){
-      chCfg[i].enabled=(bool)list[i]["enabled"];
-      int lo=(int)list[i]["lower"], hi=(int)list[i]["upper"]; setThresholds(i,lo,hi);
-      if(list[i].hasOwnProperty("loadType")){ int lt=(int)list[i]["loadType"]; chLoadType[i]=(uint8_t)constrain(lt,0,2); mb.setHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]); }
-      if(list[i].hasOwnProperty("cutMode")){ int cm=(int)list[i]["cutMode"]; chCutMode[i]=(uint8_t)constrain(cm,0,1); mb.setHreg(HREG_CUTMODE_BASE + i, chCutMode[i]); }
-      if(list[i].hasOwnProperty("preset")){ int pv=(int)list[i]["preset"]; pv=constrain(pv,0,255); chPreset[i]=(uint8_t)pv; clampAndApplyPreset(i); mb.setHreg(HREG_PRESET_BASE + i, chPreset[i]); }
+      if((bool)list[i]["enabled"]!=chCfg[i].enabled){ chCfg[i].enabled=(bool)list[i]["enabled"]; settingsChanged=true; }
+      if(list[i].hasOwnProperty("powerOn")){ uint8_t po=(uint8_t)constrain((int)list[i]["powerOn"],0,2); if(po!=chCfg[i].powerOn){ chCfg[i].powerOn=po; settingsChanged=true; } }
+      int lo=(int)list[i]["lower"], hi=(int)list[i]["upper"];
+      if(lo!=(int)chLower[i] || hi!=(int)chUpper[i]){ setThresholds(i,lo,hi); settingsChanged=true; }
+      if(list[i].hasOwnProperty("loadType")){ int lt=(int)list[i]["loadType"]; chLoadType[i]=(uint8_t)constrain(lt,0,2); mb.setHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]); settingsChanged=true; }
+      if(list[i].hasOwnProperty("cutMode")){ int cm=(int)list[i]["cutMode"]; chCutMode[i]=(uint8_t)constrain(cm,0,1); mb.setHreg(HREG_CUTMODE_BASE + i, chCutMode[i]); settingsChanged=true; }
+      if(list[i].hasOwnProperty("preset")){ int pv=(int)list[i]["preset"]; pv=constrain(pv,0,255); chPreset[i]=(uint8_t)pv; clampAndApplyPreset(i); mb.setHreg(HREG_PRESET_BASE + i, chPreset[i]); settingsChanged=true; }
       if(list[i].hasOwnProperty("percent")){ double pct=(double)list[i]["percent"]; if((LoadType)chLoadType[i]!=LOAD_KEY) pct=constrain(pct,0.0,100.0); chPctX10[i]=(uint16_t)constrain((int)lround(pct*10.0),0,1000); mb.setHreg(HREG_PCT_X10_BASE + i, chPctX10[i]); uint8_t lvl=mapPercentToLevel(i,pct); setLevelDirect(i,lvl); wsLog("channel["+String(i)+"]: percent="+String((int)pct)+" -> level="+String(lvl)); }
       else if(list[i].hasOwnProperty("level")){ int lvl=(int)list[i]["level"]; clampAndSetLevel(i,lvl); }
-      // Safety/behavior: when a channel is disabled from UI/Modbus config,
-      // force its effective output level to 0 immediately.
-      // This prevents already-scheduled PWM ON callbacks from turning the gate back on.
-      if(!chCfg[i].enabled){
-        clampAndSetLevel(i, 0);
-      }
+      if(!chCfg[i].enabled) clampAndSetLevel(i, 0);
     }
-    changed=true; wsLog("cfg: channels");
+    if(settingsChanged){ cfgDirty=true; lastCfgTouchMs=millis(); }
+    wsLog("cfg: channels");
   }
   else if(type=="buttons"){ // ACCEPT 0..8 now
     for(int i=0;i<NUM_BTN && i<list.length();i++){
@@ -516,7 +621,7 @@ void applyActionToTarget(uint8_t target,uint8_t action,uint32_t now){
   if(target==4) return;
   if(target==0){ for(int i=0;i<NUM_CH;i++) doCh(i); }
   else if(target>=1 && target<=2){ doCh(target-1); }
-  cfgDirty=true; lastCfgTouchMs=now; wsLog("button: target="+String(target)+" action="+String(action));
+  wsLog("button: target="+String(target)+" action="+String(action));
 }
 
 // ===== DI actions (generic, keep burst for non-short contexts) =====
@@ -538,7 +643,7 @@ void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
     case DI_ACT_GO_MAX:            clampAndSetLevel(idx, chUpper[idx]); break;
   } };
   if(target==DI_TGT_ALL){ doCh(0); doCh(1); } else if(target==DI_TGT_CH1){ doCh(0); } else if(target==DI_TGT_CH2){ doCh(1); }
-  cfgDirty=true; lastCfgTouchMs=now; wsLog("DI: target="+String(target)+" action="+String(action));
+  wsLog("DI: target="+String(target)+" action="+String(action));
 }
 
 JSONVar LedConfigListFromCfg(){ JSONVar arr; for(int i=0;i<NUM_LED;i++){ JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; } return arr; }
@@ -587,6 +692,17 @@ void loop(){
 
   // Auto-save
   if(cfgDirty && (now-lastCfgTouchMs>=CFG_AUTOSAVE_MS)){ if(saveConfigFS()) wsLog("config: autosaved"); cfgDirty=false; }
+  maybePersistOutputState(now);
+
+  // Track output level changes for /cfg_out.bin debounced save
+  if(!outTrackInit){
+    for(int i=0;i<NUM_CH;i++) prevChLevel[i]=chLevel[i];
+    outTrackInit=true;
+  } else {
+    for(int i=0;i<NUM_CH;i++){
+      if(chLevel[i]!=prevChLevel[i]){ prevChLevel[i]=chLevel[i]; lastOutChangeMs=now; }
+    }
+  }
 
   // ================== Buttons (inverted: HIGH = pressed) ==================
   for(int i=0;i<NUM_BTN;i++){
@@ -602,18 +718,18 @@ void loop(){
       btnRt[i].lastRampTick = now;
 
       switch(btnCfg[i].action){
-        case 1: /* Toggle CH1 */ if(chLevel[0]==0) clampAndSetLevel(0,chPreset[0]); else clampAndSetLevel(0,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH1"); break;
-        case 2: /* Toggle CH2 */ if(chLevel[1]==0) clampAndSetLevel(1,chPreset[1]); else clampAndSetLevel(1,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH2"); break;
+        case 1: /* Toggle CH1 */ if(chLevel[0]==0) clampAndSetLevel(0,chPreset[0]); else clampAndSetLevel(0,0); wsLog("button: toggle CH1"); break;
+        case 2: /* Toggle CH2 */ if(chLevel[1]==0) clampAndSetLevel(1,chPreset[1]); else clampAndSetLevel(1,0); wsLog("button: toggle CH2"); break;
 
         // Old logic single-step immediately (hold will start auto-ramp later if long)
-        case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH1"); break;
-        case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH1"); break;
-        case 5: clampAndSetLevel(1, chLevel[1]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH2"); break;
-        case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH2"); break;
+        case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); wsLog("button: stepUp CH1"); break;
+        case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); wsLog("button: stepDown CH1"); break;
+        case 5: clampAndSetLevel(1, chLevel[1]+STEP_DELTA); wsLog("button: stepUp CH2"); break;
+        case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); wsLog("button: stepDown CH2"); break;
 
         // New: go to MAX threshold
-        case 7: clampAndSetLevel(0, chUpper[0]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH1"); break;
-        case 8: clampAndSetLevel(1, chUpper[1]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH2"); break;
+        case 7: clampAndSetLevel(0, chUpper[0]); wsLog("button: MAX CH1"); break;
+        case 8: clampAndSetLevel(1, chUpper[1]); wsLog("button: MAX CH2"); break;
 
         default: break;
       }
@@ -638,7 +754,6 @@ void loop(){
           case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); break;
           default: break;
         }
-        cfgDirty=true; lastCfgTouchMs=now;
       }
     }
 
@@ -717,7 +832,6 @@ void loop(){
           if(shortTgt==DI_TGT_CH1) onePingPongStep(0, rt.shortDir[0]);
           else if(shortTgt==DI_TGT_CH2) onePingPongStep(1, rt.shortDir[1]);
           else if(shortTgt==DI_TGT_ALL){ onePingPongStep(0, rt.shortDir[0]); onePingPongStep(1, rt.shortDir[1]); }
-          cfgDirty=true; lastCfgTouchMs=nowMs;
           { String msg="DI"; msg+=String(i+1); msg+=": short ping-pong step"; wsLog(msg); }
         }else{
           // Legacy single-shot actions
@@ -757,8 +871,6 @@ void loop(){
         if(longTgt==DI_TGT_CH1) stepOne(0);
         else if(longTgt==DI_TGT_CH2) stepOne(1);
         else if(longTgt==DI_TGT_ALL){ stepOne(0); stepOne(1); }
-
-        cfgDirty=true; lastCfgTouchMs=nowMs;
       }
     }
 
@@ -801,19 +913,19 @@ void loop(){
 // ================== Modbus helpers ==================
 void processModbusCommandPulses(){
   for(int c=0;c<NUM_CH;c++){
-    if(mb.Coil(CMD_CH_ON_BASE + c)){ mb.setCoil(CMD_CH_ON_BASE + c,false); clampAndSetLevel(c,chPreset[c]); cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" ON"); }
-    if(mb.Coil(CMD_CH_OFF_BASE + c)){ mb.setCoil(CMD_CH_OFF_BASE + c,false); clampAndSetLevel(c,0); cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" OFF"); }
+    if(mb.Coil(CMD_CH_ON_BASE + c)){ mb.setCoil(CMD_CH_ON_BASE + c,false); clampAndSetLevel(c,chPreset[c]); wsLog("modbus: CH"+String(c+1)+" ON"); }
+    if(mb.Coil(CMD_CH_OFF_BASE + c)){ mb.setCoil(CMD_CH_OFF_BASE + c,false); clampAndSetLevel(c,0); wsLog("modbus: CH"+String(c+1)+" OFF"); }
   }
   for(int i=0;i<NUM_DI;i++){
     if(mb.Coil(CMD_DI_EN_BASE + i)){  mb.setCoil(CMD_DI_EN_BASE + i,false); if(!diCfg[i].enabled){ diCfg[i].enabled=true; cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; wsLog("modbus: DI"+String(i+1)+" enable"); } }
     if(mb.Coil(CMD_DI_DIS_BASE + i)){ mb.setCoil(CMD_DI_DIS_BASE + i,false); if(diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; wsLog("modbus: DI"+String(i+1)+" disable"); } }
   }
   for(int c=0;c<NUM_CH;c++){
-    uint16_t lo=mb.Hreg(HREG_DIM_LO_BASE + c), hi=mb.Hreg(HREG_DIM_HI_BASE + c); if(lo!=chLower[c] || hi!=chUpper[c]) setThresholds(c,(int)lo,(int)hi);
+    uint16_t lo=mb.Hreg(HREG_DIM_LO_BASE + c), hi=mb.Hreg(HREG_DIM_HI_BASE + c); if(lo!=chLower[c] || hi!=chUpper[c]){ setThresholds(c,(int)lo,(int)hi); cfgDirty=true; lastCfgTouchMs=millis(); }
     uint16_t lt=constrain((int)mb.Hreg(HREG_LOADTYPE_BASE + c),0,2); if(lt!=chLoadType[c]){ chLoadType[c]=(uint8_t)lt; cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" loadType="+String(lt)); }
     uint16_t cm=constrain((int)mb.Hreg(HREG_CUTMODE_BASE + c),0,1); if(cm!=chCutMode[c]){ chCutMode[c]=(uint8_t)cm; cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" cutMode="+String(cm)); }
     uint16_t pv=constrain((int)mb.Hreg(HREG_PRESET_BASE + c),0,255); if(pv!=chPreset[c]){ chPreset[c]=(uint8_t)pv; clampAndApplyPreset(c); cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" preset="+String((int)chPreset[c])); }
-    uint16_t p10=mb.Hreg(HREG_PCT_X10_BASE + c); if(p10>1000 && chLoadType[c]!=LOAD_KEY) p10=1000; if(p10!=chPctX10[c]){ chPctX10[c]=p10; double pct=chPctX10[c]/10.0; uint8_t lvl=mapPercentToLevel(c,pct); setLevelDirect(c,lvl); cfgDirty=true; lastCfgTouchMs=millis(); wsLog("modbus: CH"+String(c+1)+" percent="+String(pct,1)+" -> level="+String(lvl)); }
+    uint16_t p10=mb.Hreg(HREG_PCT_X10_BASE + c); if(p10>1000 && chLoadType[c]!=LOAD_KEY) p10=1000; if(p10!=chPctX10[c]){ chPctX10[c]=p10; double pct=chPctX10[c]/10.0; uint8_t lvl=mapPercentToLevel(c,pct); setLevelDirect(c,lvl); wsLog("modbus: CH"+String(c+1)+" percent="+String(pct,1)+" -> level="+String(lvl)); }
     uint16_t lvl=mb.Hreg(HREG_DIM_LEVEL_BASE + c); clampAndSetLevel(c,(int)lvl);
   }
 }

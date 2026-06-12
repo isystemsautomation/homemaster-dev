@@ -40,7 +40,7 @@
 
 // ================== Persistence (LittleFS) — must be before any function using it
 // (Arduino IDE inserts function prototypes at the top of the generated .cpp). =====
-struct PersistConfig {
+struct PersistConfigV8 {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -59,13 +59,49 @@ struct PersistConfig {
   uint32_t crc32;
 } __attribute__((packed));
 
+struct PersistConfig {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+
+  uint8_t  aoPowerOn[2];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint8_t  led_src[4];
+  uint8_t  btn_action[4];
+
+  uint8_t  rtd_wires[2];
+  uint16_t rtd_rnominal[2];
+  uint16_t rtd_rref[2];
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct OutputStateSnapshot {
+  uint32_t magic; uint16_t version; uint16_t size;
+  uint16_t dacRaw[2];
+  uint32_t crc32;
+} __attribute__((packed));
+
 static const uint32_t CFG_MAGIC   = 0x314F4941UL;
-static const uint16_t CFG_VERSION = 0x0008;
+static const uint16_t CFG_VERSION_V8 = 0x0008;
+static const uint16_t CFG_VERSION = 0x0009;  // Phase B: aoPowerOn, DAC state decoupled
 static const char*    CFG_PATH    = "/cfg.bin";
+static const char*    OUT_STATE_PATH = "/cfg_out.bin";
+static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL; // 'HMOS'
+static const uint16_t OUT_STATE_VERSION = 0x0001;
 
 volatile bool  cfgDirty        = false;
 uint32_t       lastCfgTouchMs  = 0;
 const uint32_t CFG_AUTOSAVE_MS = 1500;
+uint32_t       lastOutChangeMs = 0;
+uint32_t       lastOutSaveMs   = 0;
+const uint32_t OUT_AUTOSAVE_MS = 10000;
+uint16_t       prevDacRaw[2]   = {0, 0};
+bool           outTrackInit    = false;
+
+uint8_t aoPowerOn[2] = {HM_PWR_OFF, HM_PWR_OFF};
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2   4
@@ -437,6 +473,8 @@ void setDefaults() {
 
   dacRaw[0] = 0;
   dacRaw[1] = 0;
+  aoPowerOn[0] = HM_PWR_OFF;
+  aoPowerOn[1] = HM_PWR_OFF;
 
   g_mb_address = 3;
   g_mb_baud    = 19200;
@@ -462,13 +500,68 @@ void setDefaults() {
   rtdTempC[0] = rtdTempC[1] = 0;
 }
 
+bool readOutputStateSnapshot(uint16_t out[2]) {
+  File f = LittleFS.open(OUT_STATE_PATH, "r");
+  if (!f) return false;
+  if ((size_t)f.size() != sizeof(OutputStateSnapshot)) { f.close(); return false; }
+  OutputStateSnapshot snap{};
+  size_t n = f.read((uint8_t*)&snap, sizeof(snap));
+  f.close();
+  if (n != sizeof(snap)) return false;
+  if (snap.magic != OUT_STATE_MAGIC || snap.version != OUT_STATE_VERSION || snap.size != sizeof(OutputStateSnapshot)) return false;
+  OutputStateSnapshot tmp = snap; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) return false;
+  out[0] = snap.dacRaw[0];
+  out[1] = snap.dacRaw[1];
+  return true;
+}
+
+bool saveOutputStateSnapshot() {
+  OutputStateSnapshot snap{};
+  snap.magic = OUT_STATE_MAGIC; snap.version = OUT_STATE_VERSION; snap.size = sizeof(OutputStateSnapshot);
+  snap.dacRaw[0] = dacRaw[0];
+  snap.dacRaw[1] = dacRaw[1];
+  snap.crc32 = 0; snap.crc32 = crc32_update(0, (const uint8_t*)&snap, sizeof(snap));
+  File f = LittleFS.open(OUT_STATE_PATH, "w");
+  if (!f) return false;
+  size_t n = f.write((const uint8_t*)&snap, sizeof(snap));
+  f.flush(); f.close();
+  return n == sizeof(snap);
+}
+
+void applyPowerOnOutputs() {
+  uint16_t restored[2] = {0, 0};
+  bool haveSnap = readOutputStateSnapshot(restored);
+  for (int i = 0; i < 2; i++) {
+    if (aoPowerOn[i] == HM_PWR_ON) dacRaw[i] = 4095;
+    else if (aoPowerOn[i] == HM_PWR_RESTORE && haveSnap) dacRaw[i] = restored[i];
+    else dacRaw[i] = 0;
+    writeDac(i, dacRaw[i]);
+    mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
+  }
+  memcpy(prevDacRaw, dacRaw, sizeof(prevDacRaw));
+  outTrackInit = true;
+  lastOutChangeMs = millis();
+}
+
+void maybePersistOutputState(uint32_t now) {
+  bool needRestore = false;
+  for (int i = 0; i < 2; i++) {
+    if (aoPowerOn[i] == HM_PWR_RESTORE) { needRestore = true; break; }
+  }
+  if (!needRestore) return;
+  if ((uint32_t)(now - lastOutChangeMs) < OUT_AUTOSAVE_MS) return;
+  if (lastOutSaveMs && (uint32_t)(now - lastOutSaveMs) < OUT_AUTOSAVE_MS) return;
+  if (saveOutputStateSnapshot()) lastOutSaveMs = now;
+}
+
 void captureToPersist(PersistConfig &pc) {
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size    = sizeof(PersistConfig);
 
-  pc.dacRaw[0] = dacRaw[0];
-  pc.dacRaw[1] = dacRaw[1];
+  pc.aoPowerOn[0] = aoPowerOn[0];
+  pc.aoPowerOn[1] = aoPowerOn[1];
 
   pc.mb_address = g_mb_address;
   pc.mb_baud    = g_mb_baud;
@@ -489,6 +582,35 @@ void captureToPersist(PersistConfig &pc) {
   pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
 }
 
+bool applyFromPersistV8(const PersistConfigV8 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV8)) return false;
+
+  PersistConfigV8 tmp = pc;
+  uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV8)) != crc) return false;
+  if (pc.version != CFG_VERSION_V8) return false;
+
+  aoPowerOn[0] = HM_PWR_OFF;
+  aoPowerOn[1] = HM_PWR_OFF;
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 4);
+  }
+
+  rtdWiresCfg[0]    = pc.rtd_wires[0];
+  rtdWiresCfg[1]    = pc.rtd_wires[1];
+  rtdRnominalCfg[0] = pc.rtd_rnominal[0];
+  rtdRnominalCfg[1] = pc.rtd_rnominal[1];
+  rtdRrefCfg[0]     = pc.rtd_rref[0];
+  rtdRrefCfg[1]     = pc.rtd_rref[1];
+  sanitizeRtdCfg();
+
+  return true;
+}
+
 bool applyFromPersist(const PersistConfig &pc) {
   if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfig)) return false;
 
@@ -497,8 +619,8 @@ bool applyFromPersist(const PersistConfig &pc) {
   if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfig)) != crc) return false;
   if (pc.version != CFG_VERSION) return false;
 
-  dacRaw[0] = pc.dacRaw[0];
-  dacRaw[1] = pc.dacRaw[1];
+  aoPowerOn[0] = clamp_u8((int)pc.aoPowerOn[0], 0, 2);
+  aoPowerOn[1] = clamp_u8((int)pc.aoPowerOn[1], 0, 2);
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
 
@@ -562,8 +684,18 @@ bool loadConfigFS() {
 
   size_t sz = (size_t)f.size();
 
+  if (sz == sizeof(PersistConfigV8)) {
+    PersistConfigV8 pc{};
+    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) { WebSerial.send("message", "load: short read (v8)"); return false; }
+    if (!applyFromPersistV8(pc)) { WebSerial.send("message", "load: v8 magic/version/crc mismatch"); return false; }
+    WebSerial.send("message", "Loaded legacy config v8 → migrated to v9 (aoPowerOn defaults OFF).");
+    cfgDirty = true; lastCfgTouchMs = millis();
+    return true;
+  }
   if (sz != sizeof(PersistConfig)) {
-    WebSerial.send("message", String("load: size ")+sz+" unsupported (expected v0008)");
+    WebSerial.send("message", String("load: size ")+sz+" unsupported");
     f.close();
     return false;
   }
@@ -651,23 +783,22 @@ void handleCommand(JSONVar obj) {
     else               WebSerial.send("message", "ERROR: Save failed");
   } else if (act == "load") {
     if (loadConfigFS()) {
+      applyPowerOnOutputs();
       WebSerial.send("message", "Configuration loaded");
       applyModbusSettings(g_mb_address, g_mb_baud);
       applyRtdHardwareCfg();
-      writeDac(0, dacRaw[0]);
-      writeDac(1, dacRaw[1]);
       sendAllEchoesOnce();
     } else {
       WebSerial.send("message", "ERROR: Load failed/invalid");
     }
   } else if (act == "factory") {
+    LittleFS.remove(OUT_STATE_PATH);
     setDefaults();
+    applyPowerOnOutputs();
     if (saveConfigFS()) {
       WebSerial.send("message", "Factory defaults restored & saved");
       applyModbusSettings(g_mb_address, g_mb_baud);
       applyRtdHardwareCfg();
-      writeDac(0, dacRaw[0]);
-      writeDac(1, dacRaw[1]);
       sendAllEchoesOnce();
     } else {
       WebSerial.send("message", "ERROR: Save after factory reset failed");
@@ -700,21 +831,32 @@ void handleValues(JSONVar values) {
 
 void handleDac(JSONVar obj) {
   JSONVar list = obj["list"];
-  if (JSON.typeof(list) != "array") return;
+  bool changed = false;
 
-  uint32_t now = millis();
-
-  for (int i = 0; i < 2 && i < (int)list.length(); i++) {
-    long v = (long)list[i];
-    v = constrain(v, 0L, 4095L);
-    dacRaw[i] = (uint16_t)v;
-    writeDac(i, dacRaw[i]);
-    mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
+  if (JSON.typeof(list) == "array") {
+    for (int i = 0; i < 2 && i < (int)list.length(); i++) {
+      long v = (long)list[i];
+      v = constrain(v, 0L, 4095L);
+      dacRaw[i] = (uint16_t)v;
+      writeDac(i, dacRaw[i]);
+      mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
+    }
+    WebSerial.send("message", "DAC values updated");
   }
 
-  cfgDirty       = true;
-  lastCfgTouchMs = now;
-  WebSerial.send("message", "DAC values updated");
+  JSONVar powerOn = obj["powerOn"];
+  if (JSON.typeof(powerOn) == "array") {
+    for (int i = 0; i < 2 && i < (int)powerOn.length(); i++) {
+      aoPowerOn[i] = clamp_u8((int)powerOn[i], 0, 2);
+    }
+    WebSerial.send("message", "AO power-on policy updated");
+    changed = true;
+  }
+
+  if (changed) {
+    lastCfgTouchMs = millis();
+    cfgDirty = true;
+  }
 }
 
 // ===== RTD configuration handler (Web-only, persisted) =====
@@ -1086,9 +1228,6 @@ void setup() {
 
   applyRtdHardwareCfg();
 
-  writeDac(0, dacRaw[0]);
-  writeDac(1, dacRaw[1]);
-
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
   Serial2.begin(g_mb_baud);
@@ -1105,9 +1244,11 @@ void setup() {
 
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_TEMP_BASE  + i);
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
-  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
+  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, 0);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
+  applyPowerOnOutputs();
 
   WebSerial.send("message",
     "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
@@ -1122,6 +1263,11 @@ void sendAllEchoesOnce() {
   dacList[0] = dacRaw[0];
   dacList[1] = dacRaw[1];
   WebSerial.send("dacValues", dacList);
+
+  JSONVar aoPowerOnList;
+  aoPowerOnList[0] = (int)aoPowerOn[0];
+  aoPowerOnList[1] = (int)aoPowerOn[1];
+  WebSerial.send("aoPowerOnList", aoPowerOnList);
 
   JSONVar ledList;
   for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
@@ -1193,29 +1339,21 @@ void runButtonAction(uint8_t btnIndex) {
   if (act == BTNACT_TOGGLE_AO1_0) {
     uint16_t target = (dacRaw[0] != 0) ? 0 : 4095;
     setAO(0, target);
-    cfgDirty = true;
-    lastCfgTouchMs = millis();
     return;
   }
   if (act == BTNACT_TOGGLE_AO2_0) {
     uint16_t target = (dacRaw[1] != 0) ? 0 : 4095;
     setAO(1, target);
-    cfgDirty = true;
-    lastCfgTouchMs = millis();
     return;
   }
   if (act == BTNACT_TOGGLE_AO1_MAX) {
     uint16_t target = (dacRaw[0] != 4095) ? 4095 : 0;
     setAO(0, target);
-    cfgDirty = true;
-    lastCfgTouchMs = millis();
     return;
   }
   if (act == BTNACT_TOGGLE_AO2_MAX) {
     uint16_t target = (dacRaw[1] != 4095) ? 4095 : 0;
     setAO(1, target);
-    cfgDirty = true;
-    lastCfgTouchMs = millis();
     return;
   }
 }
@@ -1247,14 +1385,26 @@ void loop() {
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
+  if (!outTrackInit) {
+    memcpy(prevDacRaw, dacRaw, sizeof(prevDacRaw));
+    outTrackInit = true;
+  } else {
+    for (int i = 0; i < 2; i++) {
+      if (dacRaw[i] != prevDacRaw[i]) {
+        prevDacRaw[i] = dacRaw[i];
+        lastOutChangeMs = now;
+      }
+    }
+  }
+  maybePersistOutputState(now);
+
   // DAC from Modbus
   for (int i=0;i<2;i++) {
     uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
     if (regVal != dacRaw[i]) {
       dacRaw[i] = regVal;
       writeDac(i, dacRaw[i]);
-      cfgDirty = true;
-      lastCfgTouchMs = now;
+      lastOutChangeMs = now;
     }
   }
 
