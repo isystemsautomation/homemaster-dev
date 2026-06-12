@@ -1,6 +1,3 @@
-**Firmware Version:** 2025-10 snapshot
-
-![Firmware Version](https://img.shields.io/badge/Firmware-2025--10-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
