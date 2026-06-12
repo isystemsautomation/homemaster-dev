@@ -11,7 +11,7 @@
       </div>
       <div class="title">
         <h1>DIO-430-R1 Module Configuration</h1>
-        <p>Configure Modbus address, serial settings, digital inputs (4), relays (3), buttons (3), and LEDs (3).</p>
+        <p>Configure Modbus address, serial settings, digital inputs (4), relays (3), buttons (2), and LEDs (3).</p>
       </div>
     </div>
     <div class="statusbar">
@@ -94,9 +94,10 @@
   </section>
 
   <div class="sectiontitle">
-    <h3>Buttons (3)</h3>
+    <h3>Buttons (2)</h3>
     <p class="hint">Map physical buttons to relay override actions.</p>
   </div>
+  <!-- TEMP: 3rd button (GPIO1) removed — dead HW pin -->
   <section class="card">
     <div class="cardbody">
       <div class="iogroup cols3" id="io-buttons"></div>
@@ -120,7 +121,7 @@
   <script>
   (function(){
     const $ = id => document.getElementById(id);
-    const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 3, NUM_LED = 3;
+    const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
 
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 

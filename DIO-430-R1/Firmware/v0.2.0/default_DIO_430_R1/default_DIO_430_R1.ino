@@ -30,13 +30,14 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 static const uint8_t DI_PINS[4]    = {6, 11, 12, 7};   // DI1..DI4
 static const uint8_t RELAY_PINS[3] = {10, 9, 8};       // R1..R3 (active-HIGH)
 static const uint8_t LED_PINS[3]   = {13, 14, 15};     // LED1..LED3 (active-HIGH)
-static const uint8_t BTN_PINS[3]   = {2, 3, 1};        // Button1..3 (active-LOW, pullups)
+static const uint8_t BTN_PINS[2]   = {2, 3};             // Button1=GPIO2, Button2=GPIO3 (active-LOW, pullups)
+// GPIO1 (3rd button) removed — dead HW pin (reads ~0.7V). TEMP.
 
 // ================== Sizes ==================
 static const uint8_t NUM_DI  = 4;
 static const uint8_t NUM_RLY = 3;
 static const uint8_t NUM_LED = 3;
-static const uint8_t NUM_BTN = 3;
+static const uint8_t NUM_BTN = 2;
 
 // ================== Config & runtime ==================
 struct InCfg  { bool enabled; bool inverted; uint8_t action; /*0=None,1=Toggle,2=Pulse*/ uint8_t target; /*4=None,0=All,1..3=R1..R3*/ };
@@ -50,8 +51,8 @@ RlyCfg  rlyCfg[NUM_RLY];
 LedCfg  ledCfg[NUM_LED];
 BtnCfg  btnCfg[NUM_BTN];
 
-bool buttonState[NUM_BTN]   = {false,false,false};
-bool buttonPrev[NUM_BTN]    = {false,false,false};
+bool buttonState[NUM_BTN]   = {false,false};
+bool buttonPrev[NUM_BTN]    = {false,false};
 bool diState[NUM_DI]        = {false,false,false,false};
 bool diPrev[NUM_DI]         = {false,false,false,false};
 
@@ -112,7 +113,7 @@ struct OutputStateSnapshot {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC    = 0x314D4C41UL; // 'ALM1'
-static const uint16_t CFG_VERSION  = 0x0008;       // Phase B: powerOn, output state decoupled
+static const uint16_t CFG_VERSION  = 0x0009;       // NUM_BTN 2 (GPIO1 removed)
 static const uint16_t CFG_VERSION_V7 = 0x0007;
 static const char*    CFG_PATH     = "/cfg.bin";
 static const char*    OUT_STATE_PATH = "/cfg_out.bin";
