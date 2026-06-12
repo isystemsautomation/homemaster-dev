@@ -1559,16 +1559,17 @@ void loop(){
       selectedCmd = localDesiredRelay[i];
     }
 
-    bool outVal=selectedCmd; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
-    digitalWrite(RELAY_PINS[i], outVal?HIGH:LOW);
-    physRelayState[i]=outVal;
+    bool logical = selectedCmd;
+    if (!rlyCfg[i].enabled) logical = false;
+    bool phys = rlyCfg[i].inverted ? !logical : logical;
 
-    relayStateList[i]=outVal; 
-    mb.setIsts(ISTS_RLY_BASE+i,outVal);
-    mb.setHreg(HREG_RLY_BASE + i, outVal ? 1 : 0); // Mirror to HREG
-    
-    // Update Modbus coil to reflect actual relay state (for ESPHome switch state reading)
-    mb.setCoil(CMD_RLY_STATE_BASE + i, outVal);
+    digitalWrite(RELAY_PINS[i], phys ? HIGH : LOW);
+    physRelayState[i] = phys;
+
+    relayStateList[i] = logical;
+    mb.setIsts(ISTS_RLY_BASE + i, logical);
+    mb.setHreg(HREG_RLY_BASE + i, logical ? 1 : 0);
+    mb.setCoil(CMD_RLY_STATE_BASE + i, logical);
 
     // expire local pulse
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; }

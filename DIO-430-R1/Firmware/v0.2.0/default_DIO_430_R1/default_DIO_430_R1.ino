@@ -14,6 +14,11 @@
 #include <utility>
 #include "hardware/watchdog.h"
 
+// Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
+struct PersistConfig;
+struct PersistConfigV7;
+struct OutputStateSnapshot;
+
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
 #define RX2 5
@@ -621,16 +626,15 @@ for (int i = 0; i < NUM_DI; i++) {
 
   JSONVar relayStateList;
   for (int i = 0; i < NUM_RLY; i++) {
-    bool outVal = desiredRelay[i];
-    if (!rlyCfg[i].enabled) outVal = false;
-    if (rlyCfg[i].inverted) outVal = !outVal;
+    bool logical = desiredRelay[i];
+    if (!rlyCfg[i].enabled) logical = false;
+    bool phys = rlyCfg[i].inverted ? !logical : logical;
 
-    digitalWrite(RELAY_PINS[i], outVal ? HIGH : LOW);
+    digitalWrite(RELAY_PINS[i], phys ? HIGH : LOW);
 
-    relayStateList[i] = outVal;
-    mb.setIsts(ISTS_RLY_BASE + i, outVal);
-    // Write actual relay state back to Modbus coil (so ESPHome reads correct status)
-    mb.setCoil(CMD_RLY_STATE_BASE + i, outVal);
+    relayStateList[i] = logical;
+    mb.setIsts(ISTS_RLY_BASE + i, logical);
+    mb.setCoil(CMD_RLY_STATE_BASE + i, logical);
   }
 
   // -------- LEDs: follow selected source; blink if mode=1 ----------
