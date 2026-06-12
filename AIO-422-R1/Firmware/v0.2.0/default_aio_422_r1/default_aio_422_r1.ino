@@ -25,6 +25,8 @@
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
+#define HM_FW         "0.2.0"
+#define HM_MAP        1
 #define HM_MAP_VERSION 1
 
 #include <Wire.h>
@@ -212,7 +214,9 @@ uint16_t dacRaw[2] = {0,0};
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
-JSONVar modbusStatus;
+
+static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend       = 0;
@@ -645,19 +649,19 @@ bool saveConfigFS() {
   captureToPersist(pc);
 
   File f = LittleFS.open(CFG_PATH, "w");
-  if (!f) { WebSerial.send("message", "save: open failed"); return false; }
+  if (!f) { wsLog( "save: open failed"); return false; }
   size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
   f.flush();
   f.close();
   if (n != sizeof(pc)) {
-    WebSerial.send("message", String("save: short write ")+n);
+    wsLog( String("save: short write ")+n);
     return false;
   }
 
   File r = LittleFS.open(CFG_PATH, "r");
-  if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
+  if (!r) { wsLog( "save: reopen failed"); return false; }
   if ((size_t)r.size() != sizeof(PersistConfig)) {
-    WebSerial.send("message", "save: size mismatch after write");
+    wsLog( "save: size mismatch after write");
     r.close();
     return false;
   }
@@ -665,14 +669,14 @@ bool saveConfigFS() {
   size_t nr = r.read((uint8_t*)&back, sizeof(back));
   r.close();
   if (nr != sizeof(back)) {
-    WebSerial.send("message", "save: short readback");
+    wsLog( "save: short readback");
     return false;
   }
   PersistConfig tmp = back;
   uint32_t crc = tmp.crc32;
   tmp.crc32 = 0;
   if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) {
-    WebSerial.send("message", "save: CRC verify failed");
+    wsLog( "save: CRC verify failed");
     return false;
   }
   return true;
@@ -680,7 +684,7 @@ bool saveConfigFS() {
 
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r");
-  if (!f) { WebSerial.send("message", "load: open failed"); return false; }
+  if (!f) { wsLog( "load: open failed"); return false; }
 
   size_t sz = (size_t)f.size();
 
@@ -688,14 +692,14 @@ bool loadConfigFS() {
     PersistConfigV8 pc{};
     size_t n = f.read((uint8_t*)&pc, sizeof(pc));
     f.close();
-    if (n != sizeof(pc)) { WebSerial.send("message", "load: short read (v8)"); return false; }
-    if (!applyFromPersistV8(pc)) { WebSerial.send("message", "load: v8 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message", "Loaded legacy config v8 → migrated to v9 (aoPowerOn defaults OFF).");
+    if (n != sizeof(pc)) { wsLog( "load: short read (v8)"); return false; }
+    if (!applyFromPersistV8(pc)) { wsLog( "load: v8 magic/version/crc mismatch"); return false; }
+    wsLog( "Loaded legacy config v8 → migrated to v9 (aoPowerOn defaults OFF).");
     cfgDirty = true; lastCfgTouchMs = millis();
     return true;
   }
   if (sz != sizeof(PersistConfig)) {
-    WebSerial.send("message", String("load: size ")+sz+" unsupported");
+    wsLog( String("load: size ")+sz+" unsupported");
     f.close();
     return false;
   }
@@ -703,33 +707,33 @@ bool loadConfigFS() {
   PersistConfig pc{};
   size_t n = f.read((uint8_t*)&pc, sizeof(pc));
   f.close();
-  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
-  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  if (n != sizeof(pc)) { wsLog( "load: short read"); return false; }
+  if (!applyFromPersist(pc)) { wsLog( "load: magic/version/crc mismatch"); return false; }
   return true;
 }
 
 bool initFilesystemAndConfig() {
   if (!LittleFS.begin()) {
-    WebSerial.send("message", "LittleFS mount failed. Formatting…");
+    wsLog( "LittleFS mount failed. Formatting…");
     if (!LittleFS.format() || !LittleFS.begin()) {
-      WebSerial.send("message", "FATAL: FS mount/format failed");
+      wsLog( "FATAL: FS mount/format failed");
       return false;
     }
   }
 
   if (loadConfigFS()) {
-    WebSerial.send("message", "Config loaded from flash");
+    wsLog( "Config loaded from flash");
     return true;
   }
 
-  WebSerial.send("message", "No valid config. Using defaults.");
+  wsLog( "No valid config. Using defaults.");
   setDefaults();
   if (saveConfigFS()) {
-    WebSerial.send("message", "Defaults saved");
+    wsLog( "Defaults saved");
     return true;
   }
 
-  WebSerial.send("message", "FATAL: first save failed");
+  wsLog( "FATAL: first save failed");
   return false;
 }
 
@@ -738,7 +742,7 @@ static inline void setSlaveIdIfAvailable(ModbusSerial& m, uint8_t id) {
 }
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
-  if ((uint32_t)modbusStatus["baud"] != baud) {
+  if (g_mb_baud != baud) {
     Serial2.end();
     Serial2.begin(baud);
     mb.config(baud);
@@ -746,20 +750,22 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   setSlaveIdIfAvailable(mb, addr);
   g_mb_address = addr;
   g_mb_baud    = baud;
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
 }
 
 // ================== FW decls ==================
 void handleValues(JSONVar values);
 void handleCommand(JSONVar obj);
+void handleUnifiedConfig(JSONVar obj);
 void handleDac(JSONVar obj);
 void handleLedCfg(JSONVar obj);
 void handleBtnCfg(JSONVar obj);
 void handleRtdCfg(JSONVar obj);
 
 void performReset();
-void sendAllEchoesOnce();
+void sendWebStatus();
+void sendWebCfg();
+void sendWebBootstrap();
+void sendWebExt(bool includeRtdInfo);
 void writeDac(int idx, uint16_t value);
 void readSensors();
 void applyRtdHardwareCfg();
@@ -769,42 +775,42 @@ void updateRtdDiagnostics();   // FIX C
 // ================== Command handler / reset ==================
 void handleCommand(JSONVar obj) {
   const char* actC = (const char*)obj["action"];
-  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  if (!actC) { wsLog( "command: missing 'action'"); return; }
   String act = String(actC);
   act.toLowerCase();
 
   if (act == "reset" || act == "reboot") {
     bool ok = saveConfigFS();
-    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
+    wsLog( ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
     delay(400);
     performReset();
   } else if (act == "save") {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else               WebSerial.send("message", "ERROR: Save failed");
+    if (saveConfigFS()) wsLog( "Configuration saved");
+    else               wsLog( "ERROR: Save failed");
   } else if (act == "load") {
     if (loadConfigFS()) {
       applyPowerOnOutputs();
-      WebSerial.send("message", "Configuration loaded");
+      wsLog( "Configuration loaded");
       applyModbusSettings(g_mb_address, g_mb_baud);
       applyRtdHardwareCfg();
-      sendAllEchoesOnce();
+      sendWebBootstrap();
     } else {
-      WebSerial.send("message", "ERROR: Load failed/invalid");
+      wsLog( "ERROR: Load failed/invalid");
     }
   } else if (act == "factory") {
     LittleFS.remove(OUT_STATE_PATH);
     setDefaults();
     applyPowerOnOutputs();
     if (saveConfigFS()) {
-      WebSerial.send("message", "Factory defaults restored & saved");
+      wsLog( "Factory defaults restored & saved");
       applyModbusSettings(g_mb_address, g_mb_baud);
       applyRtdHardwareCfg();
-      sendAllEchoesOnce();
+      sendWebBootstrap();
     } else {
-      WebSerial.send("message", "ERROR: Save after factory reset failed");
+      wsLog( "ERROR: Save after factory reset failed");
     }
   } else {
-    WebSerial.send("message", String("Unknown command: ") + actC);
+    wsLog( String("Unknown command: ") + actC);
   }
 }
 
@@ -823,8 +829,8 @@ void handleValues(JSONVar values) {
   baud = hmValidBaud(baud);
 
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
-  WebSerial.send("message", "Modbus configuration updated");
-
+  wsLog("Modbus configuration updated");
+  sendWebStatus();
   cfgDirty = true;
   lastCfgTouchMs = millis();
 }
@@ -841,7 +847,7 @@ void handleDac(JSONVar obj) {
       writeDac(i, dacRaw[i]);
       mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
     }
-    WebSerial.send("message", "DAC values updated");
+    wsLog("DAC values updated");
   }
 
   JSONVar powerOn = obj["powerOn"];
@@ -849,13 +855,14 @@ void handleDac(JSONVar obj) {
     for (int i = 0; i < 2 && i < (int)powerOn.length(); i++) {
       aoPowerOn[i] = clamp_u8((int)powerOn[i], 0, 2);
     }
-    WebSerial.send("message", "AO power-on policy updated");
+    wsLog("AO power-on policy updated");
     changed = true;
   }
 
   if (changed) {
     lastCfgTouchMs = millis();
     cfgDirty = true;
+    sendWebCfg();
   }
 }
 
@@ -892,16 +899,17 @@ void handleRtdCfg(JSONVar obj) {
 
   sanitizeRtdCfg();
   applyRtdHardwareCfg();
-  WebSerial.send("message", "RTD configuration updated (Web-only)");
+  wsLog("RTD configuration updated (Web-only)");
 
   cfgDirty = true;
   lastCfgTouchMs = millis();
+  sendWebCfg();
 }
 
 void handleLedCfg(JSONVar obj) {
   JSONVar src = obj["src"];
   if (JSON.typeof(src) != "array") {
-    WebSerial.send("message", "ledCfg: missing 'src' array");
+    wsLog( "ledCfg: missing 'src' array");
     return;
   }
 
@@ -911,15 +919,16 @@ void handleLedCfg(JSONVar obj) {
     ledSrc[i] = clamp_u8(v, 0, 4);
   }
 
-  WebSerial.send("message", "LED source configuration updated");
+  wsLog("LED source configuration updated");
   cfgDirty = true;
   lastCfgTouchMs = millis();
+  sendWebCfg();
 }
 
 void handleBtnCfg(JSONVar obj) {
   JSONVar act = obj["action"];
   if (JSON.typeof(act) != "array") {
-    WebSerial.send("message", "btnCfg: missing 'action' array");
+    wsLog( "btnCfg: missing 'action' array");
     return;
   }
 
@@ -929,9 +938,57 @@ void handleBtnCfg(JSONVar obj) {
     btnAction[i] = clamp_u8(v, 0, 4);
   }
 
-  WebSerial.send("message", "Button actions updated");
+  wsLog("Button actions updated");
   cfgDirty = true;
   lastCfgTouchMs = millis();
+  sendWebCfg();
+}
+
+// Config router: contract t + legacy inbound aliases (dac, rtdCfg, btnCfg, ledCfg).
+void handleUnifiedConfig(JSONVar obj) {
+  const char* t = (const char*)obj["t"];
+  JSONVar list = obj["list"];
+  if (!t) { wsLog("Config: missing 't'"); return; }
+
+  String type = String(t);
+
+  if (type == "ext.dac" || type == "dac") {
+    JSONVar payload;
+    payload["list"] = list;
+    if (obj.hasOwnProperty("powerOn")) payload["powerOn"] = obj["powerOn"];
+    handleDac(payload);
+    return;
+
+  } else if (type == "ext.rtd" || type == "rtdCfg") {
+    handleRtdCfg(list);
+    return;
+
+  } else if (type == "btn" || type == "btnCfg" || type == "buttons") {
+    JSONVar payload;
+    if (JSON.typeof(list) == "array") {
+      for (int i = 0; i < NUM_BTN && i < (int)list.length(); i++) {
+        if (list[i].hasOwnProperty("action")) payload["action"][i] = list[i]["action"];
+        else payload["action"][i] = list[i];
+      }
+    }
+    handleBtnCfg(payload);
+    return;
+
+  } else if (type == "led" || type == "ledCfg" || type == "leds") {
+    JSONVar payload;
+    if (JSON.typeof(list) == "array") {
+      for (int i = 0; i < NUM_LED && i < (int)list.length(); i++) {
+        if (list[i].hasOwnProperty("src")) payload["src"][i] = list[i]["src"];
+        else if (list[i].hasOwnProperty("source")) payload["src"][i] = list[i]["source"];
+        else payload["src"][i] = list[i];
+      }
+    }
+    handleLedCfg(payload);
+    return;
+
+  } else {
+    wsLog(String("Unknown Config type: ") + t);
+  }
 }
 
 // ================== DAC write helper ==================
@@ -949,10 +1006,10 @@ void applyRtdHardwareCfg() {
     rtd_ok[i] = ok;
     if (ok) {
       rtds[i]->clearFault();
-      WebSerial.send("message", String("MAX31865 RTD") + (i+1) + " configured: " +
+      wsLog( String("MAX31865 RTD") + (i+1) + " configured: " +
         String(rtdWiresCfg[i]) + "wire, " + String(rtdRnominalCfg[i]) + "ohm, Rref " + String(rtdRrefCfg[i]) + "ohm");
     } else {
-      WebSerial.send("message", String("ERROR: MAX31865 RTD") + (i+1) + " init failed");
+      wsLog( String("ERROR: MAX31865 RTD") + (i+1) + " init failed");
     }
   }
 }
@@ -1197,6 +1254,7 @@ void setup() {
   setDefaults();
 
   WebSerial.on("values",  handleValues);
+  WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
   WebSerial.on("dac",     handleDac);
   WebSerial.on("ledCfg",  handleLedCfg);
@@ -1204,7 +1262,7 @@ void setup() {
   WebSerial.on("rtdCfg",  handleRtdCfg);
 
   if (!initFilesystemAndConfig()) {
-    WebSerial.send("message", "FATAL: Filesystem/config init failed");
+    wsLog( "FATAL: Filesystem/config init failed");
   }
 
   Wire1.setSDA(SDA1);
@@ -1216,15 +1274,15 @@ void setup() {
   if (ads_ok) {
     ads.setGain(1);
     ads.setDataRate(4);
-    WebSerial.send("message", "ADS1115 OK @0x48 (Wire1)");
+    wsLog( "ADS1115 OK @0x48 (Wire1)");
   } else {
-    WebSerial.send("message", "ERROR: ADS1115 not found @0x48");
+    wsLog( "ERROR: ADS1115 not found @0x48");
   }
 
   dac_ok[0] = dac0.begin(0x60, &Wire1);
   dac_ok[1] = dac1.begin(0x61, &Wire1);
-  WebSerial.send("message", dac_ok[0] ? "MCP4725 #0 OK @0x60 (Wire1)" : "ERROR: MCP4725 #0 not found");
-  WebSerial.send("message", dac_ok[1] ? "MCP4725 #1 OK @0x61 (Wire1)" : "ERROR: MCP4725 #1 not found");
+  wsLog( dac_ok[0] ? "MCP4725 #0 OK @0x60 (Wire1)" : "ERROR: MCP4725 #0 not found");
+  wsLog( dac_ok[1] ? "MCP4725 #1 OK @0x61 (Wire1)" : "ERROR: MCP4725 #1 not found");
 
   applyRtdHardwareCfg();
 
@@ -1234,10 +1292,6 @@ void setup() {
   mb.config(g_mb_baud);
   setSlaveIdIfAvailable(mb, g_mb_address);
   mb.setAdditionalServerData("AIO422-AIO");
-
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  modbusStatus["state"]   = 0;
 
   for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
@@ -1250,75 +1304,70 @@ void setup() {
 
   applyPowerOnOutputs();
 
-  WebSerial.send("message",
-    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
+  wsLog("Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
 
-  sendAllEchoesOnce();
+  updateRtdDiagnostics();
+  sendWebBootstrap();
   hmWatchdogArm(4000);
 }
 
-// ================== send initial state ==================
-void sendAllEchoesOnce() {
-  JSONVar dacList;
-  dacList[0] = dacRaw[0];
-  dacList[1] = dacRaw[1];
-  WebSerial.send("dacValues", dacList);
+// ================== Unified WebConfig outbound ==================
+void sendWebStatus() {
+  JSONVar st;
+  st["model"] = HM_MODEL_ID;
+  st["fw"]    = HM_FW;
+  st["map"]   = HM_MAP;
+  st["addr"]  = g_mb_address;
+  st["baud"]  = g_mb_baud;
+  WebSerial.send("status", st);
+}
 
-  JSONVar aoPowerOnList;
-  aoPowerOnList[0] = (int)aoPowerOn[0];
-  aoPowerOnList[1] = (int)aoPowerOn[1];
-  WebSerial.send("aoPowerOnList", aoPowerOnList);
-
-  JSONVar ledList;
-  for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
-  WebSerial.send("LedStateList", ledList);
-
-  JSONVar ledSrcList;
-  for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
-  WebSerial.send("LedSourceList", ledSrcList);
-
-  JSONVar btnActList;
-  for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
-  WebSerial.send("ButtonActionList", btnActList);
-
-  JSONVar btnList;
-  for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
-  WebSerial.send("ButtonStateList", btnList);
-
+void sendWebCfg() {
   JSONVar cfg;
-  JSONVar wires, rn, rr;
-  wires[0] = (int)rtdWiresCfg[0]; wires[1] = (int)rtdWiresCfg[1];
-  rn[0]    = (int)rtdRnominalCfg[0]; rn[1] = (int)rtdRnominalCfg[1];
-  rr[0]    = (int)rtdRrefCfg[0]; rr[1] = (int)rtdRrefCfg[1];
-  cfg["wires"]    = wires;
-  cfg["rnominal"] = rn;
-  cfg["rref"]     = rr;
-  WebSerial.send("rtdCfg", cfg);
+  for (int i = 0; i < NUM_BTN; i++) {
+    cfg["btn"][i]["action"] = btnAction[i];
+    cfg["ext"]["btnAction"][i] = btnAction[i];
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    cfg["led"][i]["source"] = ledSrc[i];
+    cfg["ext"]["ledSrc"][i] = ledSrc[i];
+  }
+  for (int i = 0; i < 2; i++) {
+    cfg["ext"]["dac"]["raw"][i] = dacRaw[i];
+    cfg["ext"]["dac"]["powerOn"][i] = (int)aoPowerOn[i];
+  }
+  for (int i = 0; i < 2; i++) {
+    cfg["ext"]["rtd"]["wires"][i]    = (int)rtdWiresCfg[i];
+    cfg["ext"]["rtd"]["rnominal"][i] = (int)rtdRnominalCfg[i];
+    cfg["ext"]["rtd"]["rref"][i]     = (int)rtdRrefCfg[i];
+  }
+  WebSerial.send("cfg", cfg);
+}
 
-  // Take one diagnostics snapshot at boot
-  updateRtdDiagnostics();
+void sendWebExt(bool includeRtdInfo) {
+  JSONVar ext;
+  for (int i = 0; i < 4; i++) ext["ai"][i] = aiMv[i];
+  for (int i = 0; i < 2; i++) ext["rtd"]["temp_x10"][i] = rtdTemp_x10[i];
+  if (includeRtdInfo) {
+    JSONVar info;
+    for (int i = 0; i < 2; i++) {
+      info["temp_x10"][i] = rtdTemp_x10[i];
+      info["temp_c"][i]   = rtdTempC[i];
+      info["fault"][i]    = (int)rtdFault[i];
+      info["error"][i]    = rtdError[i];
+      info["raw"][i]      = (int)rtdRawCode[i];
+      info["ratio"][i]    = rtdRatio[i];
+      info["ohms"][i]     = rtdOhms[i];
+    }
+    ext["rtd"]["info"] = info;
+  }
+  WebSerial.send("ext", ext);
+}
 
-  JSONVar info;
-  JSONVar t10, tc, fault, err, raw, ratio, ohm;
-  t10[0] = rtdTemp_x10[0]; t10[1] = rtdTemp_x10[1];
-  tc[0]  = rtdTempC[0];    tc[1]  = rtdTempC[1];
-  fault[0] = (int)rtdFault[0]; fault[1] = (int)rtdFault[1];
-  err[0] = rtdError[0]; err[1] = rtdError[1];
-  raw[0] = (int)rtdRawCode[0]; raw[1] = (int)rtdRawCode[1];
-  ratio[0] = rtdRatio[0]; ratio[1] = rtdRatio[1];
-  ohm[0] = rtdOhms[0]; ohm[1] = rtdOhms[1];
-  info["temp_x10"] = t10;
-  info["temp_c"]   = tc;
-  info["fault"]    = fault;
-  info["error"]    = err;
-  info["raw"]      = raw;
-  info["ratio"]    = ratio;
-  info["ohms"]     = ohm;
-  WebSerial.send("rtdInfo", info);
-
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  WebSerial.send("status", modbusStatus);
+void sendWebBootstrap() {
+  sendWebStatus();
+  sendWebCfg();
+  sendWebExt(true);
 }
 
 // ================== Button action executor ==================
@@ -1367,8 +1416,8 @@ void loop() {
   rtdRecoveryTick();
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else               WebSerial.send("message", "ERROR: Save failed");
+    if (saveConfigFS()) wsLog( "Configuration saved");
+    else               wsLog( "ERROR: Save failed");
     cfgDirty = false;
   }
 
@@ -1421,81 +1470,25 @@ void loop() {
     mb.setIsts(ISTS_LED_BASE + i, on);
   }
 
-  // FIX A: general WebSerial every 1 second
+  // WebSerial UI updates (unified status/io/ext)
   if (now - lastSend >= sendInterval) {
     lastSend = now;
 
     WebSerial.check();
     if (hmUsbCanSend()) {
-      WebSerial.send("status", modbusStatus);
+      sendWebStatus();
 
-      JSONVar aiList;
-      for (int i=0;i<4;i++) aiList[i] = aiMv[i];
-      WebSerial.send("aiValues", aiList);
+      JSONVar io;
+      for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
+      for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledState[i] ? 1 : 0;
+      WebSerial.send("io", io);
 
-      JSONVar tempList;
-      for (int i=0;i<2;i++) tempList[i] = rtdTemp_x10[i];
-      WebSerial.send("rtdTemps_x10", tempList);
-
-      JSONVar dacList;
-      dacList[0] = dacRaw[0];
-      dacList[1] = dacRaw[1];
-      WebSerial.send("dacValues", dacList);
-
-      JSONVar ledList;
-      for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
-      WebSerial.send("LedStateList", ledList);
-
-      JSONVar ledSrcList;
-      for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
-      WebSerial.send("LedSourceList", ledSrcList);
-
-      JSONVar btnActList;
-      for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
-      WebSerial.send("ButtonActionList", btnActList);
-
-      JSONVar btnList;
-      for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
-      WebSerial.send("ButtonStateList", btnList);
-    }
-  }
-
-  // FIX B + FIX C: full RTD diagnostics only every 2 seconds
-  if (now - lastRtdInfoSend >= rtdInfoInterval) {
-    lastRtdInfoSend = now;
-
-    updateRtdDiagnostics();
-
-    if (hmUsbCanSend()) {
-    JSONVar info;
-    JSONVar t10, tc, fault, err, raw, ratio, ohm;
-    t10[0] = rtdTemp_x10[0]; t10[1] = rtdTemp_x10[1];
-    tc[0]  = rtdTempC[0];    tc[1]  = rtdTempC[1];
-    fault[0] = (int)rtdFault[0]; fault[1] = (int)rtdFault[1];
-    err[0] = rtdError[0]; err[1] = rtdError[1];
-    raw[0] = (int)rtdRawCode[0]; raw[1] = (int)rtdRawCode[1];
-    ratio[0] = rtdRatio[0]; ratio[1] = rtdRatio[1];
-    ohm[0] = rtdOhms[0]; ohm[1] = rtdOhms[1];
-    info["temp_x10"] = t10;
-    info["temp_c"]   = tc;
-    info["fault"]    = fault;
-    info["error"]    = err;
-    info["raw"]      = raw;
-    info["ratio"]    = ratio;
-    info["ohms"]     = ohm;
-    WebSerial.send("rtdInfo", info);
-
-    // Also periodically echo current RTD configuration so WebConfig
-    // tabs opened after boot still see the correct wiring/sensor/Rref.
-    JSONVar cfg;
-    JSONVar wires, rn, rr;
-    wires[0] = (int)rtdWiresCfg[0]; wires[1] = (int)rtdWiresCfg[1];
-    rn[0]    = (int)rtdRnominalCfg[0]; rn[1] = (int)rtdRnominalCfg[1];
-    rr[0]    = (int)rtdRrefCfg[0]; rr[1] = (int)rtdRrefCfg[1];
-    cfg["wires"]    = wires;
-    cfg["rnominal"] = rn;
-    cfg["rref"]     = rr;
-    WebSerial.send("rtdCfg", cfg);
+      bool includeRtdInfo = (now - lastRtdInfoSend >= rtdInfoInterval);
+      if (includeRtdInfo) {
+        lastRtdInfoSend = now;
+        updateRtdDiagnostics();
+      }
+      sendWebExt(includeRtdInfo);
     }
   }
 

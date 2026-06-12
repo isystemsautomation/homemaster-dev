@@ -1,70 +1,45 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
 <section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
-    :root{
-      /* Global color system */
-      --page:#f8fafc;
-      --card:#ffffff;
-      --text:#111827;
-      --muted:#1f2937;
-      --muted2:#4b5563;
-      --border:#dde3ea;
-      --borderStrong:#d1d5db;
-      --brand:#2563eb;
-      --brandHover:#1d4ed8;
-      --ok:#16a34a;
-      --warn:#f59e0b;
-      --bad:#ef4444;
-      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
-      --r:16px;
-      --r2:14px;
-      --gap:16px;
-      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    /* AIO-specific: DAC sliders + RTD diagnostics layout */
+    .dac-slider {
+      width: 100%;
+      appearance: none;
+      height: 5px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      outline: none;
+      cursor: pointer;
     }
-    *{box-sizing:border-box}
-
-    label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
-    select,input,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;color:var(--text);background:#fff;box-sizing:border-box;transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease}
-    select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
-
-    .btn{padding:10px 20px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer;transition:background .18s ease,box-shadow .18s ease,transform .08s ease,border-color .18s ease,color .18s ease}
-    .btn:hover{background:#f3f4f6;box-shadow:0 1px 3px rgba(15,23,42,.16)}
-    .btn:active{transform:scale(0.97);box-shadow:none}
-    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-    .btn.primary:hover{background:var(--brandHover)}
-
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,0.05)}
-    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-    .cardheader h2{margin:0;font-size:18px;font-weight:600;color:var(--text)}
-    .sub{margin-top:4px;font-size:13px;color:var(--muted2)}
-    .cardbody{padding:16px}
-
-    .grid{display:grid;gap:var(--gap);margin-top:16px}
-    .grid.two{grid-template-columns:1.2fr .8fr}
-
-    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-    .sectiontitle h3{margin:0;font-size:16px;font-weight:600;color:var(--text)}
-    .sectiontitle .hint{margin:0;font-size:13px;color:var(--muted2);font-weight:650}
-
-    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 2px 8px rgba(16,24,40,0.05);margin-bottom:var(--gap)}
-    .headLeft{display:flex;gap:24px;align-items:center;min-width:300px}
-    .moduleImage{width:256px;height:256px;border-radius:24px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden;background:#f8fafc}
-    .moduleImage img{width:100%;height:100%;object-fit:contain}
-    .title h1{margin:0;font-size:22px;font-weight:700;color:var(--text)}
-    .title p{margin:4px 0 0;font-size:13px;color:var(--muted2)}
-    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:var(--muted2)}
-
-    #log-box{margin-top:.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow);font-size:12px}
-    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
-
-    @media(max-width:980px){
-      .grid.two{grid-template-columns:1fr}
-      .statusbar{align-items:flex-start}
-      .pillrow{justify-content:flex-start}
+    .dac-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--brand);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(15,23,42,.2);
     }
+    .dac-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--brand);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(15,23,42,.2);
+    }
+    .ai-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:var(--gap); }
+    .dac-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
+    .rtd-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--gap); }
+    .rtd-diag { margin-top:10px; border-top:1px dashed var(--border); padding-top:10px; font-size:12px; line-height:1.35; color:var(--muted); }
+    .rtd-err { margin-top:4px; color:var(--bad); font-weight:700; font-size:12px; min-height:1.2em; }
+    .val-row { display:flex; justify-content:space-between; font-size:13px; margin-top:6px; }
+    @media(max-width:640px) { .dac-grid, .rtd-grid { grid-template-columns:1fr; } }
   </style>
 
-  <!-- Header -->
   <header class="appbar">
     <div class="headLeft">
       <div class="moduleImage">
@@ -77,16 +52,18 @@
     </div>
     <div class="statusbar">
       <div class="pillrow">
-        <span>Modbus ID: <strong id="live-address">--</strong></span>
-        <span>Baud: <strong id="live-baud">--</strong></span>
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+      <div class="actions">
         <button class="btn primary" id="connect-button" type="button">Connect</button>
       </div>
     </div>
   </header>
 
-  <!-- Top: Device Setup + Serial Log -->
   <div class="grid two">
     <section class="card">
       <div class="cardheader">
@@ -94,9 +71,10 @@
           <h2>Device Setup</h2>
           <div class="sub">Serial connection and Modbus addressing.</div>
         </div>
+        <span class="tag">Step 1</span>
       </div>
       <div class="cardbody">
-        <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+        <div class="row">
           <div>
             <label for="modbus-address">Modbus Address</label>
             <select id="modbus-address"></select>
@@ -104,14 +82,14 @@
           <div>
             <label for="modbus-baud">Baud Rate</label>
             <select id="modbus-baud">
-              <option>9600</option>
-              <option selected>19200</option>
-              <option>38400</option>
-              <option>57600</option>
-              <option>115200</option>
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
             </select>
           </div>
-        </form>
+        </div>
       </div>
     </section>
 
@@ -123,592 +101,438 @@
         </div>
       </div>
       <div class="cardbody">
-        <div id="log-box">
-          <div id="log-content"></div>
+        <div id="hm-log-box">
+          <div id="hm-log"></div>
         </div>
       </div>
     </section>
   </div>
 
-  <!-- Analog Inputs -->
   <div class="sectiontitle">
     <h3>Analog Inputs (4 × 0–10&nbsp;V)</h3>
     <p class="hint">Live field voltage in millivolts and computed volts per channel.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="ai-cards"
-           style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+      <div class="ai-grid" id="ai-cards"></div>
     </div>
   </section>
 
-  <!-- Analog Outputs -->
-  <div class="sectiontitle" style="margin-top:2rem;">
+  <div class="sectiontitle">
     <h3>Analog Outputs (2 × 0–10&nbsp;V)</h3>
     <p class="hint">Control DAC raw values (0–4095) corresponding to 0–10&nbsp;V at the terminals.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="dac-cards"
-           style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
+      <div class="dac-grid" id="dac-cards"></div>
     </div>
   </section>
 
-  <!-- RTD Inputs -->
-  <div class="sectiontitle" style="margin-top:2rem;">
+  <div class="sectiontitle">
     <h3>RTD Inputs (2 × MAX31865)</h3>
     <p class="hint">Temperature, fault decoding, raw diagnostics, and Web-only RTD configuration.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="rtd-cards"
-           style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
+      <div class="rtd-grid" id="rtd-cards"></div>
     </div>
   </section>
 
-  <!-- Buttons -->
-  <div class="sectiontitle" style="margin-top:2rem;">
+  <div class="sectiontitle">
     <h3>Buttons (4)</h3>
     <p class="hint">Map physical buttons to Web-only actions (saved in flash).</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="buttons-cards"
-           style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
+      <div class="iogroup cols4" id="io-buttons"></div>
     </div>
   </section>
 
-  <!-- User LEDs -->
-  <div class="sectiontitle" style="margin-top:2rem;">
+  <div class="sectiontitle">
     <h3>User LEDs (4)</h3>
     <p class="hint">Select LED sources or keep manual control via buttons.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="leds-cards"
-           style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
+      <div class="iogroup cols4" id="io-leds"></div>
     </div>
   </section>
 
-
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
-    (function () {
-      const NUM_AI  = 4;
-      const NUM_DAC = 2;
-      const NUM_BTN = 4;
-      const NUM_LED = 4;
-      const NUM_RTD = 2;
-
-      const LOG_MAX = 6;
-      const logBuffer = [];
-      const $ = (id) => document.getElementById(id);
-
-      const dacValues = [0, 0];
-
-      // ===== RTD config buffers (Web-only) =====
-      const rtdCfg = {
-        wires:    [2,2],     // 2/3/4
-        rnominal: [100,100], // 100/1000
-        rref:     [200,200]  // 200/400/2000/4000
-      };
-      const rtdEditing = [false,false];
-
-      // ===== Button action selection (0..4) =====
-      const btnAction  = [0,0,0,0];
-      const btnEditing = [false,false,false,false];
-
-      // LED source selection buffers (0..4)
-      const ledSrc = [0,0,0,0];
-      const ledEditing = [false,false,false,false];
-
-      const toList = (v) => {
-        if (Array.isArray(v)) return v;
-        if (v && typeof v === "object") {
-          return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k => v[k]);
-        }
-        return [];
-      };
-
-      // LOG: newest at bottom + auto-scroll
-      function appendLog(label, data) {
-        const logEl = $("log-content");
-        if (!logEl) return;
-        const time = new Date().toLocaleTimeString();
-        const line = `[${time}] ${label}: ` + (typeof data === "string" ? data : JSON.stringify(data));
-
-        logBuffer.push(line);
-        while (logBuffer.length > LOG_MAX) logBuffer.shift();
-
-        logEl.textContent = logBuffer.join("\n");
-        logEl.scrollTop = logEl.scrollHeight;
-      }
-
-      // Populate Modbus addresses 1..255
-      (function populateAddresses() {
-        const addrSelect = $("modbus-address");
-        if (!addrSelect) return;
-        for (let i = 1; i <= 255; i++) {
-          const opt = document.createElement("option");
-          opt.value = i;
-          opt.textContent = i;
-          if (i === 3) opt.selected = true;
-          addrSelect.appendChild(opt);
-        }
-      })();
-
-      const connection = SimpleWebSerial.setupSerialConnection({
-        requestAccessOnPageLoad: false,
-        requestElement: "connect-button"
-      });
-
-      connection.on("status", (modbus) => {
-        $("live-address").textContent = modbus?.address ?? "--";
-        $("live-baud").textContent = modbus?.baud ?? "--";
-        if (modbus.address) $("modbus-address").value = modbus.address;
-        if (modbus.baud) $("modbus-baud").value = modbus.baud;
-      });
-
-      connection.on("message", (msg) => appendLog("AIO-422-R1", msg));
-
-      $("modbus-address").addEventListener("input", updateModbus);
-      $("modbus-baud").addEventListener("input", updateModbus);
-
-      async function updateModbus() {
-        await connection.send("values", {
-          mb_address: parseInt($("modbus-address").value, 10),
-          mb_baud: parseInt($("modbus-baud").value, 10)
-        });
-      }
-
-      // Build AI cards
-      (function buildAICards() {
-        const container = $("ai-cards");
-        if (!container) return;
-        for (let i = 0; i < NUM_AI; i++) {
-          const card = document.createElement("div");
-          card.innerHTML = `
-            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.95rem;color:#111827;">
-                <span>AI${i + 1}</span>
-                <span id="ai-dot-${i}"
-                      style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
-              </div>
-              <div style="margin-top:.45rem;font-size:.9rem;color:#111827;line-height:1.35;">
-                Raw: <span id="ai-raw-${i}">--</span> mV<br>
-                Voltage: <span id="ai-volts-${i}">--</span> V
-              </div>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // Build DAC cards
-      (function buildDacCards() {
-        const container = $("dac-cards");
-        if (!container) return;
-        for (let i = 0; i < NUM_DAC; i++) {
-          const card = document.createElement("div");
-          card.innerHTML = `
-            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
-              <div style="font-weight:600;margin-bottom:.5rem;font-size:.95rem;color:#111827;">AO${i + 1}</div>
-              <input type="range" min="0" max="4095" value="0" id="dac-slider-${i}" style="width:100%;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer;">
-              <div style="display:flex;justify-content:space-between;font-size:.9rem;margin-top:.35rem;color:#111827;">
-                <span>Raw: <span id="dac-raw-${i}">0</span></span>
-                <span>≈ <span id="dac-volts-${i}">0.00</span> V</span>
-              </div>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // ===== Build RTD cards with config + diagnostics =====
-      (function buildRtdCards() {
-        const container = $("rtd-cards");
-        if (!container) return;
-
-        const wireOpts = [
-          [2, "2-wire"],
-          [3, "3-wire"],
-          [4, "4-wire"]
-        ];
-        const sensorOpts = [
-          [100, "PT100 (100Ω)"],
-          [1000, "PT1000 (1000Ω)"]
-        ];
-        const rrefOpts = [
-          [200, "200Ω"],
-          [400, "400Ω"],
-          [2000, "2000Ω"],
-          [4000, "4000Ω"]
-        ];
-
-        for (let i = 0; i < NUM_RTD; i++) {
-          const card = document.createElement("div");
-          const wireHtml = wireOpts.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
-          const sensHtml = sensorOpts.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
-          const rrefHtml = rrefOpts.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
-
-          card.innerHTML = `
-            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-weight:700;color:#111827;">RTD${i+1}</div>
-                <span id="rtd-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
-              </div>
-
-              <div style="margin-top:.6rem;font-size:.95rem;color:#111827;">
-                Temperature: <span id="rtd-temp-${i}">--</span> °C
-              </div>
-
-              <div style="margin-top:.45rem;font-size:.85rem;color:#4b5563;line-height:1.25;">
-                Fault: <span id="rtd-fault-${i}">--</span>
-                <div style="margin-top:4px;color:#b00020;font-weight:600;" id="rtd-err-${i}"></div>
-              </div>
-
-              <div style="margin-top:.6rem;border-top:1px dashed #e5e7eb;padding-top:.6rem;font-size:.85rem;line-height:1.35;color:#111827;">
-                Raw code: <span id="rtd-raw-${i}">--</span><br>
-                Ratio: <span id="rtd-ratio-${i}">--</span><br>
-                Resistance: <span id="rtd-ohms-${i}">--</span> Ω
-              </div>
-
-              <div style="margin-top:.75rem;border-top:1px dashed #e5e7eb;padding-top:.75rem;">
-                <div style="font-weight:700;font-size:.9rem;margin-bottom:.4rem;color:#111827;">RTD Settings (Web-only)</div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-                  <div>
-                    <label style="font-size:.8rem;color:#4b5563;">Wiring</label>
-                    <select id="rtd-wire-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      ${wireHtml}
-                    </select>
-                  </div>
-                  <div>
-                    <label style="font-size:.8rem;color:#4b5563;">Sensor</label>
-                    <select id="rtd-sensor-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      ${sensHtml}
-                    </select>
-                  </div>
-                  <div style="grid-column:span 2;">
-                    <label style="font-size:.8rem;color:#4b5563;">Reference resistor (Rref)</label>
-                    <select id="rtd-rref-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                      ${rrefHtml}
-                    </select>
-                  </div>
-                </div>
-
-                <div style="margin-top:.6rem;text-align:right;">
-                  <button id="rtd-apply-${i}" type="button"
-                          style="padding:7px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;">
-                    Apply RTD${i+1}
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-          container.appendChild(card);
-
-          const mark = (editing) => { rtdEditing[i] = editing; };
-
-          const wireEl = $("rtd-wire-" + i);
-          const senEl  = $("rtd-sensor-" + i);
-          const rrEl   = $("rtd-rref-" + i);
-
-          [wireEl, senEl, rrEl].forEach(el => {
-            if (!el) return;
-            el.addEventListener("focus", () => mark(true));
-            el.addEventListener("blur", () => mark(false));
-          });
-
-          const applyBtn = $("rtd-apply-" + i);
-          if (applyBtn) applyBtn.addEventListener("click", () => sendRtdCfg());
-
-          if (wireEl) wireEl.addEventListener("change", () => { rtdCfg.wires[i] = parseInt(wireEl.value,10)||2; });
-          if (senEl)  senEl.addEventListener("change",  () => { rtdCfg.rnominal[i] = parseInt(senEl.value,10)||100; });
-          if (rrEl)   rrEl.addEventListener("change",   () => { rtdCfg.rref[i] = parseInt(rrEl.value,10)||200; });
-        }
-      })();
-
-      async function sendRtdCfg() {
-        try {
-          const payload = { wires: rtdCfg.wires.slice(), rnominal: rtdCfg.rnominal.slice(), rref: rtdCfg.rref.slice() };
-          await connection.send("rtdCfg", payload);
-          appendLog("UI", "RTD config sent: " + JSON.stringify(payload));
-        } catch (err) { appendLog("Error", err.message || err); }
-      }
-
-      connection.on("rtdCfg", (cfg) => {
-        if (!cfg) return;
-        const wires = toList(cfg.wires);
-        const rn    = toList(cfg.rnominal);
-        const rr    = toList(cfg.rref);
-
-        for (let i=0;i<NUM_RTD;i++) {
-          const w = Number(wires[i] ?? rtdCfg.wires[i]) || 2;
-          const n = Number(rn[i]    ?? rtdCfg.rnominal[i]) || 100;
-          const r = Number(rr[i]    ?? rtdCfg.rref[i]) || 200;
-
-          rtdCfg.wires[i]    = w;
-          rtdCfg.rnominal[i] = n;
-          rtdCfg.rref[i]     = r;
-
-          if (!rtdEditing[i]) {
-            const wireEl = $("rtd-wire-" + i);
-            const senEl  = $("rtd-sensor-" + i);
-            const rrEl   = $("rtd-rref-" + i);
-            if (wireEl) wireEl.value = String(w);
-            if (senEl)  senEl.value  = String(n);
-            if (rrEl)   rrEl.value   = String(r);
-          }
-        }
-      });
-
-      connection.on("rtdInfo", (info) => {
-        if (!info) return;
-
-        const t10   = toList(info.temp_x10);
-        const tc    = toList(info.temp_c);
-        const fault = toList(info.fault);
-        const err   = toList(info.error);
-        const raw   = toList(info.raw);
-        const ratio = toList(info.ratio);
-        const ohms  = toList(info.ohms);
-
-        for (let i=0;i<NUM_RTD;i++) {
-          const tempC = Number(tc[i]);
-          const faultVal = Number(fault[i]);
-          const faultHex = (isNaN(faultVal) ? "--" : ("0x" + (faultVal & 0xFF).toString(16).padStart(2,"0").toUpperCase()));
-
-          const dot = $("rtd-dot-" + i);
-          const tempEl = $("rtd-temp-" + i);
-          const faultEl = $("rtd-fault-" + i);
-          const errEl = $("rtd-err-" + i);
-          const rawEl = $("rtd-raw-" + i);
-          const ratioEl = $("rtd-ratio-" + i);
-          const ohmEl = $("rtd-ohms-" + i);
-
-          if (tempEl) {
-            if (!isNaN(tempC) && isFinite(tempC)) tempEl.textContent = tempC.toFixed(2);
-            else {
-              const t10v = Number(t10[i]);
-              tempEl.textContent = isNaN(t10v) ? "--" : (t10v/10).toFixed(1);
-            }
-          }
-          if (faultEl) faultEl.textContent = faultHex;
-          if (errEl) errEl.textContent = (err[i] || "");
-
-          if (rawEl) rawEl.textContent = (raw[i] == null ? "--" : String(raw[i]));
-          if (ratioEl) {
-            const rv = Number(ratio[i]);
-            ratioEl.textContent = isNaN(rv) ? "--" : rv.toFixed(6);
-          }
-          if (ohmEl) {
-            const ov = Number(ohms[i]);
-            ohmEl.textContent = isNaN(ov) ? "--" : ov.toFixed(3);
-          }
-
-          if (dot) {
-            if (faultVal === 0xFF) dot.style.background = "#999";
-            else if (faultVal && faultVal !== 0) dot.style.background = "#dc3545";
-            else dot.style.background = "#4caf50";
-          }
-        }
-      });
-
-      // Buttons
-      function markBtnEditing(i, editing) { btnEditing[i] = editing; }
-      async function sendBtnCfg() {
-        try {
-          await connection.send("btnCfg", { action: btnAction });
-          appendLog("UI", "Button actions sent: " + JSON.stringify(btnAction));
-        } catch (err) { appendLog("Error", err.message || err); }
-      }
-
-      connection.on("ButtonActionList", (list) => {
-        const vals = toList(list);
-        if (!vals.length) return;
-        for (let i=0;i<NUM_BTN;i++) {
-          const v = Number(vals[i] ?? btnAction[i]) || 0;
-          btnAction[i] = Math.max(0, Math.min(4, v));
-          const sel = $("btn-act-" + i);
-          if (sel && !btnEditing[i]) sel.value = String(btnAction[i]);
-        }
-      });
-
-      (function buildButtonCards() {
-        const container = $("buttons-cards");
-        if (!container) return;
-
-        const options = [
-          [0, "Manual LED toggle"],
-          [1, "Toggle AO1 (0↔100%)"],
-          [2, "Toggle AO2 (0↔100%)"],
-          [3, "AO1=max toggle"],
-          [4, "AO2=max toggle"]
-        ];
-
-        for (let i = 0; i < NUM_BTN; i++) {
-          const card = document.createElement("div");
-          const optHtml = options.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
-
-          card.innerHTML = `
-            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
-              <div style="font-weight:600;display:flex;justify-content:space-between;align-items:center;font-size:.95rem;color:#111827;">
-                <span>Button ${i + 1}</span>
-                <span id="btn-dot-${i}" style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
-              </div>
-
-              <div style="margin-top:.7rem;">
-                <label style="font-size:.85rem;color:#4b5563;">Action</label>
-                <select id="btn-act-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                  ${optHtml}
-                </select>
-              </div>
-            </div>
-          `;
-          container.appendChild(card);
-
-          const sel = $("btn-act-" + i);
-          if (sel) {
-            sel.value = "0";
-            sel.addEventListener("focus", () => markBtnEditing(i, true));
-            sel.addEventListener("blur",  () => { markBtnEditing(i, false); sendBtnCfg(); });
-            sel.addEventListener("change", () => {
-              btnAction[i] = parseInt(sel.value, 10) || 0;
-              sendBtnCfg();
-            });
-          }
-        }
-      })();
-
-      // LEDs
-      function markLedEditing(i, editing) { ledEditing[i] = editing; }
-      async function sendLedCfg() {
-        try {
-          await connection.send("ledCfg", { src: ledSrc });
-          appendLog("UI", "LED sources sent: " + JSON.stringify(ledSrc));
-        } catch (err) { appendLog("Error", err.message || err); }
-      }
-
-      connection.on("LedSourceList", (list) => {
-        const arr = toList(list);
-        if (!arr.length) return;
-        for (let i=0;i<NUM_LED;i++) {
-          const v = Number(arr[i] ?? ledSrc[i]) || 0;
-          ledSrc[i] = Math.max(0, Math.min(4, v));
-          const sel = $("led-src-" + i);
-          if (sel && !ledEditing[i]) sel.value = String(ledSrc[i]);
-        }
-      });
-
-      (function buildLedCards() {
-        const container = $("leds-cards");
-        if (!container) return;
-
-        const options = [
-          [0, "Manual"],
-          [1, "AO1 = 0%"],
-          [2, "AO2 = 0%"],
-          [3, "AO1 = 100%"],
-          [4, "AO2 = 100%"]
-        ];
-
-        for (let i = 0; i < NUM_LED; i++) {
-          const card = document.createElement("div");
-          const optHtml = options.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
-
-          card.innerHTML = `
-            <div style="border:1px solid #dde3ea;border-radius:10px;background:#ffffff;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.95rem;color:#111827;">
-                <span>LED ${i + 1}</span>
-                <span id="led-dot-${i}" style="width:11px;height:11px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
-              </div>
-
-              <div style="margin-top:.6rem;">
-                <label style="font-size:.85rem;color:#4b5563;">Source</label>
-                <select id="led-src-${i}" style="width:100%;padding:6px;border-radius:6px;border:1px solid #d1d5db;">
-                  ${optHtml}
-                </select>
-              </div>
-            </div>
-          `;
-          container.appendChild(card);
-
-          const sel = $("led-src-" + i);
-          if (sel) {
-            sel.value = "0";
-            sel.addEventListener("focus", () => markLedEditing(i, true));
-            sel.addEventListener("blur",  () => { markLedEditing(i, false); sendLedCfg(); });
-            sel.addEventListener("change", () => {
-              ledSrc[i] = parseInt(sel.value, 10) || 0;
-              sendLedCfg();
-            });
-          }
-        }
-      })();
-
-      // Live updates
-      connection.on("aiValues", (list) => {
-        const vals = toList(list);
-        vals.forEach((mv, i) => {
-          const mvNum = Number(mv);
-          const rawSpan = $("ai-raw-" + i);
-          const vSpan   = $("ai-volts-" + i);
-          const dot     = $("ai-dot-" + i);
-          if (rawSpan) rawSpan.textContent = isNaN(mvNum) ? "--" : mvNum.toString();
-          const volts = mvNum / 1000;
-          if (vSpan && !isNaN(volts)) vSpan.textContent = volts.toFixed(3);
-          if (dot) dot.style.background = volts > 0.1 ? "#4caf50" : "#ccc";
-        });
-      });
-
-      connection.on("dacValues", (list) => {
-        const vals = toList(list);
-        vals.forEach((v, i) => {
-          const val = Number(v) || 0;
-          dacValues[i] = val;
-          const slider = $("dac-slider-" + i);
-          const rawEl  = $("dac-raw-" + i);
-          const vEl    = $("dac-volts-" + i);
-          if (slider) slider.value = val;
-          if (rawEl)  rawEl.textContent = val;
-          if (vEl)    vEl.textContent = (val / 4095 * 10).toFixed(2);
-        });
-      });
-
-      connection.on("ButtonStateList", (list) => {
-        const vals = toList(list);
-        vals.forEach((v, i) => {
-          const dot = $("btn-dot-" + i);
-          if (dot) dot.style.background = v ? "#4caf50" : "#ccc";
-        });
-      });
-
-      connection.on("LedStateList", (list) => {
-        const vals = toList(list);
-        vals.forEach((v, i) => {
-          const dot = $("led-dot-" + i);
-          if (dot) dot.style.background = v ? "#ffb300" : "#ccc";
-        });
-      });
-
-      // DAC sliders send
+  (function () {
+    const $ = id => document.getElementById(id);
+    const NUM_AI = 4, NUM_DAC = 2, NUM_BTN = 4, NUM_LED = 4, NUM_RTD = 2;
+
+    const dacValues = [0, 0];
+    const aoPowerOn = [0, 0];
+    const rtdCfg = { wires: [2, 2], rnominal: [100, 100], rref: [200, 200] };
+    const rtdEditing = [false, false];
+
+    function setAiDot(i, on) {
+      const el = $('ai-dot-' + i);
+      if (el) el.className = 'state-dot ' + (on ? 'dot-on' : 'dot-off');
+    }
+
+    function setRtdDot(i, faultVal) {
+      const el = $('rtd-dot-' + i);
+      if (!el) return;
+      el.className = 'state-dot';
+      if (faultVal === 0xFF) el.style.background = '#9ca3af';
+      else if (faultVal) el.style.background = 'var(--bad)';
+      else el.style.background = 'var(--ok)';
+    }
+
+    function applyDacFromCfg(ext) {
+      const dac = ext && ext.dac;
+      if (!dac) return;
+      const raw = HMWebConfig.toArray(dac.raw);
+      const po = HMWebConfig.toArray(dac.powerOn);
       for (let i = 0; i < NUM_DAC; i++) {
-        const slider = $("dac-slider-" + i);
-        if (!slider) continue;
-
-        slider.addEventListener("input", () => {
-          const val = Number(slider.value);
+        if (raw[i] != null) {
+          const val = Number(raw[i]) || 0;
           dacValues[i] = val;
-          const rawEl = $("dac-raw-" + i);
-          const vEl   = $("dac-volts-" + i);
+          const slider = $('dac-slider-' + i);
+          const rawEl = $('dac-raw-' + i);
+          const vEl = $('dac-volts-' + i);
+          if (slider && slider !== document.activeElement) slider.value = val;
           if (rawEl) rawEl.textContent = val;
           if (vEl) vEl.textContent = (val / 4095 * 10).toFixed(2);
-        });
+        }
+        if (po[i] != null) {
+          aoPowerOn[i] = Number(po[i]) || 0;
+          const poEl = $('powerOn-ao' + (i + 1));
+          if (poEl && poEl !== document.activeElement) poEl.value = String(aoPowerOn[i]);
+        }
+      }
+    }
 
-        slider.addEventListener("change", async () => {
-          await connection.send("dac", { list: dacValues });
-          appendLog("UI", "DAC update: " + JSON.stringify(dacValues));
-        });
+    function applyRtdFromCfg(ext) {
+      const rtd = ext && ext.rtd;
+      if (!rtd) return;
+      const wires = HMWebConfig.toArray(rtd.wires);
+      const rn = HMWebConfig.toArray(rtd.rnominal);
+      const rr = HMWebConfig.toArray(rtd.rref);
+      for (let i = 0; i < NUM_RTD; i++) {
+        if (wires[i] != null) rtdCfg.wires[i] = Number(wires[i]) || 2;
+        if (rn[i] != null) rtdCfg.rnominal[i] = Number(rn[i]) || 100;
+        if (rr[i] != null) rtdCfg.rref[i] = Number(rr[i]) || 200;
+        if (!rtdEditing[i]) {
+          const wireEl = $('rtd-wire-' + i);
+          const senEl = $('rtd-sensor-' + i);
+          const rrEl = $('rtd-rref-' + i);
+          if (wireEl) wireEl.value = String(rtdCfg.wires[i]);
+          if (senEl) senEl.value = String(rtdCfg.rnominal[i]);
+          if (rrEl) rrEl.value = String(rtdCfg.rref[i]);
+        }
+      }
+    }
+
+    function applyAioCfg(ext, cfg) {
+      applyDacFromCfg(ext || (cfg && cfg.ext));
+      applyRtdFromCfg(ext || (cfg && cfg.ext));
+      const acts = HMWebConfig.toArray((ext && ext.btnAction) || (cfg && cfg.ext && cfg.ext.btnAction));
+      acts.forEach((v, i) => {
+        const el = $('action-btn' + (i + 1));
+        if (el && el !== document.activeElement) el.value = String(v ?? 0);
+      });
+      const srcs = HMWebConfig.toArray((ext && ext.ledSrc) || (cfg && cfg.ext && cfg.ext.ledSrc));
+      srcs.forEach((v, i) => {
+        const el = $('source-led' + (i + 1));
+        if (el && el !== document.activeElement) el.value = String(v ?? 0);
+      });
+    }
+
+    (function populateAddresses() {
+      const sel = $('modbus-address');
+      if (!sel) return;
+      for (let i = 1; i <= 255; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        sel.appendChild(opt);
+      }
+      sel.value = '3';
+    })();
+
+    HMWebConfig.register({
+      channels: { in: 0, relay: 0, btn: NUM_BTN, led: NUM_LED },
+      onCfg: applyAioCfg
+    });
+    HMWebConfig.connect({ requestElement: 'connect-button' });
+
+    HMWebConfig.conn.on('ext', function (ext) {
+      if (!ext) return;
+      const ai = HMWebConfig.toArray(ext.ai);
+      ai.forEach((mv, i) => {
+        const mvNum = Number(mv);
+        const rawSpan = $('ai-raw-' + i);
+        const vSpan = $('ai-volts-' + i);
+        if (rawSpan) rawSpan.textContent = isNaN(mvNum) ? '--' : mvNum.toString();
+        const volts = mvNum / 1000;
+        if (vSpan && !isNaN(volts)) vSpan.textContent = volts.toFixed(3);
+        setAiDot(i, volts > 0.1);
+      });
+
+      const rtd = ext.rtd || {};
+      const t10 = HMWebConfig.toArray(rtd.temp_x10);
+      const info = rtd.info || {};
+      const tc = HMWebConfig.toArray(info.temp_c);
+      const fault = HMWebConfig.toArray(info.fault);
+      const err = HMWebConfig.toArray(info.error);
+      const raw = HMWebConfig.toArray(info.raw);
+      const ratio = HMWebConfig.toArray(info.ratio);
+      const ohms = HMWebConfig.toArray(info.ohms);
+
+      for (let i = 0; i < NUM_RTD; i++) {
+        const tempEl = $('rtd-temp-' + i);
+        const faultEl = $('rtd-fault-' + i);
+        const errEl = $('rtd-err-' + i);
+        const rawEl = $('rtd-raw-' + i);
+        const ratioEl = $('rtd-ratio-' + i);
+        const ohmEl = $('rtd-ohms-' + i);
+
+        const tempC = Number(tc[i]);
+        if (tempEl) {
+          if (!isNaN(tempC) && isFinite(tempC)) tempEl.textContent = tempC.toFixed(2);
+          else {
+            const t10v = Number(t10[i]);
+            tempEl.textContent = isNaN(t10v) ? '--' : (t10v / 10).toFixed(1);
+          }
+        }
+        const faultVal = Number(fault[i]);
+        if (faultEl) {
+          faultEl.textContent = isNaN(faultVal) ? '--' : ('0x' + (faultVal & 0xFF).toString(16).padStart(2, '0').toUpperCase());
+        }
+        if (errEl) errEl.textContent = err[i] || '';
+        if (rawEl) rawEl.textContent = (raw[i] == null ? '--' : String(raw[i]));
+        if (ratioEl) {
+          const rv = Number(ratio[i]);
+          ratioEl.textContent = isNaN(rv) ? '--' : rv.toFixed(6);
+        }
+        if (ohmEl) {
+          const ov = Number(ohms[i]);
+          ohmEl.textContent = isNaN(ov) ? '--' : ov.toFixed(3);
+        }
+        setRtdDot(i, isNaN(faultVal) ? 0 : faultVal);
+      }
+    });
+
+    $('modbus-address')?.addEventListener('input', updateModbus);
+    $('modbus-baud')?.addEventListener('input', updateModbus);
+    function updateModbus() {
+      HMWebConfig.sendValues(
+        parseInt($('modbus-address')?.value || '3', 10),
+        parseInt($('modbus-baud')?.value || '19200', 10)
+      );
+    }
+
+    (function buildAICards() {
+      const c = $('ai-cards');
+      if (!c) return;
+      for (let i = 0; i < NUM_AI; i++) {
+        const card = document.createElement('div');
+        card.className = 'iocard tint-input';
+        card.innerHTML = `
+          <div class="iotop">
+            <span class="ioid">AI${i + 1}</span>
+            <span class="ioBadge"><span id="ai-dot-${i}" class="state-dot dot-off"></span></span>
+          </div>
+          <div class="val-row">
+            <span>Raw: <span id="ai-raw-${i}" class="mono">--</span> mV</span>
+            <span><span id="ai-volts-${i}" class="mono">--</span> V</span>
+          </div>`;
+        c.appendChild(card);
       }
     })();
+
+    (function buildDacCards() {
+      const c = $('dac-cards');
+      if (!c) return;
+      const poOpts = [
+        [0, 'OFF (0 V)'],
+        [1, 'ON (100%)'],
+        [2, 'Restore last']
+      ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      for (let i = 0; i < NUM_DAC; i++) {
+        const card = document.createElement('div');
+        card.className = 'iocard tint-relay';
+        card.innerHTML = `
+          <div class="iotop"><span class="ioid">AO${i + 1}</span></div>
+          <input type="range" min="0" max="4095" value="0" id="dac-slider-${i}" class="dac-slider">
+          <div class="val-row">
+            <span>Raw: <span id="dac-raw-${i}" class="mono">0</span></span>
+            <span>≈ <span id="dac-volts-${i}" class="mono">0.00</span> V</span>
+          </div>
+          <div style="margin-top:10px;">
+            <label for="powerOn-ao${i + 1}">Power-on policy</label>
+            <select id="powerOn-ao${i + 1}">${poOpts}</select>
+          </div>`;
+        c.appendChild(card);
+
+        const slider = $('dac-slider-' + i);
+        if (slider) {
+          slider.addEventListener('input', () => {
+            const val = Number(slider.value);
+            dacValues[i] = val;
+            const rawEl = $('dac-raw-' + i);
+            const vEl = $('dac-volts-' + i);
+            if (rawEl) rawEl.textContent = val;
+            if (vEl) vEl.textContent = (val / 4095 * 10).toFixed(2);
+          });
+          slider.addEventListener('change', sendDacCfg);
+        }
+        const poEl = $('powerOn-ao' + (i + 1));
+        if (poEl) {
+          poEl.addEventListener('change', () => {
+            aoPowerOn[i] = parseInt(poEl.value, 10) || 0;
+            sendDacCfg();
+          });
+        }
+      }
+    })();
+
+    function sendDacCfg() {
+      HMWebConfig.conn.send('Config', { t: 'ext.dac', list: dacValues.slice(), powerOn: aoPowerOn.slice() })
+        .catch(err => HMWebConfig.appendLog('DAC send failed: ' + (err?.message || err)));
+    }
+
+    (function buildRtdCards() {
+      const c = $('rtd-cards');
+      if (!c) return;
+      const wireOpts = [[2, '2-wire'], [3, '3-wire'], [4, '4-wire']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+      const sensorOpts = [[100, 'PT100 (100Ω)'], [1000, 'PT1000 (1000Ω)']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+      const rrefOpts = [[200, '200Ω'], [400, '400Ω'], [2000, '2000Ω'], [4000, '4000Ω']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+
+      for (let i = 0; i < NUM_RTD; i++) {
+        const card = document.createElement('div');
+        card.className = 'iocard tint-input';
+        card.innerHTML = `
+          <div class="iotop">
+            <span class="ioid">RTD${i + 1}</span>
+            <span class="ioBadge"><span id="rtd-dot-${i}" class="state-dot dot-off"></span></span>
+          </div>
+          <div>Temperature: <strong id="rtd-temp-${i}">--</strong> °C</div>
+          <div class="rtd-diag">
+            Fault: <span id="rtd-fault-${i}" class="mono">--</span>
+            <div class="rtd-err" id="rtd-err-${i}"></div>
+            Raw code: <span id="rtd-raw-${i}" class="mono">--</span><br>
+            Ratio: <span id="rtd-ratio-${i}" class="mono">--</span><br>
+            Resistance: <span id="rtd-ohms-${i}" class="mono">--</span> Ω
+          </div>
+          <div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;">
+            <div style="font-weight:800;font-size:13px;margin-bottom:8px;">RTD Settings (Web-only)</div>
+            <div class="row">
+              <div>
+                <label for="rtd-wire-${i}">Wiring</label>
+                <select id="rtd-wire-${i}">${wireOpts}</select>
+              </div>
+              <div>
+                <label for="rtd-sensor-${i}">Sensor</label>
+                <select id="rtd-sensor-${i}">${sensorOpts}</select>
+              </div>
+            </div>
+            <div style="margin-top:8px;">
+              <label for="rtd-rref-${i}">Reference resistor (Rref)</label>
+              <select id="rtd-rref-${i}">${rrefOpts}</select>
+            </div>
+            <div style="margin-top:10px;text-align:right;">
+              <button type="button" class="btn primary" id="rtd-apply-${i}">Apply RTD${i + 1}</button>
+            </div>
+          </div>`;
+        c.appendChild(card);
+
+        const mark = editing => { rtdEditing[i] = editing; };
+        ['rtd-wire-', 'rtd-sensor-', 'rtd-rref-'].forEach(prefix => {
+          const el = $(prefix + i);
+          if (!el) return;
+          el.addEventListener('focus', () => mark(true));
+          el.addEventListener('blur', () => mark(false));
+          el.addEventListener('change', () => {
+            rtdCfg.wires[i] = parseInt($('rtd-wire-' + i)?.value || '2', 10) || 2;
+            rtdCfg.rnominal[i] = parseInt($('rtd-sensor-' + i)?.value || '100', 10) || 100;
+            rtdCfg.rref[i] = parseInt($('rtd-rref-' + i)?.value || '200', 10) || 200;
+          });
+        });
+        $('rtd-apply-' + i)?.addEventListener('click', sendRtdCfg);
+      }
+    })();
+
+    function sendRtdCfg() {
+      const payload = {
+        wires: rtdCfg.wires.slice(),
+        rnominal: rtdCfg.rnominal.slice(),
+        rref: rtdCfg.rref.slice()
+      };
+      HMWebConfig.sendConfig('ext.rtd', payload);
+    }
+
+    (function buildButtons() {
+      const c = $('io-buttons');
+      if (!c) return;
+      const opts = [
+        [0, 'Manual LED toggle'],
+        [1, 'Toggle AO1 (0↔100%)'],
+        [2, 'Toggle AO2 (0↔100%)'],
+        [3, 'AO1=max toggle'],
+        [4, 'AO2=max toggle']
+      ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      for (let i = 1; i <= NUM_BTN; i++) {
+        const d = document.createElement('div');
+        d.className = 'iocard tint-button';
+        d.innerHTML = `
+          <div class="iotop">
+            <span class="ioid">Button ${i}</span>
+            <span class="ioBadge"><span id="state-btn${i}" class="state-dot dot-off"></span></span>
+          </div>
+          <label for="action-btn${i}">Action</label>
+          <select id="action-btn${i}">${opts}</select>`;
+        c.appendChild(d);
+        $('action-btn' + i)?.addEventListener('change', sendBtnCfg);
+      }
+    })();
+
+    function sendBtnCfg() {
+      const list = [];
+      for (let i = 1; i <= NUM_BTN; i++) {
+        list.push(parseInt($('action-btn' + i)?.value || '0', 10) || 0);
+      }
+      HMWebConfig.sendConfig('btn', list);
+    }
+
+    (function buildLeds() {
+      const c = $('io-leds');
+      if (!c) return;
+      const opts = [
+        [0, 'Manual'],
+        [1, 'AO1 = 0%'],
+        [2, 'AO2 = 0%'],
+        [3, 'AO1 = 100%'],
+        [4, 'AO2 = 100%']
+      ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      for (let i = 1; i <= NUM_LED; i++) {
+        const d = document.createElement('div');
+        d.className = 'iocard tint-led';
+        d.innerHTML = `
+          <div class="iotop">
+            <span class="ioid">LED ${i}</span>
+            <span class="ioBadge"><span id="state-led${i}" class="state-dot dot-off"></span></span>
+          </div>
+          <label for="source-led${i}">Source</label>
+          <select id="source-led${i}">${opts}</select>`;
+        c.appendChild(d);
+        $('source-led' + i)?.addEventListener('change', sendLedCfg);
+      }
+    })();
+
+    function sendLedCfg() {
+      const list = [];
+      for (let i = 1; i <= NUM_LED; i++) {
+        list.push({ source: parseInt($('source-led' + i)?.value || '0', 10) || 0 });
+      }
+      HMWebConfig.sendConfig('led', list);
+    }
+  })();
   </script>
 </section>
