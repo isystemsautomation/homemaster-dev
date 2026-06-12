@@ -1,127 +1,20 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
 <section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
-    :root{
-      --page:#ffffff;
-      --card:#ffffff;
-      --text:#0f172a;
-      --muted:#475569;
-      --muted2:#64748b;
-      --border:#e2e8f0;
-      --borderStrong:#cbd5e1;
-      --brand:#2563eb;
-      --brandHover:#1d4ed8;
-      --ok:#16a34a;
-      --warn:#f59e0b;
-      --bad:#ef4444;
-      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
-      --r:16px;
-      --r2:14px;
-      --gap:16px;
-      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-    }
-    *{box-sizing:border-box}
-
-    /* Inputs and forms (match DIO style) */
-    label{display:block;font-size:12px;font-weight:750;color:var(--muted);margin-bottom:6px}
-    input,select,textarea{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--borderStrong);
-      font-size:13px;
-      color:var(--text);
-      background:#fff;
-      box-sizing:border-box;
-    }
-    input:focus,select:focus,textarea:focus{
-      outline:none;
-      border-color:var(--brand);
-      box-shadow:0 0 0 3px rgba(37,99,235,.15);
-    }
-
-    /* Pills and badges */
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;font-weight:650;color:var(--muted);border:1px solid var(--border);border-radius:999px;background:#fff}
-    .tag{font-size:11px;font-weight:750;color:#0f172a;border:1px solid var(--border);background:#f8fafc;padding:3px 8px;border-radius:999px;white-space:nowrap}
-    .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
-    .dot.ok{background:var(--ok)}
-    .dot.warn{background:var(--warn)}
-
-    /* Buttons */
-    .btn{padding:8px 14px;font-size:13px;font-weight:750;border-radius:12px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer}
-    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-    .btn.primary:hover{background:var(--brandHover)}
-    .btn.danger{color:var(--bad);border-color:#fecaca}
-    .btn.danger:hover{background:rgba(239,68,68,.06)}
-
-    /* Cards */
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
-    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-    .cardheader h2{margin:0;font-size:14px;font-weight:850}
-    .sub{margin-top:4px;font-size:12px;color:var(--muted)}
-    .cardbody{padding:14px}
-
-    /* Layout */
-    .grid{display:grid;gap:var(--gap);margin-top:16px}
-    .grid.two{grid-template-columns:1.2fr .8fr}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
-
-    /* Section titles (match DIO) */
-    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-    .sectiontitle h3{margin:0;font-size:14px;font-weight:900}
-    .sectiontitle .hint{margin:0;font-size:12px;color:var(--muted2);font-weight:650}
-
-    /* Header / app bar */
-    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:var(--gap)}
-    .headLeft{display:flex;gap:14px;align-items:center;min-width:300px}
-    .moduleImage{width:64px;height:64px;border-radius:14px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden;background:#f8fafc}
-    .moduleImage img{width:100%;height:100%;object-fit:contain}
-    .title h1{margin:0;font-size:18px;font-weight:800}
-    .title p{margin:4px 0 0;font-size:13px;color:var(--muted)}
-    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-    .mini{margin-top:8px;font-size:12px;color:var(--muted2)}
-
-    /* Log box */
-    #log-box{margin-bottom:0;padding:.75rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);font-size:12px}
-    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
-
-    /* IO groups / cards (match DIO style) */
-    .iogroup{display:grid;gap:var(--gap);grid-template-columns:repeat(4,1fr)}
-    .iogroup.cols3{grid-template-columns:repeat(3,1fr)}
-    .iogroup.cols4{grid-template-columns:repeat(4,1fr)}
-    .iocard{border:1px solid var(--border);border-radius:var(--r2);padding:12px;background:#fff;position:relative;overflow:hidden}
-    .iocard::before{content:"";position:absolute;left:0;top:0;right:0;height:42px;background:rgba(255,255,255,.55);border-bottom:1px solid rgba(15,23,42,.06);pointer-events:none}
-    .iotop{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    .iocard > *:not(.iotop){position:relative;z-index:1}
-    .ioid{font-size:14px;font-weight:900}
-    .ioBadge{font-size:11px;font-weight:750;border:1px solid var(--border);padding:3px 8px;border-radius:999px;background:#f8fafc}
-    /* Group tints */
-    .tint-input{background:#e9fbe9;border-color:#bfe7bf}
-    .tint-relay{background:#eef2ff;border-color:#c7d2fe}
-    .tint-button{background:#dbe9ff;border-color:#b7cffc}
-    .tint-led{background:#f6f8d6;border-color:#e2e79e}
-    .checkRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-    .check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)}
-    .check input{width:auto}
-    .split{display:grid;gap:10px}
-
-    /* Inputs config - 4-column layout */
-    #inputs-config{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:var(--gap);
-    }
-
-    /* Responsive */
-    @media(max-width:980px){
-      .grid.two{grid-template-columns:1fr}
-      .statusbar{align-items:flex-start}
-      .pillrow,.actions{justify-content:flex-start}
-    }
+    /* ALM-specific: 17 inputs in 4 columns */
+    #io-inputs { grid-template-columns: repeat(4, 1fr); }
+    @media(max-width:1100px) { #io-inputs { grid-template-columns: repeat(2, 1fr); } }
+    @media(max-width:640px) { #io-inputs { grid-template-columns: 1fr; } }
+    .alarm-grid-4 { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); margin-bottom:var(--gap); }
+    .alarm-grid-3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); }
+    .alarm-card { border:1px solid var(--border); border-radius:var(--r2); padding:14px; background:#fff; }
+    .alarm-top { display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:14px; }
+    @media(max-width:980px) { .alarm-grid-4 { grid-template-columns:repeat(2,1fr); } .alarm-grid-3 { grid-template-columns:1fr; } }
   </style>
 
-  <!-- Header -->
   <header class="appbar">
     <div class="headLeft">
       <div class="moduleImage">
@@ -135,17 +28,18 @@
     <div class="statusbar">
       <div class="pillrow">
         <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
-        <div class="pill">Modbus ID: <span id="live-address" style="color:var(--text)">--</span></div>
-        <div class="pill">Baud: <span id="live-baud" style="color:var(--text)">--</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
-        <button class="btn danger" id="reset-button" disabled style="display:none;">Reset Device</button>
+        <button class="btn danger" id="reset-button" disabled>Reset Device</button>
       </div>
     </div>
   </header>
 
-  <!-- Device setup + log -->
   <div class="grid two">
     <section class="card">
       <div class="cardheader">
@@ -156,29 +50,26 @@
         <span class="tag">Step 1</span>
       </div>
       <div class="cardbody">
-        <form id="modbus-config">
-          <div class="row">
-            <div>
-              <label for="modbus-address">Modbus Address</label>
-              <select id="modbus-address"></select>
-              <div class="mini">Use a unique address per device on the bus.</div>
-            </div>
-            <div>
-              <label for="modbus-baud">Baud Rate</label>
-              <select id="modbus-baud">
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600">57600</option>
-                <option value="115200">115200</option>
-              </select>
-              <div class="mini">Must match your controller UART settings.</div>
-            </div>
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+            <div class="mini" style="margin-top:8px;font-size:12px;color:var(--muted2)">Use a unique address per device on the bus.</div>
           </div>
-        </form>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+            <div class="mini" style="margin-top:8px;font-size:12px;color:var(--muted2)">Must match your controller UART settings.</div>
+          </div>
+        </div>
       </div>
     </section>
-
     <section class="card">
       <div class="cardheader">
         <div>
@@ -187,96 +78,82 @@
         </div>
       </div>
       <div class="cardbody">
-        <div id="log-box">
-          <strong>Serial Log:</strong>
-          <div id="log-content"></div>
+        <div id="hm-log-box">
+          <div id="hm-log"></div>
         </div>
       </div>
     </section>
   </div>
 
-  <!-- Reset confirmation dialog -->
   <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
     <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
       <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
       <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
       <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
-        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
+        <button type="button" class="btn" id="dlg-cancel">Cancel</button>
+        <button type="button" class="btn danger" id="dlg-confirm">Reset</button>
       </div>
     </form>
   </dialog>
 
-  <section style="margin-bottom:2rem;">
-    <h2 style="font-size:1.2rem;">Alarm Status &amp; Modes</h2>
-
-    <!-- Row 1: 4 status cards (full-width, 4 columns) -->
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1rem;">
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
-        <strong>Any Alarm</strong>
-        <span id="alarm-any" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
+  <div class="sectiontitle">
+    <h3>Alarm Status &amp; Modes</h3>
+    <p class="hint">Live alarm groups and per-group latch modes.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="alarm-grid-4">
+        <div class="alarm-card"><div class="alarm-top">Any Alarm <span id="alarm-any" class="state-dot dot-off"></span></div></div>
+        <div class="alarm-card"><div class="alarm-top">Group 1 <span id="alarm-g1" class="state-dot dot-off"></span></div></div>
+        <div class="alarm-card"><div class="alarm-top">Group 2 <span id="alarm-g2" class="state-dot dot-off"></span></div></div>
+        <div class="alarm-card"><div class="alarm-top">Group 3 <span id="alarm-g3" class="state-dot dot-off"></span></div></div>
       </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
-        <strong>Group 1</strong>
-        <span id="alarm-g1" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
-        <strong>Group 2</strong>
-        <span id="alarm-g2" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;background:#ffffff;">
-        <strong>Group 3</strong>
-        <span id="alarm-g3" style="float:right;width:12px;height:12px;border-radius:50%;display:inline-block;background:#ccc;"></span>
-      </div>
-    </div>
-
-    <!-- Row 2: 3 mode cards (full-width, 3 columns) -->
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;">
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="alarm-mode-g1"><strong>Mode – Group 1</strong></label>
-        <select id="alarm-mode-g1" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">None</option>
-          <option value="1">Active while condition is active (non-latched)</option>
-          <option value="2">Latched until acknowledged</option>
-        </select>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="alarm-mode-g2"><strong>Mode – Group 2</strong></label>
-        <select id="alarm-mode-g2" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">None</option>
-          <option value="1">Active while condition is active (non-latched)</option>
-          <option value="2">Latched until acknowledged</option>
-        </select>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="alarm-mode-g3"><strong>Mode – Group 3</strong></label>
-        <select id="alarm-mode-g3" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">None</option>
-          <option value="1">Active while condition is active (non-latched)</option>
-          <option value="2">Latched until acknowledged</option>
-        </select>
+      <div class="alarm-grid-3">
+        <div class="alarm-card">
+          <label for="alarm-mode-g1"><strong>Mode – Group 1</strong></label>
+          <select id="alarm-mode-g1">
+            <option value="0">None</option>
+            <option value="1">Active while condition is active (non-latched)</option>
+            <option value="2">Latched until acknowledged</option>
+          </select>
+        </div>
+        <div class="alarm-card">
+          <label for="alarm-mode-g2"><strong>Mode – Group 2</strong></label>
+          <select id="alarm-mode-g2">
+            <option value="0">None</option>
+            <option value="1">Active while condition is active (non-latched)</option>
+            <option value="2">Latched until acknowledged</option>
+          </select>
+        </div>
+        <div class="alarm-card">
+          <label for="alarm-mode-g3"><strong>Mode – Group 3</strong></label>
+          <select id="alarm-mode-g3">
+            <option value="0">None</option>
+            <option value="1">Active while condition is active (non-latched)</option>
+            <option value="2">Latched until acknowledged</option>
+          </select>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Digital Inputs (match DIO card wrapper) -->
   <div class="sectiontitle">
     <h3>Digital Inputs (17)</h3>
     <p class="hint">Configure enable, invert, and alarm group per input.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div id="inputs-config"></div>
+      <div id="io-inputs"></div>
     </div>
   </section>
 
   <div class="sectiontitle">
     <h3>Relays (3)</h3>
-    <p class="hint">Configure enable, invert, and alarm group mapping.</p>
+    <p class="hint">Configure enable, invert, alarm group mapping, and power-on policy.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div class="iogroup cols3" id="relays-config"></div>
+      <div class="iogroup cols3" id="io-relays"></div>
     </div>
   </section>
 
@@ -286,7 +163,7 @@
   </div>
   <section class="card">
     <div class="cardbody">
-      <div class="iogroup cols4" id="buttons-config"></div>
+      <div class="iogroup cols4" id="io-buttons"></div>
     </div>
   </section>
 
@@ -296,411 +173,225 @@
   </div>
   <section class="card">
     <div class="cardbody">
-      <div class="iogroup cols4" id="leds-config"></div>
+      <div class="iogroup cols4" id="io-leds"></div>
     </div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
-    (function () {
-      // ---------- Helpers ----------
-      const LOG_MAX = 3;
-      const logBuffer = [];
-      const $ = (id) => document.getElementById(id);
+  (function(){
+    const $ = id => document.getElementById(id);
+    const NUM_IN = 17, NUM_RLY = 3, NUM_BTN = 4, NUM_LED = 4;
 
-      function appendLog(label, data) {
-        const logEl = $("log-content");
-        if (!logEl) return;
-        const time = new Date().toLocaleTimeString();
-        const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
-        logBuffer.unshift(line);
-        if (logBuffer.length > LOG_MAX) logBuffer.pop();
-        logEl.innerText = logBuffer.join('\n');
-      }
+    function setAlarmDot(id, on) {
+      const el = $(id);
+      if (el) el.className = 'state-dot ' + (on ? 'dot-on' : 'dot-off');
+    }
 
-      function setDot(id, active, onColor = '#e53935') {
-        const el = $(id);
-        if (el) el.style.background = active ? onColor : '#ccc';
-      }
-
-      // ---------- Populate Modbus address dropdown ----------
-      (function populateAddresses() {
-        const addrSelect = $('modbus-address');
-        if (!addrSelect) return;
-        for (let i = 1; i <= 255; i++) {
-          const opt = document.createElement('option');
-          opt.value = i;
-          opt.textContent = i;
-          addrSelect.appendChild(opt);
-        }
-      })();
-
-      // ---------- Web Serial Setup ----------
-      const connection = SimpleWebSerial.setupSerialConnection({
-        requestAccessOnPageLoad: false,
-        requestElement: 'connect-button'
-      });
-
-      function isPortOpen() {
-        try {
-          if (typeof connection.isOpen === 'function') return connection.isOpen();
-          return !!connection.port;
-        } catch { return false; }
-      }
-      function updateResetEnabled() {
-        const btn = $('reset-button');
-        if (btn) btn.disabled = !isPortOpen();
-      }
-
-      connection.on('status', (modbus) => {
-        $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-        $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
-        if (modbus && modbus.address) $('modbus-address').value = modbus.address;
-        if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-        updateResetEnabled();
-      });
-      connection.on('open',  updateResetEnabled);
-      connection.on('close', updateResetEnabled);
-      connection.on('message', (msg) => appendLog("ALM-173-R1", msg));
-
-      // ---------- Modbus value changes ----------
-      $('modbus-address').addEventListener('input', updateModbus);
-      $('modbus-baud').addEventListener('input', updateModbus);
-      async function updateModbus() {
-        const mb_address = parseInt($('modbus-address').value || "1", 10);
-        const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
-        await connection.send("values", { mb_address, mb_baud });
-      }
-
-      // ---------- Reset Dialog ----------
-      const resetBtn   = $('reset-button');
-      const dlg        = $('reset-dialog');
-      const dlgForm    = $('reset-form');  // method="dialog"
-      const dlgCancel  = $('dlg-cancel');
-      const dlgConfirm = $('dlg-confirm');
-
-      updateResetEnabled();
-
-      // Open dialog (idempotent)
-      resetBtn.addEventListener('click', () => {
-        updateResetEnabled();
-        if (resetBtn.disabled) {
-          appendLog("System", "Connect to the device before resetting.");
-          return;
-        }
-        if (dlg && typeof dlg.showModal === 'function') {
-          if (!dlg.open) dlg.showModal();
-        } else if (confirm("Are you sure you want to reset the module?")) {
-          doReset();
-        }
-      });
-
-      // Close with Cancel (no reset)
-      dlgCancel.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (dlg.open) dlg.close('cancel');
-      });
-
-      // Confirm -> reset
-      dlgConfirm.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (dlg.open) dlg.close('confirm');
-        await doReset();
-      });
-
-      // Backdrop click to close
-      dlg.addEventListener('click', (ev) => {
-        const r = dlg.getBoundingClientRect();
-        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-        if (!inside && dlg.open) dlg.close('backdrop');
-      });
-
-      async function doReset() {
-        try {
-          await connection.send("command", { action: "reset" });
-          appendLog("System", "Reset command sent");
-          resetBtn.disabled = true;
-          setTimeout(updateResetEnabled, 3000);
-        } catch (err) {
-          appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`);
+    function applyAlmCfg(ext, cfg) {
+      const inArr = HMWebConfig.toArray(cfg.in);
+      for (let i = 0; i < NUM_IN; i++) {
+        const o = inArr[i] || {};
+        if (o.group != null) {
+          const el = $('group-in' + (i + 1));
+          if (el && el !== document.activeElement) el.value = String(o.group);
         }
       }
-
-      // ---------- Build dynamic UI (Inputs / Relays / Buttons / LEDs) ----------
-      // Inputs (17) – DIO-style cards in 4-column grid
-      (function buildInputs() {
-        const container = $('inputs-config');
-        if (!container) return;
-        for (let i = 1; i <= 17; i++) {
-          const card = document.createElement('div');
-          card.className = 'iocard tint-input';
-          card.innerHTML = `
-            <div class="iotop">
-              <span class="ioid">IN${i}</span>
-              <span class="ioBadge"><span id="state-in${i}" class="state-dot dot-off"></span></span>
-            </div>
-            <div class="checkRow">
-              <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
-              <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
-            </div>
-            <div class="split">
-              <div>
-                <label for="group-in${i}">Alarm Group</label>
-                <select id="group-in${i}">
-                  <option value="0">None</option>
-                  <option value="1">Group 1</option>
-                  <option value="2">Group 2</option>
-                  <option value="3">Group 3</option>
-                </select>
-              </div>
-            </div>`;
-          container.appendChild(card);
+      const rlyArr = HMWebConfig.toArray(cfg.relay);
+      for (let i = 0; i < NUM_RLY; i++) {
+        const o = rlyArr[i] || {};
+        if (o.group != null) {
+          const el = $('group-relay' + (i + 1));
+          if (el && el !== document.activeElement) el.value = String(o.group);
         }
-      })();
-
-      // Relays (3) – DIO-style cards
-      (function buildRelays() {
-        const container = $('relays-config');
-        if (!container) return;
-        for (let i = 1; i <= 3; i++) {
-          const card = document.createElement('div');
-          card.className = 'iocard tint-relay';
-          card.innerHTML = `
-            <div class="iotop">
-              <span class="ioid">Relay ${i}</span>
-              <span class="ioBadge"><span id="state-relay${i}" class="state-dot dot-off"></span></span>
-            </div>
-            <div class="checkRow">
-              <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
-              <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
-            </div>
-            <div class="split">
-              <div>
-                <label for="group-relay${i}">Alarm Group</label>
-                <select id="group-relay${i}">
-                  <option value="0">None</option>
-                  <option value="1">Group 1</option>
-                  <option value="2">Group 2</option>
-                  <option value="3">Group 3</option>
-                </select>
-              </div>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // Buttons (4)
-      (function buildButtons() {
-        const container = $('buttons-config');
-        if (!container) return;
-        const ACTIONS = [
-          {value:0,label:'None'},
-          {value:1,label:'All alarm acknowledge'},
-          {value:2,label:'Alarm group 1 acknowledge'},
-          {value:3,label:'Alarm group 2 acknowledge'},
-          {value:4,label:'Alarm group 3 acknowledge'},
-          {value:5,label:'Relay 1 override (manual)'},
-          {value:6,label:'Relay 2 override (manual)'},
-          {value:7,label:'Relay 3 override (manual)'},
-        ];
-        for (let i = 1; i <= 4; i++) {
-          const options = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-          const card = document.createElement('div');
-          card.className = 'iocard tint-button';
-          card.innerHTML = `
-            <div class="iotop">
-              <span class="ioid">Button ${i}</span>
-              <span class="ioBadge"><span id="state-button${i}" class="state-dot dot-off"></span></span>
-            </div>
-            <div class="split">
-              <div>
-                <label for="action-button${i}">Action</label>
-                <select id="action-button${i}">
-                  ${options}
-                </select>
-              </div>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // LEDs (4)
-      (function buildLEDs() {
-        const container = $('leds-config');
-        if (!container) return;
-        const LED_MODE = [
-          {value:0,label:'Steady (when active)'},
-          {value:1,label:'Blink (when active)'},
-        ];
-        const LED_SOURCE = [
-          {value:0,label:'None'},
-          {value:1,label:'Any alarm'},
-          {value:2,label:'Alarm group 1'},
-          {value:3,label:'Alarm group 2'},
-          {value:4,label:'Alarm group 3'},
-          {value:5,label:'Relay 1 overridden'},
-          {value:6,label:'Relay 2 overridden'},
-          {value:7,label:'Relay 3 overridden'},
-        ];
-        for (let i = 1; i <= 4; i++) {
-          const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-          const srcOpts  = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-          const card = document.createElement('div');
-          card.className = 'iocard tint-led';
-          card.innerHTML = `
-            <div class="iotop">
-              <span class="ioid">User LED ${i}</span>
-              <span class="ioBadge"><span id="state-led${i}" class="state-dot dot-off"></span></span>
-            </div>
-            <div class="split">
-              <div>
-                <label for="mode-led${i}">Mode</label>
-                <select id="mode-led${i}">${modeOpts}</select>
-              </div>
-              <div>
-                <label for="source-led${i}">Trigger source</label>
-                <select id="source-led${i}">${srcOpts}</select>
-              </div>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // ---------- RECEIVE: update UI from device ----------
-      connection.on('inputs', (list) => {
-        (list || []).forEach((v, i) => {
-          const dot = $('state-in' + (i + 1));
-          if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
+      }
+      const modes = (ext && ext.alarms) || (cfg.ext && cfg.ext.alarms);
+      if (modes) {
+        HMWebConfig.toArray(modes).forEach((v, i) => {
+          const el = $('alarm-mode-g' + (i + 1));
+          if (el && el !== document.activeElement) el.value = String(v ?? 0);
         });
-      });
-      connection.on('enableList', (list) => (list || []).forEach((v, i) => {
-        const el = $('enable-in' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('invertList', (list) => (list || []).forEach((v, i) => {
-        const el = $('invert-in' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('groupList', (list) => (list || []).forEach((v, i) => {
-        const el = $('group-in' + (i + 1)); if (el) el.value = String(v || 0);
-      }));
+      }
+    }
 
-      connection.on('relayStateList', (list) => (list || []).forEach((v, i) => {
-        const el = $('state-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('relayEnableList', (list) => (list || []).forEach((v, i) => {
-        const el = $('enable-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('relayInvertList', (list) => (list || []).forEach((v, i) => {
-        const el = $('invert-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('relayGroupList', (list) => (list || []).forEach((v, i) => {
-        const el = $('group-relay' + (i + 1)); if (el) el.value = String(v || 0);
-      }));
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
-      connection.on('ButtonStateList', (list) => (list || []).forEach((v, i) => {
-        const dot = $('state-button' + (i + 1));
-        if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
-      }));
-      connection.on('ButtonGroupList', (list) => (list || []).forEach((v, i) => {
-        const el = $('action-button' + (i + 1)); if (el) el.value = String(v || 0);
-      }));
+    HMWebConfig.register({
+      channels: { in: NUM_IN, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
+      onCfg: applyAlmCfg
+    });
+    HMWebConfig.connect({ requestElement: 'connect-button' });
 
-      connection.on('LedConfigList', (list) => (list || []).forEach((obj, i) => {
-        const modeEl = $('mode-led' + (i + 1));
-        const srcEl  = $('source-led' + (i + 1));
-        if (modeEl && obj && typeof obj.mode !== 'undefined') modeEl.value = String(obj.mode);
-        if (srcEl  && obj && typeof obj.source !== 'undefined') srcEl.value = String(obj.source);
-      }));
-      connection.on('LedStateList', (list) => (list || []).forEach((v, i) => {
-        const dot = $('state-led' + (i + 1));
-        if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
-      }));
+    HMWebConfig.conn.on('ext', function(ext) {
+      if (!ext || !ext.alarm) return;
+      setAlarmDot('alarm-any', !!ext.alarm.any);
+      const groups = HMWebConfig.toArray(ext.alarm.groups);
+      setAlarmDot('alarm-g1', !!groups[0]);
+      setAlarmDot('alarm-g2', !!groups[1]);
+      setAlarmDot('alarm-g3', !!groups[2]);
+    });
 
-      // Alarm modes / state
-      const amEls = [ $('alarm-mode-g1'), $('alarm-mode-g2'), $('alarm-mode-g3') ];
-      amEls.forEach((el) => el && el.addEventListener('change', sendAlarmModes));
-      async function sendAlarmModes() {
-        const list = amEls.map(el => parseInt((el && el.value) || "0", 10));
-        await connection.send("Config", { t: "alarms", list });
-      }
-      connection.on('AlarmModeList', (list) => {
-        if (!Array.isArray(list)) return;
-        list.slice(0, 3).forEach((v, i) => { if (typeof v !== 'undefined' && amEls[i]) amEls[i].value = String(v); });
-      });
-      connection.on('AlarmState', (obj) => {
-        if (!obj) return;
-        setDot('alarm-any', !!obj.any);
-        const groups = Array.isArray(obj.groups) ? obj.groups : [];
-        setDot('alarm-g1', !!groups[0]);
-        setDot('alarm-g2', !!groups[1]);
-        setDot('alarm-g3', !!groups[2]);
-      });
+    HMWebConfig.conn.on('open', updateResetBtn);
+    HMWebConfig.conn.on('close', updateResetBtn);
+    function updateResetBtn() {
+      const btn = $('reset-button');
+      if (!btn) return;
+      let open = false;
+      try {
+        open = (typeof HMWebConfig.conn.isOpen === 'function') ? HMWebConfig.conn.isOpen() : !!HMWebConfig.conn.port;
+      } catch { open = false; }
+      btn.disabled = !open;
+    }
+    try { updateResetBtn(); } catch(e) { /* isOpen may throw before open */ }
 
-      // ---------- CHANGE HANDLERS -> send config ----------
-      // Inputs
-      for (let i = 1; i <= 17; i++) {
-        $('enable-in' + i).addEventListener('change', sendInputEnable);
-        $('invert-in' + i).addEventListener('change', sendInputInvert);
-        $('group-in' + i).addEventListener('change',  sendInputGroup);
-      }
-      async function sendInputEnable() {
-        const list = [];
-        for (let i = 1; i <= 17; i++) list.push(!!$('enable-in' + i).checked);
-        await connection.send("Config", { t: "inputEnable", list });
-      }
-      async function sendInputInvert() {
-        const list = [];
-        for (let i = 1; i <= 17; i++) list.push(!!$('invert-in' + i).checked);
-        await connection.send("Config", { t: "inputInvert", list });
-      }
-      async function sendInputGroup() {
-        const list = [];
-        for (let i = 1; i <= 17; i++) list.push(parseInt($('group-in' + i).value || "0", 10));
-        await connection.send("Config", { t: "inputGroup", list });
-      }
-
-      // Relays
-      for (let i = 1; i <= 3; i++) {
-        $('enable-relay' + i).addEventListener('change', sendRelayConfig);
-        $('invert-relay' + i).addEventListener('change', sendRelayConfig);
-        $('group-relay' + i).addEventListener('change',  sendRelayConfig);
-      }
-      async function sendRelayConfig() {
-        const list = [];
-        for (let i = 1; i <= 3; i++) {
-          list.push({
-            enabled:  $('enable-relay' + i).checked,
-            inverted: $('invert-relay' + i).checked,
-            group:    parseInt($('group-relay' + i).value || "0", 10)
-          });
-        }
-        await connection.send("Config", { t: "relays", list });
-      }
-
-      // Buttons
-      for (let i = 1; i <= 4; i++) {
-        $('action-button' + i).addEventListener('change', sendButtonConfig);
-      }
-      async function sendButtonConfig() {
-        const list = [];
-        for (let i = 1; i <= 4; i++) list.push({ action: parseInt($('action-button' + i).value || "0", 10) });
-        await connection.send("Config", { t: "buttons", list });
-      }
-
-      // LEDs
-      for (let i = 1; i <= 4; i++) {
-        $('mode-led' + i).addEventListener('change',   sendLedConfig);
-        $('source-led' + i).addEventListener('change', sendLedConfig);
-      }
-      async function sendLedConfig() {
-        const list = [];
-        for (let i = 1; i <= 4; i++) {
-          list.push({
-            mode:   parseInt($('mode-led' + i).value   || "0", 10),
-            source: parseInt($('source-led' + i).value || "0", 10)
-          });
-        }
-        await connection.send("Config", { t: "leds", list });
+    (function buildInputs(){
+      const c=$('io-inputs'); if(!c) return;
+      const grpOpts = [{v:0,l:'None'},{v:1,l:'Group 1'},{v:2,l:'Group 2'},{v:3,l:'Group 3'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_IN;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-input';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+          </div>
+          <div><label for="group-in${i}">Alarm Group</label><select id="group-in${i}">${grpOpts}</select></div>`;
+        c.appendChild(d);
       }
     })();
+
+    (function buildRelays(){
+      const c=$('io-relays'); if(!c) return;
+      const grpOpts = [{v:0,l:'None'},{v:1,l:'Group 1'},{v:2,l:'Group 2'},{v:3,l:'Group 3'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_RLY;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-relay';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">Relay ${i}</span><span class="ioBadge"><span id="state-relay${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+          </div>
+          <div class="split">
+            <div><label for="group-relay${i}">Alarm Group</label><select id="group-relay${i}">${grpOpts}</select></div>
+            <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildButtons(){
+      const c=$('io-buttons'); if(!c) return;
+      const ACTIONS = [
+        {value:0,label:'None'},{value:1,label:'All alarm acknowledge'},
+        {value:2,label:'Alarm group 1 acknowledge'},{value:3,label:'Alarm group 2 acknowledge'},
+        {value:4,label:'Alarm group 3 acknowledge'},
+        {value:5,label:'Relay 1 override (manual)'},{value:6,label:'Relay 2 override (manual)'},{value:7,label:'Relay 3 override (manual)'}
+      ];
+      for(let i=1;i<=NUM_BTN;i++){
+        const opts = ACTIONS.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
+        const d=document.createElement('div');
+        d.className='iocard tint-button';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="action-btn${i}">Action</label><select id="action-btn${i}">${opts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildLEDs(){
+      const c=$('io-leds'); if(!c) return;
+      const modeOpts = [{v:0,l:'Steady (when active)'},{v:1,l:'Blink (when active)'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const srcOpts = [{v:0,l:'None'},{v:1,l:'Any alarm'},{v:2,l:'Alarm group 1'},{v:3,l:'Alarm group 2'},{v:4,l:'Alarm group 3'},{v:5,l:'Relay 1 overridden'},{v:6,l:'Relay 2 overridden'},{v:7,l:'Relay 3 overridden'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_LED;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-led';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">User LED ${i}</span><span class="ioBadge"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+          <div class="split">
+            <div><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${modeOpts}</select></div>
+            <div><label for="source-led${i}">Trigger source</label><select id="source-led${i}">${srcOpts}</select></div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    function pushModbus(){
+      HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'3',10), parseInt($('modbus-baud')?.value||'19200',10));
+    }
+    $('modbus-address')?.addEventListener('input', pushModbus);
+    $('modbus-baud')?.addEventListener('input', pushModbus);
+
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+    function sendInputGroup(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(parseInt($('group-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.group', l); }
+    for(let i=1;i<=NUM_IN;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('group-in'+i)?.addEventListener('change', sendInputGroup);
+    }
+
+    function sendRelayCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_RLY;i++){
+        l.push({
+          enabled: $('enable-relay'+i).checked,
+          inverted: $('invert-relay'+i).checked,
+          group: parseInt($('group-relay'+i).value||'0',10),
+          powerOn: parseInt($('powerOn-relay'+i)?.value||'0',10)
+        });
+      }
+      HMWebConfig.sendConfig('relay', l);
+    }
+    for(let i=1;i<=NUM_RLY;i++){
+      $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('group-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
+    }
+
+    function sendBtnCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_BTN;i++) l.push({ action: parseInt($('action-btn'+i).value||'0',10) });
+      HMWebConfig.sendConfig('btn', l);
+    }
+    for(let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+
+    function sendLedCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_LED;i++){
+        l.push({ mode: parseInt($('mode-led'+i).value||'0',10), source: parseInt($('source-led'+i).value||'0',10) });
+      }
+      HMWebConfig.sendConfig('led', l);
+    }
+    for(let i=1;i<=NUM_LED;i++){
+      $('mode-led'+i)?.addEventListener('change', sendLedCfg);
+      $('source-led'+i)?.addEventListener('change', sendLedCfg);
+    }
+
+    function sendAlarmModes(){
+      const list = [1,2,3].map(g => parseInt($('alarm-mode-g'+g)?.value||'0',10));
+      HMWebConfig.sendConfig('ext.alarms', list);
+    }
+    [1,2,3].forEach(g => $('alarm-mode-g'+g)?.addEventListener('change', sendAlarmModes));
+
+    const resetBtn = $('reset-button');
+    const dlg = $('reset-dialog');
+    resetBtn?.addEventListener('click', () => {
+      if (resetBtn.disabled) { HMWebConfig.appendLog('Connect to the device before resetting.'); return; }
+      if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+      else if (confirm('Reset the module?')) HMWebConfig.sendCommand('reboot');
+    });
+    $('dlg-cancel')?.addEventListener('click', () => { if (dlg?.open) dlg.close(); });
+    $('dlg-confirm')?.addEventListener('click', () => {
+      if (dlg?.open) dlg.close();
+      HMWebConfig.sendCommand('reboot');
+      resetBtn.disabled = true;
+      setTimeout(updateResetBtn, 3000);
+    });
+  })();
   </script>
 </section>

@@ -19,6 +19,8 @@
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
+#define HM_FW         "0.2.0"
+#define HM_MAP        1
 #define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
@@ -92,7 +94,9 @@ const uint8_t LED_PINS[4]   = {7, 6, 5, 3}; // ACTIVE-LOW (PCF8574 on 0x27)
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
-JSONVar modbusStatus;
+
+static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -328,7 +332,7 @@ bool loadConfigFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     if (!applyFromPersistV2(pc)) return false;
-    WebSerial.send("message", "Loaded legacy config v2 → migrated to v3 (relayPowerOn defaults OFF).");
+    wsLog("Loaded legacy config v2 → migrated to v3 (relayPowerOn defaults OFF).");
     cfgDirty = true; lastCfgTouchMs = millis();
     return true;
   }
@@ -385,7 +389,9 @@ void processCommandPulses();
 
 bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]);
 JSONVar LedConfigListFromCfg();
-void sendAllEchoesOnce();
+void sendWebStatus();
+void sendWebCfg();
+void sendWebBootstrap();
 void ackAll();
 void ackGroup(uint8_t g);
 
@@ -398,37 +404,37 @@ void handleValues(JSONVar values) {
   baud = hmValidBaud(baud);
 
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
-  WebSerial.send("message", "Modbus configuration updated");
-
+  wsLog("Modbus configuration updated");
+  sendWebStatus();
   cfgDirty = true;
   lastCfgTouchMs = millis();
 }
 
-// Config router: expects { t:"...", list:[...] }
+// Config router: contract t + legacy aliases
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   JSONVar list  = obj["list"];
-  if (!t) { WebSerial.send("message", "Config: missing 't'"); return; }
+  if (!t) { wsLog("Config: missing 't'"); return; }
 
   String type = String(t);
   bool changed = false;
 
-  if (type == "inputEnable") {
+  if (type == "in.enabled" || type == "inputEnable") {
     for (int i=0;i<17 && i<list.length();i++) digitalInputs[i].enabled = (bool)list[i];
-    WebSerial.send("message", "Input Enabled list updated");
+    wsLog("Input Enabled list updated");
     changed = true;
 
-  } else if (type == "inputInvert") {
+  } else if (type == "in.invert" || type == "inputInvert") {
     for (int i=0;i<17 && i<list.length();i++) digitalInputs[i].inverted = (bool)list[i];
-    WebSerial.send("message", "Input Invert list updated");
+    wsLog("Input Invert list updated");
     changed = true;
 
-  } else if (type == "inputGroup") {
+  } else if (type == "in.group" || type == "inputGroup") {
     for (int i=0;i<17 && i<list.length();i++) digitalInputs[i].group = (uint8_t)(int)list[i];
-    WebSerial.send("message", "Input Alarm Group list updated");
+    wsLog("Input Alarm Group list updated");
     changed = true;
 
-  } else if (type == "relays") {
+  } else if (type == "relay" || type == "relays") {
     for (int i = 0; i < 3 && i < list.length(); i++) {
       relayConfigs[i].enabled  = (bool)list[i]["enabled"];
       relayConfigs[i].inverted = (bool)list[i]["inverted"];
@@ -437,40 +443,42 @@ void handleUnifiedConfig(JSONVar obj) {
         relayPowerOn[i] = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
       }
     }
-    WebSerial.send("message", "Relay Configuration updated");
+    wsLog("Relay Configuration updated");
     changed = true;
 
-  } else if (type == "buttons") {
+  } else if (type == "btn" || type == "buttons") {
     for (int i = 0; i < 4 && i < list.length(); i++) {
-      buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 7);
+      int a = list[i].hasOwnProperty("action") ? (int)list[i]["action"] : (int)list[i];
+      buttonCfg[i].action = (uint8_t)constrain(a, 0, 7);
     }
-    WebSerial.send("message", "Buttons Configuration updated");
+    wsLog("Buttons Configuration updated");
     changed = true;
 
-  } else if (type == "leds") {
+  } else if (type == "led" || type == "leds") {
     for (int i = 0; i < 4 && i < list.length(); i++) {
       ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
       ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
     }
-    WebSerial.send("message", "LEDs Configuration updated");
+    wsLog("LEDs Configuration updated");
     changed = true;
 
-  } else if (type == "alarms") {
+  } else if (type == "ext.alarms" || type == "alarms") {
     for (int g = 0; g < 3 && g < list.length(); g++) {
       uint8_t m = (uint8_t)constrain((int)list[g], 0, 2);
-      if (alarmModeList[g] != m && m != 2) latchedGroup[g+1] = false; // leaving latched -> clear
+      if (alarmModeList[g] != m && m != 2) latchedGroup[g+1] = false;
       alarmModeList[g] = m;
     }
-    WebSerial.send("message", "Alarms Configuration updated");
+    wsLog("Alarms Configuration updated");
     changed = true;
 
   } else {
-    WebSerial.send("message", String("Unknown Config type: ") + t);
+    wsLog(String("Unknown Config type: ") + t);
   }
 
   if (changed) {
     cfgDirty = true;
     lastCfgTouchMs = millis();
+    sendWebCfg();
   }
 }
 
@@ -492,15 +500,15 @@ void setup() {
 
   // LittleFS
   if (!LittleFS.begin()) {
-    WebSerial.send("message", "LittleFS mount failed. Formatting…");
+    wsLog("LittleFS mount failed. Formatting…");
     LittleFS.format();
     LittleFS.begin();
   }
   if (loadConfigFS()) {
-    WebSerial.send("message", "Config loaded from flash");
+    wsLog("Config loaded from flash");
     applyPowerOnOutputs();
   } else {
-    WebSerial.send("message", "No valid config. Using defaults.");
+    wsLog("No valid config. Using defaults.");
     applyPowerOnOutputs();
     saveConfigFS();
   }
@@ -531,52 +539,48 @@ void setup() {
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
   // Status defaults for UI
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  modbusStatus["state"]   = 0;
-
   // WebSerial handlers
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
 
-  WebSerial.send("message", "Boot OK");
-  sendAllEchoesOnce();
+  wsLog("Boot OK");
+  sendWebBootstrap();
   hmWatchdogArm(4000);
 }
 
 // ================== Command handler (reset + persistence ops) ==================
 void handleCommand(JSONVar obj) {
   const char* actC = (const char*)obj["action"];
-  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  if (!actC) { wsLog("command: missing 'action'"); return; }
   String act = String(actC); act.toLowerCase();
 
   if (act == "reset" || act == "reboot") {
     saveConfigFS();
-    WebSerial.send("message", "Rebooting now…");
+    wsLog("Rebooting now…");
     delay(120);
     performReset(); // no return
   } else if (act == "save") {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else WebSerial.send("message", "ERROR: Save failed");
+    if (saveConfigFS()) wsLog("Configuration saved");
+    else wsLog("ERROR: Save failed");
   } else if (act == "load") {
     if (loadConfigFS()) {
       applyPowerOnOutputs();
-      WebSerial.send("message", "Configuration loaded");
-      sendAllEchoesOnce();
+      wsLog("Configuration loaded");
+      sendWebBootstrap();
       applyModbusSettings(g_mb_address, g_mb_baud);
-    } else WebSerial.send("message", "ERROR: Load failed/invalid");
+    } else wsLog("ERROR: Load failed/invalid");
   } else if (act == "factory") {
     LittleFS.remove(OUT_STATE_PATH);
     setDefaults();
     applyPowerOnOutputs();
     if (saveConfigFS()) {
-      WebSerial.send("message", "Factory defaults restored & saved");
-      sendAllEchoesOnce();
+      wsLog("Factory defaults restored & saved");
+      sendWebBootstrap();
       applyModbusSettings(g_mb_address, g_mb_baud);
-    } else WebSerial.send("message", "ERROR: Save after factory reset failed");
+    } else wsLog("ERROR: Save after factory reset failed");
   } else {
-    WebSerial.send("message", String("Unknown command: ") + actC);
+    wsLog(String("Unknown command: ") + actC);
   }
 }
 
@@ -590,7 +594,7 @@ void performReset() {
 
 // ================== Apply Modbus settings ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
-  if ((uint32_t)modbusStatus["baud"] != baud) {
+  if (g_mb_baud != baud) {
     Serial2.end();
     Serial2.begin(baud);
     mb.config(baud);
@@ -598,8 +602,6 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   setSlaveIdIfAvailable(mb, addr);
   g_mb_address = addr;
   g_mb_baud    = baud;
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
 }
 
 // ================== Ack helpers ==================
@@ -619,8 +621,8 @@ void loop() {
 
   // Auto-save after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else                WebSerial.send("message", "ERROR: Save failed");
+    if (saveConfigFS()) wsLog("Configuration saved");
+    else                wsLog("ERROR: Save failed");
     cfgDirty = false;
   }
 
@@ -783,50 +785,23 @@ void loop() {
   for (int r=0; r<3; r++) mb.setIsts(ISTS_RLY_BASE + r, (bool)relayStateList[r]);
   for (int l=0; l<4; l++) mb.setIsts(ISTS_LED_BASE + l, (bool)LedStateList[l]);
 
-  // ---- Web echo ----
-  JSONVar invertList, groupList, enableList;
-  for (int i = 0; i < 17; i++) {
-    invertList[i] = digitalInputs[i].inverted;
-    groupList[i]  = digitalInputs[i].group;
-    enableList[i] = digitalInputs[i].enabled;
-  }
-  JSONVar relayEnableList, relayInvertList, relayGroupList, relayPowerOnList;
-  for (int i = 0; i < 3; i++) {
-    relayEnableList[i] = relayConfigs[i].enabled;
-    relayInvertList[i] = relayConfigs[i].inverted;
-    relayGroupList[i]  = relayConfigs[i].group;
-    relayPowerOnList[i] = relayPowerOn[i];
-  }
-  JSONVar ButtonStateList, ButtonGroupList;
-  for (int i = 0; i < 4; i++) {
-    ButtonStateList[i] = buttonState[i];
-    ButtonGroupList[i] = buttonCfg[i].action;
-  }
-  JSONVar LedConfigList = LedConfigListFromCfg();
-
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
     if (hmUsbCanSend()) {
-      WebSerial.send("status", modbusStatus);
-      WebSerial.send("inputs", inputs);
-      WebSerial.send("invertList", invertList);
-      WebSerial.send("groupList", groupList);
-      WebSerial.send("enableList", enableList);
-      WebSerial.send("relayStateList", relayStateList);
-      WebSerial.send("relayEnableList", relayEnableList);
-      WebSerial.send("relayInvertList", relayInvertList);
-      WebSerial.send("relayGroupList", relayGroupList);
-      WebSerial.send("relayPowerOnList", relayPowerOnList);
-      WebSerial.send("ButtonStateList", ButtonStateList);
-      WebSerial.send("ButtonGroupList", ButtonGroupList);
-      WebSerial.send("LedConfigList", LedConfigList);
-      WebSerial.send("LedStateList", LedStateList);
-      JSONVar am; for (int g = 0; g < 3; g++) am[g] = alarmModeList[g];
-      WebSerial.send("AlarmModeList", am);
-      JSONVar AlarmState; AlarmState["any"] = anyAlarmActive;
-      { JSONVar groups; for (int g=1; g<=3; g++) groups[g-1] = grpAlarmActive[g]; AlarmState["groups"] = groups; }
-      WebSerial.send("AlarmState", AlarmState);
+      sendWebStatus();
+
+      JSONVar io;
+      for (int i = 0; i < 17; i++) io["in"][i] = inputs[i] ? 1 : 0;
+      for (int i = 0; i < 3; i++) io["relay"][i] = relayStateList[i] ? 1 : 0;
+      for (int i = 0; i < 4; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
+      for (int i = 0; i < 4; i++) io["led"][i] = LedStateList[i] ? 1 : 0;
+      WebSerial.send("io", io);
+
+      JSONVar ext;
+      ext["alarm"]["any"] = anyAlarmActive ? 1 : 0;
+      for (int g = 1; g <= 3; g++) ext["alarm"]["groups"][g - 1] = grpAlarmActive[g] ? 1 : 0;
+      WebSerial.send("ext", ext);
     }
   }
 
@@ -858,41 +833,44 @@ bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]) {
   }
 }
 
-void sendAllEchoesOnce() {
-  JSONVar am; for (int g = 0; g < 3; g++) am[g] = alarmModeList[g];
-  WebSerial.send("AlarmModeList", am);
+void sendWebStatus() {
+  JSONVar st;
+  st["model"] = HM_MODEL_ID;
+  st["fw"]    = HM_FW;
+  st["map"]   = HM_MAP;
+  st["addr"]  = g_mb_address;
+  st["baud"]  = g_mb_baud;
+  WebSerial.send("status", st);
+}
 
-  JSONVar enableList, invertList, groupList;
+void sendWebCfg() {
+  JSONVar cfg;
   for (int i = 0; i < 17; i++) {
-    enableList[i] = digitalInputs[i].enabled;
-    invertList[i] = digitalInputs[i].inverted;
-    groupList[i]  = digitalInputs[i].group;
+    cfg["in"][i]["enabled"] = digitalInputs[i].enabled ? 1 : 0;
+    cfg["in"][i]["invert"]  = digitalInputs[i].inverted ? 1 : 0;
+    cfg["in"][i]["group"]   = digitalInputs[i].group;
   }
-  WebSerial.send("enableList", enableList);
-  WebSerial.send("invertList", invertList);
-  WebSerial.send("groupList",  groupList);
-
-  JSONVar relayEnableList, relayInvertList, relayGroupList, relayPowerOnList;
   for (int i = 0; i < 3; i++) {
-    relayEnableList[i] = relayConfigs[i].enabled;
-    relayInvertList[i] = relayConfigs[i].inverted;
-    relayGroupList[i]  = relayConfigs[i].group;
-    relayPowerOnList[i] = relayPowerOn[i];
+    cfg["relay"][i]["enabled"] = relayConfigs[i].enabled ? 1 : 0;
+    cfg["relay"][i]["invert"]  = relayConfigs[i].inverted ? 1 : 0;
+    cfg["relay"][i]["group"]   = relayConfigs[i].group;
+    cfg["relay"][i]["powerOn"] = relayPowerOn[i];
   }
-  WebSerial.send("relayEnableList", relayEnableList);
-  WebSerial.send("relayInvertList", relayInvertList);
-  WebSerial.send("relayGroupList",  relayGroupList);
-  WebSerial.send("relayPowerOnList", relayPowerOnList);
+  for (int i = 0; i < 4; i++) {
+    cfg["btn"][i]["action"] = buttonCfg[i].action;
+  }
+  JSONVar ledList = LedConfigListFromCfg();
+  for (int i = 0; i < 4; i++) {
+    cfg["led"][i]["mode"]   = ledList[i]["mode"];
+    cfg["led"][i]["source"] = ledList[i]["source"];
+  }
+  for (int g = 0; g < 3; g++) cfg["ext"]["alarms"][g] = alarmModeList[g];
+  WebSerial.send("cfg", cfg);
+}
 
-  JSONVar ButtonGroupList;
-  for (int i = 0; i < 4; i++) ButtonGroupList[i] = buttonCfg[i].action;
-  WebSerial.send("ButtonGroupList", ButtonGroupList);
-
-  WebSerial.send("LedConfigList", LedConfigListFromCfg());
-
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  WebSerial.send("status", modbusStatus);
+void sendWebBootstrap() {
+  sendWebStatus();
+  sendWebCfg();
 }
 
 // ---- Process "auto-pulse" command coils and clear them ----
