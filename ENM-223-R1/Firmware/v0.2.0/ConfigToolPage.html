@@ -1,8 +1,15 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1200px;margin:auto;">
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1200px;margin:auto;">
   <style>
-    .enm-input{padding:6px 8px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box}
+    .cal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+    .cal-card{border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:1rem}
+    .cal-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    @media (max-width:1000px){.cal-grid{grid-template-columns:1fr}}
     .al-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-    .al-card{border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff}
+    .al-card{border:1px solid var(--border);border-radius:var(--r2);padding:1rem;background:#fff}
     .al-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
     .al-led{width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block}
     .al-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:.25rem 0}
@@ -10,1001 +17,478 @@
     .al-row .en{flex:0 0 110px;display:flex;align-items:center;gap:.4rem}
     .al-row .metric{flex:1 1 220px;min-width:180px}
     .al-row .min,.al-row .max{flex:1 1 160px;min-width:140px}
-    .al-hint{color:#666;font-size:.85rem;margin-top:-.15rem}
-    #relays-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-    .rly-card{border:1px solid #ccc;border-radius:8px;background:#f8f9fa;padding:1rem}
-    .rly-row{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;flex-wrap:wrap}
-    .rly-row label{margin-right:.35rem}
-    .rly-alarm{border:1px dashed #ccc;border-radius:6px;padding:.5rem .75rem;background:#fff}
+    .al-hint{color:var(--muted2);font-size:.85rem;margin-top:-.15rem}
+    .rly-alarm{border:1px dashed var(--border);border-radius:6px;padding:.5rem .75rem;background:#fff;margin-top:.5rem}
     .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
-    @media (max-width:900px){.al-grid,#relays-config{grid-template-columns:1fr}}
-    @media (max-width:560px){.al-row .lbl{flex:1 1 100%;order:-1}}
     .lock-badge{font-size:.75rem;color:#0d6efd;margin-left:.35rem;display:none}
     .locked+.lock-badge{display:inline}
-
-    /* Calibration cards */
-    .cal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
-    .cal-card{border:1px solid #ddd;border-radius:8px;background:#fff;padding:1rem}
-    .cal-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
-    @media (max-width:1000px){.cal-grid{grid-template-columns:1fr}}
-
-    /* Live cards */
-    .card{border:1px solid #ddd;border-radius:8px;background:#fff;padding:1rem}
-    .kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem;font-size:.95rem}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
+    .live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
     .energy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
-    .muted{color:#666}
-
-    /* small UX additions */
-    .toast{position:fixed;right:18px;bottom:18px;max-width:420px;background:#111827;color:#fff;
-      padding:10px 12px;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,.18);opacity:0;
-      transform:translateY(8px);transition:.2s;z-index:99999;font-size:.9rem}
-    .toast.show{opacity:1;transform:translateY(0)}
-    .badge{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
-
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
+    .live-card{border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:1rem}
+    .kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem;font-size:.95rem}
+    @media (max-width:900px){.al-grid{grid-template-columns:1fr}}
   </style>
 
-  <div style="text-align:center;margin-bottom:2rem;">
-    <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">
-      Modbus address, baud, and calibration load automatically when you connect (no sync button).
-      Calibration: press <b>Enter</b> in a field to send.
-      <span id="conn-pill" class="badge" style="margin-left:.5rem;display:none">connected</span>
-    </p>
-  </div>
-
-  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:1.25rem;border-radius:6px;border-left:4px solid #007bff;">
-    <strong>Active Modbus Configuration</strong><br>
-    Address: <span id="live-address" style="font-weight:600;">--</span> |
-    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span> |
-    Firmware: <span id="live-fw" style="font-weight:600;">--</span>
-  </div>
-
-  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:.75rem;">
-    <div><label><strong>Modbus Address</strong></label><select id="modbus-address" class="enm-input"></select></div>
-    <div>
-      <label><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" class="enm-input">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
-      </select>
-    </div>
-    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;align-items:center">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-    </div>
-  </form>
-
-  <div id="log-line" style="margin-bottom:1.25rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;">
-    <strong>Serial Log:</strong>
-    <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 6);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
-  </div>
-
-  <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div>
-        <label><strong>Line Frequency (Hz)</strong></label>
-        <select id="opt-lineHz" class="enm-input">
-          <option value="50" selected="">50</option><option value="60">60</option>
-        </select>
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ENM-223-R1/Images/photo1.png" alt="ENM-223-R1">
       </div>
-      <div>
-        <label><strong>Sum Mode</strong> <small class="muted">(0=alg, 1=abs)</small></label>
-        <select id="opt-sumAbs" class="enm-input">
-          <option value="0">0</option><option value="1" selected="">1</option>
-        </select>
-      </div>
-      <div>
-        <label><strong>Sample Interval (ms)</strong></label>
-        <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" class="enm-input">
-        <small class="lock-badge">editing… press Enter to send</small>
+      <div class="title">
+        <h1>ENM-223-R1 Module Configuration</h1>
+        <p>Energy meter with 2 relays, 4 buttons, 4 LEDs. Config loads automatically on connect.</p>
       </div>
     </div>
-    <div class="muted" style="margin-top:.4rem;font-size:.9rem">
-      Note: <b>Ucal removed</b>. Sag reference is derived from Phase-A <b>Ugain</b>.
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader">
+        <div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div>
+        <span class="tag">Step 1</span>
+      </div>
+      <div class="cardbody">
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="cardheader">
+        <div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div>
+      </div>
+      <div class="cardbody">
+        <div id="hm-log-box"><div id="hm-log"></div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="sectiontitle">
+    <h3>Meter Options</h3>
+    <p class="hint">Line frequency and sum mode (applied via ext.atm).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row">
+        <div>
+          <label for="opt-lineHz">Line Frequency (Hz)</label>
+          <select id="opt-lineHz">
+            <option value="50" selected>50</option>
+            <option value="60">60</option>
+          </select>
+        </div>
+        <div>
+          <label for="opt-sumAbs">Sum Mode <span class="hint">(0=alg, 1=abs)</span></label>
+          <select id="opt-sumAbs">
+            <option value="0">0</option>
+            <option value="1" selected>1</option>
+          </select>
+        </div>
+        <div>
+          <label for="opt-samplems">Sample Interval (ms)</label>
+          <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200">
+          <small class="lock-badge">editing… press Enter to send</small>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:.4rem">Sag reference uses Phase-A Ugain. Sample interval is UI-only on this firmware.</div>
     </div>
   </section>
 
-  <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Calibration (Phase A / B / C)</h2>
-    <div id="calib-grid" class="cal-grid"></div>
-    <div class="muted" style="margin-top:.5rem;font-size:.9rem;">
-      Gains: 0..65535. Offsets: <b>-32768..32767</b>. Press <b>Enter</b> in a field to send. While editing, live refresh is paused for that field.
+  <div class="sectiontitle">
+    <h3>Calibration (Phase A / B / C)</h3>
+    <p class="hint">Press Enter in a field to send. Live refresh pauses while editing.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="calib-grid" class="cal-grid"></div>
     </div>
   </section>
 
-  <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Alarms (L1, L2, L3, Totals)</h2>
-    <div id="alarms-grid" class="al-grid"></div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.5rem;">
-      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;">Ack All</button>
+  <div class="sectiontitle">
+    <h3>Alarms (L1, L2, L3, Totals)</h3>
+    <p class="hint">UI preview — alarm engine not implemented on ENM-223-R1 v0.2.0 firmware.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="alarms-grid" class="al-grid"></div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">
+        <button id="ack-all" type="button" class="btn">Ack All</button>
+      </div>
     </div>
   </section>
 
-  <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Relays (2)</h2>
-    <div id="relays-config"></div>
-  </section>
-
-  <section style="margin-bottom:.75rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
-    <div id="chan-grid" class="grid"></div>
-  </section>
-
-  <section style="margin-bottom:1.25rem;">
-    <h3 style="font-size:1.1rem;margin-bottom:.5rem;">Energies</h3>
-    <div id="energy-grid" class="energy-grid"></div>
-    <div class="muted" style="margin-top:.3rem">Chip-sourced counters (saved in flash). New boards start at <b>0</b>; values rise only when real power flows (check Live Meter P/S). Units: kWh / kvarh / kVAh.</div>
-  </section>
-
-  <section style="margin-bottom:1.25rem;margin-top:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-  </section>
-
-  <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
-    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-    <div class="muted" style="margin-top:.5rem;font-size:.9rem;">
-      Tip: set a LED source to <b>Override R1</b> or <b>Override R2</b> to light when a relay is in button override mode.
+  <div class="sectiontitle">
+    <h3>Relays (2)</h3>
+    <p class="hint">Enable, invert, and optional alarm-mode UI (alarm follow is UI-only).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols2" id="io-relays"></div>
     </div>
   </section>
 
-  <div id="toast" class="toast"></div>
-</section>
+  <div class="sectiontitle">
+    <h3>Live Meter</h3>
+    <p class="hint">Updated from ext.meter (~1 s).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="chan-grid" class="live-grid"></div>
+    </div>
+  </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <div class="sectiontitle">
+    <h3>Energies</h3>
+    <p class="hint">Chip counters from ext.energy (saved in flash).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="energy-grid" class="energy-grid"></div>
+    </div>
+  </section>
 
-<script>
-(function(){
-  /* ===== Helpers ===== */
-  const $ = id => document.getElementById(id);
-  const LOG_MAX=300, logBuffer=[];
-  function appendLog(label,data){
-    const el=$("log-content"); if(!el) return;
-    const time=new Date().toLocaleTimeString();
-    let body=(typeof data==='string')?data:JSON.stringify(data);
-    body=String(body).replace(/\r\n?|\n/g,'\n').replace(/\\r\\n|\\r|\\n/g,'\n');
-    logBuffer.push(`[${time}] ${label}: ${body}`);
-    if(logBuffer.length>LOG_MAX) logBuffer.shift();
-    el.textContent=logBuffer.join('\n'); el.scrollTop=el.scrollHeight;
-  }
-  function toast(msg, ms=1600){
-    const t=$('toast'); if(!t) return;
-    t.textContent=msg;
-    t.classList.add('show');
-    clearTimeout(toast._tm);
-    toast._tm=setTimeout(()=>t.classList.remove('show'), ms);
-  }
+  <div class="sectiontitle">
+    <h3>Buttons (4)</h3>
+    <p class="hint">Live state via io.btn.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="io-buttons"></div>
+    </div>
+  </section>
 
-  /* ===== Serial connection ===== */
-  const connection = SimpleWebSerial.setupSerialConnection({
-    requestAccessOnPageLoad:false,
-    requestElement:'connect-button',
-    baudRate:57600,
-    logIncomingSerialData:false,
-    logOutgoingSerialData:false
-  });
+  <div class="sectiontitle">
+    <h3>User LEDs (4)</h3>
+    <p class="hint">Source 5/6 = relay 1/2 logical state.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="io-leds"></div>
+    </div>
+  </section>
 
-  let suppressModbusPush = false;
-  let lastKnownMbAddr = null;
-  let lastKnownMbBaud = null;
-  let modbusSendTimer = null;
-  let deviceSynced = false;
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    const NUM_RLY = 2, NUM_BTN = 4, NUM_LED = 4;
+    const locked = new Set();
+    const canApply = key => !locked.has(key);
 
-  function parseEventPayload(p) {
-    if (p == null) return null;
-    if (typeof p === 'string') {
-      try { return JSON.parse(p); } catch (e) { return null; }
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='30'; })();
+
+    function attachLockHandlers(input, key, sendFn, lockOnFocus){
+      if(!input) return;
+      const hint = input.nextElementSibling && input.nextElementSibling.classList.contains('lock-badge') ? input.nextElementSibling : null;
+      const lock=()=>{ locked.add(key); input.classList.add('locked'); if(hint) hint.style.display='inline'; };
+      const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
+      if(lockOnFocus!==false) input.addEventListener('focus', lock);
+      input.addEventListener('input', lock);
+      input.addEventListener('keydown', ev=>{
+        if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); }
+        else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); }
+      });
     }
-    return p;
-  }
 
-  function applyModbusFromDevice(st) {
-    if (!st) return;
-    const addr = (st.address !== undefined) ? st.address : st.mb_address;
-    const baud = (st.baud !== undefined) ? st.baud : st.mb_baud;
-    const fw   = st.fw || st.FW_TAG || st.firmware;
-    $('live-address').textContent = (addr !== undefined) ? addr : '--';
-    $('live-baud').textContent    = (baud !== undefined) ? baud : '--';
-    $('live-fw').textContent      = fw ? fw : '(old FW)';
-    if (addr !== undefined) lastKnownMbAddr = parseInt(addr, 10);
-    if (baud !== undefined) lastKnownMbBaud = parseInt(baud, 10);
-    const addrEl = $('modbus-address');
-    const baudEl = $('modbus-baud');
-    const userEditing = document.activeElement === addrEl || document.activeElement === baudEl;
-    if (!userEditing) {
-      suppressModbusPush = true;
-      if (addr !== undefined && addrEl) addrEl.value = String(addr);
-      if (baud !== undefined && baudEl) baudEl.value = String(baud);
-      suppressModbusPush = false;
-    }
-  }
-
-  function normalizeCalArray(cal) {
-    if (!cal) return null;
-    if (Array.isArray(cal)) return cal;
-    if (typeof cal !== 'object') return null;
-    const out = [null, null, null];
-    for (const [k, v] of Object.entries(cal)) {
-      if (!v || typeof v !== 'object') continue;
-      let ch = parseInt(k, 10);
-      if (Number.isNaN(ch)) {
-        const names = ['A', 'B', 'C', 'a', 'b', 'c'];
-        const idx = names.indexOf(k);
-        if (idx >= 0) ch = idx % 3;
-        else continue;
+    function normalizeCalArray(cal){
+      if(!cal) return null;
+      if(Array.isArray(cal)) return cal;
+      if(typeof cal!=='object') return null;
+      const out=[null,null,null];
+      for(const [k,v] of Object.entries(cal)){
+        if(!v||typeof v!=='object') continue;
+        let ch=parseInt(k,10);
+        if(Number.isNaN(ch)){
+          const names=['A','B','C','a','b','c'];
+          const idx=names.indexOf(k);
+          if(idx>=0) ch=idx%3; else continue;
+        }
+        if(ch>=0&&ch<3) out[ch]=v;
       }
-      if (ch >= 0 && ch < 3) out[ch] = v;
+      return out.some(Boolean)?out:null;
     }
-    return out.some(Boolean) ? out : null;
-  }
 
-  function applyEnergiesFromMeter(m) {
-    const setE = (idx, src)=>{
-      const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number' && isFinite(val)) ? val.toFixed(dec) : '--'; };
-      if(!src || typeof src!=='object') {
-        set(`e-ap-${idx}`, NaN); set(`e-an-${idx}`, NaN); set(`e-rp-${idx}`, NaN); set(`e-rn-${idx}`, NaN); set(`e-s-${idx}`, NaN);
-        return;
-      }
-      set(`e-ap-${idx}`, Number(src.AP_kWh), 3);
-      set(`e-an-${idx}`, Number(src.AN_kWh), 3);
-      set(`e-rp-${idx}`, Number(src.RP_kvarh), 3);
-      set(`e-rn-${idx}`, Number(src.RN_kvarh), 3);
-      set(`e-s-${idx}`,  Number(src.S_kVAh), 3);
-    };
-    if (Array.isArray(m?.E_phase) || (m?.E_tot && typeof m.E_tot === 'object')) {
-      const Ep = Array.isArray(m.E_phase) ? m.E_phase : [];
-      const Et = (m.E_tot && typeof m.E_tot === 'object') ? m.E_tot : null;
+    function applyEnergies(src){
+      const setE=(idx, e)=>{
+        const set=(id,val,dec=3)=>{ const el=$(id); if(el) el.textContent=(typeof val==='number'&&isFinite(val))?val.toFixed(dec):'--'; };
+        if(!e||typeof e!=='object'){ ['ap','an','rp','rn','s'].forEach(p=>set(`e-${p}-${idx}`,NaN)); return; }
+        set(`e-ap-${idx}`, Number(e.AP_kWh), 3);
+        set(`e-an-${idx}`, Number(e.AN_kWh), 3);
+        set(`e-rp-${idx}`, Number(e.RP_kvarh), 3);
+        set(`e-rn-${idx}`, Number(e.RN_kvarh), 3);
+        set(`e-s-${idx}`,  Number(e.S_kVAh), 3);
+      };
+      const Ep=Array.isArray(src?.E_phase)?src.E_phase:[];
+      const Et=(src?.E_tot&&typeof src.E_tot==='object')?src.E_tot:null;
       for(let i=0;i<3;i++) setE(i, Ep[i]);
       setE(3, Et);
-    } else {
-      const E = m?.E || {};
-      setE(0, E[0]); setE(1, E[1]); setE(2, E[2]); setE(3, E.tot);
     }
-  }
 
-  function applyEnmSync(s) {
-    s = parseEventPayload(s);
-    if (!s) return;
-    const first = !deviceSynced;
-    deviceSynced = true;
-    if (first) appendLog('ENM_Sync', s);
-    applyModbusFromDevice(s);
-    if (s.lineHz !== undefined) $('opt-lineHz').value = String(s.lineHz);
-    if (s.sumAbs !== undefined) $('opt-sumAbs').value = String(s.sumAbs);
-    const cal = normalizeCalArray(s.cal);
-    if (cal) applyCalibFromCfg({ cal });
-    else applyCalibFromCfg(s);
-    applyEnergiesFromMeter(s);
-  }
-
-  connection.on('open', ()=>{
-    appendLog('port','open');
-    deviceSynced = false;
-    lastKnownMbAddr = null;
-    lastKnownMbBaud = null;
-    const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
-    toast('Connected — config loads from device (~1 s)');
-    appendLog('sync','waiting for automatic pushes from firmware');
-  });
-
-  connection.on('close', ()=>{
-    appendLog('port','close');
-    deviceSynced = false;
-    const pill=$('conn-pill'); if(pill){ pill.style.display='none'; }
-    toast('Disconnected');
-  });
-
-  connection.on('message', (m)=>{
-    appendLog('message', m);
-    if (typeof m === 'string') {
-      if (m.indexOf('Modbus') >= 0 || m.indexOf('Boot OK') >= 0 || m.indexOf('configuration updated') >= 0 || m.indexOf('Refreshed') >= 0) toast(m);
+    function applyMeterLive(m){
+      if(!m) return;
+      const Urms=m.Urms||[], Irms=m.Irms||[];
+      const PW=m.P_W||[], QV=m.Q_var||[], SV=m.S_VA||[];
+      const PF=m.PF||[], Ang=m.Angle_deg||[];
+      for(let i=0;i<3;i++){
+        const set=(id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
+        set(`u${i}`, Urms[i], 2); set(`i${i}`, Irms[i], 3);
+        $('p'+i)&&($('p'+i).textContent=PW[i]!==undefined?String(PW[i]):'--');
+        $('q'+i)&&($('q'+i).textContent=QV[i]!==undefined?String(QV[i]):'--');
+        $('s'+i)&&($('s'+i).textContent=SV[i]!==undefined?String(SV[i]):'--');
+        set(`pf${i}`, PF[i], 3); set(`ang${i}`, Ang[i], 1);
+      }
+      $('p3')&&($('p3').textContent=PW[3]!==undefined?String(PW[3]):'--');
+      $('q3')&&($('q3').textContent=QV[3]!==undefined?String(QV[3]):'--');
+      $('s3')&&($('s3').textContent=SV[3]!==undefined?String(SV[3]):'--');
+      $('pft')&&($('pft').textContent=(typeof PF[3]==='number')?PF[3].toFixed(3):'--');
+      $('f')&&($('f').textContent=(typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):'--');
+      $('t')&&($('t').textContent=(m.TempC!==undefined)?String(m.TempC):'--');
+      applyEnergies(m);
     }
-  });
 
-  /* ===== Field lock system ===== */
-  const locked = new Set();
-  function attachLockHandlers(input, key, sendFn, lockOnFocus){
-    if(!input) return;
-    input.setAttribute('data-lock-key', key);
-    const hint = input.nextElementSibling && input.nextElementSibling.classList.contains('lock-badge') ? input.nextElementSibling : null;
-    const lock=()=>{ locked.add(key); input.classList.add('locked'); if(hint) hint.style.display='inline'; };
-    const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
-    if(lockOnFocus!==false) input.addEventListener('focus', lock);
-    input.addEventListener('input', lock);
-    input.addEventListener('wheel', (ev)=>{ if(document.activeElement===input) ev.preventDefault(); }, {passive:false});
-    input.addEventListener('keydown', (ev)=>{
-      if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); toast('Sent'); }
-      else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); toast('Unlocked'); }
+    function applyCalibCh(ch, obj, fromDevice){
+      if(!obj||typeof obj!=='object') return;
+      const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
+      const ok=key=>fromDevice||canApply(key);
+      const Ug=num(obj.Ugain), Ig=num(obj.Igain), Uo=num(obj.Uoffset), Io=num(obj.Ioffset);
+      if(Ug!==undefined&&ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
+      if(Ig!==undefined&&ok('cal-igain-'+ch)){ const el=$('cal-igain-'+ch); if(el) el.value=String(Ig); }
+      if(Uo!==undefined&&ok('cal-uoff-'+ch)) { const el=$('cal-uoff-'+ch);  if(el) el.value=String(Uo); }
+      if(Io!==undefined&&ok('cal-ioff-'+ch)) { const el=$('cal-ioff-'+ch);  if(el) el.value=String(Io); }
+    }
+
+    function applyEnmCfg(ext, cfg){
+      const atm=(ext&&ext.atm)||(cfg.ext&&cfg.ext.atm)||{};
+      if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
+      if(atm.sumAbs!==undefined){ const el=$('opt-sumAbs'); if(el&&el!==document.activeElement) el.value=String(atm.sumAbs); }
+      const cal=normalizeCalArray(atm.cal);
+      if(cal) for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
+      const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
+      if(energy) applyEnergies(energy);
+    }
+
+    HMWebConfig.register({ channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
+    HMWebConfig.connect({ requestElement:'connect-button' });
+
+    HMWebConfig.conn.on('ext', function(ext){
+      if(!ext) return;
+      if(ext.meter) applyMeterLive(ext.meter);
+      if(ext.energy) applyEnergies(ext.energy);
     });
-  }
-  const canApply = (key)=>!locked.has(key);
 
-  /* ===== Populate Modbus address select ===== */
-  (function populateAddresses(){
-    const sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
-    for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
-    sel.value='30';
-  })();
+    function pushModbus(){
+      HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'30',10), parseInt($('modbus-baud')?.value||'19200',10));
+    }
+    $('modbus-address')?.addEventListener('input', pushModbus);
+    $('modbus-baud')?.addEventListener('input', pushModbus);
 
-  /* ===== Build Live Meter cards ===== */
-  (function buildChannelCards(){
-    const grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
-    const labels=['L1','L2','L3','Totals'];
-    for(let ch=0; ch<4; ch++){
-      const card=document.createElement('div'); card.className='card';
-      const hdrBadge = ch===3?'<span class="pill">totals</span>':'';
-      const bodyPhase =
-        ` <div>U (V)</div><div id="u${ch}" style="text-align:right">--</div>
+    function sendAtmPartial(partial){
+      HMWebConfig.sendConfig('ext.atm', partial);
+    }
+    $('opt-lineHz')?.addEventListener('change', ()=>sendAtmPartial({ lineHz:+$('opt-lineHz').value }));
+    $('opt-sumAbs')?.addEventListener('change', ()=>sendAtmPartial({ sumAbs:+$('opt-sumAbs').value }));
+    attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>{ /* UI-only on ENM v0.2.0 */ }, true);
+
+    (function buildCalibrationUI(){
+      const grid=$('calib-grid'); if(!grid) return;
+      const PH=['A','B','C'];
+      for(let ch=0;ch<3;ch++){
+        const card=document.createElement('div'); card.className='cal-card';
+        card.innerHTML=`
+          <div style="display:flex;justify-content:space-between;margin-bottom:.5rem;"><strong>Phase ${PH[ch]}</strong><span class="hint">Enter to write</span></div>
+          <div class="cal-row">
+            <div><label>Ugain</label><input id="cal-ugain-${ch}" type="number" min="0" max="65535"><small class="lock-badge">Enter</small></div>
+            <div><label>Igain</label><input id="cal-igain-${ch}" type="number" min="0" max="65535"><small class="lock-badge">Enter</small></div>
+          </div>
+          <div class="cal-row" style="margin-top:.5rem">
+            <div><label>Uoffset</label><input id="cal-uoff-${ch}" type="number" min="-32768" max="32767"><small class="lock-badge">Enter</small></div>
+            <div><label>Ioffset</label><input id="cal-ioff-${ch}" type="number" min="-32768" max="32767"><small class="lock-badge">Enter</small></div>
+          </div>`;
+        grid.appendChild(card);
+        const sendField=(field)=>{
+          const idMap={Ugain:`cal-ugain-${ch}`,Igain:`cal-igain-${ch}`,Uoffset:`cal-uoff-${ch}`,Ioffset:`cal-ioff-${ch}`};
+          const el=$(idMap[field]); if(!el) return;
+          const v=+el.value; if(!Number.isFinite(v)) return;
+          const payload={ ph:ch }; payload[field]=v;
+          sendAtmPartial(payload);
+        };
+        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'), false);
+        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'), false);
+        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), false);
+        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), false);
+      }
+    })();
+
+    (function buildLiveCards(){
+      const grid=$('chan-grid'); if(!grid) return;
+      const labels=['L1','L2','L3','Totals'];
+      for(let ch=0;ch<4;ch++){
+        const card=document.createElement('div'); card.className='live-card';
+        const bodyPhase=` <div>U (V)</div><div id="u${ch}" style="text-align:right">--</div>
           <div>I (A)</div><div id="i${ch}" style="text-align:right">--</div>
           <div>P (W)</div><div id="p${ch}" style="text-align:right">--</div>
           <div>Q (var)</div><div id="q${ch}" style="text-align:right">--</div>
           <div>S (VA)</div><div id="s${ch}" style="text-align:right">--</div>
           <div>PF</div><div id="pf${ch}" style="text-align:right">--</div>
           <div>Angle (°)</div><div id="ang${ch}" style="text-align:right">--</div>`;
-      const bodyTotals =
-        ` <div>P (W)</div><div id="p3" style="text-align:right">--</div>
+        const bodyTotals=` <div>P (W)</div><div id="p3" style="text-align:right">--</div>
           <div>Q (var)</div><div id="q3" style="text-align:right">--</div>
           <div>S (VA)</div><div id="s3" style="text-align:right">--</div>
           <div>PF (tot)</div><div id="pft" style="text-align:right">--</div>
           <div>Freq (Hz)</div><div id="f" style="text-align:right">--</div>
           <div>Temp (°C)</div><div id="t" style="text-align:right">--</div>`;
-      card.innerHTML =
-        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-           <strong>${labels[ch]}</strong>${hdrBadge}
-         </div>
-         <div class="kv">
-           ${ch<3 ? bodyPhase : bodyTotals}
-         </div>`;
-      grid.appendChild(card);
-    }
-  })();
+        card.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:.5rem;"><strong>${labels[ch]}</strong>${ch===3?'<span class="pill">totals</span>':''}</div><div class="kv">${ch<3?bodyPhase:bodyTotals}</div>`;
+        grid.appendChild(card);
+      }
+    })();
 
-  /* ===== Energy cards ===== */
-  (function buildEnergyCards(){
-    const grid=$('energy-grid'); if(!grid) return; grid.innerHTML='';
-    const labels=['Phase A','Phase B','Phase C','Totals'];
-    for(let i=0;i<4;i++){
-      const card=document.createElement('div'); card.className='card';
-      card.innerHTML =
-        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-          <strong>${labels[i]}</strong>
-        </div>
-        <div class="kv">
-          <div>Active + (kWh)</div><div id="e-ap-${i}" style="text-align:right">--</div>
-          <div>Active − (kWh)</div><div id="e-an-${i}" style="text-align:right">--</div>
-          <div>Reactive + (kvarh)</div><div id="e-rp-${i}" style="text-align:right">--</div>
-          <div>Reactive − (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
-          <div>Apparent (kVAh)</div><div id="e-s-${i}" style="text-align:right">--</div>
-        </div>`;
-      grid.appendChild(card);
-    }
-  })();
+    (function buildEnergyCards(){
+      const grid=$('energy-grid'); if(!grid) return;
+      const labels=['Phase A','Phase B','Phase C','Totals'];
+      for(let i=0;i<4;i++){
+        const card=document.createElement('div'); card.className='live-card';
+        card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[i]}</strong></div>
+          <div class="kv">
+            <div>Active + (kWh)</div><div id="e-ap-${i}" style="text-align:right">--</div>
+            <div>Active − (kWh)</div><div id="e-an-${i}" style="text-align:right">--</div>
+            <div>Reactive + (kvarh)</div><div id="e-rp-${i}" style="text-align:right">--</div>
+            <div>Reactive − (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
+            <div>Apparent (kVAh)</div><div id="e-s-${i}" style="text-align:right">--</div>
+          </div>`;
+        grid.appendChild(card);
+      }
+    })();
 
-  /* ===== Calibration UI ===== */
-  function buildCalibrationUI(){
-    const grid=$('calib-grid'); if(!grid) return; grid.innerHTML='';
-    const PH=['A','B','C'];
-    for(let ch=0; ch<3; ch++){
-      const card=document.createElement('div'); card.className='cal-card';
-      card.innerHTML =
-        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-          <strong>Phase ${PH[ch]}</strong>
-          <span class="muted" style="font-size:.85rem">Press Enter to write</span>
-        </div>
-        <div class="cal-row">
-          <div>
-            <label><strong>Ugain</strong></label>
-            <input id="cal-ugain-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
-            <small class="lock-badge">editing… Enter</small>
-          </div>
-          <div>
-            <label><strong>Igain</strong></label>
-            <input id="cal-igain-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
-            <small class="lock-badge">editing… Enter</small>
-          </div>
-        </div>
-        <div class="cal-row" style="margin-top:.5rem">
-          <div>
-            <label><strong>Uoffset</strong> <span class="muted">(signed)</span></label>
-            <input id="cal-uoff-${ch}" class="enm-input" type="number" min="-32768" max="32767" step="1" placeholder="-32768..32767">
-            <small class="lock-badge">editing… Enter</small>
-          </div>
-          <div>
-            <label><strong>Ioffset</strong> <span class="muted">(signed)</span></label>
-            <input id="cal-ioff-${ch}" class="enm-input" type="number" min="-32768" max="32767" step="1" placeholder="-32768..32767">
-            <small class="lock-badge">editing… Enter</small>
-          </div>
-        </div>`;
-      grid.appendChild(card);
-
-      attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendCalibField(ch,'Ugain'), false);
-      attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendCalibField(ch,'Igain'), false);
-      attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendCalibField(ch,'Uoffset'), false);
-      attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendCalibField(ch,'Ioffset'), false);
-    }
-  }
-  buildCalibrationUI();
-
-  function readCalNumber(id, signed){
-    const el=$(id); if(!el) return null;
-    const raw=String(el.value ?? '').trim();
-    if(raw==='') return null;
-    const v=+raw;
-    if(!Number.isFinite(v)) return null;
-    if(signed){ if(v<-32768||v>32767) return null; }
-    else { if(v<0||v>65535) return null; }
-    return v;
-  }
-  function sendCalibField(ch, field){
-    const map={
-      Ugain:  { id:'cal-ugain-'+ch, signed:false, min:1000 },
-      Igain:  { id:'cal-igain-'+ch, signed:false, min:100  },
-      Uoffset:{ id:'cal-uoff-'+ch,  signed:true,  min:null },
-      Ioffset:{ id:'cal-ioff-'+ch,  signed:true,  min:null }
-    };
-    const spec=map[field]; if(!spec) return;
-    const v=readCalNumber(spec.id, spec.signed);
-    if(v===null){ toast('Invalid or empty value'); return; }
-    if(spec.min!==null && v<spec.min){ toast(field+' must be >= '+spec.min); return; }
-    const payload = { ph: ch }; payload[field]=v;
-    connection.send('atm', payload);
-    appendLog('atm', payload);
-  }
-  function unlockCalibKeys(ch){
-    for(const k of ['cal-ugain-','cal-igain-','cal-uoff-','cal-ioff-']){
-      const key = k+ch;
-      locked.delete(key);
-      const el = $(k+ch);
-      if(el){ el.classList.remove('locked'); const hint=el.nextElementSibling; if(hint&&hint.classList.contains('lock-badge')) hint.style.display='none'; }
-    }
-  }
-  function applyCalibCh(ch, obj, fromDevice){
-    if(!obj || typeof obj!=='object') return;
-    const num = (v)=> (v===undefined||v===null||v==='') ? undefined : Number(v);
-    const Ug = num(obj.Ug ?? obj.Ugain);
-    const Ig = num(obj.Ig ?? obj.Igain);
-    const Uo = num(obj.Uo ?? obj.Uoffset);
-    const Io = num(obj.Io ?? obj.Ioffset);
-    const ok = (key)=> fromDevice || canApply(key);
-    if(Ug !== undefined && ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
-    if(Ig !== undefined && ok('cal-igain-'+ch)){ const el=$('cal-igain-'+ch); if(el) el.value=String(Ig); }
-    if(Uo !== undefined && ok('cal-uoff-'+ch)) { const el=$('cal-uoff-'+ch);  if(el) el.value=String(Uo); }
-    if(Io !== undefined && ok('cal-ioff-'+ch)) { const el=$('cal-ioff-'+ch);  if(el) el.value=String(Io); }
-  }
-  function applyCalibFromCfg(cfg){
-    if(!cfg) return;
-    let cal = cfg.cal ?? cfg.phases ?? cfg.phase ?? cfg.ph;
-    if(typeof cal === 'string'){
-      try{ cal = JSON.parse(cal); }catch(e){ return; }
-    }
-    cal = normalizeCalArray(cal) ?? cal;
-    if(!cal) return;
-    for(let ch=0; ch<3; ch++){
-      let p = null;
-      if(Array.isArray(cal)) p = cal[ch];
-      else if(typeof cal==='object') p = cal[ch] ?? cal[''+ch] ?? cal['ph'+ch] ?? cal[['A','B','C'][ch]];
-      if(p) applyCalibCh(ch, p, true);
-    }
-  }
-
-  /* ===== Alarms UI ===== */
-  const AK_LABELS=['Alarm','Warning','Event'];
-  const CH_LABELS=['L1','L2','L3','Totals'];
-  const METRICS=[
-    {v:0,l:'Voltage (Urms)', hint:'Urms (0.01 V)'},
-    {v:1,l:'Current (Irms)', hint:'Irms (0.001 A)'},
-    {v:2,l:'Active power P', hint:'W'},
-    {v:3,l:'Reactive power Q', hint:'var'},
-    {v:4,l:'Apparent power S', hint:'VA'},
-    {v:5,l:'Frequency', hint:'0.01 Hz'}
-  ];
-  function metricOptionsHTML(sel){ return METRICS.map(m=>`<option value="${m.v}" ${String(sel)==String(m.v)?'selected':''}>${m.l}</option>`).join(''); }
-  function unitForMetric(m){ return ({0:'V',1:'A',2:'W',3:'var',4:'VA',5:'Hz'}[+m]||''); }
-
-  function buildAlarmsUI(){
-    const grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
-    for(let ch=0; ch<4; ch++){
-      const card=document.createElement('div'); card.className='al-card';
-      const rows = AK_LABELS.map((lbl, ak)=>{
-        const metricSelId='al-met-'+ch+'-'+ak;
-        return `
+    (function buildAlarmsUI(){
+      const AK=['Alarm','Warning','Event'], CH=['L1','L2','L3','Totals'];
+      const METRICS=[{v:0,l:'Voltage (Urms)'},{v:1,l:'Current (Irms)'},{v:2,l:'Active power P'},{v:3,l:'Reactive power Q'},{v:4,l:'Apparent power S'},{v:5,l:'Frequency'}];
+      const grid=$('alarms-grid'); if(!grid) return;
+      for(let ch=0;ch<4;ch++){
+        const card=document.createElement('div'); card.className='al-card';
+        const rows=AK.map((lbl,ak)=>`
           <div class="al-row">
             <div class="lbl">${lbl}</div>
-            <label class="en"><input type="checkbox" id="al-en-${ch}-${ak}"> <span>Enabled</span></label>
-            <div class="metric"><select id="${metricSelId}" class="enm-input">${metricOptionsHTML(4)}</select></div>
-            <div class="min"><input id="al-min-${ch}-${ak}" type="number" step="1" placeholder="min" class="enm-input"><small class="lock-badge">editing… Enter</small></div>
-            <div class="max"><input id="al-max-${ch}-${ak}" type="number" step="1" placeholder="max" class="enm-input"><small class="lock-badge">editing… Enter</small></div>
+            <label class="en"><input type="checkbox" id="al-en-${ch}-${ak}"> Enabled</label>
+            <div class="metric"><select id="al-met-${ch}-${ak}" class="enm-input">${METRICS.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select></div>
+            <div class="min"><input id="al-min-${ch}-${ak}" type="number" placeholder="min"></div>
+            <div class="max"><input id="al-max-${ch}-${ak}" type="number" placeholder="max"></div>
+          </div>`).join('');
+        card.innerHTML=`<div class="al-top"><strong>${CH[ch]}</strong>
+          <div><span id="al-led-${ch}-0" class="al-led"></span><span id="al-led-${ch}-1" class="al-led"></span><span id="al-led-${ch}-2" class="al-led"></span></div></div>
+          <label><input type="checkbox" id="al-ackreq-${ch}"> Ack required</label>${rows}
+          <div style="text-align:right;margin-top:.5rem;"><button type="button" class="btn" id="al-ack-${ch}">Ack ${CH[ch]}</button></div>`;
+        grid.appendChild(card);
+      }
+      $('ack-all')?.addEventListener('click', ()=>HMWebConfig.appendLog('AlarmsAck: UI-only'));
+      for(let ch=0;ch<4;ch++) $('al-ack-'+ch)?.addEventListener('click', ()=>HMWebConfig.appendLog('AlarmsAck ch='+ch+' (UI-only)'));
+    })();
+
+    (function buildRelays(){
+      const c=$('io-relays'); if(!c) return;
+      const MODE=[{v:0,l:'None'},{v:1,l:'Modbus Controlled'},{v:2,l:'Alarm Controlled'}];
+      const CHAN=[{v:0,l:'L1'},{v:1,l:'L2'},{v:2,l:'L3'},{v:3,l:'Totals'}];
+      for(let i=1;i<=NUM_RLY;i++){
+        const d=document.createElement('div'); d.className='iocard tint-relay';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">Relay ${i}</span><span class="ioBadge badgeState"><span id="state-relay${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
           </div>
-          <div id="al-hint-${ch}-${ak}" class="al-hint"></div>`;
-      }).join('');
-      card.innerHTML =
-        `<div class="al-top">
-          <div><strong>${CH_LABELS[ch]}</strong></div>
-          <div style="display:flex;gap:.3rem;align-items:center;">
-            <span id="al-led-${ch}-0" class="al-led" title="Alarm"></span>
-            <span id="al-led-${ch}-1" class="al-led" title="Warning"></span>
-            <span id="al-led-${ch}-2" class="al-led" title="Event"></span>
+          <div><label>Mode</label><select class="rly-mode">${MODE.map(o=>`<option value="${o.v}"${o.v===1?' selected':''}>${o.l}</option>`).join('')}</select></div>
+          <div class="rly-alarm rly-alarm-box" style="display:none">
+            <label>Channel</label><select class="rly-ch">${CHAN.map(o=>`<option value="${o.v}"${o.v===3?' selected':''}>${o.l}</option>`).join('')}</select>
           </div>
-        </div>
-        <label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;"><input type="checkbox" id="al-ackreq-${ch}"> <span> Ack required</span></label>
-        <div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>
-        ${rows}
-        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">
-          <button type="button" id="al-ack-${ch}" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack ${CH_LABELS[ch]}</button>
-        </div>`;
-      grid.appendChild(card);
-    }
-
-    for(let ch=0; ch<4; ch++){
-      for(let ak=0; ak<3; ak++){
-        const s=$('al-met-'+ch+'-'+ak);
-        const upd=()=>{
-          const m=s?s.value:4, unit=unitForMetric(m);
-          const meta=METRICS.find(x=>String(x.v)==String(m));
-          const mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
-          if(mn) mn.placeholder='min '+unit;
-          if(mx) mx.placeholder='max '+unit;
-          if(h)  h.textContent='Metric: '+(meta?.l||'')+' — '+(meta?.hint||'')+'.';
-        };
-        if(s){ s.addEventListener('change', ()=>{ sendChannelCfg(ch); upd(); }); upd(); }
-
-        const sendFn=()=>sendChannelCfg(ch);
-        attachLockHandlers($('al-min-'+ch+'-'+ak), `al-min-${ch}-${ak}`, sendFn);
-        attachLockHandlers($('al-max-'+ch+'-'+ak), `al-max-${ch}-${ak}`, sendFn);
-
-        const en=$('al-en-'+ch+'-'+ak); if(en){ en.addEventListener('change', ()=>sendChannelCfg(ch)); }
+          <div style="margin-top:.5rem;text-align:right;"><button type="button" class="btn rly-toggle">Toggle</button></div>`;
+        c.appendChild(d);
+        const root=d;
+        const modeSel=root.querySelector('.rly-mode');
+        const alarmBox=root.querySelector('.rly-alarm-box');
+        modeSel?.addEventListener('change', ()=>{ alarmBox.style.display=modeSel.value==='2'?'block':'none'; });
+        root.querySelector('.rly-toggle')?.addEventListener('click', ()=>HMWebConfig.appendLog('Relay toggle: UI-only (use Modbus coil)'));
       }
-      const ackReq=$('al-ackreq-'+ch); if(ackReq){ ackReq.addEventListener('change', ()=>sendChannelCfg(ch)); }
-      const ackBtn=$('al-ack-'+ch);   if(ackBtn){ ackBtn.addEventListener('click', ()=>{ connection.send("AlarmsAck",{ch}); appendLog("AlarmsAck",{ch}); toast('Ack '+CH_LABELS[ch]); }); }
-    }
-  }
-  buildAlarmsUI();
+    })();
 
-  function collectChannelCfg(ch){
-    const chO={ ack: !!$('al-ackreq-'+ch)?.checked };
-    for(let ak=0; ak<3; ak++){
-      const enEl=$('al-en-'+ch+'-'+ak), mnEl=$('al-min-'+ch+'-'+ak), mxEl=$('al-max-'+ch+'-'+ak), mtEl=$('al-met-'+ch+'-'+ak);
-      chO[ak]={
-        enabled:!!(enEl?.checked),
-        min: +(mnEl?.value ?? 0),
-        max: +(mxEl?.value ?? 0),
-        metric:+(mtEl?.value ?? 4)
-      };
-    }
-    return chO;
-  }
-  function sendChannelCfg(ch){
-    const cfg=collectChannelCfg(ch);
-    connection.send("AlarmsCfg",{ch, cfg});
-    appendLog("AlarmsCfg",{ch,cfg});
-  }
-  function applyChannelCfg(ch, obj){
-    if(typeof obj!=='object') return;
-    const ackEl=$('al-ackreq-'+ch); if(ackEl && obj.hasOwnProperty('ack')) ackEl.checked=!!obj.ack;
-    for(let ak=0; ak<3; ak++){
-      const r=obj[ak]||{};
-      const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
-      if(en && r.hasOwnProperty('enabled')) en.checked=!!r.enabled;
-      if(mn && r.hasOwnProperty('min') && canApply(`al-min-${ch}-${ak}`)) mn.value=r.min;
-      if(mx && r.hasOwnProperty('max') && canApply(`al-max-${ch}-${ak}`)) mx.value=r.max;
-      if(met && r.hasOwnProperty('metric')) met.value=String(r.metric);
-
-      const s=$('al-met-'+ch+'-'+ak);
-      if(s){
-        const meta=METRICS.find(x=>String(x.v)==String(s.value));
-        const h=$('al-hint-'+ch+'-'+ak);
-        if(h) h.textContent='Metric: '+(meta?.l||'')+' — '+(meta?.hint||'')+'.';
-        if(mn) mn.placeholder='min '+unitForMetric(s.value);
-        if(mx) mx.placeholder='max '+unitForMetric(s.value);
+    function sendRelayCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_RLY;i++){
+        l.push({ enabled:!!$('enable-relay'+i)?.checked, inverted:!!$('invert-relay'+i)?.checked });
       }
+      HMWebConfig.sendConfig('relay', l);
     }
-  }
-  function updateAlarmsState(state){
-    for(let ch=0; ch<4; ch++){
-      for(let ak=0; ak<3; ak++){
-        const dot=$('al-led-'+ch+'-'+ak);
-        const e=state && state[ch] && state[ch][ak];
-        const on=e && !!e.active;
-        if(dot) dot.style.background = on ? (ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0') : '#ccc';
+    for(let i=1;i<=NUM_RLY;i++){
+      $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
+    }
+
+    (function buildButtons(){
+      const c=$('io-buttons'); if(!c) return;
+      const ACTIONS=[{v:0,l:'None'},{v:5,l:'Toggle Relay 1'},{v:6,l:'Toggle Relay 2'}];
+      for(let i=1;i<=NUM_BTN;i++){
+        const d=document.createElement('div'); d.className='iocard tint-button';
+        d.innerHTML=`<div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="action-btn${i}">Action</label><select id="action-btn${i}">${ACTIONS.map(a=>`<option value="${a.v}">${a.label}</option>`).join('')}</select></div>`;
+        c.appendChild(d);
       }
+    })();
+
+    function sendBtnCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_BTN;i++) l.push({ action: parseInt($('action-btn'+i)?.value||'0',10) });
+      HMWebConfig.sendConfig('btn', l);
     }
-  }
+    for(let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
 
-  /* ===== Relays ===== */
-  function buildRelays(){
-    const container=$('relays-config'); if(!container) return; container.innerHTML='';
-    const MODE_OPTS=[{v:0,l:'None'},{v:1,l:'Modbus Controlled'},{v:2,l:'Alarm Controlled'}];
-    const CH_OPTS=[{v:0,l:'L1'},{v:1,l:'L2'},{v:2,l:'L3'},{v:3,l:'Totals'}];
-    const selectHTML=(opts,val)=>'<select class="enm-input rly-mode">'+opts.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
-    const chanHTML=(val)=>'<select class="enm-input rly-ch">'+CH_OPTS.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
-
-    for(let i=1;i<=2;i++){
-      const card=document.createElement('div'); card.className='rly-card';
-      card.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:center">'
-      + '  <div style="font-weight:600">Relay '+i+'</div>'
-      + '  <label style="display:flex;align-items:center;gap:.4rem;"><span>State</span><input type="checkbox" id="state-relay'+i+'" disabled></label>'
-      + '</div>'
-      + '<div class="rly-row"><label><input type="checkbox" id="enable-relay'+i+'"> Enabled at power-on</label></div>'
-      + '<div class="rly-row"><label><input type="checkbox" id="invert-relay'+i+'"> Inverted (active-low)</label> <span class="pill">applies to both relays</span></div>'
-      + '<div class="rly-row"><label style="min-width:80px">Mode:</label>'+selectHTML(MODE_OPTS,1)+'</div>'
-      + '<div class="rly-row rly-alarm" id="alarm-box-'+i+'" style="display:none">'
-      + '  <div class="rly-row" style="margin:0"><label style="min-width:80px">Channel:</label>'+chanHTML(3)+'</div>'
-      + '  <div class="rly-row" style="margin:.35rem 0 0 0"><label>Kinds:</label>'
-      + '    <label><input type="checkbox" class="rly-kind-al" checked> Alarm</label>'
-      + '    <label><input type="checkbox" class="rly-kind-wa"> Warning</label>'
-      + '    <label><input type="checkbox" class="rly-kind-ev"> Event</label>'
-      + '  </div>'
-      + '</div>'
-      + '<div class="rly-row" style="justify-content:flex-end;margin-top:.5rem;">'
-      + '  <button type="button" id="toggle-relay'+i+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Toggle</button>'
-      + '</div>'
-      + '<small class="muted">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes may be blocked by firmware.</small>';
-      container.appendChild(card);
-
-      ((idx)=>{
-        const root=card; const modeSel=root.querySelector('.rly-mode'); const alarmBox=$('alarm-box-'+idx);
-        const updateVis=()=>{ if(modeSel.value==='2') alarmBox.style.display='block'; else alarmBox.style.display='none'; };
-        const sendCfg=()=>{
-          const active_low=(($('invert-relay1')?.checked||$('invert-relay2')?.checked)?1:0);
-          const modes=[...document.querySelectorAll('.rly-mode')].map(s=>s.value|0);
-          const chsel=[...document.querySelectorAll('.rly-ch')].map(s=>s.value|0);
-          const maskFor=(i)=>
-            ((document.querySelectorAll('.rly-kind-al')[i]?.checked?1:0)
-            |(document.querySelectorAll('.rly-kind-wa')[i]?.checked?2:0)
-            |(document.querySelectorAll('.rly-kind-ev')[i]?.checked?4:0));
-          const cfg={
-            active_low,
-            def0:!!$('enable-relay1')?.checked,
-            def1:!!$('enable-relay2')?.checked,
-            mode:[modes[0]|0, modes[1]|0],
-            alarm:[ {ch:(chsel[0]??3)|0, mask:maskFor(0)}, {ch:(chsel[1]??3)|0, mask:maskFor(1)} ]
-          };
-          connection.send("relayCfg", {
-            enabled: [!!$('enable-relay1')?.checked, !!$('enable-relay2')?.checked],
-            inverted: [!!$('invert-relay1')?.checked, !!$('invert-relay2')?.checked]
-          });
-          appendLog("relayCfg", "enabled/inverted"); toast('Relays updated');
-        };
-        modeSel.addEventListener('change', ()=>{ sendCfg(); updateVis(); });
-        updateVis();
-        ['enable-relay'+idx,'invert-relay'+idx].forEach(id=>{ const el=$(id); if(el) el.addEventListener('change', sendCfg); });
-        ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{ const el=root.querySelector(sel); if(el) el.addEventListener('change', sendCfg); });
-        $('toggle-relay'+idx)?.addEventListener('click', ()=>{ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); toast('Relay toggled'); });
-      })(i);
-    }
-  }
-  buildRelays();
-
-  /* ===== Buttons ===== */
-  function buildButtons(){
-    const container=$('buttons-config'); if(!container) return; container.innerHTML='';
-    const ACTIONS=[
-      {value:0,label:'None'},{value:1,label:'Toggle Relay 1'},{value:2,label:'Toggle Relay 2'},
-      {value:3,label:'Toggle LED1'},{value:4,label:'Toggle LED2'},{value:5,label:'Toggle LED3'},{value:6,label:'Toggle LED4'},
-      {value:7,label:'Override Relay 1 (hold 3s)'},{value:8,label:'Override Relay 2 (hold 3s)'}
-    ];
-    const options=ACTIONS.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
-    for(let i=1;i<=4;i++){
-      const card=document.createElement('div');
-      card.innerHTML =
-        '<div class="card" style="background:#cbdcf7;">'
-      + '  <div style="font-weight:600;">Button '+i+'<span id="state-button'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
-      + '  <label>Action:<select id="action-button'+i+'" class="enm-input">'+options+'</select></label>'
-      + '</div>';
-      container.appendChild(card);
-    }
-    function sendButtons(){
-      const list=[];
-      for(let j=1;j<=4;j++){
-        const el = $('action-button'+j);
-        list.push({ action: +(el?.value ?? 0) });
+    (function buildLEDs(){
+      const c=$('io-leds'); if(!c) return;
+      const modeOpts=[{v:0,l:'Steady'},{v:1,l:'Blink'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const srcOpts=[{v:0,l:'None'},{v:5,l:'Override R1'},{v:6,l:'Override R2'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_LED;i++){
+        const d=document.createElement('div'); d.className='iocard tint-led';
+        d.innerHTML=`<div class="iotop"><span class="ioid">User LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${modeOpts}</select></div>
+          <div style="margin-top:10px;"><label for="source-led${i}">Source</label><select id="source-led${i}">${srcOpts}</select></div>`;
+        c.appendChild(d);
       }
-      const actions = list.map(x => {
-        const v = x.action|0;
-        if (v === 1) return 5;
-        if (v === 2) return 6;
-        return 0;
-      });
-      connection.send("btnCfg", { action: actions });
-      appendLog("btnCfg", actions);
-      toast('Buttons updated');
-    }
-    for(let i=1;i<=4;i++){
-      $('action-button'+i)?.addEventListener('change', sendButtons);
-    }
-  }
-  buildButtons();
+    })();
 
-  /* ===== LEDs ===== */
-  function buildLEDs(){
-    const container=$('leds-config'); if(!container) return; container.innerHTML='';
-    const LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
-    const LED_SOURCE=[
-      {value:0,label:'None'},{value:8,label:'Override R1'},{value:9,label:'Override R2'},
-      {value:10,label:'Alarm L1'},{value:11,label:'Alarm L2'},{value:12,label:'Alarm L3'},{value:13,label:'Alarm Totals'},
-      {value:14,label:'Warning L1'},{value:15,label:'Warning L2'},{value:16,label:'Warning L3'},{value:17,label:'Warning Totals'},
-      {value:18,label:'Event L1'},{value:19,label:'Event L2'},{value:20,label:'Event L3'},{value:21,label:'Event Totals'},
-      {value:22,label:'Any (A|W|E) L1'},{value:23,label:'Any (A|W|E) L2'},{value:24,label:'Any (A|W|E) L3'},{value:25,label:'Any (A|W|E) Totals'}
-    ];
-    const modeOpts=LED_MODE.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
-    const srcOpts=LED_SOURCE.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
-    for(let i=1;i<=4;i++){
-      const card=document.createElement('div');
-      card.innerHTML =
-        '<div class="card" style="background:#f3f5d0;">'
-      + '  <div style="font-weight:600;">User LED '+i+'<span id="state-led'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
-      + '  <label>Mode:<select id="mode-led'+i+'" class="enm-input">'+modeOpts+'</select></label><br>'
-      + '  <label>Source:<select id="source-led'+i+'" class="enm-input">'+srcOpts+'</select></label>'
-      + '</div>';
-      container.appendChild(card);
-    }
-    const sendLEDs=()=>{
-      const list=[];
-      for(let j=1;j<=4;j++){
-        const m=$('mode-led'+j), s=$('source-led'+j);
-        list.push({ mode:+(m?.value ?? 0), source:+(s?.value ?? 0) });
+    function sendLedCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_LED;i++){
+        l.push({ mode: parseInt($('mode-led'+i)?.value||'0',10), source: parseInt($('source-led'+i)?.value||'0',10) });
       }
-      const modes = [], sources = [];
-      for (const x of list) {
-        modes.push(x.mode|0);
-        let s = x.source|0;
-        if (s === 8) s = 5;
-        if (s === 9) s = 6;
-        sources.push((s===5||s===6) ? s : 0);
-      }
-      connection.send("ledCfg", { mode: modes, source: sources });
-      appendLog("ledCfg", { mode: modes, source: sources });
-      toast('LEDs updated');
-    };
-    for(let i=1;i<=4;i++){
-      $('mode-led'+i)?.addEventListener('change', sendLEDs);
-      $('source-led'+i)?.addEventListener('change', sendLEDs);
+      HMWebConfig.sendConfig('led', l);
     }
-  }
-  buildLEDs();
-
-  /* ===== Meter Options send ===== */
-  function sendMeterCfg(partial){
-    connection.send("atm", partial);
-    appendLog("atm", partial);
-  }
-  $('opt-lineHz')?.addEventListener('change', ()=>{ sendMeterCfg({lineHz:+$('opt-lineHz').value}); toast('Meter option sent'); });
-  $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
-  attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
-
-  /* ===== Modbus: auto-apply on change (like AIO-422) ===== */
-  async function pushModbusSettings(){
-    if (suppressModbusPush || !deviceSynced) return;
-    const mb_address = parseInt($('modbus-address')?.value || '30', 10);
-    const mb_baud    = parseInt($('modbus-baud')?.value || '19200', 10);
-    if (!Number.isFinite(mb_address) || mb_address < 1 || mb_address > 247) return;
-    if (!Number.isFinite(mb_baud)) return;
-    if (lastKnownMbAddr === mb_address && lastKnownMbBaud === mb_baud) return;
-    try {
-      await connection.send('values', { mb_address, mb_baud });
-      lastKnownMbAddr = mb_address;
-      lastKnownMbBaud = mb_baud;
-    } catch (e) {
-      appendLog('err', String(e));
-      toast('USB send failed');
+    for(let i=1;i<=NUM_LED;i++){
+      $('mode-led'+i)?.addEventListener('change', sendLedCfg);
+      $('source-led'+i)?.addEventListener('change', sendLedCfg);
     }
-  }
-  function scheduleModbusPush(){
-    if (modbusSendTimer) clearTimeout(modbusSendTimer);
-    modbusSendTimer = setTimeout(()=>{ pushModbusSettings(); }, 250);
-  }
-  $('modbus-address')?.addEventListener('change', scheduleModbusPush);
-  $('modbus-baud')?.addEventListener('change', scheduleModbusPush);
-
-  /* ===== Incoming firmware pushes ===== */
-
-  connection.on('ENM_Sync', applyEnmSync);
-
-  connection.on('status', function(st){
-    st = parseEventPayload(st);
-    if (!st) return;
-    const first = !deviceSynced;
-    deviceSynced = true;
-    if (first) appendLog('status', st);
-    applyModbusFromDevice(st);
-  });
-
-  /* ===== default_enm_223_r1 firmware protocol ===== */
-  connection.on('atmLive', function(m){
-    if(!m) return;
-    const pf = (raw)=> (typeof raw==='number') ? (raw/1000).toFixed(3) : '--';
-    const set = (id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
-    set('u0', m.Ua_V, 2); set('u1', m.Ub_V, 2); set('u2', m.Uc_V, 2);
-    set('i0', m.Ia_A, 3); set('i1', m.Ib_A, 3); set('i2', m.Ic_A, 3);
-    const setTxt = (id,t)=>{ const el=$(id); if(el) el.textContent=t; };
-    setTxt('pf0', pf(m.PF_A_raw)); setTxt('pf1', pf(m.PF_B_raw)); setTxt('pf2', pf(m.PF_C_raw)); setTxt('pft', pf(m.PF_T_raw));
-    set('ang0', m.AngA_raw, 0); set('ang1', m.AngB_raw, 0); set('ang2', m.AngC_raw, 0);
-    if(typeof m.Freq_x100==='number') set('f', m.Freq_x100/100, 2);
-    if(m.Temp_C!==undefined) set('t', m.Temp_C, 0);
-    $('p0')&&($('p0').textContent='--'); $('q0')&&($('q0').textContent='--'); $('s0')&&($('s0').textContent='--');
-    $('p1')&&($('p1').textContent='--'); $('q1')&&($('q1').textContent='--'); $('s1')&&($('s1').textContent='--');
-    $('p2')&&($('p2').textContent='--'); $('q2')&&($('q2').textContent='--'); $('s2')&&($('s2').textContent='--');
-    $('p3')&&($('p3').textContent='--'); $('q3')&&($('q3').textContent='--'); $('s3')&&($('s3').textContent='--');
-  });
-
-  connection.on('atmCfg', function(cfg){
-    cfg = parseEventPayload(cfg);
-    if(!cfg) return;
-    const first = !deviceSynced;
-    deviceSynced = true;
-    if (first) appendLog('atmCfg', cfg);
-    if(cfg.lineHz!==undefined) $('opt-lineHz').value=String(cfg.lineHz);
-    if(cfg.sumAbs!==undefined) $('opt-sumAbs').value=String(cfg.sumAbs);
-    applyCalibFromCfg(cfg);
-  });
-
-  connection.on('relayEnableList', (list)=>{
-    if(!Array.isArray(list)) return;
-    for(let i=0;i<2;i++){ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!list[i]; }
-  });
-  connection.on('relayInvertList', (list)=>{
-    if(!Array.isArray(list)) return;
-    const v=!!list[0];
-    $('invert-relay1')&&($('invert-relay1').checked=v);
-    $('invert-relay2')&&($('invert-relay2').checked=v);
-  });
-  connection.on('relayStateList', (list)=>{
-    if(!Array.isArray(list)) return;
-    for(let i=0;i<2;i++){ const el=$('state-relay'+(i+1)); if(el) el.checked=!!list[i]; }
-  });
-
-  connection.on('MeterOptions', function(mo){
-    if(!mo) return;
-    if(mo.lineHz!==undefined) $('opt-lineHz').value=String(mo.lineHz);
-    if(mo.sumAbs!==undefined) $('opt-sumAbs').value=String(mo.sumAbs);
-    if(mo.sample_ms!==undefined && canApply('opt-samplems')) $('opt-samplems').value=String(mo.sample_ms);
-  });
-
-  // CalibCfg (FS config echo)
-  connection.on('CalibCfg', function(payload){
-    try{
-      payload = parseEventPayload(payload);
-      if(!payload) return;
-      const first = !deviceSynced;
-      deviceSynced = true;
-      if (first) appendLog('CalibCfg', payload);
-      if(Array.isArray(payload)) applyCalibFromCfg({cal: payload});
-      else if(payload && typeof payload === 'object') applyCalibFromCfg(payload);
-    }catch(e){ appendLog('CalibCfg','parse error'); }
-  });
-
-  connection.on('LedConfigList', (list)=>{
-    try{
-      if(!Array.isArray(list)) return;
-      for(let i=0;i<list.length&&i<4;i++){
-        const o=list[i]||{};
-        const mEl=$('mode-led'+(i+1)), sEl=$('source-led'+(i+1));
-        if(mEl && o.mode!==undefined)   mEl.value=String(o.mode);
-        if(sEl && o.source!==undefined) sEl.value=String(o.source);
-      }
-    }catch(e){}
-  });
-
-  connection.on('ButtonConfigList',(list)=>{
-    try{
-      if(!list || typeof list.length==='undefined') return;
-      for(let j=0;j<4 && j<list.length;j++){
-        const v = list[j];
-        const el=$('action-button'+(j+1)); if(el && v!==undefined) el.value=String(v||0);
-      }
-    }catch(e){}
-  });
-
-  connection.on('RelaysCfg', (rc)=>{
-    try{
-      if(!rc||typeof rc!=='object') return;
-      if(rc.active_low!==undefined){ $('invert-relay1').checked=!!rc.active_low; $('invert-relay2').checked=!!rc.active_low; }
-      if(rc.def0!==undefined) $('enable-relay1').checked=!!rc.def0;
-      if(rc.def1!==undefined) $('enable-relay2').checked=!!rc.def1;
-      if(rc.mode && rc.mode.length>=2){
-        const modes=document.querySelectorAll('.rly-mode');
-        if(modes[0]) modes[0].value=String(rc.mode[0]);
-        if(modes[1]) modes[1].value=String(rc.mode[1]);
-        for(let k=1;k<=2;k++){ const ab=$('alarm-box-'+k); if(ab) ab.style.display=(String(rc.mode[k-1])==='2')?'block':'none'; }
-      }
-      if(rc.alarm && rc.alarm.length>=2){
-        const chs=document.querySelectorAll('.rly-ch');
-        if(chs[0]) chs[0].value=String(rc.alarm[0].ch);
-        if(chs[1]) chs[1].value=String(rc.alarm[1].ch);
-        const setMask=(idx,mask)=>{
-          const al=document.querySelectorAll('.rly-kind-al')[idx],
-                wa=document.querySelectorAll('.rly-kind-wa')[idx],
-                ev=document.querySelectorAll('.rly-kind-ev')[idx];
-          if(al)al.checked=!!(mask&1);
-          if(wa)wa.checked=!!(mask&2);
-          if(ev)ev.checked=!!(mask&4);
-        };
-        setMask(0, (rc.alarm[0].mask|0));
-        setMask(1, (rc.alarm[1].mask|0));
-      }
-    }catch(e){}
-  });
-
-  connection.on('AlarmsCfg', function(payload){
-    try{
-      if(payload && typeof payload==='object' && !Array.isArray(payload)){
-        for(const k of Object.keys(payload)){
-          const ch=parseInt(k,10);
-          if(!isNaN(ch) && ch>=0 && ch<4) applyChannelCfg(ch, payload[k]||{});
-        }
-      }
-    }catch(e){}
-  });
-
-  connection.on('AlarmsState', (state)=>{ try{ updateAlarmsState(state); }catch(e){} });
-
-  $('ack-all')?.addEventListener('click', ()=>{
-    connection.send("AlarmsAck",{list:[true,true,true,true]});
-    appendLog("AlarmsAck","all");
-    toast('Ack all');
-  });
-
-  connection.on('RelayState', function(arr){
-    const a = Array.isArray(arr) ? arr : [arr?.[0], arr?.[1]];
-    for(let i=0;i<2;i++){
-      const el=$('state-relay'+(i+1));
-      if(el && a && a[i]!==undefined) el.checked=!!a[i];
-    }
-  });
-
-  connection.on('ButtonStateList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(let i=0;i<list.length&&i<4;i++){
-      const dot=$('state-button'+(i+1));
-      if(dot) dot.style.background=list[i]?'#4caf50':'#ccc';
-    }
-  });
-
-  connection.on('LedStateList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(let i=0;i<list.length&&i<4;i++){
-      const d=$('state-led'+(i+1));
-      if(d) d.style.background=list[i]?'#ffb300':'#ccc';
-    }
-  });
-
-  /* =========================
-     ENM_Meter (FIXED ENERGIES)
-     - Supports NEW format: E_phase (array[3]) + E_tot (object)
-     - Still supports OLD format: E[0],E[1],E[2],E.tot
-     ========================= */
-  connection.on('ENM_Meter', function(m){
-    try{
-      const Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[];
-      const PW=(m&&m.P_W)||[], QV=(m&&m.Q_var)||[], SV=(m&&m.S_VA)||[];
-      const PF=(m&&m.PF)||[], Ang=(m&&m.Angle_deg)||[];
-      const FreqHz = m?.FreqHz, TempC = m?.TempC;
-
-      for(let i=0;i<3;i++){
-        $('u'+i) && ( $('u'+i).textContent = (typeof Urms[i]==='number') ? Urms[i].toFixed(2) : '--' );
-        $('i'+i) && ( $('i'+i).textContent = (typeof Irms[i]==='number') ? Irms[i].toFixed(3) : '--' );
-        $('p'+i) && ( $('p'+i).textContent = (PW[i]!==undefined) ? PW[i] : '--' );
-        $('q'+i) && ( $('q'+i).textContent = (QV[i]!==undefined) ? QV[i] : '--' );
-        $('s'+i) && ( $('s'+i).textContent = (SV[i]!==undefined) ? SV[i] : '--' );
-        $('pf'+i) && ( $('pf'+i).textContent = (typeof PF[i]==='number') ? PF[i].toFixed(3) : '--' );
-        $('ang'+i) && ( $('ang'+i).textContent = (typeof Ang[i]==='number') ? Ang[i].toFixed(1) : '--' );
-      }
-
-      $('p3') && ( $('p3').textContent = (PW[3]!==undefined) ? PW[3] : '--' );
-      $('q3') && ( $('q3').textContent = (QV[3]!==undefined) ? QV[3] : '--' );
-      $('s3') && ( $('s3').textContent = (SV[3]!==undefined) ? SV[3] : '--' );
-      $('pft') && ( $('pft').textContent = (typeof PF?.[3]==='number') ? PF[3].toFixed(3) : '--' );
-      $('f') && ( $('f').textContent = (typeof FreqHz==='number') ? FreqHz.toFixed(2) : '--' );
-      $('t') && ( $('t').textContent = (TempC!==undefined) ? TempC : '--' );
-
-      applyEnergiesFromMeter(m);
-
-    }catch(e){}
-  });
-
-})();
-</script>
+  })();
+  </script>
+</section>
