@@ -12,6 +12,8 @@
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
+#define HM_FW         "0.2.0"
+#define HM_MAP        1
 #define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
@@ -90,7 +92,9 @@ bool     oneWireBusy = false;
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
-JSONVar modbusStatus;
+
+static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -391,7 +395,7 @@ static bool jsonGetAddr64(JSONVar obj, const char* baseKey, uint64_t &out) {
       double d = (double)v;
       const double MAX_SAFE = 9007199254740991.0;
       if (d >= 0.0 && d <= MAX_SAFE && d == floor(d)) { out = (uint64_t)d; return true; }
-      else { WebSerial.send("message","WARNING: addr_u64 not safely representable; ignoring numeric path."); }
+      else { wsLog("WARNING: addr_u64 not safely representable; ignoring numeric path."); }
     } else if (JSON.typeof(v)=="string") {
       if (parseDec64((const char*)v, out)) return true;
     }
@@ -702,65 +706,65 @@ bool applyFromPersist(const PersistConfig &pc){
 bool saveConfigFS(){
   PersistConfig pc{}; captureToPersist(pc);
   File f=LittleFS.open(CFG_PATH,"w");
-  if(!f){ WebSerial.send("message","save: open failed"); return false; }
+  if(!f){ wsLog("save: open failed"); return false; }
   size_t n=f.write((const uint8_t*)&pc,sizeof(pc)); f.flush(); f.close();
-  if(n!=sizeof(pc)){ WebSerial.send("message","save: short write "); return false; }
-  File r=LittleFS.open(CFG_PATH,"r"); if(!r){ WebSerial.send("message","save: reopen failed"); return false; }
-  if((size_t)r.size()!=sizeof(PersistConfig)){ WebSerial.send("message","save: size mismatch after write"); r.close(); return false; }
+  if(n!=sizeof(pc)){ wsLog("save: short write "); return false; }
+  File r=LittleFS.open(CFG_PATH,"r"); if(!r){ wsLog("save: reopen failed"); return false; }
+  if((size_t)r.size()!=sizeof(PersistConfig)){ wsLog("save: size mismatch after write"); r.close(); return false; }
   PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close();
-  if(nr!=sizeof(back)){ WebSerial.send("message","save: short readback"); return false; }
+  if(nr!=sizeof(back)){ wsLog("save: short readback"); return false; }
   PersistConfig tmp=back; uint32_t crc=tmp.crc32; tmp.crc32=0;
-  if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc){ WebSerial.send("message","save: CRC verify failed"); return false; }
+  if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc){ wsLog("save: CRC verify failed"); return false; }
   return true;
 }
 bool loadConfigFS(){
-  File f=LittleFS.open(CFG_PATH,"r"); if(!f){ WebSerial.send("message","load: open failed"); return false; }
+  File f=LittleFS.open(CFG_PATH,"r"); if(!f){ wsLog("load: open failed"); return false; }
   size_t sz=f.size();
   if (sz==sizeof(PersistConfigV5)){
     PersistConfigV5 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v5)"); return false; }
-    if(!applyFromPersistV5(pc)){ WebSerial.send("message","load: v5 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v5 → migrated to v8 (LED/BTN defaults + Local control).");
+    if(n!=sizeof(pc)){ wsLog("load: short read (v5)"); return false; }
+    if(!applyFromPersistV5(pc)){ wsLog("load: v5 magic/version/crc mismatch"); return false; }
+    wsLog("Loaded legacy config v5 → migrated to v8 (LED/BTN defaults + Local control).");
     cfgDirty=true; lastCfgTouchMs=millis();
     return true;
   } else if (sz==sizeof(PersistConfigV6)){
     PersistConfigV6 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v6)"); return false; }
-    if(!applyFromPersistV6(pc)){ WebSerial.send("message","load: v6 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v6 → migrated to v8 (relay control mode defaults to Local).");
+    if(n!=sizeof(pc)){ wsLog("load: short read (v6)"); return false; }
+    if(!applyFromPersistV6(pc)){ wsLog("load: v6 magic/version/crc mismatch"); return false; }
+    wsLog("Loaded legacy config v6 → migrated to v8 (relay control mode defaults to Local).");
     cfgDirty=true; lastCfgTouchMs=millis();
     return true;
   } else if (sz==sizeof(PersistConfigV7)){
     PersistConfigV7 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v7)"); return false; }
-    if(!applyFromPersistV7(pc)){ WebSerial.send("message","load: v7 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v7 → migrated to v8 (powerOn defaults OFF).");
+    if(n!=sizeof(pc)){ wsLog("load: short read (v7)"); return false; }
+    if(!applyFromPersistV7(pc)){ wsLog("load: v7 magic/version/crc mismatch"); return false; }
+    wsLog("Loaded legacy config v7 → migrated to v8 (powerOn defaults OFF).");
     cfgDirty=true; lastCfgTouchMs=millis();
     return true;
   } else if (sz==sizeof(PersistConfig)){
     PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v8)"); return false; }
-    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v8 magic/version/crc mismatch"); return false; }
+    if(n!=sizeof(pc)){ wsLog("load: short read (v8)"); return false; }
+    if(!applyFromPersist(pc)){ wsLog("load: v8 magic/version/crc mismatch"); return false; }
     return true;
   } else {
-    WebSerial.send("message",String("load: unexpected size ")+sz); f.close(); return false;
+    wsLog(String("load: unexpected size ")+sz); f.close(); return false;
   }
 }
 bool initFilesystemAndConfig(){
   if(!LittleFS.begin()){
-    WebSerial.send("message","LittleFS mount failed. Formatting…");
-    if(!LittleFS.format() || !LittleFS.begin()){ WebSerial.send("message","FATAL: FS mount/format failed"); return false; }
+    wsLog("LittleFS mount failed. Formatting…");
+    if(!LittleFS.format() || !LittleFS.begin()){ wsLog("FATAL: FS mount/format failed"); return false; }
   }
-  if (loadConfigFS()){ WebSerial.send("message","Config loaded from flash"); applyPowerOnOutputs(); return true; }
-  WebSerial.send("message","No valid config. Using defaults."); setDefaults();
+  if (loadConfigFS()){ wsLog("Config loaded from flash"); applyPowerOnOutputs(); return true; }
+  wsLog("No valid config. Using defaults."); setDefaults();
   applyPowerOnOutputs();
-  if (saveConfigFS()){ WebSerial.send("message","Defaults saved"); return true; }
-  WebSerial.send("message","First save failed. Formatting FS…");
-  if(!LittleFS.format() || !LittleFS.begin()){ WebSerial.send("message","FATAL: FS format failed"); return false; }
+  if (saveConfigFS()){ wsLog("Defaults saved"); return true; }
+  wsLog("First save failed. Formatting FS…");
+  if(!LittleFS.format() || !LittleFS.begin()){ wsLog("FATAL: FS format failed"); return false; }
   setDefaults();
   applyPowerOnOutputs();
-  if (saveConfigFS()){ WebSerial.send("message","FS formatted and config saved"); return true; }
-  WebSerial.send("message","FATAL: save still failing after format"); return false;
+  if (saveConfigFS()){ wsLog("FS formatted and config saved"); return true; }
+  wsLog("FATAL: save still failing after format"); return false;
 }
 
 // ================== SFINAE helper ==================
@@ -827,16 +831,16 @@ JSONVar owdbBuildIndexMap(){
 bool owdbSave(){
   String json=JSON.stringify(owdbBuildArray());
   File f=LittleFS.open(ONEWIRE_DB_PATH,"w");
-  if(!f){ WebSerial.send("message","owdb: save open failed"); return false; }
+  if(!f){ wsLog("owdb: save open failed"); return false; }
   size_t n=f.print(json); f.flush(); f.close();
-  if(n!=json.length()){ WebSerial.send("message","owdb: short write"); return false; }
+  if(n!=json.length()){ wsLog("owdb: short write"); return false; }
   return true;
 }
 bool owdbLoad(){
   g_owCount=0;
   File f=LittleFS.open(ONEWIRE_DB_PATH,"r"); if(!f){ return false; }
   String s; while(f.available()) s+=(char)f.read(); f.close();
-  JSONVar arr=JSON.parse(s); if(JSON.typeof(arr)!="array"){ WebSerial.send("message","owdb: invalid JSON, ignoring"); return false; }
+  JSONVar arr=JSON.parse(s); if(JSON.typeof(arr)!="array"){ wsLog("owdb: invalid JSON, ignoring"); return false; }
   for (unsigned i=0; i<arr.length() && g_owCount<MAX_OW_SENSORS; i++){
     const char* a=(const char*)arr[i]["addr"]; const char* n=(const char*)arr[i]["name"];
     if(!a||!n) continue; uint64_t v; if(!parseHex64(a,v)) continue;
@@ -883,7 +887,9 @@ void handleValues(JSONVar values);
 void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void handleOneWire(JSONVar obj);
-void sendAllEchoesOnce();
+void sendWebStatus();
+void sendWebCfg();
+void sendWebBootstrap();
 void processModbusCommands();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 void doOneWireScan();
@@ -974,9 +980,9 @@ void setup(){
 
   setDefaults();
 
-  if(!initFilesystemAndConfig()){ WebSerial.send("message","FATAL: Filesystem/config init failed"); }
-  if(owdbLoad()) WebSerial.send("message","1-Wire DB loaded from flash");
-  else           WebSerial.send("message","1-Wire DB missing/invalid (will create on first save)");
+  if(!initFilesystemAndConfig()){ wsLog("FATAL: Filesystem/config init failed"); }
+  if(owdbLoad()) wsLog("1-Wire DB loaded from flash");
+  else           wsLog("1-Wire DB missing/invalid (will create on first save)");
 
 
   publishOneWireTemps();
@@ -1039,29 +1045,28 @@ void setup(){
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
-  modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
-
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control).");
-  sendAllEchoesOnce();
+  wsLog("Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control).");
+  sendWebBootstrap();
+  owdbSendList();
   hmWatchdogArm(4000);
 }
 
 // ================== Command handlers ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud){
-  if ((uint32_t)modbusStatus["baud"]!=baud){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
+  if (g_mb_baud != baud){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
   setSlaveIdIfAvailable(mb, addr); g_mb_address=addr; g_mb_baud=baud;
-  modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud;
 }
 void handleValues(JSONVar values){
   int addr=(int)values["mb_address"]; int baud=(int)values["mb_baud"];
   addr=hmValidAddress(addr); baud=hmValidBaud(baud);
   applyModbusSettings((uint8_t)addr,(uint32_t)baud);
-  WebSerial.send("message","Modbus configuration updated");
+  wsLog("Modbus configuration updated");
+  sendWebStatus();
   cfgDirty=true; lastCfgTouchMs=millis();
 }
 
@@ -1077,12 +1082,12 @@ bool applyHeatCfgObjectToIndex(int idx, JSONVar o){
   if (jsonGetPos(o, "posA", posA) || jsonGetPos(o, "addrA_pos", posA)) {
     uint64_t a = owdbAddrAtPos(posA);
     heatAddrA[idx] = a; setA = true;
-    WebSerial.send("message", String("Heat: DI")+String(idx+1)+" A set by posA="+String(posA)+" -> "+(a?hex64(a):String("''")));
+    wsLog( String("Heat: DI")+String(idx+1)+" A set by posA="+String(posA)+" -> "+(a?hex64(a):String("''")));
   }
   if (jsonGetPos(o, "posB", posB) || jsonGetPos(o, "addrB_pos", posB)) {
     uint64_t b = owdbAddrAtPos(posB);
     heatAddrB[idx] = b; setB = true;
-    WebSerial.send("message", String("Heat: DI")+String(idx+1)+" B set by posB="+String(posB)+" -> "+(b?hex64(b):String("''")));
+    wsLog( String("Heat: DI")+String(idx+1)+" B set by posB="+String(posB)+" -> "+(b?hex64(b):String("''")));
   }
   if (!setA) {
     uint64_t a=0;
@@ -1111,38 +1116,38 @@ void handleUnifiedConfig(JSONVar obj){
   String type = String(t);
   bool changed = false;
 
-  if (type=="inputEnable"){
+  if (type=="in.enabled" || type=="inputEnable"){
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled = (bool)list[i];
-    WebSerial.send("message","Input Enabled list updated");
+    wsLog("Input Enabled list updated");
     changed = true;
   }
-  else if (type=="inputInvert"){
+  else if (type=="in.invert" || type=="inputInvert"){
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted = (bool)list[i];
-    WebSerial.send("message","Input Invert list updated");
+    wsLog("Input Invert list updated");
     changed = true;
   }
-  else if (type=="inputAction"){
+  else if (type=="in.action" || type=="inputAction"){
     for (int i=0;i<NUM_DI && i<list.length();i++){
       int a=(int)list[i];
       diCfg[i].action = (uint8_t)constrain(a,0,2);
     }
-    WebSerial.send("message","Input Action list updated");
+    wsLog("Input Action list updated");
     changed = true;
   }
-  else if (type=="inputTarget"){
+  else if (type=="in.target" || type=="inputTarget"){
     for (int i=0;i<NUM_DI && i<list.length();i++){
       int tgt=(int)list[i];
       diCfg[i].target = (uint8_t)((tgt==4||tgt==0||(tgt>=1&&tgt<=2))?tgt:0);
     }
-    WebSerial.send("message","Input Control Target list updated");
+    wsLog("Input Control Target list updated");
     changed = true;
   }
-  else if (type=="inputType"){
+  else if (type=="in.type" || type=="inputType" || type=="ext.inputType"){
     for (int i=0;i<NUM_DI && i<list.length();i++){
       int tp=(int)list[i];
       diCfg[i].type = (uint8_t)constrain(tp,IT_WATER,IT_WCOUNTER);
     }
-    WebSerial.send("message","Input Type list updated");
+    wsLog("Input Type list updated");
     changed = true;
   }
   else if (type=="counterResetList"){
@@ -1155,9 +1160,9 @@ void handleUnifiedConfig(JSONVar obj){
         flowCounterBase[i]=0;
       }
     }
-    WebSerial.send("message","Counters reset");
+    wsLog("Counters reset");
   }
-  else if (type=="relays"){
+  else if (type=="relay" || type=="relays"){
     for (int i=0;i<NUM_RLY && i<list.length();i++){
       rlyCfg[i].enabled = (bool)list[i]["enabled"];
       rlyCfg[i].inverted= (bool)list[i]["inverted"];
@@ -1165,62 +1170,62 @@ void handleUnifiedConfig(JSONVar obj){
         rlyCfg[i].powerOn = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
       }
     }
-    WebSerial.send("message","Relay Configuration updated");
+    wsLog("Relay Configuration updated");
     changed = true;
   }
-  else if (type=="relayCtrlMode"){
+  else if (type=="ext.relayCtrlMode" || type=="relayCtrlMode"){
     for (int i=0;i<NUM_RLY && i<list.length(); i++){
       int v = (int)list[i];
       rlyCtrlMode[i] = (v==1)?RCTRL_MODBUS:RCTRL_LOCAL;
     }
-    WebSerial.send("message","Relay Control Mode updated (0=Local,1=Modbus)");
+    wsLog("Relay Control Mode updated (0=Local,1=Modbus)");
     changed = true;
   }
-  else if (type=="flowPPL"){
+  else if (type=="ext.flowPPL" || type=="flowPPL"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       long v = (long)(double)list[i];
       if (v <= 0) v = 1;
       flowPulsesPerL[i] = (uint32_t)v;
     }
-    WebSerial.send("message","Flow: pulsesPerLiter updated");
+    wsLog("Flow: pulsesPerLiter updated");
     changed = true;
   }
-  else if (type=="flowCalib"){
+  else if (type=="ext.flowCalib" || type=="flowCalib"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       double v = (double)list[i];
       if (v <= 0.0) v = 1.0;
       flowCalibRate[i]  = (float)v;
       flowCalibAccum[i] = (float)v;
     }
-    WebSerial.send("message","Flow: calibration updated (applied to rate & accum)");
+    wsLog("Flow: calibration updated (applied to rate & accum)");
     changed = true;
   }
-  else if (type=="flowCalibRate"){
+  else if (type=="ext.flowCalibRate" || type=="flowCalibRate"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       double v = (double)list[i];
       if (v <= 0.0) v = 1.0;
       flowCalibRate[i] = (float)v;
     }
-    WebSerial.send("message","Flow: rate calibration updated");
+    wsLog("Flow: rate calibration updated");
     changed = true;
   }
-  else if (type=="flowCalibAccum"){
+  else if (type=="ext.flowCalibAccum" || type=="flowCalibAccum"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       double v = (double)list[i];
       if (v <= 0.0) v = 1.0;
       flowCalibAccum[i] = (float)v;
     }
-    WebSerial.send("message","Flow: accumulation calibration updated");
+    wsLog("Flow: accumulation calibration updated");
     changed = true;
   }
   else if (type=="flowResetAccumList"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       if ((bool)list[i]) flowCounterBase[i] = diCounter[i];
     }
-    WebSerial.send("message","Flow: accumulation windows reset (baseline moved)");
+    wsLog("Flow: accumulation windows reset (baseline moved)");
     changed = true;
   }
-  else if (type=="heatConfig"){
+  else if (type=="ext.heatConfig" || type=="heatConfig"){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       JSONVar o = list[i];
       if (JSON.typeof(o)!="object") continue;
@@ -1236,7 +1241,7 @@ void handleUnifiedConfig(JSONVar obj){
         line += " cp=";     line += String(heatCp[i], 0);
         line += " rho=";    line += String(heatRho[i], 3);
         line += " calib=";  line += String(heatCalib[i], 4);
-        WebSerial.send("message", line);
+        wsLog( line);
         changed = true;
       }
     }
@@ -1245,19 +1250,19 @@ void handleUnifiedConfig(JSONVar obj){
     for (int i=0;i<NUM_DI && i<list.length(); i++){
       if ((bool)list[i]) heatEnergyJ[i]=0.0;
     }
-    WebSerial.send("message","Heat: energy counters reset");
+    wsLog("Heat: energy counters reset");
     changed = true;
   }
   else if (type=="heatConfigSingle"){
     int di = -1;
     if (obj.hasOwnProperty("di")) di = (int)obj["di"];
     if (di >= 1 && di <= (int)NUM_DI) di -= 1;
-    if (di < 0 || di >= (int)NUM_DI) { WebSerial.send("message","heatConfigSingle: invalid 'di'"); return; }
-    if (!obj.hasOwnProperty("cfg")) { WebSerial.send("message","heatConfigSingle: missing 'cfg'");  return; }
+    if (di < 0 || di >= (int)NUM_DI) { wsLog("heatConfigSingle: invalid 'di'"); return; }
+    if (!obj.hasOwnProperty("cfg")) { wsLog("heatConfigSingle: missing 'cfg'");  return; }
     JSONVar cfg = obj["cfg"];
-    if (JSON.typeof(cfg)!="object"){ WebSerial.send("message","heatConfigSingle: 'cfg' must be an object"); return; }
+    if (JSON.typeof(cfg)!="object"){ wsLog("heatConfigSingle: 'cfg' must be an object"); return; }
     if (!applyHeatCfgObjectToIndex(di, cfg)){
-      WebSerial.send("message","heatConfigSingle: failed to apply");
+      wsLog("heatConfigSingle: failed to apply");
       return;
     }
     String line; line.reserve(200);
@@ -1270,7 +1275,7 @@ void handleUnifiedConfig(JSONVar obj){
     line += " cp=";     line += String(heatCp[di], 0);
     line += " rho=";    line += String(heatRho[di], 3);
     line += " calib=";  line += String(heatCalib[di], 4);
-    WebSerial.send("message", line);
+    wsLog( line);
     changed = true;
   }
   // -------- LED/Buttons CONFIG --------
@@ -1281,38 +1286,39 @@ void handleUnifiedConfig(JSONVar obj){
       if (o.hasOwnProperty("mode"))   ledCfg[i].mode   = (uint8_t)constrain((int)o["mode"],0,1);
       if (o.hasOwnProperty("source")) ledCfg[i].source = (uint8_t)constrain((int)o["source"],0,(int)LEDSRC_DI5);
     }
-    WebSerial.send("message","LED config updated"); changed=true;
+    wsLog("LED config updated"); changed=true;
   }
-  else if (type=="buttons"){
+  else if (type=="btn" || type=="buttons"){
     for(int i=0;i<NUM_BTN && i<list.length(); i++){
       int act=(int)list[i];
       btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_PULSE_R2);
     }
-    WebSerial.send("message","Buttons config updated"); changed=true;
+    wsLog("Buttons config updated"); changed=true;
   }
   else {
-    WebSerial.send("message","Unknown Config type");
+    wsLog("Unknown Config type");
   }
 
   if (changed){
     cfgDirty = true;
     lastCfgTouchMs = millis();
+    sendWebCfg();
   }
 }
 
 void handleCommand(JSONVar obj){
-  const char* actC=(const char*)obj["action"]; if(!actC){ WebSerial.send("message","command: missing 'action'"); return; }
+  const char* actC=(const char*)obj["action"]; if(!actC){ wsLog("command: missing 'action'"); return; }
   String act=String(actC); act.toLowerCase();
 
-  if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); return; }
-  if (act=="load"){ if (loadConfigFS()){ applyPowerOnOutputs(); WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
-                    else WebSerial.send("message","ERROR: Load failed/invalid"); return; }
+  if (act=="save"){ if (saveConfigFS()) wsLog("Configuration saved"); else wsLog("ERROR: Save failed"); return; }
+  if (act=="load"){ if (loadConfigFS()){ applyPowerOnOutputs(); wsLog("Configuration loaded"); sendWebBootstrap(); applyModbusSettings(g_mb_address,g_mb_baud); }
+                    else wsLog("ERROR: Load failed/invalid"); return; }
   if (act=="factory"){
     LittleFS.remove(OUT_STATE_PATH);
     setDefaults(); applyPowerOnOutputs();
-    if (saveConfigFS()) WebSerial.send("message","Factory defaults restored & saved");
-    else WebSerial.send("message","ERROR: Save after factory reset failed");
-    sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud);
+    if (saveConfigFS()) wsLog("Factory defaults restored & saved");
+    else wsLog("ERROR: Save after factory reset failed");
+    sendWebBootstrap(); applyModbusSettings(g_mb_address,g_mb_baud);
     return;
   }
   if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){ doOneWireScan(); return; }
@@ -1325,17 +1331,17 @@ void handleCommand(JSONVar obj){
     else if (obj.hasOwnProperty("input")) di = (int)obj["input"];
     else if (obj.hasOwnProperty("index")) di = (int)obj["index"];
     if (di >= 1 && di <= (int)NUM_DI) di -= 1;
-    if (di < 0 || di >= (int)NUM_DI) { WebSerial.send("message","flow_calculate: invalid 'di'"); return; }
+    if (di < 0 || di >= (int)NUM_DI) { wsLog("flow_calculate: invalid 'di'"); return; }
     double extLit = 0.0;
     if (!jsonGetDouble(obj,"external", extLit) &&
         !jsonGetDouble(obj,"external_liters", extLit) &&
         !jsonGetDouble(obj,"externalAccum", extLit)) {
-      WebSerial.send("message","flow_calculate: missing 'external' liters"); return;
+      wsLog("flow_calculate: missing 'external' liters"); return;
     }
-    if (extLit <= 0.0) { WebSerial.send("message","flow_calculate: external must be > 0"); return; }
+    if (extLit <= 0.0) { wsLog("flow_calculate: external must be > 0"); return; }
     uint32_t ppl = flowPulsesPerL[di] ? flowPulsesPerL[di] : 1;
     uint32_t pulses_since = (diCounter[di] >= flowCounterBase[di]) ? (diCounter[di] - flowCounterBase[di]) : 0;
-    if (pulses_since == 0) { WebSerial.send("message","flow_calculate: no pulses in current window (reset total, run flow)"); return; }
+    if (pulses_since == 0) { wsLog("flow_calculate: no pulses in current window (reset total, run flow)"); return; }
     double liters_no_cal = (double)pulses_since / (double)ppl;
     double newCal = extLit / liters_no_cal;
     flowCalibAccum[di] = (float)((newCal>0.0)?newCal:1.0);
@@ -1346,7 +1352,7 @@ void handleCommand(JSONVar obj){
     msg += " ppl=";          msg += String((uint32_t)ppl);
     msg += " external=";     msg += String(extLit, 6);
     msg += " => calibAccum=";msg += String(newCal, 6);
-    WebSerial.send("message", msg);
+    wsLog( msg);
     return;
   }
   if (act=="flow_reset"){
@@ -1358,51 +1364,51 @@ void handleCommand(JSONVar obj){
       cfgDirty = true; lastCfgTouchMs = millis();
       String msg; msg.reserve(32);
       msg += "flow_reset: DI"; msg += String(di+1);
-      WebSerial.send("message", msg);
+      wsLog( msg);
     } else {
-      WebSerial.send("message","flow_reset: invalid 'di'");
+      wsLog("flow_reset: invalid 'di'");
     }
     return;
   }
   if (act=="heat_reset"){
     int di=-1; if (obj.hasOwnProperty("di")) di=(int)obj["di"];
     if (di>=1 && di<=NUM_DI) di-=1;
-    if (di>=0 && di<NUM_DI){ heatEnergyJ[di]=0.0; WebSerial.send("message", String("heat_reset: DI")+String(di+1)); }
-    else WebSerial.send("message","heat_reset: invalid 'di'");
+    if (di>=0 && di<NUM_DI){ heatEnergyJ[di]=0.0; wsLog( String("heat_reset: DI")+String(di+1)); }
+    else wsLog("heat_reset: invalid 'di'");
     return;
   }
 
 
-  WebSerial.send("message", String("Unknown command: ")+actC);
+  wsLog( String("Unknown command: ")+actC);
 }
 
 void handleOneWire(JSONVar obj){
-  const char* actC=(const char*)obj["action"]; if(!actC){ WebSerial.send("message","onewire: missing action"); return; }
+  const char* actC=(const char*)obj["action"]; if(!actC){ wsLog("onewire: missing action"); return; }
   String act=String(actC); act.toLowerCase();
 
   if (act=="list"){ owdbSendList(); return; }
-  if (act=="clear"){ g_owCount=0; if(owdbSave()) WebSerial.send("message","onewire: cleared"); else WebSerial.send("message","onewire: clear save failed"); owdbSendList(); return; }
+  if (act=="clear"){ g_owCount=0; if(owdbSave()) wsLog("onewire: cleared"); else wsLog("onewire: clear save failed"); owdbSendList(); return; }
 
   uint64_t addr=0;
-  if (!jsonGetAddr64(obj, "addr_u64_str", addr)){ WebSerial.send("message","onewire: invalid or missing address (expect rom_hex or addr_hi/addr_lo)"); return; }
+  if (!jsonGetAddr64(obj, "addr_u64_str", addr)){ wsLog("onewire: invalid or missing address (expect rom_hex or addr_hi/addr_lo)"); return; }
 
   if (act=="add"||act=="save"||act=="rename"){
-    String nm; if (!jsonGetStr(obj,"name",nm) || nm.length()==0){ WebSerial.send("message","onewire: missing 'name'"); return; }
+    String nm; if (!jsonGetStr(obj,"name",nm) || nm.length()==0){ wsLog("onewire: missing 'name'"); return; }
     if (owdbAddOrUpdate(addr, nm.c_str())) {
       String msg; msg.reserve(64); msg += "onewire: saved "; msg += hex64(addr);
-      WebSerial.send("message", msg);
+      wsLog( msg);
     } else {
-      WebSerial.send("message","onewire: save failed (maybe full?)"); owdbSendList();
+      wsLog("onewire: save failed (maybe full?)"); owdbSendList();
     }
   } else if (act=="remove"||act=="delete"){
     if (owdbRemove(addr)) {
       String msg; msg.reserve(64); msg += "onewire: removed "; msg += hex64(addr);
-      WebSerial.send("message", msg);
+      wsLog( msg);
     } else {
-      WebSerial.send("message","onewire: address not found"); owdbSendList();
+      wsLog("onewire: address not found"); owdbSendList();
     }
   } else {
-    WebSerial.send("message", String("onewire: unknown action '")+act+"'"); 
+    wsLog( String("onewire: unknown action '")+act+"'"); 
   }
 }
 
@@ -1522,10 +1528,10 @@ void loop(){
     // rising edge => immediate action types
     if(!buttonPrev[i] && buttonState[i]){
       switch(btnCfg[i].action){
-        case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; WebSerial.send("message","button: toggle R1"); } break;
-        case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; WebSerial.send("message","button: toggle R2"); } break;
-        case BTN_PULSE_R1:  if(rlyCfg[0].enabled) { localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; WebSerial.send("message","button: pulse R1"); } break;
-        case BTN_PULSE_R2:  if(rlyCfg[1].enabled) { localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; WebSerial.send("message","button: pulse R2"); } break;
+        case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; wsLog("button: toggle R1"); } break;
+        case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; wsLog("button: toggle R2"); } break;
+        case BTN_PULSE_R1:  if(rlyCfg[0].enabled) { localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; wsLog("button: pulse R1"); } break;
+        case BTN_PULSE_R2:  if(rlyCfg[1].enabled) { localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; wsLog("button: pulse R2"); } break;
         default: break;
       }
     }
@@ -1700,223 +1706,108 @@ void loop(){
     lastSend=millis();
     WebSerial.check();
     if (hmUsbCanSend()) {
-    WebSerial.send("status", modbusStatus);
+      sendWebStatus();
 
-    JSONVar invertList, enableList, actionList, targetList, typeList;
-    for (int i=0;i<NUM_DI;i++){
-      invertList[i]=diCfg[i].inverted; enableList[i]=diCfg[i].enabled;
-      actionList[i]=diCfg[i].action;   targetList[i]=diCfg[i].target; typeList[i]=diCfg[i].type;
-    }
-    JSONVar relayEnableList, relayInvertList;
-    for (int i=0;i<NUM_RLY;i++){ relayEnableList[i]=rlyCfg[i].enabled; relayInvertList[i]=rlyCfg[i].inverted; }
+      JSONVar io;
+      for (int i=0;i<NUM_DI;i++) io["in"][i] = inputs[i] ? 1 : 0;
+      for (int i=0;i<NUM_RLY;i++) io["relay"][i] = relayStateList[i] ? 1 : 0;
+      for (int i=0;i<NUM_BTN;i++) io["btn"][i] = btnStates[i] ? 1 : 0;
+      for (int i=0;i<NUM_LED;i++) io["led"][i] = ledStates[i] ? 1 : 0;
+      WebSerial.send("io", io);
 
-    JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList, flowCalibRateList, flowCalibAccumList;
-    for (int i=0;i<NUM_DI;i++){
-      uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
-      uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
-      double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
-
-      flowPPLList[i]         = (double)flowPulsesPerL[i];
-      flowCalibList[i]       = (double)flowCalibAccum[i];
-      flowCalibRateList[i]   = (double)flowCalibRate[i];
-      flowCalibAccumList[i]  = (double)flowCalibAccum[i];
-      flowAccumList[i]       = accumL;
-      flowRateList[i]        = (double)flowRateLmin[i];
-    }
-
-    JSONVar heatEnabledList, heatAddrAList, heatAddrBList, heatAddrAPosList, heatAddrBPosList;
-    JSONVar heatCpList, heatRhoList, heatCalibList;
-    JSONVar heatTAList, heatTBList, heatDTList, heatPowerList, heatEnergyJList, heatEnergyKWhList;
-
-    for (int i=0;i<NUM_DI;i++){
-      heatEnabledList[i]=heatEnabled[i];
-      heatAddrAList[i]= (heatAddrA[i] ? hex64(heatAddrA[i]) : "");
-      heatAddrBList[i]= (heatAddrB[i] ? hex64(heatAddrB[i]) : "");
-
-      heatAddrAPosList[i] = (double)owdbPosOf(heatAddrA[i]);
-      heatAddrBPosList[i] = (double)owdbPosOf(heatAddrB[i]);
-
-      heatCpList[i]=(double)heatCp[i];
-      heatRhoList[i]=(double)heatRho[i];
-      heatCalibList[i]=(double)heatCalib[i];
-
-      heatTAList[i]=isfinite(heatTA[i])?heatTA[i]:NAN;
-      heatTBList[i]=isfinite(heatTB[i])?heatTB[i]:NAN;
-      heatDTList[i]=heatDT[i];
-      heatPowerList[i]=heatPowerW[i];
-      heatEnergyJList[i]=heatEnergyJ[i];
-      heatEnergyKWhList[i]=heatEnergyJ[i]/3.6e6;
-    }
-
-    // cached temps/errors
-    {
+      JSONVar ext;
+      for (int i=0;i<NUM_DI;i++){
+        uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
+        uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
+        double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
+        ext["flow"]["rate"][i] = (double)flowRateLmin[i];
+        ext["flow"]["accum"][i] = accumL;
+        ext["counter"][i] = (double)diCounter[i];
+        ext["heat"]["ta"][i] = isfinite(heatTA[i]) ? heatTA[i] : NAN;
+        ext["heat"]["tb"][i] = isfinite(heatTB[i]) ? heatTB[i] : NAN;
+        ext["heat"]["dt"][i] = heatDT[i];
+        ext["heat"]["power"][i] = heatPowerW[i];
+        ext["heat"]["energyJ"][i] = heatEnergyJ[i];
+        ext["heat"]["energyKWh"][i] = heatEnergyJ[i] / 3.6e6;
+      }
       JSONVar owTemps, owErrs;
       buildCachedOwTemps(owTemps, owErrs);
+      ext["onewire"]["temps"] = owTemps;
+      ext["onewire"]["errs"] = owErrs;
+      WebSerial.send("ext", ext);
+
+      JSONVar owTempsList;
+      uint32_t nowMs = millis();
+      for (size_t i=0; i<g_owCount; i++){
+        bool fresh = (owLastGoodMs[i] != 0) && (nowMs - owLastGoodMs[i] <= OW_FAIL_HIDE_MS);
+        double t = fresh ? owLastGoodTemp[i] : NAN;
+        JSONVar row;
+        row["pos"] = (double)(i+1);
+        row["addr"] = hex64(g_owDb[i].addr);
+        row["name"] = g_owDb[i].name.c_str();
+        row["temp"] = isfinite(t) ? t : NAN;
+        row["errs"] = (double)owErrCount[i];
+        owTempsList[i] = row;
+      }
       WebSerial.send("onewireTemps", owTemps);
-      WebSerial.send("onewireErrs",  owErrs);
-    }
-
-    WebSerial.send("inputs", inputs);
-    WebSerial.send("invertList", invertList);
-    WebSerial.send("enableList", enableList);
-    WebSerial.send("inputActionList", actionList);
-    WebSerial.send("inputTargetList", targetList);
-    WebSerial.send("inputTypeList", typeList);
-    WebSerial.send("counterList", counters);
-
-    WebSerial.send("flowPPLList",   flowPPLList);
-    WebSerial.send("flowCalibList", flowCalibList);
-    WebSerial.send("flowCalibRateList",  flowCalibRateList);
-    WebSerial.send("flowCalibAccumList", flowCalibAccumList);
-    WebSerial.send("flowAccumList", flowAccumList);
-    WebSerial.send("flowRateList",  flowRateList);
-
-    WebSerial.send("heatEnabledList",   heatEnabledList);
-    WebSerial.send("heatAddrAList",     heatAddrAList);
-    WebSerial.send("heatAddrBList",     heatAddrBList);
-    WebSerial.send("heatAddrAPosList",  heatAddrAPosList);
-    WebSerial.send("heatAddrBPosList",  heatAddrBPosList);
-    WebSerial.send("heatCpList",        heatCpList);
-    WebSerial.send("heatRhoList",       heatRhoList);
-    WebSerial.send("heatCalibList",     heatCalibList);
-    WebSerial.send("heatTAList",        heatTAList);
-    WebSerial.send("heatTBList",        heatTBList);
-    WebSerial.send("heatDTList",        heatDTList);
-    WebSerial.send("heatPowerList",     heatPowerList);
-    WebSerial.send("heatEnergyJList",   heatEnergyJList);
-    WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
-
-    WebSerial.send("relayStateList", relayStateList);
-
-    // LED/BTN echoes (names aligned with DIM UI)
-    WebSerial.send("led", ledConfigArray);
-    WebSerial.send("ledStateList", ledStates);
-    WebSerial.send("buttonStateList", btnStates);
-
-
-
-    // Relay control mode status
-    JSONVar rcList;
-    for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); }
-    WebSerial.send("relayCtrlMode", rcList);
-
-    owdbSendList();
+      WebSerial.send("onewireErrs", owErrs);
+      WebSerial.send("onewireTempsList", owTempsList);
     }
   }
 
   if (cfgDirty && (now-lastCfgTouchMs>=CFG_AUTOSAVE_MS)){
-    if (saveConfigFS()) WebSerial.send("message","Configuration saved");
-    else WebSerial.send("message","ERROR: Save failed");
+    if (saveConfigFS()) wsLog("Configuration saved");
+    else wsLog("ERROR: Save failed");
     cfgDirty=false;
   }
 }
 
-void sendAllEchoesOnce(){
-  JSONVar enableList, invertList, actionList, targetList, typeList, counters;
-  for (int i=0;i<NUM_DI;i++){
-    enableList[i]=diCfg[i].enabled; invertList[i]=diCfg[i].inverted;
-    actionList[i]=diCfg[i].action;  targetList[i]=diCfg[i].target;
-    typeList[i]=diCfg[i].type;      counters[i]=(double)diCounter[i];
-  }
-  WebSerial.send("enableList", enableList);
-  WebSerial.send("invertList", invertList);
-  WebSerial.send("inputActionList", actionList);
-  WebSerial.send("inputTargetList", targetList);
-  WebSerial.send("inputTypeList", typeList);
-  WebSerial.send("counterList", counters);
+void sendWebStatus() {
+  JSONVar st;
+  st["model"] = HM_MODEL_ID;
+  st["fw"]    = HM_FW;
+  st["map"]   = HM_MAP;
+  st["addr"]  = g_mb_address;
+  st["baud"]  = g_mb_baud;
+  WebSerial.send("status", st);
+}
 
-  JSONVar relayEnableList, relayInvertList, relayPowerOnList;
+void sendWebCfg() {
+  JSONVar cfg;
+  for (int i=0;i<NUM_DI;i++){
+    cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
+    cfg["in"][i]["invert"]  = diCfg[i].inverted ? 1 : 0;
+    cfg["in"][i]["action"]  = diCfg[i].action;
+    cfg["in"][i]["target"]  = diCfg[i].target;
+    cfg["in"][i]["type"]    = diCfg[i].type;
+    cfg["ext"]["inputType"][i] = diCfg[i].type;
+    cfg["ext"]["flowPPL"][i] = (double)flowPulsesPerL[i];
+    cfg["ext"]["flowCalibRate"][i] = (double)flowCalibRate[i];
+    cfg["ext"]["flowCalibAccum"][i] = (double)flowCalibAccum[i];
+    cfg["ext"]["heat"][i]["enabled"] = heatEnabled[i] ? 1 : 0;
+    cfg["ext"]["heat"][i]["posA"] = (double)owdbPosOf(heatAddrA[i]);
+    cfg["ext"]["heat"][i]["posB"] = (double)owdbPosOf(heatAddrB[i]);
+    cfg["ext"]["heat"][i]["cp"] = (double)heatCp[i];
+    cfg["ext"]["heat"][i]["rho"] = (double)heatRho[i];
+    cfg["ext"]["heat"][i]["calib"] = (double)heatCalib[i];
+  }
   for (int i=0;i<NUM_RLY;i++){
-    relayEnableList[i]=rlyCfg[i].enabled;
-    relayInvertList[i]=rlyCfg[i].inverted;
-    relayPowerOnList[i]=rlyCfg[i].powerOn;
+    cfg["relay"][i]["enabled"] = rlyCfg[i].enabled ? 1 : 0;
+    cfg["relay"][i]["invert"]  = rlyCfg[i].inverted ? 1 : 0;
+    cfg["relay"][i]["powerOn"] = rlyCfg[i].powerOn;
+    cfg["ext"]["relayCtrlMode"][i] = (rlyCtrlMode[i]==RCTRL_MODBUS) ? 1 : 0;
   }
-  WebSerial.send("relayEnableList", relayEnableList);
-  WebSerial.send("relayInvertList", relayInvertList);
-  WebSerial.send("relayPowerOnList", relayPowerOnList);
-
-  JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList, flowCalibRateList, flowCalibAccumList;
-  for (int i=0;i<NUM_DI;i++){
-    uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
-    uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
-    double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
-
-    flowPPLList[i]         = (double)flowPulsesPerL[i];
-    flowCalibList[i]       = (double)flowCalibAccum[i];
-    flowCalibRateList[i]   = (double)flowCalibRate[i];
-    flowCalibAccumList[i]  = (double)flowCalibAccum[i];
-    flowAccumList[i]       = accumL;
-    flowRateList[i]        = (double)flowRateLmin[i];
+  for (int i=0;i<NUM_BTN;i++) cfg["btn"][i]["action"] = btnCfg[i].action;
+  for (int i=0;i<NUM_LED;i++){
+    cfg["led"][i]["mode"] = ledCfg[i].mode;
+    cfg["led"][i]["source"] = ledCfg[i].source;
   }
-  WebSerial.send("flowPPLList",   flowPPLList);
-  WebSerial.send("flowCalibList", flowCalibList);
-  WebSerial.send("flowCalibRateList",  flowCalibRateList);
-  WebSerial.send("flowCalibAccumList", flowCalibAccumList);
-  WebSerial.send("flowAccumList", flowAccumList);
-  WebSerial.send("flowRateList",  flowRateList);
+  WebSerial.send("cfg", cfg);
+}
 
-  JSONVar heatEnabledList, heatAddrAList, heatAddrBList, heatAddrAPosList, heatAddrBPosList;
-  JSONVar heatCpList, heatRhoList, heatCalibList;
-  JSONVar heatTAList, heatTBList, heatDTList, heatPowerList, heatEnergyJList, heatEnergyKWhList;
-  for (int i=0;i<NUM_DI;i++){
-    heatEnabledList[i]=heatEnabled[i];
-    heatAddrAList[i]= (heatAddrA[i] ? hex64(heatAddrA[i]) : "");
-    heatAddrBList[i]= (heatAddrB[i] ? hex64(heatAddrB[i]) : "");
-
-    heatAddrAPosList[i] = (double)owdbPosOf(heatAddrA[i]);
-    heatAddrBPosList[i] = (double)owdbPosOf(heatAddrB[i]);
-
-    heatCpList[i]=(double)heatCp[i];
-    heatRhoList[i]=(double)heatRho[i];
-    heatCalibList[i]=(double)heatCalib[i];
-
-    heatTAList[i]=isfinite(heatTA[i])?heatTA[i]:NAN;
-    heatTBList[i]=isfinite(heatTB[i])?heatTB[i]:NAN;
-    heatDTList[i]=heatDT[i];
-    heatPowerList[i]=heatPowerW[i];
-    heatEnergyJList[i]=heatEnergyJ[i];
-    heatEnergyKWhList[i]=heatEnergyJ[i]/3.6e6;
-  }
-  WebSerial.send("heatEnabledList",   heatEnabledList);
-  WebSerial.send("heatAddrAList",     heatAddrAList);
-  WebSerial.send("heatAddrBList",     heatAddrBList);
-  WebSerial.send("heatAddrAPosList",  heatAddrAPosList);
-  WebSerial.send("heatAddrBPosList",  heatAddrBPosList);
-  WebSerial.send("heatCpList", heatCpList);
-  WebSerial.send("heatRhoList", heatRhoList);
-  WebSerial.send("heatCalibList", heatCalibList);
-  WebSerial.send("heatTAList", heatTAList);
-  WebSerial.send("heatTBList", heatTBList);
-  WebSerial.send("heatDTList", heatDTList);
-  WebSerial.send("heatPowerList", heatPowerList);
-  WebSerial.send("heatEnergyJList", heatEnergyJList);
-  WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
-
-
-
-  // LEDs + Buttons echo once
-  JSONVar ledArr;
-  for(int i=0;i<NUM_LED;i++){ JSONVar L; L["mode"]=(double)ledCfg[i].mode; L["source"]=(double)ledCfg[i].source; ledArr[i]=L; }
-  WebSerial.send("led", ledArr);
-  JSONVar btnArr;
-  for(int i=0;i<NUM_BTN;i++){ btnArr[i]=(double)btnCfg[i].action; }
-  WebSerial.send("buttons", btnArr);
-
-  // relay control mode once
-  JSONVar rcList;
-  for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); }
-  WebSerial.send("relayCtrlMode", rcList);
-
-  {
-    JSONVar owTemps, owErrs;
-    buildCachedOwTemps(owTemps, owErrs);
-    WebSerial.send("onewireTemps", owTemps);
-    WebSerial.send("onewireErrs",  owErrs);
-  }
-
-  owdbSendList();
-  modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud;
-  WebSerial.send("status", modbusStatus);
+void sendWebBootstrap() {
+  sendWebStatus();
+  sendWebCfg();
 }
 
 void doOneWireScan(){
@@ -1928,5 +1819,5 @@ void doOneWireScan(){
     romList[idx++]=hex64(v); found++;
   }
   WebSerial.send("onewireScan", romList);
-  WebSerial.send("message", String("1-Wire scan: ")+found+ " device(s)");
+  wsLog( String("1-Wire scan: ")+found+ " device(s)");
 }

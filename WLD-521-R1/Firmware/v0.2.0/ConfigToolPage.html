@@ -1,3 +1,6 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+
 <section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
     :root{
@@ -203,8 +206,10 @@
     <div class="statusbar">
       <div class="pillrow">
         <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
-        <div class="pill">Modbus ID: <span id="live-address" style="color:var(--text)">—</span></div>
-        <div class="pill">Baud: <span id="live-baud" style="color:var(--text)">—</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
@@ -252,8 +257,7 @@
         <span class="tag">Live</span>
       </div>
       <div class="cardbody">
-        <label for="log-content">Log</label>
-        <textarea id="log-content" readonly placeholder="Log output will appear here..."></textarea>
+        <div id="hm-log-box"><div id="hm-log"></div></div>
       </div>
     </section>
   </div>
@@ -340,8 +344,8 @@
     </div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
     const $ = id => document.getElementById(id);
@@ -352,11 +356,8 @@
     /* === JS functionality unchanged below === */
     const LOG_MAX=500, buf=[];
     function log(label,data){
-      const el=$('log-content'); if(!el) return;
-      const t=new Date().toLocaleTimeString();
       const body=(typeof data==='string')?data:JSON.stringify(data);
-      buf.push(`[${t}] ${label}: ${body}`); if(buf.length>LOG_MAX) buf.shift();
-      el.textContent=buf.join('\n'); el.scrollTop=el.scrollHeight;
+      HMWebConfig.appendLog(`${label}: ${body}`);
     }
     window.addEventListener('error', e=>log('JS Error', e.message||e));
     window.addEventListener('unhandledrejection', e=>{
@@ -376,13 +377,32 @@
     }
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
-    let conn;
-    try{
-      conn = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
-    }catch(e){
-      log('Error','SimpleWebSerial init failed: '+(e?.message||e));
-      conn = { on:()=>{}, isOpen:()=>false, send:()=>Promise.reject(new Error('SWS not ready')) };
+    function applyWldCfg(ext, cfg){
+      const inArr = HMWebConfig.toArray(cfg.in);
+      for(let i=0;i<5;i++){
+        const o = inArr[i]||{};
+        const tp = o.type ?? (ext.inputType ? HMWebConfig.toArray(ext.inputType)[i] : null);
+        if(tp!=null){ const el=$('type-in'+(i+1)); if(el && el!==document.activeElement) el.value=String(tp); }
+      }
+      showTypeBoxes();
+      if(ext.flowPPL) HMWebConfig.toArray(ext.flowPPL).forEach((v,i)=>{ const el=$('ppl-in'+(i+1)); if(el && el!==document.activeElement) el.value=String(Math.max(1,Math.floor(v||1))); });
+      if(ext.flowCalibRate) HMWebConfig.toArray(ext.flowCalibRate).forEach((v,i)=>{ const el=$('calr-in'+(i+1)); if(el && el!==document.activeElement) el.value=String(Number(v||1).toFixed(6)); });
+      if(ext.flowCalibAccum) HMWebConfig.toArray(ext.flowCalibAccum).forEach((v,i)=>{ const el=$('calt-in'+(i+1)); if(el && el!==document.activeElement) el.value=String(Number(v||1).toFixed(6)); });
+      if(ext.heat) HMWebConfig.toArray(ext.heat).forEach((h,i)=>{
+        const n=i+1; if(!h) return;
+        if(h.enabled!=null){ const el=$('heat-enable-'+n); if(el) el.checked=!!h.enabled; }
+        if(h.posA!=null){ const el=$('heat-addrA-'+n); if(el && el!==document.activeElement && !isLockedA(n)) el.value=String(h.posA||''); }
+        if(h.posB!=null){ const el=$('heat-addrB-'+n); if(el && el!==document.activeElement && !isLockedB(n)) el.value=String(h.posB||''); }
+        if(h.cp!=null){ const el=$('heat-cp-'+n); if(el && el!==document.activeElement) el.value=String(h.cp); }
+        if(h.rho!=null){ const el=$('heat-rho-'+n); if(el && el!==document.activeElement) el.value=String(h.rho); }
+        if(h.calib!=null){ const el=$('heat-calib-'+n); if(el && el!==document.activeElement) el.value=String(h.calib); }
+      });
+      if(ext.relayCtrlMode) HMWebConfig.toArray(ext.relayCtrlMode).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); });
     }
+
+    HMWebConfig.register({ channels:{ in:5, relay:2, btn:4, led:4 }, onCfg:applyWldCfg });
+    HMWebConfig.connect({ requestElement:'connect-button' });
+    const conn = HMWebConfig.conn;
     const isOpen = ()=>{ try{ return (typeof conn.isOpen==='function') ? conn.isOpen() : !!conn.port; }catch{ return false; } };
     function updateButtons(){ const en=isOpen(); $('scan-button').disabled=!en; }
 
@@ -462,22 +482,11 @@
         log('log', m);
         markDataReceived(); // Mark message as data received
       });
-      conn.on('status',  st=>{
-        markDataReceived(); // Mark status as data received - this will update connection status immediately
-        $('live-address').textContent = (st&&st.address!=null)?st.address:'--';
-        $('live-baud').textContent    = (st&&st.baud!=null)?st.baud:'--';
-        if(st&&st.address!=null) $('modbus-address').value=String(st.address);
-        if(st&&st.baud!=null)    $('modbus-baud').value   =String(st.baud);
-        updateButtons();
-      });
+      conn.on('status', ()=>{ updateButtons(); });
     }
 
     function pushModbus(){
-      const mb_address=parseInt($('modbus-address')?.value||'3',10);
-      const mb_baud   =parseInt($('modbus-baud')?.value||'19200',10);
-      const packet = {mb_address,mb_baud};
-      logTx('values', packet);
-      conn.send('values', packet).catch(()=>log('Error','Failed to send Modbus values'));
+      HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'3',10), parseInt($('modbus-baud')?.value||'19200',10));
     }
     $('modbus-address')?.addEventListener('input', pushModbus);
     $('modbus-baud')?.addEventListener('input',    pushModbus);
@@ -641,141 +650,32 @@
       conn.on('onewireErrs', obj=>{ markDataReceived(); }); // Mark data received, ignore errors for now
       conn.on('onewireIndex', obj=>{ markDataReceived(); }); // Mark data received, ignore index for now
 
-      conn.on('inputs',          list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.className = 'state-dot '+(v?'dot-on':'dot-off'); }); });
-      conn.on('enableList',      list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }); });
-      conn.on('invertList',      list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }); });
-      conn.on('inputActionList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v??0); }); });
-      conn.on('inputTargetList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }); });
-      conn.on('inputTypeList',   list=>{
-        markDataReceived();
-        toArray(list).forEach((v,i)=>{ const el=$('type-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); });
-        showTypeBoxes();
-      });
-      conn.on('counterList',     list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('counter-in'+(i+1)); if(el) el.textContent=Math.floor(v); } }); });
-
-      let gotRate=false, gotAccum=false;
-      const lastFlowPPL  = [450,450,450,450,450];
-      const lastCalRate  = [1,1,1,1,1];
-      const lastCalAccum = [1,1,1,1,1];
-
-      conn.on('flowPPLList', list=>{
-        markDataReceived();
-        const arr=toArray(list);
-        arr.forEach((v,i)=>{ const num = Math.max(1, Math.floor(v||1)); lastFlowPPL[i] = num; const el=$('ppl-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(num); });
-      });
-      conn.on('flowCalibAccumList', list=>{
-        markDataReceived();
-        gotAccum=true;
-        const arr=toArray(list);
-        arr.forEach((v,i)=>{ if(typeof v==='number'){ lastCalAccum[i] = v; const el=$('calt-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(v.toFixed(6)); } });
-      });
-      conn.on('flowCalibRateList', list=>{
-        markDataReceived();
-        gotRate=true;
-        const arr=toArray(list);
-        arr.forEach((v,i)=>{ if(typeof v==='number'){ lastCalRate[i] = v; const el=$('calr-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(v.toFixed(6)); } });
-      });
-      conn.on('flowCalibList', list=>{
-        markDataReceived();
-        const arr=toArray(list);
-        arr.forEach((v,i)=>{ 
-          const val=(+v||1);
-          if(!gotAccum){ lastCalAccum[i]=val; const elA=$('calt-in'+(i+1)); if(elA && (elA!==document.activeElement)) elA.value = String(val.toFixed(6)); }
-          if(!gotRate){  lastCalRate[i]=val;  const elR=$('calr-in'+(i+1)); if(elR && (elR!==document.activeElement)) elR.value = String(val.toFixed(6)); }
-        });
-      });
-      conn.on('flowAccumList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('accum-in'+(i+1)); if(el) el.textContent = v.toFixed(3); }}); });
-      conn.on('flowRateList',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('rate-in'+(i+1));  if(el) el.textContent = v.toFixed(3); }}); });
-
-      conn.on('relayStateList',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }); });
-      conn.on('relayEnableList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }); });
-      conn.on('relayInvertList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }); });
-      conn.on('relayCtrlMode',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); }); });
-
-      const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
-
-      function updatePillsFromHeat(){
-        const map = {};
-        for(let i=0;i<5;i++){
-          const a = String(heatSnapshot.addrA[i]||'');
-          const b = String(heatSnapshot.addrB[i]||'');
-          const ta = heatSnapshot.TA[i]; const tb = heatSnapshot.TB[i];
-          if (a && typeof ta === 'number' && isFinite(ta)) map[a] = ta;
-          if (b && typeof tb === 'number' && isFinite(tb)) map[b] = tb;
+      conn.on('ext', ext=>{
+        if(!ext) return;
+        if(ext.counter) HMWebConfig.toArray(ext.counter).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('counter-in'+(i+1)); if(el) el.textContent=Math.floor(v); }});
+        if(ext.flow){
+          if(ext.flow.rate) HMWebConfig.toArray(ext.flow.rate).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('rate-in'+(i+1)); if(el) el.textContent=v.toFixed(3); }});
+          if(ext.flow.accum) HMWebConfig.toArray(ext.flow.accum).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('accum-in'+(i+1)); if(el) el.textContent=v.toFixed(3); }});
         }
-        Object.keys(map).forEach(addr=>{
-          const el = (window.CSS && CSS.escape)
-            ? document.querySelector(`[data-ow-temp="${CSS.escape(addr)}"]`)
-            : [...document.querySelectorAll('[data-ow-temp]')].find(n=>n.getAttribute('data-ow-temp')===addr);
-          if(el) el.textContent = map[addr].toFixed(2)+' °C';
-        });
-      }
-      function setHeatPosPill(di, which, posVal){
-        const id = which==='A' ? 'heat-addrA-pos-' : 'heat-addrB-pos-';
-        const el = $(id + di);
-        if(!el) return;
-        const n = (typeof posVal==='number' && isFinite(posVal) && posVal>0) ? Math.floor(posVal) : null;
-        el.textContent = n ? ('#'+n) : '#–';
-      }
-
-      conn.on('heatEnabledList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('heat-enable-'+(i+1)); if(el) el.checked=!!v; }); });
-      conn.on('heatAddrAList', list=>{ markDataReceived(); heatSnapshot.addrA = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
-      conn.on('heatAddrBList', list=>{ markDataReceived(); heatSnapshot.addrB = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
-      conn.on('heatAddrAPosList', list=>{
-        markDataReceived();
-        toArray(list).forEach((v,i)=>{
-          setHeatPosPill(i+1,'A', (typeof v==='number')?v:NaN);
-          const n=i+1, el=$('heat-addrA-'+n);
-          if (el && !el.options.length) populateHeatSelects();
-          if (el && document.activeElement !== el && !isLockedA(n)) el.value = String(v||'');
-        });
-      });
-      conn.on('heatAddrBPosList', list=>{
-        markDataReceived();
-        toArray(list).forEach((v,i)=>{ 
-          setHeatPosPill(i+1,'B', (typeof v==='number')?v:NaN);
-          const n=i+1, el=$('heat-addrB-'+n);
-          if (el && !el.options.length) populateHeatSelects();
-          if (el && document.activeElement !== el && !isLockedB(n)) el.value = String(v||'');
-        });
-      });
-      conn.on('heatCpList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-cp-'+n);   if(el && document.activeElement!==el) el.value=String(v); } }); });
-      conn.on('heatRhoList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-rho-'+n);  if(el && document.activeElement!==el) el.value=String(v); } }); });
-      conn.on('heatCalibList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-calib-'+n);if(el && document.activeElement!==el) el.value=String(v); } }); });
-      conn.on('heatTAList', list=>{ markDataReceived(); heatSnapshot.TA = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ta-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
-      conn.on('heatTBList', list=>{ markDataReceived(); heatSnapshot.TB = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-tb-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
-      conn.on('heatDTList',        list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-dt-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); });
-      conn.on('heatPowerList',     list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-p-'+(i+1));    if(el) el.textContent=v.toFixed(1); }}); });
-      conn.on('heatEnergyJList',   list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1));   if(el) el.textContent=v.toFixed(0); }}); });
-      conn.on('heatEnergyKWhList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }}); });
-
-
-      conn.on('led', arr=>{
-        markDataReceived();
-        const a = toArray(arr);
-        for(let i=1;i<=4;i++){
-          const o = a[i-1]||{};
-          const mEl=$('led-mode-'+i), sEl=$('led-src-'+i);
-          if(mEl && mEl!==document.activeElement && o && o.mode!=null) mEl.value=String(o.mode);
-          if(sEl && sEl!==document.activeElement && o && o.source!=null) sEl.value=String(o.source);
+        if(ext.heat){
+          if(ext.heat.ta) HMWebConfig.toArray(ext.heat.ta).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ta-'+(i+1)); if(el) el.textContent=v.toFixed(2); }});
+          if(ext.heat.tb) HMWebConfig.toArray(ext.heat.tb).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-tb-'+(i+1)); if(el) el.textContent=v.toFixed(2); }});
+          if(ext.heat.dt) HMWebConfig.toArray(ext.heat.dt).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-dt-'+(i+1)); if(el) el.textContent=v.toFixed(2); }});
+          if(ext.heat.power) HMWebConfig.toArray(ext.heat.power).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-p-'+(i+1)); if(el) el.textContent=v.toFixed(1); }});
+          if(ext.heat.energyJ) HMWebConfig.toArray(ext.heat.energyJ).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1)); if(el) el.textContent=v.toFixed(0); }});
+          if(ext.heat.energyKWh) HMWebConfig.toArray(ext.heat.energyKWh).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }});
         }
-      });
-      conn.on('ledStateList', list=>{
-        markDataReceived();
-        toArray(list).forEach((v,i)=>{ const el=$('led-state-'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); });
-      });
-      conn.on('buttons', arr=>{
-        markDataReceived();
-        const a = toArray(arr);
-        for(let i=1;i<=4;i++){
-          const val = a[i-1];
-          const sel=$('btn-act-'+i);
-          if(sel && sel!==document.activeElement && val!=null) sel.value=String(val);
+        if(ext.onewire && ext.onewire.temps){
+          const obj = ext.onewire.temps;
+          Object.keys(obj).forEach(k=>{
+            const v = obj[k];
+            const el = (window.CSS && CSS.escape)
+              ? document.querySelector(`[data-ow-temp="${CSS.escape(k)}"]`)
+              : [...document.querySelectorAll('[data-ow-temp]')].find(n=>n.getAttribute('data-ow-temp')===k);
+            if(!el) return;
+            el.textContent = (typeof v==='number' && isFinite(v)) ? v.toFixed(2)+' °C' : '—';
+          });
         }
-      });
-      conn.on('buttonStateList', list=>{
-        markDataReceived();
-        toArray(list).forEach((pressed,i)=>{ const el=$('btn-state-'+(i+1)); if(el) el.className='state-dot '+(pressed?'dot-on':'dot-off'); });
       });
     }
 
@@ -971,7 +871,7 @@
           </div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
             <span style="font-size:12px;color:var(--muted);">State:</span>
-            <span id="led-state-${i}" class="state-dot dot-off" title="live"></span>
+            <span id="state-led${i}" class="state-dot dot-off" title="live"></span>
           </div>`;
         LC.appendChild(d);
       }
@@ -991,12 +891,12 @@
             <span class="ioBadge">Control</span>
           </div>
           <div>
-            <label for="btn-act-${i}">Action (on press)</label>
-            <select id="btn-act-${i}">${btnActOpts}</select>
+            <label for="action-btn${i}">Action (on press)</label>
+            <select id="action-btn${i}">${btnActOpts}</select>
           </div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
             <span style="font-size:12px;color:var(--muted);">Pressed:</span>
-            <span id="btn-state-${i}" class="state-dot dot-off" title="pressed"></span>
+            <span id="state-btn${i}" class="state-dot dot-off" title="pressed"></span>
           </div>`;
         BC.appendChild(d);
       }
@@ -1013,11 +913,11 @@
       }
     }
 
-    function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); const packet={t:'inputEnable',list:l}; logTx('Config',packet); conn.send('Config',packet); }
-    function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); const packet={t:'inputInvert',list:l}; logTx('Config',packet); conn.send('Config',packet); }
-    function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); const packet={t:'inputAction',list:l}; logTx('Config',packet); conn.send('Config',packet); }
-    function sendInputTarget(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('target-in'+i).value||'0',10)); const packet={t:'inputTarget',list:l}; logTx('Config',packet); conn.send('Config',packet); }
-    function sendInputType(){   const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('type-in'+i).value||'0',10)); const packet={t:'inputType',list:l}; logTx('Config',packet); conn.send('Config',packet); showTypeBoxes(); }
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); const packet={t:'in.enabled',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); const packet={t:'in.invert',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); const packet={t:'in.action',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputTarget(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('target-in'+i).value||'0',10)); const packet={t:'in.target',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputType(){   const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('type-in'+i).value||'0',10)); const packet={t:'in.type',list:l}; logTx('Config',packet); conn.send('Config',packet); showTypeBoxes(); }
     function resetSingleCounter(n){ const l=[]; for(let i=1;i<=5;i++) l.push(i===n); const packet={t:'counterResetList',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     for(let i=1;i<=5;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
@@ -1036,7 +936,7 @@
           inverted:$('invert-relay'+i).checked
         });
       }
-      const packet={t:'relays',list:l};
+      const packet={t:'relay',list:l};
       logTx('Config',packet);
       conn.send('Config',packet);
     }
@@ -1046,7 +946,7 @@
         const v = parseInt(($('ctrlsrc-relay'+i)?.value||'0'),10) || 0;
         list.push(v);
       }
-      const packet={t:'relayCtrlMode',list};
+      const packet={t:'ext.relayCtrlMode',list};
       logTx('Config',packet);
       conn.send('Config',packet).catch(err=>log('Error','relayCtrlMode failed: '+(err?.message||err)));
     }
@@ -1058,15 +958,15 @@
 
     function sendFlowPPL(){
       const list=[]; for(let i=1;i<=5;i++){ const raw=$('ppl-in'+i)?.value; const v=parseInt(raw,10); list.push(Number.isFinite(v) && v>0 ? v : 1); }
-      const packet={t:'flowPPL',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','PPL updated'));
+      const packet={t:'ext.flowPPL',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','PPL updated'));
     }
     function sendFlowCalibRate(){
       const list=[]; for(let i=1;i<=5;i++){ const raw=$('calr-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : 1); }
-      const packet={t:'flowCalibRate',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Rate calibration updated'));
+      const packet={t:'ext.flowCalibRate',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Rate calibration updated'));
     }
     function sendFlowCalibAccum(){
       const list=[]; for(let i=1;i<=5;i++){ const raw=$('calt-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : 1); }
-      const packet={t:'flowCalibAccum',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Total calibration updated'));
+      const packet={t:'ext.flowCalibAccum',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Total calibration updated'));
     }
     function resetFlowAccum(di){ const list=[]; for(let i=1;i<=5;i++) list.push(i===di); const packet={t:'flowResetAccumList',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow',`Baseline moved (Total reset) for IN${di}`)); }
     for(let i=1;i<=5;i++){
@@ -1148,17 +1048,17 @@
     function readBtnCfgList(){
       const list=[];
       for(let i=1;i<=4;i++){
-        const v=parseInt(($('btn-act-'+i)?.value||'0'),10);
+        const v=parseInt(($('action-btn'+i)?.value||'0'),10);
         list.push(Number.isFinite(v)?v:0);
       }
       return list;
     }
     function sendBtnCfg(){
-      const packet={t:'buttons', list: readBtnCfgList()};
+      const packet={t:'btn', list: readBtnCfgList()};
       logTx('Config', packet);
       conn.send('Config', packet).catch(err=>log('Error','Buttons config failed: '+(err?.message||err)));
     }
-    for(let i=1;i<=4;i++){ $('btn-act-'+i)?.addEventListener('change', sendBtnCfg); }
+    for(let i=1;i<=4;i++){ $('action-btn'+i)?.addEventListener('change', sendBtnCfg); }
 
 
     showTypeBoxes(); updateButtons();
