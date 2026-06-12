@@ -45,7 +45,7 @@ cd homemaster-dev/AIO-422-R1/Firmware
 Скетч для Arduino IDE:
 
 ```text
-homemaster-dev/AIO-422-R1/Firmware/default_aio_422_r1/default_aio_422_r1.ino
+homemaster-dev/AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino
 ```
 
 Открывайте именно файл **`.ino`** — Arduino IDE подхватит папку скетча целиком.

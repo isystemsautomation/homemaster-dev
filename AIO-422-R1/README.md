@@ -2,6 +2,29 @@
 
 The **AIO-422-R1** is a high-precision analog I/O expansion module designed for **home automation**, **HVAC**, **environmental monitoring**, applications. It connects to **MicroPLC** or **MiniPLC** controllers via **RS-485 (Modbus RTU)** and seamlessly integrates with **ESPHome** and **Home Assistant** for analog sensing and control in smart automation systems.
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  aio1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml
+        vars:
+          aio_prefix: "AIO#1"
+          aio_id: aio_1
+          aio_address: 3
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 ---
 
 ## 🔧 Key Features
@@ -44,7 +67,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 - Programmable via **Arduino IDE** (рекомендуется для полной прошивки Modbus + WebConfig)
 - Подробное руководство по установке среды, библиотек, сборке и загрузке: **[Firmware/README.md](./Firmware/README.md)**
-- Также доступны профили **ESPHome** в `Firmware/default_aio_422_r1_plc/`
+- Также доступны профили **ESPHome** в `Firmware/v0.1.0/default_aio_422_r1_plc/`
 
 ---
 

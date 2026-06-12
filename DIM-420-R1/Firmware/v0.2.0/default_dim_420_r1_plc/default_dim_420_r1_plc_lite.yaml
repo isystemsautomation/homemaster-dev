@@ -1,0 +1,49 @@
+modbus_controller:
+  - id: ${dim_id}
+    address: ${dim_address}       # DIM-420-R1 slave ID
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ===================== Discrete Inputs (FC02) =====================
+# DI states: 1..4 | CH on mirrors: 50..51 | LED states: 90..93 | ZC OK: 120..121
+binary_sensor:
+  # --- Digital Inputs DI1..DI4 ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI1"
+    address: 2
+    register_type: discrete_input
+   # --- Zero-cross health ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} ZC1 OK"
+    address: 120
+    register_type: discrete_input
+# ===================== Numbers (FC03/06/16 Holding) =====================
+# Per-channel pairs: CH1/CH2 = +0/+1 offset
+number:
+  # --- Level 0..255 (400/401) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Level"
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: slider
+# ===================== Sensors (Holding RO) =====================
+# Freq_x100 (Hz ×100) at 430/431 — expose as Hz with a multiply filter.
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Mains Freq"
+    address: 430
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01

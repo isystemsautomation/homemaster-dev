@@ -202,7 +202,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+      - path: ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
 ```
 
 ---

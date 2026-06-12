@@ -4,6 +4,29 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  dim1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
+        vars:
+          dim_prefix: "DIM#1"
+          dim_id: dim_1
+          dim_address: 5
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 # DIM-420-R1 — Module for Dual-Channel AC Dimming
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -731,7 +754,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
+      - path: DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
         vars:
           dim_prefix: "DIM#1"
           dim_id: dim_1
@@ -929,8 +952,8 @@ See LICENSE files in each directory for full terms.
 
 | Item               | Link                                                                 |
 |--------------------|----------------------------------------------------------------------|
-| **Firmware Source**   | [`/Firmware/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/default_DIM_420_R1) |
-| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
+| **Firmware Source**   | [`/Firmware/v0.1.0/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1) |
+| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
 | **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
 | **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Schematics) |
 | **Mechanical Images** | See `/Images/` in repo                                             |

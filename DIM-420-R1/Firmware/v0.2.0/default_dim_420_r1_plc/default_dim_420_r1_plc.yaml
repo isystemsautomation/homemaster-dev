@@ -1,0 +1,47 @@
+modbus_controller:
+  - id: ${dim_id}
+    address: ${dim_address}       # DIM-420-R1 slave ID
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ===================== Discrete Inputs (FC02) =====================
+# DI states: 1..4 | CH on mirrors: 50..51 | LED states: 90..93 | ZC OK: 120..121
+binary_sensor:
+  # --- Digital Inputs DI1..DI4 ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI1"
+    address: 1
+    register_type: discrete_input
+
+
+
+# ===================== Coils (FC01/05) — momentary pulses =====================
+# CH1/2 ON: 200/201 | CH1/2 OFF: 210/211
+# DI1..4 ENABLE: 300..303 | DI1..4 DISABLE: 320..323
+# ===================== Numbers (FC03/06/16 Holding) =====================
+# Per-channel pairs: CH1/CH2 = +0/+1 offset
+number:
+  # --- Level 0..255 (400/401) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Level"
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: slider
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Level"
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: slider

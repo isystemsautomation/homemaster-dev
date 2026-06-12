@@ -1,0 +1,152 @@
+modbus_controller:
+  - id: ${rgb_id}
+    address: ${rgb_address}
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ===================== Discrete Inputs (FC02) =====================
+binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI1"
+    address: 1
+    register_type: discrete_input
+
+# ===================== Coils (FC01/05) — pulses =====================
+switch:
+  - platform: modbus_controller
+    id: ${rgb_id}_rly1_on
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Relay1 ON (Pulse)"
+    address: 200
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${rgb_id}_rly1_on
+
+  - platform: modbus_controller
+    id: ${rgb_id}_rly1_off
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Relay1 OFF (Pulse)"
+    address: 210
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${rgb_id}_rly1_off
+
+number:
+  # -------- RGB Channels (0–255) --------
+  - platform: modbus_controller
+    name: "RGB621 Red"
+    id: rgb621_red
+    modbus_controller_id: ${rgb_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Green"
+    id: rgb621_green
+    modbus_controller_id: ${rgb_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Blue"
+    id: rgb621_blue
+    modbus_controller_id: ${rgb_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  # -------- CCT Channels (0–255) --------
+  - platform: modbus_controller
+    name: "RGB621 Warm White"
+    id: rgb621_ww
+    modbus_controller_id: ${rgb_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Cool White"
+    id: rgb621_cw
+    modbus_controller_id: ${rgb_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+#############################################################
+# TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write 400–404)
+#############################################################
+output:
+  - platform: modbus_controller
+    id: rgb621_out_r
+    modbus_controller_id: ${rgb_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+
+  - platform: modbus_controller
+    id: rgb621_out_g
+    modbus_controller_id: ${rgb_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+
+  - platform: modbus_controller
+    id: rgb621_out_b
+    modbus_controller_id: ${rgb_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+
+  - platform: modbus_controller
+    id: rgb621_out_ww
+    modbus_controller_id: ${rgb_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+
+  - platform: modbus_controller
+    id: rgb621_out_cw
+    modbus_controller_id: ${rgb_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+
+#############################################################
+# RGBWW LIGHT (uses the 5 template outputs above)
+#############################################################
+light:
+  - platform: rgbww
+    id: rgb_1_light
+    name: "RGB621 Light"
+    red: rgb621_out_r
+    green: rgb621_out_g
+    blue: rgb621_out_b
+    warm_white: rgb621_out_ww
+    cold_white: rgb621_out_cw
+    warm_white_color_temperature: 2700 K
+    cold_white_color_temperature: 6500 K

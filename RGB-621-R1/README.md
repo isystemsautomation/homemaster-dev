@@ -4,6 +4,29 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  rgb1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+        vars:
+          rgb_prefix: "RGB#1"
+          rgb_id: rgb_1
+          rgb_address: 1
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 # RGB-621-R1 — Module for RGB+CCT LED Control
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -626,7 +649,7 @@ See LICENSE files in each directory for full terms.
 - **Repository (module path):**  
   [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
-- **WebConfig (HTML page):** `RGB-621-R1/Firmware/ConfigToolPage.html`
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`
 - **Datasheet & docs:** `RGB-621-R1/Manuals/`
 - **Images & diagrams:** `RGB-621-R1/Images/`

@@ -1,0 +1,1339 @@
+// AIO-422-R1 (RP2350) – Analog I/O module firmware
+// Build / flash instructions: see README.md in this folder (../README.md)
+// ------------------------------------------------------------
+// Hardware:
+//  - ADS1115 (4x AI) on Wire1 (SDA=6, SCL=7)
+//  - 2x MCP4725 DAC (AO1=0x60, AO2=0x61) on Wire1
+//  - 2x MAX31865 RTD on soft-SPI (CS=13/14, CLK=10, DO=12, DI=11)
+//  - 4x Buttons on GPIO 22..25
+//  - 4x LEDs on GPIO 18..21
+//  - Modbus RTU on Serial2 (TX=4, RX=5)
+//
+// Key behaviors:
+//  - Modbus: AI mV, RTD temp, DAC raw, button/LED discrete inputs
+//  - WebSerial: Modbus address/baud, DAC, RTD config, LED/button mapping
+//  - LED sources and button actions are Web-only and persisted (LittleFS)
+//  - RTD configuration + diagnostics are Web-only
+//  - Web traffic is throttled so Modbus stays responsive
+// ------------------------------------------------------------
+
+#include <Arduino.h>
+// Modbus before Adafruit/SPI headers (they pull in std::byte and break Modbus.h).
+#include <ModbusSerial.h>
+
+#include <Wire.h>
+#include <ADS1X15.h>
+#include <Adafruit_MCP4725.h>
+#include <Adafruit_MAX31865.h>
+
+#include <SimpleWebSerial.h>
+#include <Arduino_JSON.h>
+#include <LittleFS.h>
+#include <math.h>
+#include "hardware/watchdog.h"
+
+// ================== Persistence (LittleFS) — must be before any function using it
+// (Arduino IDE inserts function prototypes at the top of the generated .cpp). =====
+struct PersistConfig {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+
+  uint16_t dacRaw[2];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint8_t  led_src[4];
+  uint8_t  btn_action[4];
+
+  uint8_t  rtd_wires[2];
+  uint16_t rtd_rnominal[2];
+  uint16_t rtd_rref[2];
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+static const uint32_t CFG_MAGIC   = 0x314F4941UL;
+static const uint16_t CFG_VERSION = 0x0008;
+static const char*    CFG_PATH    = "/cfg.bin";
+
+volatile bool  cfgDirty        = false;
+uint32_t       lastCfgTouchMs  = 0;
+const uint32_t CFG_AUTOSAVE_MS = 1500;
+
+// ================== UART2 (RS-485 / Modbus) ==================
+#define TX2   4
+#define RX2   5
+const int TxenPin = -1;
+int SlaveId = 1;
+ModbusSerial mb(Serial2, SlaveId, TxenPin);
+
+// ================== GPIO MAP ==================
+static const uint8_t LED_PINS[4] = {18, 19, 20, 21};
+static const uint8_t BTN_PINS[4] = {22, 23, 24, 25};
+
+static const uint8_t NUM_LED = 4;
+static const uint8_t NUM_BTN = 4;
+
+// ================== I2C / SPI PINS ==================
+#define SDA1 6
+#define SCL1 7
+
+#define RTD1_CS   13
+#define RTD2_CS   14
+#define RTD_DI    11
+#define RTD_DO    12
+#define RTD_CLK   10
+
+// ================== Sensors / IO devices ==================
+ADS1115 ads(0x48, &Wire1);
+
+Adafruit_MCP4725 dac0;
+Adafruit_MCP4725 dac1;
+
+Adafruit_MAX31865 rtd1(RTD1_CS, RTD_DI, RTD_DO, RTD_CLK);
+Adafruit_MAX31865 rtd2(RTD2_CS, RTD_DI, RTD_DO, RTD_CLK);
+
+bool ads_ok     = false;
+bool dac_ok[2]  = {false, false};
+bool rtd_ok[2]  = {false, false};
+
+// ================== ADC field scaling ==================
+#define ADC_FIELD_SCALE_NUM 30303
+#define ADC_FIELD_SCALE_DEN 10000
+#define ADC_FIELD_SCALE ((float)ADC_FIELD_SCALE_NUM / (float)ADC_FIELD_SCALE_DEN)
+
+// ================== Runtime state ==================
+bool buttonState[NUM_BTN] = {false,false,false,false};
+bool buttonPrev[NUM_BTN]  = {false,false,false,false};
+bool ledState[NUM_LED]    = {false,false,false,false};
+
+int16_t  aiRaw[4]   = {0,0,0,0};
+uint16_t aiMv[4]    = {0,0,0,0};
+int16_t  rtdTemp_x10[2] = {0,0};
+
+// ===== RTD fast recovery state (per-channel) =====
+// Used to recover quickly after ESD / latched MAX31865 upset without
+// repeatedly reinitializing the chip on every loop iteration.
+uint32_t rtdLastRecoverMs[2]     = {0, 0};
+uint8_t  rtdBadCount[2]          = {0, 0};
+float     rtdLastGoodTempC[2]   = {0, 0};
+int16_t   rtdLastGoodTempX10[2] = {0, 0};
+bool      rtdHasGoodValue[2]    = {false, false};
+
+// ===== RTD async recovery (non-blocking, no delay()) =====
+static const uint32_t RTD_REC_WAIT_MS    = 2;
+static const uint32_t RTD_REC_SETTLE_MS  = 5;
+
+enum : uint8_t {
+  RTD_REC_IDLE = 0,
+  RTD_REC_RUNNING,
+  RTD_REC_DONE_OK,
+  RTD_REC_DONE_FAIL
+};
+
+struct RtdRecoverFsm {
+  uint8_t  state;
+  uint8_t  triggerCh;
+  uint8_t  chip;
+  uint8_t  step;
+  uint32_t stepMs;
+  float    resultTempC;
+} rtdRec = { RTD_REC_IDLE, 0, 0, 0, 0, 0.0f };
+
+static inline bool rtdRecoveryIdle() {
+  return rtdRec.state == RTD_REC_IDLE;
+}
+
+static inline bool rtdRecoveryBusy() {
+  return rtdRec.state != RTD_REC_IDLE;
+}
+
+static void rtdRecoveryReset();
+static void rtdRecoveryRequest(uint8_t ch);
+static bool rtdRecoveryTakeResult(uint8_t ch, float &tempOut, bool &ok);
+
+// ===== RTD diagnostics (Web-only) =====
+uint8_t  rtdFault[2]     = {0, 0};
+String   rtdError[2]     = {"", ""};
+uint16_t rtdRawCode[2]   = {0, 0};     // raw RTD ADC code (15-bit)
+float    rtdRatio[2]     = {0, 0};     // ratio rtd/rref (approx)
+float    rtdOhms[2]      = {0, 0};     // computed RTD resistance
+float    rtdTempC[2]     = {0, 0};     // computed temperature in °C
+
+// ===== RTD configuration (Web-only, persisted) =====
+uint8_t  rtdWiresCfg[2]    = {2, 2};
+uint16_t rtdRnominalCfg[2] = {100, 100};
+uint16_t rtdRrefCfg[2]     = {200, 200};
+
+uint16_t dacRaw[2] = {0,0};
+
+// ================== Web Serial ==================
+SimpleWebSerial WebSerial;
+JSONVar modbusStatus;
+
+// ================== Timing ==================
+unsigned long lastSend       = 0;
+// FIX A: slow down general WebSerial traffic
+const unsigned long sendInterval   = 1000;
+
+unsigned long lastSensorRead = 0;
+const unsigned long sensorInterval = 200;
+
+// FIX B: RTD full info only every 2 seconds
+unsigned long lastRtdInfoSend = 0;
+const unsigned long rtdInfoInterval = 2000;
+
+// ================== Persisted Modbus settings ==================
+uint8_t  g_mb_address = 3;
+uint32_t g_mb_baud    = 19200;
+
+// ================== Modbus map ==================
+enum : uint16_t {
+  ISTS_BTN_BASE   = 1,
+  ISTS_LED_BASE   = 20,
+
+  HREG_TEMP_BASE   = 120,
+  HREG_AI_MV_BASE  = 140,
+  HREG_DAC_BASE    = 200,
+};
+
+// ================== LED source selection (Web-only, persisted) ==================
+enum : uint8_t {
+  LEDSRC_MANUAL    = 0,
+  LEDSRC_AO1_AT0   = 1,
+  LEDSRC_AO2_AT0   = 2,
+  LEDSRC_AO1_AT100 = 3,
+  LEDSRC_AO2_AT100 = 4,
+};
+
+uint8_t ledSrc[4] = { LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL };
+
+static const uint16_t AO_ZERO_TH = 5;
+static const uint16_t AO_FULL_TH = 4090;
+
+// ================== Button actions (Web-only, persisted) ==================
+enum : uint8_t {
+  BTNACT_LED_MANUAL_TOGGLE = 0,
+  BTNACT_TOGGLE_AO1_0      = 1,
+  BTNACT_TOGGLE_AO2_0      = 2,
+  BTNACT_TOGGLE_AO1_MAX    = 3,
+  BTNACT_TOGGLE_AO2_MAX    = 4,
+};
+
+uint8_t btnAction[4] = { BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE,
+                         BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE };
+
+// ================== Utils ==================
+uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
+  crc = ~crc;
+  while (len--) {
+    crc ^= *data++;
+    for (uint8_t k = 0; k < 8; k++)
+      crc = (crc >> 1) ^ (0xEDB88320UL & (-(int32_t)(crc & 1)));
+  }
+  return ~crc;
+}
+
+static inline uint8_t clamp_u8(int v, int lo, int hi) {
+  if (v < lo) v = lo;
+  if (v > hi) v = hi;
+  return (uint8_t)v;
+}
+
+static inline uint16_t clamp_u16(int v, int lo, int hi) {
+  if (v < lo) v = lo;
+  if (v > hi) v = hi;
+  return (uint16_t)v;
+}
+
+static String decodeMax31865Fault(uint8_t f) {
+  if (f == 0) return "";
+  if (f == 0xFF) return "RTD module not detected";
+
+  String s = "";
+  if (f & 0x80) s += "RTD High Threshold; ";
+  if (f & 0x40) s += "RTD Low Threshold; ";
+  if (f & 0x20) s += "REFIN- > 0.85×Bias (open); ";
+  if (f & 0x10) s += "REFIN- < 0.85×Bias; ";
+  if (f & 0x08) s += "RTDIN- < 0.85×Bias (short); ";
+  if (f & 0x04) s += "Over/Under voltage; ";
+  if (s.length() >= 2) s.remove(s.length() - 2);
+  return s;
+}
+
+static max31865_numwires_t wiresToEnum(uint8_t w) {
+  if (w == 3) return MAX31865_3WIRE;
+  if (w == 4) return MAX31865_4WIRE;
+  return MAX31865_2WIRE;
+}
+
+static void sanitizeRtdCfg() {
+  for (int i=0;i<2;i++) {
+    uint8_t w = rtdWiresCfg[i];
+    if (w != 2 && w != 3 && w != 4) w = 2;
+    rtdWiresCfg[i] = w;
+
+    uint16_t rn = rtdRnominalCfg[i];
+    if (rn != 100 && rn != 1000) rn = 100;
+    rtdRnominalCfg[i] = rn;
+
+    uint16_t rr = rtdRrefCfg[i];
+    if (rr != 200 && rr != 400 && rr != 2000 && rr != 4000) rr = 200;
+    rtdRrefCfg[i] = rr;
+  }
+}
+
+// ===== RTD async recovery implementation (after RTD cfg + helpers) =====
+static void rtdRecoveryReset() {
+  rtdRec.state       = RTD_REC_IDLE;
+  rtdRec.triggerCh   = 0;
+  rtdRec.chip        = 0;
+  rtdRec.step        = 0;
+  rtdRec.stepMs      = 0;
+  rtdRec.resultTempC = 0.0f;
+}
+
+static void rtdRecoveryFinishFail() {
+  rtdRec.state = RTD_REC_DONE_FAIL;
+  rtdRec.step  = 0;
+}
+
+static void rtdRecoveryRequest(uint8_t ch) {
+  if (!rtdRecoveryIdle()) return;
+  rtdRec.state       = RTD_REC_RUNNING;
+  rtdRec.triggerCh   = ch;
+  rtdRec.chip        = 0;
+  rtdRec.step        = 0;
+  rtdRec.stepMs      = millis();
+  rtdRec.resultTempC = 0.0f;
+}
+
+static bool rtdRecoveryTakeResult(uint8_t ch, float &tempOut, bool &ok) {
+  if (rtdRec.state != RTD_REC_DONE_OK && rtdRec.state != RTD_REC_DONE_FAIL) return false;
+  if (rtdRec.triggerCh != ch) return false;
+
+  ok = (rtdRec.state == RTD_REC_DONE_OK);
+  tempOut = rtdRec.resultTempC;
+  rtdRecoveryReset();
+  return true;
+}
+
+static void rtdRecoveryVerifyTrigger() {
+  uint8_t i = rtdRec.triggerCh;
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  if (i > 1 || !rtd_ok[i]) {
+    rtdRecoveryFinishFail();
+    return;
+  }
+
+  float rnom = (float)rtdRnominalCfg[i];
+  float rref = (float)rtdRrefCfg[i];
+  uint8_t f2 = rtds[i]->readFault();
+  float temp2 = rtds[i]->temperature(rnom, rref);
+
+  rtdFault[i] = f2;
+  rtdError[i] = decodeMax31865Fault(f2);
+
+  bool tempFinite2 = (!isnan(temp2) && !isinf(temp2));
+  bool tempInRange2 = (temp2 >= -250.0f && temp2 <= 850.0f);
+  bool retryValid = (f2 == 0) && tempFinite2 && tempInRange2;
+
+  if (retryValid) {
+    rtdRec.resultTempC = temp2;
+    rtdRec.state = RTD_REC_DONE_OK;
+  } else {
+    rtdRecoveryFinishFail();
+  }
+}
+
+static void rtdRecoveryAdvanceChipStep(Adafruit_MAX31865 &dev, uint8_t chipIdx) {
+  uint32_t now = millis();
+
+  switch (rtdRec.step) {
+    case 0:
+      dev.clearFault();
+      rtdRec.step = 1;
+      rtdRec.stepMs = now;
+      break;
+
+    case 1:
+      if (now - rtdRec.stepMs < RTD_REC_WAIT_MS) return;
+      rtdRec.step = 2;
+      break;
+
+    case 2: {
+      bool ok = dev.begin(wiresToEnum(rtdWiresCfg[chipIdx]));
+      rtd_ok[chipIdx] = ok;
+      if (!ok) {
+        rtdRecoveryFinishFail();
+        return;
+      }
+      rtdRec.step = 3;
+      rtdRec.stepMs = now;
+      break;
+    }
+
+    case 3:
+      dev.clearFault();
+      rtdRec.step = 4;
+      rtdRec.stepMs = now;
+      break;
+
+    case 4:
+      if (now - rtdRec.stepMs < RTD_REC_WAIT_MS) return;
+      rtdRec.step = 5;
+      break;
+
+    case 5:
+      (void)dev.readRTD();
+      rtdRec.step = 6;
+      rtdRec.stepMs = now;
+      break;
+
+    case 6:
+      if (now - rtdRec.stepMs < RTD_REC_SETTLE_MS) return;
+      if (chipIdx == 0) {
+        rtdRec.chip = 1;
+        rtdRec.step = 0;
+        rtdRec.stepMs = now;
+      } else {
+        rtdRecoveryVerifyTrigger();
+      }
+      break;
+
+    default:
+      rtdRecoveryFinishFail();
+      break;
+  }
+}
+
+void rtdRecoveryTick() {
+  if (!rtdRecoveryBusy()) return;
+
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  rtdRecoveryAdvanceChipStep(*rtds[rtdRec.chip], rtdRec.chip);
+  mb.task();
+}
+
+bool getLedAutoState(uint8_t src) {
+  if (src == LEDSRC_AO1_AT0)   return (dacRaw[0] <= AO_ZERO_TH);
+  if (src == LEDSRC_AO2_AT0)   return (dacRaw[1] <= AO_ZERO_TH);
+  if (src == LEDSRC_AO1_AT100) return (dacRaw[0] >= AO_FULL_TH);
+  if (src == LEDSRC_AO2_AT100) return (dacRaw[1] >= AO_FULL_TH);
+  return false;
+}
+
+// ================== Defaults / persist ==================
+void setDefaults() {
+  for (int i=0;i<NUM_LED;i++) { ledState[i] = false; }
+  for (int i=0;i<NUM_BTN;i++) { buttonState[i] = buttonPrev[i] = false; }
+
+  dacRaw[0] = 0;
+  dacRaw[1] = 0;
+
+  g_mb_address = 3;
+  g_mb_baud    = 19200;
+
+  for (int i=0;i<4;i++) {
+    ledSrc[i] = LEDSRC_MANUAL;
+    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
+  }
+
+  rtdWiresCfg[0]    = 2;
+  rtdWiresCfg[1]    = 2;
+  rtdRnominalCfg[0] = 100;
+  rtdRnominalCfg[1] = 100;
+  rtdRrefCfg[0]     = 200;
+  rtdRrefCfg[1]     = 200;
+  sanitizeRtdCfg();
+
+  rtdFault[0] = rtdFault[1] = 0;
+  rtdError[0] = rtdError[1] = "";
+  rtdRawCode[0] = rtdRawCode[1] = 0;
+  rtdRatio[0] = rtdRatio[1] = 0;
+  rtdOhms[0] = rtdOhms[1] = 0;
+  rtdTempC[0] = rtdTempC[1] = 0;
+}
+
+void captureToPersist(PersistConfig &pc) {
+  pc.magic   = CFG_MAGIC;
+  pc.version = CFG_VERSION;
+  pc.size    = sizeof(PersistConfig);
+
+  pc.dacRaw[0] = dacRaw[0];
+  pc.dacRaw[1] = dacRaw[1];
+
+  pc.mb_address = g_mb_address;
+  pc.mb_baud    = g_mb_baud;
+
+  for (int i=0;i<4;i++) {
+    pc.led_src[i] = ledSrc[i];
+    pc.btn_action[i] = btnAction[i];
+  }
+
+  pc.rtd_wires[0]    = rtdWiresCfg[0];
+  pc.rtd_wires[1]    = rtdWiresCfg[1];
+  pc.rtd_rnominal[0] = rtdRnominalCfg[0];
+  pc.rtd_rnominal[1] = rtdRnominalCfg[1];
+  pc.rtd_rref[0]     = rtdRrefCfg[0];
+  pc.rtd_rref[1]     = rtdRrefCfg[1];
+
+  pc.crc32 = 0;
+  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
+}
+
+bool applyFromPersist(const PersistConfig &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfig)) return false;
+
+  PersistConfig tmp = pc;
+  uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfig)) != crc) return false;
+  if (pc.version != CFG_VERSION) return false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 4);
+  }
+
+  rtdWiresCfg[0]    = pc.rtd_wires[0];
+  rtdWiresCfg[1]    = pc.rtd_wires[1];
+  rtdRnominalCfg[0] = pc.rtd_rnominal[0];
+  rtdRnominalCfg[1] = pc.rtd_rnominal[1];
+  rtdRrefCfg[0]     = pc.rtd_rref[0];
+  rtdRrefCfg[1]     = pc.rtd_rref[1];
+  sanitizeRtdCfg();
+
+  return true;
+}
+
+bool saveConfigFS() {
+  PersistConfig pc{};
+  captureToPersist(pc);
+
+  File f = LittleFS.open(CFG_PATH, "w");
+  if (!f) { WebSerial.send("message", "save: open failed"); return false; }
+  size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
+  f.flush();
+  f.close();
+  if (n != sizeof(pc)) {
+    WebSerial.send("message", String("save: short write ")+n);
+    return false;
+  }
+
+  File r = LittleFS.open(CFG_PATH, "r");
+  if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
+  if ((size_t)r.size() != sizeof(PersistConfig)) {
+    WebSerial.send("message", "save: size mismatch after write");
+    r.close();
+    return false;
+  }
+  PersistConfig back{};
+  size_t nr = r.read((uint8_t*)&back, sizeof(back));
+  r.close();
+  if (nr != sizeof(back)) {
+    WebSerial.send("message", "save: short readback");
+    return false;
+  }
+  PersistConfig tmp = back;
+  uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) {
+    WebSerial.send("message", "save: CRC verify failed");
+    return false;
+  }
+  return true;
+}
+
+bool loadConfigFS() {
+  File f = LittleFS.open(CFG_PATH, "r");
+  if (!f) { WebSerial.send("message", "load: open failed"); return false; }
+
+  size_t sz = (size_t)f.size();
+
+  if (sz != sizeof(PersistConfig)) {
+    WebSerial.send("message", String("load: size ")+sz+" unsupported (expected v0008)");
+    f.close();
+    return false;
+  }
+
+  PersistConfig pc{};
+  size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+  f.close();
+  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
+  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  return true;
+}
+
+bool initFilesystemAndConfig() {
+  if (!LittleFS.begin()) {
+    WebSerial.send("message", "LittleFS mount failed. Formatting…");
+    if (!LittleFS.format() || !LittleFS.begin()) {
+      WebSerial.send("message", "FATAL: FS mount/format failed");
+      return false;
+    }
+  }
+
+  if (loadConfigFS()) {
+    WebSerial.send("message", "Config loaded from flash");
+    return true;
+  }
+
+  WebSerial.send("message", "No valid config. Using defaults.");
+  setDefaults();
+  if (saveConfigFS()) {
+    WebSerial.send("message", "Defaults saved");
+    return true;
+  }
+
+  WebSerial.send("message", "FATAL: first save failed");
+  return false;
+}
+
+static inline void setSlaveIdIfAvailable(ModbusSerial& m, uint8_t id) {
+  m.setSlaveId(id);
+}
+
+void applyModbusSettings(uint8_t addr, uint32_t baud) {
+  if ((uint32_t)modbusStatus["baud"] != baud) {
+    Serial2.end();
+    Serial2.begin(baud);
+    mb.config(baud);
+  }
+  setSlaveIdIfAvailable(mb, addr);
+  g_mb_address = addr;
+  g_mb_baud    = baud;
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+}
+
+// ================== FW decls ==================
+void handleValues(JSONVar values);
+void handleCommand(JSONVar obj);
+void handleDac(JSONVar obj);
+void handleLedCfg(JSONVar obj);
+void handleBtnCfg(JSONVar obj);
+void handleRtdCfg(JSONVar obj);
+
+void performReset();
+void sendAllEchoesOnce();
+void writeDac(int idx, uint16_t value);
+void readSensors();
+void applyRtdHardwareCfg();
+void rtdRecoveryTick();
+void updateRtdDiagnostics();   // FIX C
+
+// ================== Command handler / reset ==================
+void handleCommand(JSONVar obj) {
+  const char* actC = (const char*)obj["action"];
+  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  String act = String(actC);
+  act.toLowerCase();
+
+  if (act == "reset" || act == "reboot") {
+    bool ok = saveConfigFS();
+    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
+    delay(400);
+    performReset();
+  } else if (act == "save") {
+    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
+    else               WebSerial.send("message", "ERROR: Save failed");
+  } else if (act == "load") {
+    if (loadConfigFS()) {
+      WebSerial.send("message", "Configuration loaded");
+      applyModbusSettings(g_mb_address, g_mb_baud);
+      applyRtdHardwareCfg();
+      writeDac(0, dacRaw[0]);
+      writeDac(1, dacRaw[1]);
+      sendAllEchoesOnce();
+    } else {
+      WebSerial.send("message", "ERROR: Load failed/invalid");
+    }
+  } else if (act == "factory") {
+    setDefaults();
+    if (saveConfigFS()) {
+      WebSerial.send("message", "Factory defaults restored & saved");
+      applyModbusSettings(g_mb_address, g_mb_baud);
+      applyRtdHardwareCfg();
+      writeDac(0, dacRaw[0]);
+      writeDac(1, dacRaw[1]);
+      sendAllEchoesOnce();
+    } else {
+      WebSerial.send("message", "ERROR: Save after factory reset failed");
+    }
+  } else {
+    WebSerial.send("message", String("Unknown command: ") + actC);
+  }
+}
+
+void performReset() {
+  if (Serial) Serial.flush();
+  delay(50);
+  watchdog_reboot(0, 0, 0);
+  while (true) { __asm__("wfi"); }
+}
+
+// ================== WebSerial handlers ==================
+void handleValues(JSONVar values) {
+  int addr = (int)values["mb_address"];
+  int baud = (int)values["mb_baud"];
+  addr = constrain(addr, 1, 255);
+  baud = constrain(baud, 9600, 115200);
+
+  applyModbusSettings((uint8_t)addr, (uint32_t)baud);
+  WebSerial.send("message", "Modbus configuration updated");
+
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+void handleDac(JSONVar obj) {
+  JSONVar list = obj["list"];
+  if (JSON.typeof(list) != "array") return;
+
+  uint32_t now = millis();
+
+  for (int i = 0; i < 2 && i < (int)list.length(); i++) {
+    long v = (long)list[i];
+    v = constrain(v, 0L, 4095L);
+    dacRaw[i] = (uint16_t)v;
+    writeDac(i, dacRaw[i]);
+    mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
+  }
+
+  cfgDirty       = true;
+  lastCfgTouchMs = now;
+  WebSerial.send("message", "DAC values updated");
+}
+
+// ===== RTD configuration handler (Web-only, persisted) =====
+void handleRtdCfg(JSONVar obj) {
+  JSONVar wires = obj["wires"];
+  JSONVar rn    = obj["rnominal"];
+  JSONVar rr    = obj["rref"];
+
+  if (JSON.typeof(wires) == "array") {
+    for (int i=0;i<2;i++) {
+      if (i >= (int)wires.length()) break;
+      int v = (int)wires[i];
+      if (v != 2 && v != 3 && v != 4) v = 2;
+      rtdWiresCfg[i] = (uint8_t)v;
+    }
+  }
+  if (JSON.typeof(rn) == "array") {
+    for (int i=0;i<2;i++) {
+      if (i >= (int)rn.length()) break;
+      int v = (int)rn[i];
+      if (v != 100 && v != 1000) v = 100;
+      rtdRnominalCfg[i] = (uint16_t)v;
+    }
+  }
+  if (JSON.typeof(rr) == "array") {
+    for (int i=0;i<2;i++) {
+      if (i >= (int)rr.length()) break;
+      int v = (int)rr[i];
+      if (v != 200 && v != 400 && v != 2000 && v != 4000) v = 200;
+      rtdRrefCfg[i] = (uint16_t)v;
+    }
+  }
+
+  sanitizeRtdCfg();
+  applyRtdHardwareCfg();
+  WebSerial.send("message", "RTD configuration updated (Web-only)");
+
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+void handleLedCfg(JSONVar obj) {
+  JSONVar src = obj["src"];
+  if (JSON.typeof(src) != "array") {
+    WebSerial.send("message", "ledCfg: missing 'src' array");
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (i >= (int)src.length()) break;
+    int v = (int)src[i];
+    ledSrc[i] = clamp_u8(v, 0, 4);
+  }
+
+  WebSerial.send("message", "LED source configuration updated");
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+void handleBtnCfg(JSONVar obj) {
+  JSONVar act = obj["action"];
+  if (JSON.typeof(act) != "array") {
+    WebSerial.send("message", "btnCfg: missing 'action' array");
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (i >= (int)act.length()) break;
+    int v = (int)act[i];
+    btnAction[i] = clamp_u8(v, 0, 4);
+  }
+
+  WebSerial.send("message", "Button actions updated");
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+// ================== DAC write helper ==================
+void writeDac(int idx, uint16_t value) {
+  if (idx == 0 && dac_ok[0]) dac0.setVoltage(value, false);
+  else if (idx == 1 && dac_ok[1]) dac1.setVoltage(value, false);
+}
+
+// ================== Apply RTD hardware config (wire mode) ==================
+void applyRtdHardwareCfg() {
+  rtdRecoveryReset();
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  for (int i=0;i<2;i++) {
+    bool ok = rtds[i]->begin(wiresToEnum(rtdWiresCfg[i]));
+    rtd_ok[i] = ok;
+    if (ok) {
+      rtds[i]->clearFault();
+      WebSerial.send("message", String("MAX31865 RTD") + (i+1) + " configured: " +
+        String(rtdWiresCfg[i]) + "wire, " + String(rtdRnominalCfg[i]) + "ohm, Rref " + String(rtdRrefCfg[i]) + "ohm");
+    } else {
+      WebSerial.send("message", String("ERROR: MAX31865 RTD") + (i+1) + " init failed");
+    }
+  }
+}
+
+// ================== FIX C: update RTD diagnostics only every rtdInfoInterval ==================
+void updateRtdDiagnostics() {
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+
+  for (int i=0;i<2;i++) {
+    if (!rtd_ok[i]) {
+      rtdFault[i]    = 0xFF;
+      rtdError[i]    = decodeMax31865Fault(rtdFault[i]);
+      rtdRawCode[i]  = 0;
+      rtdRatio[i]    = 0;
+      rtdOhms[i]     = 0;
+      // temp already maintained in readSensors()
+      continue;
+    }
+
+    uint16_t raw = rtds[i]->readRTD();
+    rtdRawCode[i] = raw;
+
+    float rref = (float)rtdRrefCfg[i];
+    float ratio = (raw / 32768.0f);
+    rtdRatio[i] = ratio;
+    rtdOhms[i]  = ratio * rref;
+
+    uint8_t f = rtds[i]->readFault();
+    rtdFault[i] = f;
+    rtdError[i] = decodeMax31865Fault(f);
+  }
+}
+
+// ================== Sensor read helper ==================
+void readSensors() {
+  if (ads_ok) {
+    for (int ch=0; ch<4; ch++) {
+      int16_t raw = ads.readADC(ch);
+      aiRaw[ch] = raw;
+
+      float v_adc   = ads.toVoltage(raw);
+      float v_field = v_adc * ADC_FIELD_SCALE;
+      long  mv      = lroundf(v_field * 1000.0f);
+
+      if (mv < 0)      mv = 0;
+      if (mv > 65535)  mv = 65535;
+
+      aiMv[ch] = (uint16_t)mv;
+      mb.Hreg(HREG_AI_MV_BASE + ch, aiMv[ch]);
+    }
+  } else {
+    for (int ch=0; ch<4; ch++) {
+      aiRaw[ch] = 0;
+      aiMv[ch]  = 0;
+      mb.Hreg(HREG_AI_MV_BASE + ch, 0);
+    }
+  }
+
+  // FAST RTD temperature only (avoid readRTD here)
+  const uint32_t RTD_RECOVER_COOLDOWN_MS = 500;
+  const uint8_t  RTD_ZERO_AFTER_BAD_COUNT = 3;
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  for (int i=0;i<2;i++) {
+    float recoveredTemp = 0.0f;
+    bool  recoveredOk   = false;
+    if (rtdRecoveryTakeResult((uint8_t)i, recoveredTemp, recoveredOk)) {
+      if (recoveredOk) {
+        rtdBadCount[i] = 0;
+        rtdHasGoodValue[i] = true;
+        rtdLastGoodTempC[i] = recoveredTemp;
+        rtdLastGoodTempX10[i] = (int16_t)lroundf(recoveredTemp * 10.0f);
+        rtdTempC[i] = recoveredTemp;
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+        rtdTempC[i]    = rtdLastGoodTempC[i];
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else {
+        rtdTemp_x10[i] = 0;
+        rtdTempC[i]    = 0;
+        mb.Hreg(HREG_TEMP_BASE + i, 0);
+      }
+      continue;
+    }
+
+    if (rtdRecoveryBusy()) {
+      if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+        rtdTempC[i]    = rtdLastGoodTempC[i];
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else if (!rtdHasGoodValue[i]) {
+        rtdTemp_x10[i] = 0;
+        rtdTempC[i]    = 0;
+        mb.Hreg(HREG_TEMP_BASE + i, 0);
+      }
+      continue;
+    }
+
+    if (!rtd_ok[i]) {
+      // If channel is not initialized, suppress bad values.
+      // Publish last known good value if we have one, otherwise publish 0.
+      if (rtdHasGoodValue[i]) {
+        rtdTempC[i]    = rtdLastGoodTempC[i];
+        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      } else {
+        rtdTemp_x10[i] = 0;
+        rtdTempC[i]    = 0;
+        mb.Hreg(HREG_TEMP_BASE + i, 0);
+      }
+      continue;
+    }
+
+    float rnom = (float)rtdRnominalCfg[i];
+    float rref = (float)rtdRrefCfg[i];
+
+    // ---- Fast, stable RTD recovery with anti-flapping ----
+    // Do not trust temperature() when faulted or out-of-range.
+    // Recovery is rate-limited (cooldown) so we don't reinitialize
+    // the MAX31865 on every loop and cause output flapping.
+
+    Adafruit_MAX31865& dev = *rtds[i];
+    uint32_t nowMs = millis();
+
+    // Read fault first, then RTD/temperature.
+    // MAX31865 can sometimes latch an invalid internal state after ESD where
+    // fault bits are not set but the computed temperature/resistance jumps.
+    uint8_t f = dev.readFault();
+    rtdFault[i] = f;
+    rtdError[i] = decodeMax31865Fault(f);
+
+    uint16_t rawCode = dev.readRTD();
+    float ratio = (rawCode / 32768.0f);
+    float ohmsNow = ratio * rref;
+
+    float temp = dev.temperature(rnom, rref);
+    bool tempFinite =
+      (!isnan(temp) && !isinf(temp));
+    bool tempInRange =
+      (temp >= -250.0f && temp <= 850.0f);
+    bool readingValid = (f == 0) && tempFinite && tempInRange;
+
+    // Jump detection: if the reading differs too much from the last known-good
+    // value, treat it as invalid and force a quick MAX31865 re-init.
+    bool jumpDetected = false;
+
+    // Extra guard: if the value is extremely high/low, treat it as suspicious
+    // even if the MAX31865 fault bit is not set (common after ESD).
+    // This prevents accepting a stuck temperature like ~735C as "valid".
+    if (readingValid && (temp > 600.0f || temp < -200.0f)) {
+      jumpDetected = true;
+      readingValid = false;
+      WebSerial.send(
+        "message",
+        String("RTD suspicious value -> forcing reinit: ch=") + String(i+1) +
+        " temp=" + String(temp, 2) + "C" +
+        " fault=0x" + String(f, HEX) +
+        " raw=" + String((int)rawCode)
+      );
+    }
+    if (rtdHasGoodValue[i]) {
+      float oldTempC = rtdLastGoodTempC[i];
+      float deltaT = fabs(temp - oldTempC);
+
+      // Convert last-good temperature back to resistance (Pt100/Pt1000 model)
+      // so we can compare resistance jumps even when fault bits are not set.
+      // Callendar–Van Dusen coefficients for platinum RTDs.
+      const float A = 3.9083e-3f;
+      const float B = -5.775e-7f;
+      const float C = -4.183e-12f;
+      float t = oldTempC;
+      float ohmsOld =
+        (t >= 0.0f)
+          ? (rnom * (1.0f + A*t + B*t*t))
+          : (rnom * (1.0f + A*t + B*t*t + C*(t - 100.0f)*t*t*t));
+
+      float deltaR = fabs(ohmsNow - ohmsOld);
+      if (deltaT > 100.0f || deltaR > 50.0f) {
+        jumpDetected = true;
+        readingValid = false; // do not overwrite last-good with a bad reading
+        WebSerial.send(
+          "message",
+          String("RTD jump detected -> forcing reinit: ch=") + String(i+1) +
+          " oldT=" + String(oldTempC, 2) + "C newT=" + String(temp, 2) + "C" +
+          " raw=" + String((int)rawCode)
+        );
+      }
+    }
+
+    if (readingValid) {
+      // Valid reading: store as last-good and publish immediately
+      rtdBadCount[i] = 0;
+      rtdHasGoodValue[i] = true;
+      rtdLastGoodTempC[i] = temp;
+      rtdLastGoodTempX10[i] = (int16_t)lroundf(temp * 10.0f);
+
+      rtdTempC[i] = temp;
+      rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+      mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      continue;
+    }
+
+    // Invalid reading: increment bad counter (anti-flapping)
+    rtdBadCount[i]++;
+
+    // Start async recovery if cooldown allows (non-blocking; see rtdRecoveryTick()).
+    if (rtdRecoveryIdle() &&
+        (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
+      rtdLastRecoverMs[i] = nowMs;
+      rtdRecoveryRequest((uint8_t)i);
+    }
+
+    // Still invalid while recovery is pending or not yet started:
+    // Avoid immediate 0 output on first/second bad reads. Hold last-good briefly.
+    if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+      rtdTempC[i]    = rtdLastGoodTempC[i];
+      rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+      mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+    } else {
+      rtdTemp_x10[i] = 0;
+      rtdTempC[i]    = 0;
+      mb.Hreg(HREG_TEMP_BASE + i, 0);
+    }
+  }
+}
+
+// ================== Setup ==================
+void setup() {
+  Serial.begin(115200);
+
+  for (uint8_t i=0;i<NUM_LED;i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+    digitalWrite(LED_PINS[i], LOW);
+    ledState[i] = false;
+  }
+  for (uint8_t i=0;i<NUM_BTN;i++) {
+    pinMode(BTN_PINS[i], INPUT);
+    buttonState[i] = buttonPrev[i] = false;
+  }
+
+  setDefaults();
+
+  WebSerial.on("values",  handleValues);
+  WebSerial.on("command", handleCommand);
+  WebSerial.on("dac",     handleDac);
+  WebSerial.on("ledCfg",  handleLedCfg);
+  WebSerial.on("btnCfg",  handleBtnCfg);
+  WebSerial.on("rtdCfg",  handleRtdCfg);
+
+  if (!initFilesystemAndConfig()) {
+    WebSerial.send("message", "FATAL: Filesystem/config init failed");
+  }
+
+  Wire1.setSDA(SDA1);
+  Wire1.setSCL(SCL1);
+  Wire1.begin();
+  Wire1.setClock(400000);
+
+  ads_ok = ads.begin();
+  if (ads_ok) {
+    ads.setGain(1);
+    ads.setDataRate(4);
+    WebSerial.send("message", "ADS1115 OK @0x48 (Wire1)");
+  } else {
+    WebSerial.send("message", "ERROR: ADS1115 not found @0x48");
+  }
+
+  dac_ok[0] = dac0.begin(0x60, &Wire1);
+  dac_ok[1] = dac1.begin(0x61, &Wire1);
+  WebSerial.send("message", dac_ok[0] ? "MCP4725 #0 OK @0x60 (Wire1)" : "ERROR: MCP4725 #0 not found");
+  WebSerial.send("message", dac_ok[1] ? "MCP4725 #1 OK @0x61 (Wire1)" : "ERROR: MCP4725 #1 not found");
+
+  applyRtdHardwareCfg();
+
+  writeDac(0, dacRaw[0]);
+  writeDac(1, dacRaw[1]);
+
+  Serial2.setTX(TX2);
+  Serial2.setRX(RX2);
+  Serial2.begin(g_mb_baud);
+  mb.config(g_mb_baud);
+  setSlaveIdIfAvailable(mb, g_mb_address);
+  mb.setAdditionalServerData("AIO422-AIO");
+
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+  modbusStatus["state"]   = 0;
+
+  for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
+  for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
+
+  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_TEMP_BASE  + i);
+  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
+  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
+
+  WebSerial.send("message",
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
+
+  sendAllEchoesOnce();
+}
+
+// ================== send initial state ==================
+void sendAllEchoesOnce() {
+  JSONVar dacList;
+  dacList[0] = dacRaw[0];
+  dacList[1] = dacRaw[1];
+  WebSerial.send("dacValues", dacList);
+
+  JSONVar ledList;
+  for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
+  WebSerial.send("LedStateList", ledList);
+
+  JSONVar ledSrcList;
+  for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
+  WebSerial.send("LedSourceList", ledSrcList);
+
+  JSONVar btnActList;
+  for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
+  WebSerial.send("ButtonActionList", btnActList);
+
+  JSONVar btnList;
+  for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
+  WebSerial.send("ButtonStateList", btnList);
+
+  JSONVar cfg;
+  JSONVar wires, rn, rr;
+  wires[0] = (int)rtdWiresCfg[0]; wires[1] = (int)rtdWiresCfg[1];
+  rn[0]    = (int)rtdRnominalCfg[0]; rn[1] = (int)rtdRnominalCfg[1];
+  rr[0]    = (int)rtdRrefCfg[0]; rr[1] = (int)rtdRrefCfg[1];
+  cfg["wires"]    = wires;
+  cfg["rnominal"] = rn;
+  cfg["rref"]     = rr;
+  WebSerial.send("rtdCfg", cfg);
+
+  // Take one diagnostics snapshot at boot
+  updateRtdDiagnostics();
+
+  JSONVar info;
+  JSONVar t10, tc, fault, err, raw, ratio, ohm;
+  t10[0] = rtdTemp_x10[0]; t10[1] = rtdTemp_x10[1];
+  tc[0]  = rtdTempC[0];    tc[1]  = rtdTempC[1];
+  fault[0] = (int)rtdFault[0]; fault[1] = (int)rtdFault[1];
+  err[0] = rtdError[0]; err[1] = rtdError[1];
+  raw[0] = (int)rtdRawCode[0]; raw[1] = (int)rtdRawCode[1];
+  ratio[0] = rtdRatio[0]; ratio[1] = rtdRatio[1];
+  ohm[0] = rtdOhms[0]; ohm[1] = rtdOhms[1];
+  info["temp_x10"] = t10;
+  info["temp_c"]   = tc;
+  info["fault"]    = fault;
+  info["error"]    = err;
+  info["raw"]      = raw;
+  info["ratio"]    = ratio;
+  info["ohms"]     = ohm;
+  WebSerial.send("rtdInfo", info);
+
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+  WebSerial.send("status", modbusStatus);
+}
+
+// ================== Button action executor ==================
+static inline void setAO(int ch, uint16_t v) {
+  dacRaw[ch] = v;
+  mb.Hreg(HREG_DAC_BASE + ch, dacRaw[ch]);
+  writeDac(ch, dacRaw[ch]);
+}
+
+void runButtonAction(uint8_t btnIndex) {
+  uint8_t act = btnAction[btnIndex];
+
+  if (act == BTNACT_LED_MANUAL_TOGGLE) {
+    if (ledSrc[btnIndex] == LEDSRC_MANUAL) ledState[btnIndex] = !ledState[btnIndex];
+    return;
+  }
+
+  if (act == BTNACT_TOGGLE_AO1_0) {
+    uint16_t target = (dacRaw[0] != 0) ? 0 : 4095;
+    setAO(0, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+  if (act == BTNACT_TOGGLE_AO2_0) {
+    uint16_t target = (dacRaw[1] != 0) ? 0 : 4095;
+    setAO(1, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+  if (act == BTNACT_TOGGLE_AO1_MAX) {
+    uint16_t target = (dacRaw[0] != 4095) ? 4095 : 0;
+    setAO(0, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+  if (act == BTNACT_TOGGLE_AO2_MAX) {
+    uint16_t target = (dacRaw[1] != 4095) ? 4095 : 0;
+    setAO(1, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+}
+
+// ================== Main loop ==================
+void loop() {
+  unsigned long now = millis();
+
+  mb.task();
+  rtdRecoveryTick();
+
+  if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
+    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
+    else               WebSerial.send("message", "ERROR: Save failed");
+    cfgDirty = false;
+  }
+
+  // Buttons
+  for (int i=0;i<NUM_BTN;i++) {
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
+    buttonPrev[i]  = buttonState[i];
+    buttonState[i] = pressed;
+
+    if (!buttonPrev[i] && buttonState[i]) {
+      runButtonAction((uint8_t)i);
+    }
+
+    mb.setIsts(ISTS_BTN_BASE + i, pressed);
+  }
+
+  // DAC from Modbus
+  for (int i=0;i<2;i++) {
+    uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
+    if (regVal != dacRaw[i]) {
+      dacRaw[i] = regVal;
+      writeDac(i, dacRaw[i]);
+      cfgDirty = true;
+      lastCfgTouchMs = now;
+    }
+  }
+
+  if (now - lastSensorRead >= sensorInterval) {
+    lastSensorRead = now;
+    readSensors();
+  }
+
+  // LEDs
+  for (int i=0;i<NUM_LED;i++) {
+    bool on = (ledSrc[i] == LEDSRC_MANUAL) ? ledState[i] : getLedAutoState(ledSrc[i]);
+    if (ledState[i] != on) ledState[i] = on;
+    digitalWrite(LED_PINS[i], on ? HIGH : LOW);
+    mb.setIsts(ISTS_LED_BASE + i, on);
+  }
+
+  // FIX A: general WebSerial every 1 second
+  if (now - lastSend >= sendInterval) {
+    lastSend = now;
+
+    WebSerial.check();
+    WebSerial.send("status", modbusStatus);
+
+    JSONVar aiList;
+    for (int i=0;i<4;i++) aiList[i] = aiMv[i];
+    WebSerial.send("aiValues", aiList);
+
+    JSONVar tempList;
+    for (int i=0;i<2;i++) tempList[i] = rtdTemp_x10[i];
+    WebSerial.send("rtdTemps_x10", tempList);
+
+    JSONVar dacList;
+    dacList[0] = dacRaw[0];
+    dacList[1] = dacRaw[1];
+    WebSerial.send("dacValues", dacList);
+
+    JSONVar ledList;
+    for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
+    WebSerial.send("LedStateList", ledList);
+
+    JSONVar ledSrcList;
+    for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
+    WebSerial.send("LedSourceList", ledSrcList);
+
+    JSONVar btnActList;
+    for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
+    WebSerial.send("ButtonActionList", btnActList);
+
+    JSONVar btnList;
+    for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
+    WebSerial.send("ButtonStateList", btnList);
+  }
+
+  // FIX B + FIX C: full RTD diagnostics only every 2 seconds
+  if (now - lastRtdInfoSend >= rtdInfoInterval) {
+    lastRtdInfoSend = now;
+
+    updateRtdDiagnostics();
+
+    JSONVar info;
+    JSONVar t10, tc, fault, err, raw, ratio, ohm;
+    t10[0] = rtdTemp_x10[0]; t10[1] = rtdTemp_x10[1];
+    tc[0]  = rtdTempC[0];    tc[1]  = rtdTempC[1];
+    fault[0] = (int)rtdFault[0]; fault[1] = (int)rtdFault[1];
+    err[0] = rtdError[0]; err[1] = rtdError[1];
+    raw[0] = (int)rtdRawCode[0]; raw[1] = (int)rtdRawCode[1];
+    ratio[0] = rtdRatio[0]; ratio[1] = rtdRatio[1];
+    ohm[0] = rtdOhms[0]; ohm[1] = rtdOhms[1];
+    info["temp_x10"] = t10;
+    info["temp_c"]   = tc;
+    info["fault"]    = fault;
+    info["error"]    = err;
+    info["raw"]      = raw;
+    info["ratio"]    = ratio;
+    info["ohms"]     = ohm;
+    WebSerial.send("rtdInfo", info);
+
+    // Also periodically echo current RTD configuration so WebConfig
+    // tabs opened after boot still see the correct wiring/sensor/Rref.
+    JSONVar cfg;
+    JSONVar wires, rn, rr;
+    wires[0] = (int)rtdWiresCfg[0]; wires[1] = (int)rtdWiresCfg[1];
+    rn[0]    = (int)rtdRnominalCfg[0]; rn[1] = (int)rtdRnominalCfg[1];
+    rr[0]    = (int)rtdRrefCfg[0]; rr[1] = (int)rtdRrefCfg[1];
+    cfg["wires"]    = wires;
+    cfg["rnominal"] = rn;
+    cfg["rref"]     = rr;
+    WebSerial.send("rtdCfg", cfg);
+  }
+
+  mb.task();
+}

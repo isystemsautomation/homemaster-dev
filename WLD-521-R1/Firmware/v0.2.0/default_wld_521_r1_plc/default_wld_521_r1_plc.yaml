@@ -1,0 +1,129 @@
+##
+## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
+##
+
+substitutions:
+  wld_id: wld_1
+  wld_prefix: "WLD#1"
+  wld_address: "3"     # firmware default Modbus ID
+
+# If UART/MODBUS aren't defined globally, uncomment & set pins:
+# uart:
+#   id: rs485_uart
+#   tx_pin: GPIO4
+#   rx_pin: GPIO5
+#   baud_rate: 19200
+#   parity: NONE
+#   stop_bits: 1
+# modbus:
+#   id: modbus_bus
+#   uart_id: rs485_uart
+
+modbus_controller:
+  - id: ${wld_id}
+    address: ${wld_address}
+    modbus_id: modbus_bus
+    update_interval: 3s
+    command_throttle: 50ms
+    allow_duplicate_commands: false
+
+# ===================== Holding (FC03) =====================
+sensor:
+  # ---------- DI/Relay/LED/Button states from HREG (mirrored from ISTS) ----------
+  # DI states (HREG 1-5, UINT16: 0 or 1)
+  - platform: modbus_controller
+    id: ${wld_id}_di1_hreg
+    modbus_controller_id: ${wld_id}
+    address: 1
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di2_hreg
+    modbus_controller_id: ${wld_id}
+    address: 2
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_hreg
+    modbus_controller_id: ${wld_id}
+    address: 3
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_hreg
+    modbus_controller_id: ${wld_id}
+    address: 4
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_hreg
+    modbus_controller_id: ${wld_id}
+    address: 5
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+  # Relay states (HREG 60-61, UINT16: 0 or 1)
+  - platform: modbus_controller
+    id: ${wld_id}_r1_state_hreg
+    modbus_controller_id: ${wld_id}
+    address: 60
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_r2_state_hreg
+    modbus_controller_id: ${wld_id}
+    address: 61
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+
+
+
+ 
+# ===================== Binary Sensors (from HREG) =====================
+binary_sensor:
+  # DI states (from HREG 1-5)
+  - platform: template
+    name: "${wld_prefix} DI1"
+    lambda: |-
+      return id(${wld_id}_di1_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI2"
+    lambda: |-
+      return id(${wld_id}_di2_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI3"
+    lambda: |-
+      return id(${wld_id}_di3_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI4"
+    lambda: |-
+      return id(${wld_id}_di4_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI5"
+    lambda: |-
+      return id(${wld_id}_di5_hreg).state != 0;
+
+# ===================== Command Coils (FC05/FC01) =====================
+# Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Relay 1"
+    address: 200
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Relay 2"
+    address: 201
+    register_type: coil
+
+ 

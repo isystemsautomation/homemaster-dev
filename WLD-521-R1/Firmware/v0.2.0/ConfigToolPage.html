@@ -1,0 +1,1167 @@
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
+  <style>
+    :root{
+      --page:#ffffff;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --border:#e2e8f0;
+      --borderStrong:#cbd5e1;
+      --brand:#2563eb;
+      --brandHover:#1d4ed8;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
+      --r:16px;
+      --r2:14px;
+      --gap:16px;
+      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+
+      /* Group tints */
+      --tint-input-bg:#e9fbe9;
+      --tint-input-br:#bfe7bf;
+      --tint-button-bg:#dbe9ff;
+      --tint-button-br:#b7cffc;
+      --tint-led-bg:#f6f8d6;
+      --tint-led-br:#e2e79e;
+      --tint-relay-bg:#eef2ff;
+      --tint-relay-br:#c7d2fe;
+      --tint-1w-bg:#f1f5f9;
+      --tint-1w-br:#e2e8f0;
+    }
+    *{box-sizing:border-box}
+    
+    /* Inputs and forms */
+    label{display:block;font-size:12px;font-weight:750;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--borderStrong);font-size:13px;color:var(--text);background:#fff;box-sizing:border-box}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+    textarea{min-height:140px;font-family:ui-monospace,Consolas,monospace}
+    .hm-input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--borderStrong);font-size:13px;color:var(--text);background:#fff;box-sizing:border-box}
+    
+    /* Pills and badges */
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;font-weight:650;color:var(--muted);border:1px solid var(--border);border-radius:999px;background:#fff}
+    .pill.mono{font-family:monospace;background:#eef6ff;border:1px solid #cfe2ff}
+    .pill.pos{background:#ffe9cc;border:1px solid #ffd39b}
+    .tag{font-size:11px;font-weight:750;color:#0f172a;border:1px solid var(--border);background:#f8fafc;padding:3px 8px;border-radius:999px;white-space:nowrap}
+    
+    /* Buttons */
+    .btn{padding:8px 14px;font-size:13px;font-weight:750;border-radius:12px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer}
+    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn.primary:hover{background:var(--brandHover)}
+    .btn.danger{color:var(--bad);border-color:#fecaca}
+    .btn.danger:hover{background:rgba(239,68,68,.06)}
+    .btn-green{background:var(--ok);color:#fff;border-color:var(--ok)}
+    .btn-outline-green{border:1px solid var(--ok);background:#eaffea;color:var(--ok)}
+    .btn-blue{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn-red{background:var(--bad);color:#fff;border-color:var(--bad)}
+    
+    /* Cards */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
+    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .cardheader h2{margin:0;font-size:14px;font-weight:850}
+    .sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .cardbody{padding:14px}
+    
+    /* Layout */
+    .grid{display:grid;gap:var(--gap);margin-top:16px}
+    .grid.two{grid-template-columns:1.2fr .8fr}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+    
+    /* Section titles */
+    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+    .sectiontitle h3{margin:0;font-size:14px;font-weight:900}
+    .sectiontitle .hint{margin:0;font-size:12px;color:var(--muted2);font-weight:650}
+    
+    /* Utilities */
+    .muted{color:var(--muted)}
+    .muted2{color:var(--muted2)}
+    .mono{font-family:ui-monospace,Consolas,monospace}
+    .kpi{font-weight:600}
+    
+    /* Status dots */
+    .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
+    .dot.ok{background:var(--ok)}
+    .dot.warn{background:var(--warn)}
+    .dot.bad{background:var(--bad)}
+    .state-dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-left:.4rem}
+    .dot-on{background:var(--ok)}
+    .dot-off{background:#bbb}
+    
+    /* Header */
+    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:var(--gap)}
+    .headLeft{display:flex;gap:14px;align-items:center;min-width:300px}
+    .moduleImage{width:64px;height:64px;border-radius:14px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden}
+    .moduleImage img{width:100%;height:100%;object-fit:contain}
+    .title h1{margin:0;font-size:18px;font-weight:800}
+    .title p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    
+    /* 1-Wire rows */
+    .ow-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.45rem .3rem;border-bottom:1px dashed var(--border)}
+    .ow-rom{min-width:230px;display:inline-block}
+    
+    /* Log box */
+    #log-box{margin-bottom:1.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);font-size:12px}
+    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
+    
+    /* Tables */
+    .table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .table th,.table td{padding:.5rem .6rem;border-bottom:1px solid var(--border);text-align:left;font-size:.9rem}
+    .table thead th{background:#f8fafc;font-weight:600}
+    
+    /* LED/Button rows */
+    .led-row,.btn-row{display:grid;grid-template-columns:76px 1fr 1fr auto;gap:.5rem;align-items:center;border-bottom:1px dashed var(--border);padding:.35rem 0}
+    .btn-row{grid-template-columns:76px 1fr auto}
+    
+    /* IO groups */
+    .iogroup{display:grid;gap:var(--gap);grid-template-columns:repeat(4,1fr)}
+    .iogroup.cols2{grid-template-columns:repeat(2,1fr)}
+    .iogroup.cols3{grid-template-columns:repeat(3,1fr)}
+    .iogroup.cols4{grid-template-columns:repeat(4,1fr)}
+    .iocard{border:1px solid var(--border);border-radius:var(--r2);padding:12px;background:#fff;position:relative;overflow:hidden}
+    .iocard::before{content:"";position:absolute;left:0;top:0;right:0;height:42px;background:rgba(255,255,255,.55);border-bottom:1px solid rgba(15,23,42,.06);pointer-events:none}
+    .iotop{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .iocard > *:not(.iotop){position:relative;z-index:1}
+    .ioid{font-size:14px;font-weight:900}
+    .ioBadge{font-size:11px;font-weight:750;border:1px solid var(--border);padding:3px 8px;border-radius:999px;background:#f8fafc}
+    
+    /* Group tints */
+    .tint-input{background:var(--tint-input-bg);border-color:var(--tint-input-br)}
+    .tint-button{background:var(--tint-button-bg);border-color:var(--tint-button-br)}
+    .tint-led{background:var(--tint-led-bg);border-color:var(--tint-led-br)}
+    .tint-relay{background:var(--tint-relay-bg);border-color:var(--tint-relay-br)}
+    .tint-1w{background:var(--tint-1w-bg);border-color:var(--tint-1w-br)}
+    .iocard.tint-input::before,
+    .iocard.tint-button::before,
+    .iocard.tint-led::before,
+    .iocard.tint-relay::before,
+    .iocard.tint-1w::before{background:rgba(255,255,255,.50)}
+    .iocard select,
+    .iocard input,
+    .iocard textarea{background:rgba(255,255,255,.92)}
+    .checkRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)}
+    .check input{width:auto}
+    .split{display:grid;gap:10px}
+    .cols2{grid-template-columns:repeat(2,1fr)}
+    .cols3{grid-template-columns:repeat(3,1fr)}
+    .cols4{grid-template-columns:repeat(4,1fr)}
+    
+    /* Inputs config - Single column layout (one per row) using iocard style */
+    #inputs-config{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:var(--gap);
+    }
+    #inputs-config > div{
+      width:100%;
+    }
+    #inputs-config > div > .iocard{
+      width:100%;
+    }
+    /* Make flow/heat blocks more compact */
+    [id^="flow-box-"], [id^="heat-box-"]{padding:.75rem !important}
+    [id^="flow-box-"] .grid-2, [id^="heat-box-"] .grid-2{grid-template-columns:1fr 1fr}
+    [id^="flow-box-"] .row{gap:.4rem}
+    #inputs-config .card small{display:block;margin-top:.35rem;line-height:1.25}
+    
+    /* Relays config - Uses iogroup cols3 */
+    
+    /* Responsive */
+    @media(max-width:980px){
+      .grid.two{grid-template-columns:1fr}
+      .statusbar{align-items:flex-start}
+      .pillrow,.actions{justify-content:flex-start}
+    }
+    @media(max-width:1100px){
+      .iogroup.cols4{grid-template-columns:repeat(2,1fr)}
+      .iogroup.cols3{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:640px){
+      .row{grid-template-columns:1fr}
+      .iogroup,.iogroup.cols2,.iogroup.cols3,.iogroup.cols4{grid-template-columns:1fr}
+    }
+  </style>
+
+  <!-- Header -->
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="https://www.home-master.eu/web/image/3884-341291bf/photo1.webp" alt="WLD-521-R1">
+      </div>
+      <div class="title">
+        <h1>WLD-521-R1 Module Configuration</h1>
+        <p>Configure Modbus address, serial settings, I/O actions, and flow/heat energy.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
+        <div class="pill">Modbus ID: <span id="live-address" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="live-baud" style="color:var(--text)">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top: Device Setup + Log -->
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Device Setup</h2>
+          <div class="sub">Serial connection and Modbus addressing.</div>
+        </div>
+        <span class="tag">Step 1</span>
+      </div>
+      <div class="cardbody">
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+            <div class="mini" style="margin-top:8px;font-size:12px;color:var(--muted2)">Use a unique address per device on the bus.</div>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+            <div class="mini" style="margin-top:8px;font-size:12px;color:var(--muted2)">Must match your controller UART settings.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Serial Log</h2>
+          <div class="sub">Connection messages and device responses.</div>
+        </div>
+        <span class="tag">Live</span>
+      </div>
+      <div class="cardbody">
+        <label for="log-content">Log</label>
+        <textarea id="log-content" readonly placeholder="Log output will appear here..."></textarea>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== 1-Wire ===== -->
+  <div class="sectiontitle">
+    <h3>1-Wire (GPIO16) Devices</h3>
+    <p class="hint">Scan and configure 1-Wire temperature sensors.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <button id="scan-button" type="button" class="btn primary" disabled>Scan 1-Wire</button>
+        <span id="scan-status" class="muted">Not scanned yet.</span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1rem;">
+        <div>
+          <label style="margin-bottom:.35rem;">Discovered devices</label>
+          <div id="ow-discovered" class="card"><em>Click "Scan 1-Wire" to list devices.</em></div>
+        </div>
+        <div>
+          <label style="margin-bottom:.35rem;">Stored sensors (flash)</label>
+          <div id="ow-stored" class="card"><em>Waiting for device list…</em></div>
+        </div>
+      </div>
+
+      <div class="cardheader" style="margin-top:1rem;margin-left:-14px;margin-right:-14px;margin-bottom:14px;">
+        <div>
+          <h2 style="font-size:13px;">1-Wire Live Temperatures</h2>
+          <div class="sub" style="font-size:11px;">Auto-refreshes from <code class="mono">onewireTempsList</code>.</div>
+        </div>
+      </div>
+      <div style="overflow:auto;">
+        <table class="table" id="ow-temps-table">
+          <thead><tr><th>#</th><th>Address</th><th>Name</th><th>Temp (°C)</th><th>Errors</th></tr></thead>
+          <tbody><tr><td colspan="5" class="muted">Waiting for data…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Inputs ===== -->
+  <div class="sectiontitle">
+    <h3>Digital Inputs (5)</h3>
+    <p class="hint">Configure input types, actions, and flow/heat energy calculations.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="inputs-config"></div>
+    </div>
+  </section>
+
+  <!-- ===== Relays ===== -->
+  <div class="sectiontitle">
+    <h3>Relays (2)</h3>
+    <p class="hint">Enable each relay channel and set control mode.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols2" id="relays-config"></div>
+    </div>
+  </section>
+
+  <!-- ===== Buttons ===== -->
+  <div class="sectiontitle">
+    <h3>Buttons (4)</h3>
+    <p class="hint">Map physical buttons to actions.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="buttons-config"></div>
+    </div>
+  </section>
+
+  <!-- ===== LEDs ===== -->
+  <div class="sectiontitle">
+    <h3>User LEDs (4)</h3>
+    <p class="hint">Set indicator behavior (solid, blink, follow sources).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="iogroup cols4" id="leds-config"></div>
+    </div>
+  </section>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    const toArray = x => (Array.isArray(x) ? x : (x && typeof x==='object' ? Object.keys(x).sort((a,b)=>(+a)-(+b)).map(k=>x[k]) : []));
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const pad2 = n => String(n).padStart(2,'0');
+
+    /* === JS functionality unchanged below === */
+    const LOG_MAX=500, buf=[];
+    function log(label,data){
+      const el=$('log-content'); if(!el) return;
+      const t=new Date().toLocaleTimeString();
+      const body=(typeof data==='string')?data:JSON.stringify(data);
+      buf.push(`[${t}] ${label}: ${body}`); if(buf.length>LOG_MAX) buf.shift();
+      el.textContent=buf.join('\n'); el.scrollTop=el.scrollHeight;
+    }
+    window.addEventListener('error', e=>log('JS Error', e.message||e));
+    window.addEventListener('unhandledrejection', e=>{
+      const err = e.reason;
+      const errMsg = err?.message || String(err || '');
+      // If it's a NetworkError (device lost), mark as disconnected
+      if(errMsg.includes('NetworkError') || errMsg.includes('device has been lost')){
+        lastDataReceived = 0;
+        updateConnectionStatus();
+      }
+      log('Unhandled Rejection', errMsg);
+    });
+    function logTx(channel, packet){ try{ log('TX', {channel, ...packet}); }catch{ log('TX', String(channel)+' '+String(packet)); } }
+
+    if(!('serial' in navigator)){
+      log('System','This browser does not support the Web Serial API. Use Chrome/Edge over HTTPS.');
+    }
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
+
+    let conn;
+    try{
+      conn = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
+    }catch(e){
+      log('Error','SimpleWebSerial init failed: '+(e?.message||e));
+      conn = { on:()=>{}, isOpen:()=>false, send:()=>Promise.reject(new Error('SWS not ready')) };
+    }
+    const isOpen = ()=>{ try{ return (typeof conn.isOpen==='function') ? conn.isOpen() : !!conn.port; }catch{ return false; } };
+    function updateButtons(){ const en=isOpen(); $('scan-button').disabled=!en; }
+
+    /* ===== FIX: heat lock globals at TOP-LEVEL ===== */
+    const HEAT_LOCK_MS = 2000;
+    const heatLockA = [0,0,0,0,0];
+    const heatLockB = [0,0,0,0,0];
+    const nowMs = () => Date.now();
+    const isLockedA = (idx1)=> nowMs() < heatLockA[idx1-1];
+    const isLockedB = (idx1)=> nowMs() < heatLockB[idx1-1];
+    /* ============================================== */
+
+    // Simple connection status: data received recently = connected, else disconnected
+    let lastDataReceived = 0;
+    let connectionCheckInterval = null;
+    const DATA_TIMEOUT_MS = 3000; // 3 seconds - if no data for 3s = disconnected
+
+    function markDataReceived(){
+      lastDataReceived = Date.now();
+      // Immediately show connected when data arrives
+      const connDot = $('connDot');
+      const connText = $('connText');
+      if(connDot && connText){
+        connDot.className = 'dot ok';
+        connText.textContent = 'Connected';
+      }
+    }
+
+    function updateConnectionStatus(){
+      const now = Date.now();
+      const connDot = $('connDot');
+      const connText = $('connText');
+      if(!connDot || !connText) return;
+
+      // Simple check: data received within last 3 seconds = connected
+      const timeSinceLastData = lastDataReceived > 0 ? (now - lastDataReceived) : Infinity;
+      
+      if(timeSinceLastData <= DATA_TIMEOUT_MS){
+        connDot.className = 'dot ok';
+        connText.textContent = 'Connected';
+      } else {
+        connDot.className = 'dot warn';
+        connText.textContent = 'Disconnected';
+      }
+    }
+
+    function startConnectionMonitoring(){
+      if(connectionCheckInterval) clearInterval(connectionCheckInterval);
+      connectionCheckInterval = setInterval(updateConnectionStatus, 500);
+      updateConnectionStatus();
+    }
+
+    function stopConnectionMonitoring(){
+      if(connectionCheckInterval){
+        clearInterval(connectionCheckInterval);
+        connectionCheckInterval = null;
+      }
+      lastDataReceived = 0;
+      updateConnectionStatus();
+    }
+
+    if(conn.on){
+      conn.on('open', ()=>{ 
+        log('port','open'); 
+        updateButtons(); 
+        lastDataReceived = 0;
+        startConnectionMonitoring();
+        conn.send('onewire',{action:'list'}).catch(()=>{}); 
+      });
+      conn.on('close',()=>{ 
+        log('port','close'); 
+        updateButtons();
+        lastDataReceived = 0;
+        stopConnectionMonitoring();
+      });
+      conn.on('message', m=>{
+        log('log', m);
+        markDataReceived(); // Mark message as data received
+      });
+      conn.on('status',  st=>{
+        markDataReceived(); // Mark status as data received - this will update connection status immediately
+        $('live-address').textContent = (st&&st.address!=null)?st.address:'--';
+        $('live-baud').textContent    = (st&&st.baud!=null)?st.baud:'--';
+        if(st&&st.address!=null) $('modbus-address').value=String(st.address);
+        if(st&&st.baud!=null)    $('modbus-baud').value   =String(st.baud);
+        updateButtons();
+      });
+    }
+
+    function pushModbus(){
+      const mb_address=parseInt($('modbus-address')?.value||'3',10);
+      const mb_baud   =parseInt($('modbus-baud')?.value||'19200',10);
+      const packet = {mb_address,mb_baud};
+      logTx('values', packet);
+      conn.send('values', packet).catch(()=>log('Error','Failed to send Modbus values'));
+    }
+    $('modbus-address')?.addEventListener('input', pushModbus);
+    $('modbus-baud')?.addEventListener('input',    pushModbus);
+
+
+    function romHexToHiLo(hex){ try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); const v=BigInt('0x'+s); return {hi:Number((v>>32n)&0xffffffffn), lo:Number(v&0xffffffffn)}; }catch{ return {hi:0,lo:0}; } }
+    function romHexToU64DecStr(hex){ try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); return s? (BigInt('0x'+s)).toString(10) : '0'; }catch{ return '0'; } }
+
+    const scanBtn=$('scan-button'), scanStatus=$('scan-status');
+    const owDisc=$('ow-discovered'), owStore=$('ow-stored');
+    let owStoredCache=[]; let owAddrKey='';
+
+    function renderDiscovered(list){
+      const a=toArray(list);
+      if(!a.length){ owDisc.innerHTML='<em>No devices found.</em>'; return; }
+      let html='';
+      for(const rom of a){
+        const s=String(rom||''); const isTest=(s==='0x0000000000000001'||s==='0x0000000000000002');
+        html += `
+          <div class="ow-row" data-rom="${esc(s)}">
+            <code class="ow-rom">${esc(s)}</code>
+            ${isTest?'<span class="pill" title="Test addr from firmware">test</span>':''}
+            <input type="text" class="hm-input" placeholder="Name…" style="flex:1;min-width:180px;">
+            <button type="button" class="btn btn-green ow-add">Add</button>
+          </div>`;
+      }
+      owDisc.innerHTML=html;
+    }
+
+    function heatOptionsFromStored(selectedPos){
+      const none = '<option value="">(none)</option>';
+      const body = owStoredCache.map(r=>{
+        const labelBase = r.name ? `${esc(r.name)} — ${esc(r.addr)}` : esc(r.addr);
+        const label = r.pos ? `#${r.pos} · ${labelBase}` : labelBase;
+        const sel = (String(selectedPos||'')===String(r.pos)) ? ' selected' : '';
+        return `<option value="${String(r.pos||'')}"${sel}>${label}</option>`;
+      }).join('');
+      return none + body;
+    }
+    function populateHeatSelects(){
+      for(let i=1;i<=5;i++){
+        const a=$('heat-addrA-'+i), b=$('heat-addrB-'+i);
+        if(a) a.innerHTML = heatOptionsFromStored(a.value);
+        if(b) b.innerHTML = heatOptionsFromStored(b.value);
+      }
+    }
+
+    function renderStored(payload){
+      const arr=toArray(payload);
+      const nextCache = arr.map(r=>({ addr: String(r?.addr||''), name: String(r?.name||''), pos: parseInt(r?.pos||0,10)||0 }));
+      const newKey = JSON.stringify(nextCache.map(x=>x.addr+':'+x.pos));
+      if (newKey === owAddrKey) return;
+      owStoredCache = nextCache; owAddrKey = newKey;
+
+      if(!arr.length){ owStore.innerHTML='<em>No sensors stored.</em>'; }
+      else{
+        let html='';
+        for(const rec of nextCache){
+          const addr=esc(rec.addr);
+          const name=(rec.name)?esc(rec.name):'<em style="color:#777">(no name)</em>';
+          const pos = rec.pos ? `<span class="pill pos" title="Position">#${rec.pos}</span>` : '';
+          html += `
+            <div class="ow-row" data-rom="${addr}">
+              <code class="ow-rom">${addr}</code>
+              ${pos}
+              <span style="flex:1;min-width:120px;">${name}</span>
+              <span class="pill mono" data-ow-temp="${addr}"></span>
+              <button type="button" class="btn btn-outline-green ow-remove" style="color:#28a745;">Remove</button>
+            </div>`;
+        }
+        owStore.innerHTML=html;
+      }
+      populateHeatSelects();
+    }
+
+    function renderOwTempsTable(rows){
+      const tb = document.querySelector('#ow-temps-table tbody');
+      if(!tb) return;
+      if(!rows || !rows.length){ tb.innerHTML = '<tr><td colspan="5" class="muted">No sensors.</td></tr>'; return; }
+      tb.innerHTML = rows.map(r=>{
+        const pos = Number(r.pos)||'';
+        const addr = esc(String(r.addr||''));
+        const name = esc(String(r.name||''));
+        const t = (typeof r.temp==='number' && isFinite(r.temp)) ? r.temp.toFixed(2) : '—';
+        const errs = (typeof r.errs==='number') ? r.errs : '—';
+        return `<tr>
+          <td>${pos}</td><td><code class="mono">${addr}</code></td><td>${name||'<span class="muted">(unnamed)</span>'}</td>
+          <td>${t}</td><td>${errs}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    owDisc?.addEventListener('click', ev=>{
+      const btn=ev.target.closest('.ow-add'); if(!btn) return;
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const row=btn.closest('.ow-row'); if(!row) return;
+      const romHex=row.getAttribute('data-rom')||'';
+      const name=(row.querySelector('input.hm-input')?.value||'').trim();
+      if(!name){ alert('Please enter a name'); row.querySelector('input.hm-input')?.focus(); return; }
+      const {hi,lo} = romHexToHiLo(romHex); const decStr  = romHexToU64DecStr(romHex);
+      btn.disabled=true;
+      const packet = { action:'add', rom_hex:romHex, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo, name };
+      logTx('onewire', packet);
+      conn.send('onewire', packet)
+        .then(()=>log('1-Wire',`Added ${romHex} as "${name}"`))
+        .catch(err=>log('Error','Add failed: '+(err?.message||err)))
+        .finally(()=>{ btn.disabled=!isOpen(); });
+    });
+
+    owStore?.addEventListener('click', ev=>{
+      const btn=ev.target.closest('.ow-remove'); if(!btn) return;
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const row=btn.closest('.ow-row'); if(!row) return;
+      const addr=row.getAttribute('data-rom')||'';
+      if(!confirm(`Remove ${addr} from stored sensors?`)) return;
+      btn.disabled=true;
+      const {hi,lo} = romHexToHiLo(addr); const decStr  = romHexToU64DecStr(addr);
+      const packet = { action:'remove', rom_hex:addr, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo };
+      logTx('onewire', packet);
+      conn.send('onewire', packet)
+        .then(()=>log('1-Wire',`Removed ${addr}`))
+        .catch(err=>log('Error','Remove failed: '+(err?.message||err)))
+        .finally(()=>{ btn.disabled=!isOpen(); });
+    });
+
+    scanBtn?.addEventListener('click', ()=>{
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      if(scanStatus) scanStatus.textContent='Scanning...';
+      scanBtn.disabled=true;
+      const packet = {action:'scan'};
+      logTx('command', packet);
+      conn.send('command',packet)
+        .catch(err=>{ log('Error','Scan failed: '+(err?.message||err)); if(scanStatus) scanStatus.textContent='Scan failed.'; })
+        .finally(()=>{ scanBtn.disabled=!isOpen(); });
+    });
+
+    if(conn.on){
+      conn.on('onewireScan', list=>{
+        markDataReceived();
+        const a=toArray(list);
+        renderDiscovered(a);
+        const tests=a.filter(s=>s==='0x0000000000000001'||s==='0x0000000000000002').length;
+        if(scanStatus) scanStatus.textContent = `Found ${a.length} device(s)` + (tests?` — ${tests} test`:''); 
+      });
+      conn.on('onewireDb', payload=>{ markDataReceived(); renderStored(payload); });
+      conn.on('onewireTemps', obj=>{
+        markDataReceived();
+        if(!obj) return;
+        const keys = Object.keys(obj);
+        for(const k of keys){
+          const v = obj[k];
+          const el = (window.CSS && CSS.escape)
+            ? document.querySelector(`[data-ow-temp="${CSS.escape(k)}"]`)
+            : [...document.querySelectorAll('[data-ow-temp]')].find(n=>n.getAttribute('data-ow-temp')===k);
+          if(!el) continue;
+          if (typeof v === 'number' && isFinite(v)) el.textContent = v.toFixed(2)+' °C';
+          if (typeof v !== 'number' || !isFinite(v)) el.textContent = '—';
+        }
+      });
+      conn.on('onewireTempsList', rows=>{ markDataReceived(); renderOwTempsTable(toArray(rows)); });
+      conn.on('onewireErrs', obj=>{ markDataReceived(); }); // Mark data received, ignore errors for now
+      conn.on('onewireIndex', obj=>{ markDataReceived(); }); // Mark data received, ignore index for now
+
+      conn.on('inputs',          list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.className = 'state-dot '+(v?'dot-on':'dot-off'); }); });
+      conn.on('enableList',      list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }); });
+      conn.on('invertList',      list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }); });
+      conn.on('inputActionList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v??0); }); });
+      conn.on('inputTargetList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }); });
+      conn.on('inputTypeList',   list=>{
+        markDataReceived();
+        toArray(list).forEach((v,i)=>{ const el=$('type-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); });
+        showTypeBoxes();
+      });
+      conn.on('counterList',     list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('counter-in'+(i+1)); if(el) el.textContent=Math.floor(v); } }); });
+
+      let gotRate=false, gotAccum=false;
+      const lastFlowPPL  = [450,450,450,450,450];
+      const lastCalRate  = [1,1,1,1,1];
+      const lastCalAccum = [1,1,1,1,1];
+
+      conn.on('flowPPLList', list=>{
+        markDataReceived();
+        const arr=toArray(list);
+        arr.forEach((v,i)=>{ const num = Math.max(1, Math.floor(v||1)); lastFlowPPL[i] = num; const el=$('ppl-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(num); });
+      });
+      conn.on('flowCalibAccumList', list=>{
+        markDataReceived();
+        gotAccum=true;
+        const arr=toArray(list);
+        arr.forEach((v,i)=>{ if(typeof v==='number'){ lastCalAccum[i] = v; const el=$('calt-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(v.toFixed(6)); } });
+      });
+      conn.on('flowCalibRateList', list=>{
+        markDataReceived();
+        gotRate=true;
+        const arr=toArray(list);
+        arr.forEach((v,i)=>{ if(typeof v==='number'){ lastCalRate[i] = v; const el=$('calr-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(v.toFixed(6)); } });
+      });
+      conn.on('flowCalibList', list=>{
+        markDataReceived();
+        const arr=toArray(list);
+        arr.forEach((v,i)=>{ 
+          const val=(+v||1);
+          if(!gotAccum){ lastCalAccum[i]=val; const elA=$('calt-in'+(i+1)); if(elA && (elA!==document.activeElement)) elA.value = String(val.toFixed(6)); }
+          if(!gotRate){  lastCalRate[i]=val;  const elR=$('calr-in'+(i+1)); if(elR && (elR!==document.activeElement)) elR.value = String(val.toFixed(6)); }
+        });
+      });
+      conn.on('flowAccumList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('accum-in'+(i+1)); if(el) el.textContent = v.toFixed(3); }}); });
+      conn.on('flowRateList',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('rate-in'+(i+1));  if(el) el.textContent = v.toFixed(3); }}); });
+
+      conn.on('relayStateList',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }); });
+      conn.on('relayEnableList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }); });
+      conn.on('relayInvertList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }); });
+      conn.on('relayCtrlMode',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); }); });
+
+      const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
+
+      function updatePillsFromHeat(){
+        const map = {};
+        for(let i=0;i<5;i++){
+          const a = String(heatSnapshot.addrA[i]||'');
+          const b = String(heatSnapshot.addrB[i]||'');
+          const ta = heatSnapshot.TA[i]; const tb = heatSnapshot.TB[i];
+          if (a && typeof ta === 'number' && isFinite(ta)) map[a] = ta;
+          if (b && typeof tb === 'number' && isFinite(tb)) map[b] = tb;
+        }
+        Object.keys(map).forEach(addr=>{
+          const el = (window.CSS && CSS.escape)
+            ? document.querySelector(`[data-ow-temp="${CSS.escape(addr)}"]`)
+            : [...document.querySelectorAll('[data-ow-temp]')].find(n=>n.getAttribute('data-ow-temp')===addr);
+          if(el) el.textContent = map[addr].toFixed(2)+' °C';
+        });
+      }
+      function setHeatPosPill(di, which, posVal){
+        const id = which==='A' ? 'heat-addrA-pos-' : 'heat-addrB-pos-';
+        const el = $(id + di);
+        if(!el) return;
+        const n = (typeof posVal==='number' && isFinite(posVal) && posVal>0) ? Math.floor(posVal) : null;
+        el.textContent = n ? ('#'+n) : '#–';
+      }
+
+      conn.on('heatEnabledList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('heat-enable-'+(i+1)); if(el) el.checked=!!v; }); });
+      conn.on('heatAddrAList', list=>{ markDataReceived(); heatSnapshot.addrA = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
+      conn.on('heatAddrBList', list=>{ markDataReceived(); heatSnapshot.addrB = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
+      conn.on('heatAddrAPosList', list=>{
+        markDataReceived();
+        toArray(list).forEach((v,i)=>{
+          setHeatPosPill(i+1,'A', (typeof v==='number')?v:NaN);
+          const n=i+1, el=$('heat-addrA-'+n);
+          if (el && !el.options.length) populateHeatSelects();
+          if (el && document.activeElement !== el && !isLockedA(n)) el.value = String(v||'');
+        });
+      });
+      conn.on('heatAddrBPosList', list=>{
+        markDataReceived();
+        toArray(list).forEach((v,i)=>{ 
+          setHeatPosPill(i+1,'B', (typeof v==='number')?v:NaN);
+          const n=i+1, el=$('heat-addrB-'+n);
+          if (el && !el.options.length) populateHeatSelects();
+          if (el && document.activeElement !== el && !isLockedB(n)) el.value = String(v||'');
+        });
+      });
+      conn.on('heatCpList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-cp-'+n);   if(el && document.activeElement!==el) el.value=String(v); } }); });
+      conn.on('heatRhoList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-rho-'+n);  if(el && document.activeElement!==el) el.value=String(v); } }); });
+      conn.on('heatCalibList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-calib-'+n);if(el && document.activeElement!==el) el.value=String(v); } }); });
+      conn.on('heatTAList', list=>{ markDataReceived(); heatSnapshot.TA = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ta-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
+      conn.on('heatTBList', list=>{ markDataReceived(); heatSnapshot.TB = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-tb-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
+      conn.on('heatDTList',        list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-dt-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); });
+      conn.on('heatPowerList',     list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-p-'+(i+1));    if(el) el.textContent=v.toFixed(1); }}); });
+      conn.on('heatEnergyJList',   list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1));   if(el) el.textContent=v.toFixed(0); }}); });
+      conn.on('heatEnergyKWhList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }}); });
+
+
+      conn.on('led', arr=>{
+        markDataReceived();
+        const a = toArray(arr);
+        for(let i=1;i<=4;i++){
+          const o = a[i-1]||{};
+          const mEl=$('led-mode-'+i), sEl=$('led-src-'+i);
+          if(mEl && mEl!==document.activeElement && o && o.mode!=null) mEl.value=String(o.mode);
+          if(sEl && sEl!==document.activeElement && o && o.source!=null) sEl.value=String(o.source);
+        }
+      });
+      conn.on('ledStateList', list=>{
+        markDataReceived();
+        toArray(list).forEach((v,i)=>{ const el=$('led-state-'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); });
+      });
+      conn.on('buttons', arr=>{
+        markDataReceived();
+        const a = toArray(arr);
+        for(let i=1;i<=4;i++){
+          const val = a[i-1];
+          const sel=$('btn-act-'+i);
+          if(sel && sel!==document.activeElement && val!=null) sel.value=String(val);
+        }
+      });
+      conn.on('buttonStateList', list=>{
+        markDataReceived();
+        toArray(list).forEach((pressed,i)=>{ const el=$('btn-state-'+(i+1)); if(el) el.className='state-dot '+(pressed?'dot-on':'dot-off'); });
+      });
+    }
+
+    (function buildInputs(){
+      const c=$('inputs-config'); if(!c) return;
+      const ACTIONS=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}];
+      const TARGETS=[{v:4,l:'None'},{v:0,l:'Control all'},{v:1,l:'Control relay 1'},{v:2,l:'Control relay 2'}];
+      const TYPES  =[ {v:0,l:'Water sensor'},{v:1,l:'Humidity sensor'},{v:2,l:'Water counter'} ];
+      const opts=a=>a.map(x=>`<option value="${x.v}">${x.l}</option>`).join('');
+      const actionOpts=opts(ACTIONS), targetOpts=opts(TARGETS), typeOpts=opts(TYPES);
+
+      for(let i=1;i<=5;i++){
+        const d=document.createElement('div');
+        d.innerHTML = `
+          <div class="iocard tint-input">
+            <div class="iotop">
+              <span class="ioid">IN${i}</span>
+              <span style="display:inline-flex;align-items:center;gap:8px;">
+                <span id="state-in${i}" class="state-dot dot-off"></span>
+                <span class="ioBadge">Input</span>
+              </span>
+            </div>
+
+            <div class="checkRow">
+              <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+              <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label for="type-in${i}">Type</label>
+              <select id="type-in${i}">${typeOpts}</select>
+            </div>
+
+            <div id="counter-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.5rem;border:1px dashed #9ad09a;border-radius:8px;">
+              <div class="row" style="justify-content:space-between;">
+                <span>Pulses: <strong id="counter-in${i}" class="mono"></strong></span>
+                <button type="button" id="resetcnt-in${i}" class="btn btn-outline-green">Reset pulses</button>
+              </div>
+            </div>
+
+            <div id="flow-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.6rem;border:1px dashed #5bb3ff;border-radius:8px;">
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <label>Pulses per liter
+                  <input id="ppl-in${i}" type="number" class="hm-input" min="1" step="1" placeholder="450">
+                </label>
+                <label>Calibration (Total ×)
+                  <input id="calt-in${i}" type="number" class="hm-input" min="0" step="0.000001" placeholder="1.000000">
+                </label>
+              </div>
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <label>Calibration (Rate ×)
+                  <input id="calr-in${i}" type="number" class="hm-input" min="0" step="0.000001" placeholder="1.000000">
+                </label>
+                <div></div>
+              </div>
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <div>Rate: <span id="rate-in${i}" class="kpi"></span> <span class="muted">L/min</span></div>
+                <div>Total: <span id="accum-in${i}" class="kpi"></span> <span class="muted">L</span></div>
+              </div>
+              <div class="grid-2">
+                <button type="button" id="resetaccum-in${i}" class="btn btn-outline-green">Reset total</button>
+                <div class="row" style="justify-content:flex-end;">
+                  <input id="extref-in${i}" type="number" class="hm-input" style="max-width:160px;" min="0" step="0.001" placeholder="External L">
+                  <button type="button" id="calccal-in${i}" class="btn btn-blue">Calc from external</button>
+                </div>
+              </div>
+              <small class="muted">“Reset total” moves the accumulation baseline; pulses are preserved. “Calc from external” sets Total calibration from pulses since the last reset.</small>
+            </div>
+
+            <div id="heat-box-${i}" style="display:none;margin-top:.6rem;background:#fff;padding:.6rem;border:1px dashed #f39c12;border-radius:8px;">
+              <div class="row" style="justify-content:space-between;margin-bottom:.35rem;">
+                <label><input type="checkbox" id="heat-enable-${i}"> <strong>Enable heat</strong></label>
+                <button type="button" id="heat-reset-${i}" class="btn btn-outline-green">Reset energy</button>
+              </div>
+
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <label>Sensor A (supply)
+                  <div class="row" style="gap:.4rem;">
+                    <select id="heat-addrA-${i}" class="hm-input" style="flex:1;"></select>
+                    <span id="heat-addrA-pos-${i}" class="pill pos" title="Position">#–</span>
+                  </div>
+                </label>
+                <label>Sensor B (return)
+                  <div class="row" style="gap:.4rem;">
+                    <select id="heat-addrB-${i}" class="hm-input" style="flex:1;"></select>
+                    <span id="heat-addrB-pos-${i}" class="pill pos" title="Position">#–</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <label>cp (J/kg·°C)
+                  <input id="heat-cp-${i}" type="number" class="hm-input" min="0" step="1" placeholder="4186">
+                </label>
+                <label>ρ (kg/L)
+                  <input id="heat-rho-${i}" type="number" class="hm-input" min="0" step="0.001" placeholder="1.000">
+                </label>
+              </div>
+              <div class="grid-2" style="margin-bottom:.4rem;">
+                <label>Calibration (×)
+                  <input id="heat-calib-${i}" type="number" class="hm-input" min="0" step="0.0001" placeholder="1.0000">
+                </label>
+                <div></div>
+              </div>
+
+              <div class="grid-2" style="margin-bottom:.25rem;">
+                <div>TA: <span id="heat-ta-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
+                <div>TB: <span id="heat-tb-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
+              </div>
+              <div class="grid-2" style="margin-bottom:.25rem;">
+                <div>ΔT: <span id="heat-dt-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
+                <div>Power: <span id="heat-p-${i}" class="kpi">--</span> <span class="muted">W</span></div>
+              </div>
+              <div class="grid-2">
+                <div>Energy: <span id="heat-ej-${i}" class="kpi">--</span> <span class="muted">J</span></div>
+                <div>Energy: <span id="heat-ekwh-${i}" class="kpi">--</span> <span class="muted">kWh</span></div>
+              </div>
+              <small class="muted">ΔT = Sensor A − Sensor B.</small>
+            </div>
+
+            <div class="split" style="margin-top:10px;">
+              <div>
+                <label for="action-in${i}">Action</label>
+                <select id="action-in${i}">${actionOpts}</select>
+              </div>
+              <div>
+                <label for="target-in${i}">Control Target</label>
+                <select id="target-in${i}">${targetOpts}</select>
+              </div>
+            </div>
+            <small style="display:block;margin-top:8px;color:var(--muted2);">For "Water counter" action/target are ignored; input counts rising edges.</small>
+          </div>`;
+        $('inputs-config').appendChild(d);
+      }
+    })();
+
+    (function buildRelays(){
+      const c=$('relays-config'); if(!c) return;
+      const ctrlSrcOpts = [
+        {v:0,l:'Local'}, {v:1,l:'Modbus'}
+      ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=2;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-relay';
+        d.innerHTML = `
+          <div class="iotop">
+            <span class="ioid">Relay ${i}</span>
+            <span class="ioBadge">Output</span>
+          </div>
+          <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--muted);">Status:</span>
+            <span id="state-relay${i}" class="state-dot dot-off"></span>
+          </div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+          </div>
+          <div style="margin-top:10px;">
+            <label for="ctrlsrc-relay${i}">Control mode</label>
+            <select id="ctrlsrc-relay${i}">${ctrlSrcOpts}</select>
+          </div>
+`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildLEDsAndButtons(){
+      const LC=$('leds-config'), BC=$('buttons-config'); if(!LC||!BC) return;
+
+      const ledModeOpts = [{v:0,l:'Solid'},{v:1,l:'Blink'}]
+        .map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      const ledSrcOpts = [
+        {v:0,l:'(none)'},{v:1,l:'Relay 1'},{v:2,l:'Relay 2'},
+        {v:3,l:'DI1'},{v:4,l:'DI2'},{v:5,l:'DI3'},{v:6,l:'DI4'},{v:7,l:'DI5'}
+      ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      for(let i=1;i<=4;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-led';
+        d.innerHTML=`
+          <div class="iotop">
+            <span class="ioid">User LED ${i}</span>
+            <span class="ioBadge">Indicator</span>
+          </div>
+          <div>
+            <label for="led-mode-${i}">Mode</label>
+            <select id="led-mode-${i}">${ledModeOpts}</select>
+          </div>
+          <div style="margin-top:10px;">
+            <label for="led-src-${i}">Source</label>
+            <select id="led-src-${i}">${ledSrcOpts}</select>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--muted);">State:</span>
+            <span id="led-state-${i}" class="state-dot dot-off" title="live"></span>
+          </div>`;
+        LC.appendChild(d);
+      }
+
+      const btnActOpts = [
+        {v:0,l:'(none)'},
+        {v:1,l:'Toggle R1'},{v:2,l:'Toggle R2'},
+        {v:3,l:'Pulse R1'},{v:4,l:'Pulse R2'}
+      ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      for(let i=1;i<=4;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-button';
+        d.innerHTML=`
+          <div class="iotop">
+            <span class="ioid">Button ${i}</span>
+            <span class="ioBadge">Control</span>
+          </div>
+          <div>
+            <label for="btn-act-${i}">Action (on press)</label>
+            <select id="btn-act-${i}">${btnActOpts}</select>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--muted);">Pressed:</span>
+            <span id="btn-state-${i}" class="state-dot dot-off" title="pressed"></span>
+          </div>`;
+        BC.appendChild(d);
+      }
+    })();
+
+    function showTypeBoxes(){
+      for(let i=1;i<=5;i++){
+        const ts=$('type-in'+i);
+        const show = ts && parseInt(ts.value||'0',10)===2;
+        ['counter','flow','heat'].forEach(kind=>{
+          const el=$(`${kind}-box-${i}`);
+          if(el) el.style.display = show ? 'block' : 'none';
+        });
+      }
+    }
+
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); const packet={t:'inputEnable',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); const packet={t:'inputInvert',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); const packet={t:'inputAction',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputTarget(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('target-in'+i).value||'0',10)); const packet={t:'inputTarget',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    function sendInputType(){   const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('type-in'+i).value||'0',10)); const packet={t:'inputType',list:l}; logTx('Config',packet); conn.send('Config',packet); showTypeBoxes(); }
+    function resetSingleCounter(n){ const l=[]; for(let i=1;i<=5;i++) l.push(i===n); const packet={t:'counterResetList',list:l}; logTx('Config',packet); conn.send('Config',packet); }
+    for(let i=1;i<=5;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('action-in'+i)?.addEventListener('change', sendInputAction);
+      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+      $('type-in'+i)?.addEventListener('change',   sendInputType);
+      $('resetcnt-in'+i)?.addEventListener('click', ((n)=>()=>resetSingleCounter(n))(i));
+    }
+
+    function sendRelayCfg(){
+      const l=[];
+      for(let i=1;i<=2;i++){
+        l.push({
+          enabled:$('enable-relay'+i).checked,
+          inverted:$('invert-relay'+i).checked
+        });
+      }
+      const packet={t:'relays',list:l};
+      logTx('Config',packet);
+      conn.send('Config',packet);
+    }
+    function sendRelayCtrlMode(){
+      const list=[];
+      for(let i=1;i<=2;i++){
+        const v = parseInt(($('ctrlsrc-relay'+i)?.value||'0'),10) || 0;
+        list.push(v);
+      }
+      const packet={t:'relayCtrlMode',list};
+      logTx('Config',packet);
+      conn.send('Config',packet).catch(err=>log('Error','relayCtrlMode failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=2;i++){
+      $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('ctrlsrc-relay'+i)?.addEventListener('change', sendRelayCtrlMode);
+    }
+
+    function sendFlowPPL(){
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('ppl-in'+i)?.value; const v=parseInt(raw,10); list.push(Number.isFinite(v) && v>0 ? v : 1); }
+      const packet={t:'flowPPL',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','PPL updated'));
+    }
+    function sendFlowCalibRate(){
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('calr-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : 1); }
+      const packet={t:'flowCalibRate',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Rate calibration updated'));
+    }
+    function sendFlowCalibAccum(){
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('calt-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : 1); }
+      const packet={t:'flowCalibAccum',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Total calibration updated'));
+    }
+    function resetFlowAccum(di){ const list=[]; for(let i=1;i<=5;i++) list.push(i===di); const packet={t:'flowResetAccumList',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow',`Baseline moved (Total reset) for IN${di}`)); }
+    for(let i=1;i<=5;i++){
+      $('ppl-in'+i)?.addEventListener('change', sendFlowPPL);
+      $('calr-in'+i)?.addEventListener('change', sendFlowCalibRate);
+      $('calt-in'+i)?.addEventListener('change', sendFlowCalibAccum);
+      $('resetaccum-in'+i)?.addEventListener('click', ((n)=>()=>resetFlowAccum(n))(i));
+      $('calccal-in'+i)?.addEventListener('click', ((n)=>()=>calcCalibration(n))(i));
+    }
+    function calcCalibration(di){
+      const ext = parseFloat(($('extref-in'+di)?.value||'').trim());
+      if(!(ext>0)){ alert('Enter external total (L) > 0'); return; }
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const packet = { action:'flow_calculate', di, external: ext };
+      logTx('command', packet);
+      conn.send('command', packet)
+        .then(()=>log('flow', `DI${di} flow_calculate sent (external=${ext})`))
+        .catch(err=>log('Error','flow_calculate failed: '+(err?.message||err)));
+    }
+
+
+
+    function readHeatCfgFor(di){
+      const enabled = !!$('heat-enable-'+di)?.checked;
+      const posA = parseInt(($('heat-addrA-'+di)?.value||''), 10) || 0;
+      const posB = parseInt(($('heat-addrB-'+di)?.value||''), 10) || 0;
+      const cpRaw    = parseFloat(($('heat-cp-'+di)?.value||'').trim());
+      const rhoRaw   = parseFloat(($('heat-rho-'+di)?.value||'').trim());
+      const calibRaw = parseFloat(($('heat-calib-'+di)?.value||'').trim());
+      return {
+        enabled,
+        posA, posB,
+        cp:    (Number.isFinite(cpRaw)    && cpRaw>0)  ? cpRaw  : 4186,
+        rho:   (Number.isFinite(rhoRaw)   && rhoRaw>0) ? rhoRaw : 1,
+        calib: (Number.isFinite(calibRaw) && calibRaw>0)?calibRaw: 1,
+      };
+    }
+    function sendHeatConfigSingle(di){
+      const cfg = readHeatCfgFor(di);
+      const packet = { t:'heatConfigSingle', di, cfg };
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','Heat DI'+di+' config failed: '+(err?.message||err)));
+    }
+    function resetHeatEnergy(di){
+      const list=[]; for(let i=1;i<=5;i++) list.push(i===di);
+      const packet = { t:'heatResetEnergyList', list };
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','Heat reset failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=5;i++){
+      $('heat-enable-'+i)?.addEventListener('change', ()=>sendHeatConfigSingle(i));
+      $('heat-addrA-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockA[di-1] = Date.now() + HEAT_LOCK_MS; sendHeatConfigSingle(di); })(i));
+      $('heat-addrB-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockB[di-1] = Date.now() + HEAT_LOCK_MS; sendHeatConfigSingle(di); })(i));
+      $('heat-cp-'+i   )?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
+      $('heat-rho-'+i  )?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
+      $('heat-calib-'+i)?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
+      $('heat-reset-'+i)?.addEventListener('click',  ((n)=>()=>resetHeatEnergy(n))(i));
+    }
+
+    function readLedCfgList(){
+      const list=[];
+      for(let i=1;i<=4;i++){
+        const m=parseInt(($('led-mode-'+i)?.value||'0'),10);
+        const s=parseInt(($('led-src-'+i)?.value||'0'),10);
+        list.push({mode: (Number.isFinite(m)?m:0), source: (Number.isFinite(s)?s:0)});
+      }
+      return list;
+    }
+    function sendLedCfg(){
+      const packet={t:'led', list: readLedCfgList()};
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','LED config failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=4;i++){
+      $('led-mode-'+i)?.addEventListener('change', sendLedCfg);
+      $('led-src-'+i )?.addEventListener('change', sendLedCfg);
+    }
+
+    function readBtnCfgList(){
+      const list=[];
+      for(let i=1;i<=4;i++){
+        const v=parseInt(($('btn-act-'+i)?.value||'0'),10);
+        list.push(Number.isFinite(v)?v:0);
+      }
+      return list;
+    }
+    function sendBtnCfg(){
+      const packet={t:'buttons', list: readBtnCfgList()};
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','Buttons config failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=4;i++){ $('btn-act-'+i)?.addEventListener('change', sendBtnCfg); }
+
+
+    showTypeBoxes(); updateButtons();
+  })();
+  </script>
+</section>

@@ -4,6 +4,29 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  enm223_1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+        vars:
+          enm_id: enm223_1
+          enm_address: 4
+          enm_prefix: "ENM #1"
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 # ENM-223-R1 — 3-Phase Power Metering & I/O Module
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -964,7 +987,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
           enm_address: 4

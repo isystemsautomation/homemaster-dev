@@ -1,0 +1,162 @@
+# DIO-430-R1 — ESPHome Modbus map (package-friendly)
+# Mirrors the firmware map in default_DIO_430_R1.ino
+#
+# Notes
+# - Read-only states are exposed as `discrete_input` registers (FC=02)
+#   • DI1..DI4 at 1..4
+#   • Relay logical state R1..R3 at 60..62
+#   • LED logical state LED1..LED3 at 90..92
+# - Relay coils are *maintained* (FC=05/15): write ON/OFF directly (like WLD module)
+#   • Relay state (R1..R3) at 200..202
+# - DI enable/disable are *pulse* coils: write TRUE momentarily; firmware auto-clears
+#   • DI ENABLE (IN1..IN4) at 300..303
+#   • DI DISABLE (IN1..IN4) at 320..323
+# - Tweak substitutions in your main YAML as needed.
+
+substitutions:
+  dio_id: dio
+  dio_address: "3"
+  dio_prefix: "DIO"
+  dio_update_interval: 1s
+  dio_command_throttle: 0ms
+
+modbus_controller:
+  - id: ${dio_id}
+    address: ${dio_address}
+    modbus_id: modbus_bus
+    command_throttle: ${dio_command_throttle}
+    update_interval: ${dio_update_interval}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TELEMETRY (READ-ONLY): discrete_input registers
+# ─────────────────────────────────────────────────────────────────────────────
+binary_sensor:
+  # DI1..DI4 (1..4)
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1"
+    register_type: discrete_input
+    address: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2"
+    register_type: discrete_input
+    address: 2
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3"
+    register_type: discrete_input
+    address: 3
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4"
+    register_type: discrete_input
+    address: 4
+  # Relay logical state R1..R3 (60..62) - used for switch state feedback
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} RLY1 State"
+    id: ${dio_id}_rly1_state
+    register_type: discrete_input
+    address: 60
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} RLY2 State"
+    id: ${dio_id}_rly2_state
+    register_type: discrete_input
+    address: 61
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} RLY3 State"
+    id: ${dio_id}_rly3_state
+    register_type: discrete_input
+    address: 62
+  # LED logical state LED1..LED3 (90..92)
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED1 State"
+    register_type: discrete_input
+    address: 90
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED2 State"
+    register_type: discrete_input
+    address: 91
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED3 State"
+    register_type: discrete_input
+    address: 92
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMMANDS: pulse coils (for DI enable/disable)
+# ─────────────────────────────────────────────────────────────────────────────
+output:
+  # DI ENABLE pulses (300..303)
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di1_enable
+    address: 300
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di2_enable
+    address: 301
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di3_enable
+    address: 302
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di4_enable
+    address: 303
+  # DI DISABLE pulses (320..323)
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di1_disable
+    address: 320
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di2_disable
+    address: 321
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di3_disable
+    address: 322
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di4_disable
+    address: 323
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RELAY SWITCHES: Maintained coils (like WLD module)
+# ─────────────────────────────────────────────────────────────────────────────
+switch:
+  # Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 1"
+    id: ${dio_id}_relay1
+    address: 200
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 2"
+    id: ${dio_id}_relay2
+    address: 201
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 3"
+    id: ${dio_id}_relay3
+    address: 202
+    register_type: coil

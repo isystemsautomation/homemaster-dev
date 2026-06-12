@@ -5,6 +5,29 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  dio1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+        vars:
+          dio_prefix: "DIO#1"
+          dio_id: dio_1
+          dio_address: 4
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 # DIO-430-R1 — Module for Smart I/O Control
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -751,7 +774,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+      - path: DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
         vars:
           dio_prefix: "DIO#1"  # shown in Home Assistant entity names
           dio_id: dio_1        # internal unique id
@@ -1002,11 +1025,11 @@ See LICENSE files in each directory for full terms.
 # 11. Downloads
 
 - **Firmware binaries**  
-  - Default UF2: [`DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350)
+  - Default UF2: [`DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350)
 - **YAML configs (ESPHome)**  
-  - Package & examples: [`DIO-430-R1/Firmware/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/default_dio_430_r1_plc)
+  - Package & examples: [`DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS)**  
-  - [`DIO-430-R1/Firmware/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html)
+  - [`DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - **Schematics (PDF)**  
   - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
   - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)

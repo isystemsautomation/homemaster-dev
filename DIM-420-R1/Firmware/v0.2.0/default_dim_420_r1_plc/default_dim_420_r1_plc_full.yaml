@@ -1,0 +1,391 @@
+modbus_controller:
+  - id: ${dim_id}
+    address: ${dim_address}       # DIM-420-R1 slave ID
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ===================== Discrete Inputs (FC02) =====================
+# DI states: 1..4 | CH on mirrors: 50..51 | LED states: 90..93 | ZC OK: 120..121
+binary_sensor:
+  # --- Digital Inputs DI1..DI4 ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI1"
+    address: 1
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI2"
+    address: 2
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI3"
+    address: 3
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI4"
+    address: 4
+    register_type: discrete_input
+
+  # --- Channel ON mirrors (enabled && level>0) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 On"
+    address: 50
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 On"
+    address: 51
+    register_type: discrete_input
+
+  # --- LED physical states (after blink/logic) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} LED1"
+    address: 90
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} LED2"
+    address: 91
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} LED3"
+    address: 92
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} LED4"
+    address: 93
+    register_type: discrete_input
+
+  # --- Zero-cross health ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} ZC1 OK"
+    address: 120
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} ZC2 OK"
+    address: 121
+    register_type: discrete_input
+
+# ===================== Coils (FC01/05) — momentary pulses =====================
+# CH1/2 ON: 200/201 | CH1/2 OFF: 210/211
+# DI1..4 ENABLE: 300..303 | DI1..4 DISABLE: 320..323
+switch:
+  # --- Channel ON/OFF pulses ---
+  - platform: modbus_controller
+    id: ${dim_id}_ch1_on
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 ON (Preset)"
+    address: 200
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_ch1_on
+
+  - platform: modbus_controller
+    id: ${dim_id}_ch2_on
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 ON (Preset)"
+    address: 201
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_ch2_on
+
+  - platform: modbus_controller
+    id: ${dim_id}_ch1_off
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 OFF"
+    address: 210
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_ch1_off
+
+  - platform: modbus_controller
+    id: ${dim_id}_ch2_off
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 OFF"
+    address: 211
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_ch2_off
+
+  # --- DI enable/disable pulses (optional) ---
+  - platform: modbus_controller
+    id: ${dim_id}_di1_enable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI1 Enable"
+    address: 300
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di1_enable
+  - platform: modbus_controller
+    id: ${dim_id}_di2_enable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI2 Enable"
+    address: 301
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di2_enable
+  - platform: modbus_controller
+    id: ${dim_id}_di3_enable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI3 Enable"
+    address: 302
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di3_enable
+  - platform: modbus_controller
+    id: ${dim_id}_di4_enable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI4 Enable"
+    address: 303
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di4_enable
+
+  - platform: modbus_controller
+    id: ${dim_id}_di1_disable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI1 Disable"
+    address: 320
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di1_disable
+  - platform: modbus_controller
+    id: ${dim_id}_di2_disable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI2 Disable"
+    address: 321
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di2_disable
+  - platform: modbus_controller
+    id: ${dim_id}_di3_disable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI3 Disable"
+    address: 322
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di3_disable
+  - platform: modbus_controller
+    id: ${dim_id}_di4_disable
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} DI4 Disable"
+    address: 323
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: ${dim_id}_di4_disable
+
+# ===================== Numbers (FC03/06/16 Holding) =====================
+# Per-channel pairs: CH1/CH2 = +0/+1 offset
+number:
+  # --- Level 0..255 (400/401) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Level"
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: slider
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Level"
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: slider
+
+  # --- Thresholds (Lower/Upper) 0..255 (410/420) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Lower"
+    address: 410
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Lower"
+    address: 411
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Upper"
+    address: 420
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Upper"
+    address: 421
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+  # --- Percent ×10 (0..1000) (440/441) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Percent ×10"
+    address: 440
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1000
+    step: 10
+    mode: slider
+    unit_of_measurement: "x10 %"
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Percent ×10"
+    address: 441
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1000
+    step: 10
+    mode: slider
+    unit_of_measurement: "x10 %"
+
+  # --- LoadType (0=Lamp,1=Heater,2=Key) (460/461) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 LoadType"
+    address: 460
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 2
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 LoadType"
+    address: 461
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 2
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  # --- CutMode (0=Leading,1=Trailing) (470/471) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 CutMode"
+    address: 470
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 CutMode"
+    address: 471
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  # --- Preset level (used by ON pulse) (480/481) ---
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Preset"
+    address: 480
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Preset"
+    address: 481
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+
+# ===================== Sensors (Holding RO) =====================
+# Freq_x100 (Hz ×100) at 430/431 — expose as Hz with a multiply filter.
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH1 Mains Freq"
+    address: 430
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dim_id}
+    name: "${dim_prefix} CH2 Mains Freq"
+    address: 431
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01

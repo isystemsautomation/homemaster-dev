@@ -4,6 +4,29 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## 🚀 Быстрый старт (текущая версия)
+
+**Прошивка на новых модулях: `v0.1.0`**
+
+```yaml
+packages:
+  alm1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+        vars:
+          alm_prefix: "ALM#1"
+          alm_id: alm_1
+          alm_address: 5
+```
+
+## 📦 История версий
+
+| Версия | Путь конфига (`path:`) | Дата | Изменения |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+
 # ALM-173-R1 Module for Alarm Systems
 
 # 1. Overview & Description
@@ -708,7 +731,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+      - path: ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
         vars:
           alm_prefix: "ALM#1"   # shown in HA entity names
           alm_id: alm_1         # unique internal ID
@@ -824,7 +847,7 @@ To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
 
 1. Connect the USB‑C cable to the module.
 2. Press **Buttons 1 + 2** together to enter **BOOT mode**.
-3. Upload the updated binary located in `Firmware/default_alm_173_r1/`.
+3. Upload the updated binary located in `Firmware/v0.1.0/default_alm_173_r1/`.
 
 ⚠️ Configuration stored in EEPROM is preserved during firmware updates unless manually cleared.
 
@@ -872,10 +895,10 @@ See LICENSE files in each directory for full terms.
 
 The following key project resources are included in this repository:
 
-* **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_alm_173_r1/`](Firmware/default_alm_173_r1/)
+* **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/v0.1.0/default_alm_173_r1/`](Firmware/v0.1.0/default_alm_173_r1/)
   Main sketch implementing relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
-* **🛠 Web Config Tool:** [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html)
+* **🛠 Web Config Tool:** [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)
   HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
 
 * **📷 Images & Visual Documentation:** [`Images/`](Images/)
