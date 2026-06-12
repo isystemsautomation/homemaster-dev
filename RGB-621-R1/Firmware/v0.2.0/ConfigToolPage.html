@@ -1,132 +1,27 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
 <section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
-    :root{
-      /* Global color system */
-      --page:#f8fafc;
-      --card:#ffffff;
-      --text:#111827;
-      --muted:#1f2937;
-      --muted2:#4b5563;
-      --border:#dde3ea;
-      --borderStrong:#d1d5db;
-      --brand:#2563eb;
-      --brandHover:#1d4ed8;
-      --ok:#16a34a;
-      --warn:#f59e0b;
-      --bad:#ef4444;
-      --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
-      --r:16px;
-      --r2:14px;
-      --gap:16px;
-      --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-      /* group tints to match DIO */
-      --tint-input-bg:#e9fbe9;
-      --tint-input-br:#bfe7bf;
-      --tint-button-bg:#dbe9ff;
-      --tint-button-br:#b7cffc;
-      --tint-led-bg:#f6f8d6;
-      --tint-led-br:#e2e79e;
-      --tint-relay-bg:#eef2ff;
-      --tint-relay-br:#c7d2fe;
-    }
-    *{box-sizing:border-box}
-
-    label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
-    select,input,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;color:var(--text);background:#fff;box-sizing:border-box;transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease}
-    select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
-
-    .btn{padding:9px 18px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid var(--borderStrong);background:#fff;cursor:pointer;transition:background .18s ease,box-shadow .18s ease,transform .08s ease,border-color .18s ease,color .18s ease}
-    .btn:hover{background:#f3f4f6;box-shadow:0 1px 3px rgba(15,23,42,.16)}
-    .btn:active{transform:scale(0.98);box-shadow:none}
-    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-    .btn.primary:hover{background:var(--brandHover)}
-    .btn.danger{color:var(--bad);border-color:#fecaca}
-    .btn.danger:hover{background:rgba(239,68,68,.06)}
-
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,0.05)}
-    .cardheader{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-    .cardheader h2{margin:0;font-size:18px;font-weight:600;color:var(--text)}
-    .sub{margin-top:4px;font-size:13px;color:var(--muted2)}
-    .cardbody{padding:16px}
-
-    .grid{display:grid;gap:var(--gap);margin-top:16px}
-    .grid.two{grid-template-columns:1.2fr .8fr}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
-
-    .sectiontitle{margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-    .sectiontitle h3{margin:0;font-size:16px;font-weight:600;color:var(--text)}
-    .sectiontitle .hint{margin:0;font-size:13px;color:var(--muted2);font-weight:650}
-
-    .appbar{display:flex;justify-content:space-between;gap:16px;padding:16px;background:var(--card);border:1px solid #dde3ea;border-radius:var(--r);box-shadow:0 2px 8px rgba(16,24,40,0.05);margin-bottom:var(--gap)}
-    .headLeft{display:flex;gap:24px;align-items:center;min-width:300px}
-    .moduleImage{width:256px;height:256px;border-radius:24px;border:1px solid var(--border);display:grid;place-items:center;overflow:hidden;background:#f8fafc}
-    .moduleImage img{width:100%;height:100%;object-fit:contain}
-    .title h1{margin:0;font-size:22px;font-weight:700;color:var(--text)}
-    .title p{margin:4px 0 0;font-size:13px;color:var(--muted2)}
-    .statusbar{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:var(--muted2)}
-
-    #log-box{margin-top:.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow);font-size:12px}
-    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
-
-    .iogroup{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--gap)}
-    .iogroup + .iogroup{margin-top:16px;}
-    .iocard{border:1px solid #dde3ea;border-radius:12px;padding:12px 12px 14px;background:#fff}
-    .iotop{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    .ioid{font-size:14px;font-weight:900}
-    .state-dot{width:11px;height:11px;border-radius:50%;display:inline-block;vertical-align:middle;margin-left:.4rem;background:#9ca3af}
-
-    /* group tints: keep white cards, only accent borders */
-    .tint-input{background:#ffffff;border-color:#dde3ea}
-    .tint-button{background:#ffffff;border-color:#dde3ea}
-    .tint-led{background:#ffffff;border-color:#dde3ea}
-    .tint-relay{background:#ffffff;border-color:#dde3ea}
-
-    .checkRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-    .check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)}
-    .check input{width:auto}
-
-    /* Light control styling */
-    .light-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer;transition:background 0.15s ease,box-shadow 0.15s ease,transform 0.12s ease}
-    .light-slider:focus{box-shadow:0 0 0 2px rgba(37,99,235,0.25)}
-    .light-slider:active{transform:scaleY(1.05)}
-    .light-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:#1f2937;border:2px solid #f9fafb;box-shadow:0 1px 2px rgba(0,0,0,0.35)}
-    .light-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#1f2937;border:2px solid #f9fafb;box-shadow:0 1px 2px rgba(0,0,0,0.35)}
-    .light-slider::-webkit-slider-runnable-track{height:6px;border-radius:6px}
-    .light-slider::-moz-range-track{height:6px;border-radius:6px}
+    .light-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer}
+    .light-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#1f2937;border:2px solid #f9fafb}
     .light-slider--red::-webkit-slider-runnable-track{background:linear-gradient(90deg,#ef4444,#f97373)}
-    .light-slider--red::-moz-range-track{background:linear-gradient(90deg,#ef4444,#f97373)}
     .light-slider--green::-webkit-slider-runnable-track{background:linear-gradient(90deg,#22c55e,#4ade80)}
-    .light-slider--green::-moz-range-track{background:linear-gradient(90deg,#22c55e,#4ade80)}
     .light-slider--blue::-webkit-slider-runnable-track{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
-    .light-slider--blue::-moz-range-track{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
     .light-slider--warm::-webkit-slider-runnable-track{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-    .light-slider--warm::-moz-range-track{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
     .light-slider--cool::-webkit-slider-runnable-track{background:linear-gradient(90deg,#d1d5db,#f9fafb)}
-    .light-slider--cool::-moz-range-track{background:linear-gradient(90deg,#d1d5db,#f9fafb)}
-
-    #light-preview{margin-top:16px;height:60px;border-radius:10px;background:#f9fafb;border:1px solid #dde3ea;box-shadow:inset 0 0 18px rgba(249,250,251,0.95),0 6px 18px rgba(148,163,184,0.25);transition:background 0.2s ease,box-shadow 0.2s ease}
-
+    #light-preview{margin-top:16px;height:60px;border-radius:10px;background:#f9fafb;border:1px solid #dde3ea;box-shadow:inset 0 0 18px rgba(249,250,251,0.95)}
     .light-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .light-actions .btn{border-radius:8px;border-color:#e5e7eb;background:#ffffff;font-weight:600}
-    .btn-seg-active{background:#2563eb !important;color:#ffffff !important;border-color:#2563eb !important}
+    .btn-seg-active{background:#2563eb !important;color:#fff !important;border-color:#2563eb !important}
     #btn-off.btn-seg-active{background:#111827 !important;border-color:#111827 !important}
-
-    @media(max-width:980px){
-      .grid.two{grid-template-columns:1fr}
-      .statusbar{align-items:flex-start}
-      .pillrow{justify-content:flex-start}
-    }
-    @media(max-width:640px){
-      .row{grid-template-columns:1fr}
-    }
+    .pwm-pwr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px}
   </style>
 
-  <!-- Header -->
   <header class="appbar">
     <div class="headLeft">
       <div class="moduleImage">
-        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/photo1.png" alt="RGB-621-R1 module photo" loading="lazy">
+        <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/RGB-621-R1/Images/photo1.png" alt="RGB-621-R1">
       </div>
       <div class="title">
         <h1>RGB-621-R1 Module Configuration</h1>
@@ -135,16 +30,18 @@
     </div>
     <div class="statusbar">
       <div class="pillrow">
-        <span>Modbus ID: <strong id="live-address">--</strong></span>
-        <span>Baud: <strong id="live-baud">--</strong></span>
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-        <button class="btn primary" id="connect-button" type="button">Connect</button>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
       </div>
     </div>
   </header>
 
-  <!-- Top: Device Setup + Serial Log -->
   <div class="grid two">
     <section class="card">
       <div class="cardheader">
@@ -152,29 +49,27 @@
           <h2>Device Setup</h2>
           <div class="sub">Serial connection and Modbus addressing.</div>
         </div>
+        <span class="tag">Step 1</span>
       </div>
       <div class="cardbody">
-        <form id="modbus-config" class="row">
+        <div class="row">
           <div>
             <label for="modbus-address">Modbus Address</label>
             <select id="modbus-address"></select>
-            <div style="margin-top:8px;font-size:12px;color:var(--muted2)">Use a unique address per device on the bus.</div>
           </div>
           <div>
             <label for="modbus-baud">Baud Rate</label>
             <select id="modbus-baud">
-              <option>9600</option>
-              <option>19200</option>
-              <option>38400</option>
-              <option>57600</option>
-              <option>115200</option>
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
             </select>
-            <div style="margin-top:8px;font-size:12px;color:var(--muted2)">Must match your controller UART settings.</div>
           </div>
-        </form>
+        </div>
       </div>
     </section>
-
     <section class="card">
       <div class="cardheader">
         <div>
@@ -183,434 +78,247 @@
         </div>
       </div>
       <div class="cardbody">
-        <div id="log-box">
-          <div id="log-content"></div>
-        </div>
+        <div id="hm-log-box"><div id="hm-log"></div></div>
       </div>
     </section>
   </div>
 
-  <!-- Light Levels -->
   <div class="sectiontitle">
     <h3>Light Levels (0–255)</h3>
     <p class="hint">Adjust RGB and CCT output levels in real time.</p>
   </div>
   <section class="card">
     <div class="cardbody">
-      <div class="iogroup">
-        <div>
-          <label>Red <span id="val-r">0</span></label>
-          <input id="pwm-r" class="light-slider light-slider--red" type="range" min="0" max="255" value="0">
-        </div>
-        <div>
-          <label>Green <span id="val-g">0</span></label>
-          <input id="pwm-g" class="light-slider light-slider--green" type="range" min="0" max="255" value="0">
-        </div>
-        <div>
-          <label>Blue <span id="val-b">0</span></label>
-          <input id="pwm-b" class="light-slider light-slider--blue" type="range" min="0" max="255" value="0">
-        </div>
-        <div>
-          <label>Warm White <span id="val-ww">0</span></label>
-          <input id="pwm-ww" class="light-slider light-slider--warm" type="range" min="0" max="255" value="0">
-        </div>
-        <div>
-          <label>Cool White <span id="val-cw">0</span></label>
-          <input id="pwm-cw" class="light-slider light-slider--cool" type="range" min="0" max="255" value="0">
-        </div>
+      <div class="iogroup cols3">
+        <div><label>Red <span id="val-r">0</span><input id="pwm-r" class="light-slider light-slider--red" type="range" min="0" max="255" value="0"></label></div>
+        <div><label>Green <span id="val-g">0</span><input id="pwm-g" class="light-slider light-slider--green" type="range" min="0" max="255" value="0"></label></div>
+        <div><label>Blue <span id="val-b">0</span><input id="pwm-b" class="light-slider light-slider--blue" type="range" min="0" max="255" value="0"></label></div>
+        <div><label>Warm White <span id="val-ww">0</span><input id="pwm-ww" class="light-slider light-slider--warm" type="range" min="0" max="255" value="0"></label></div>
+        <div><label>Cool White <span id="val-cw">0</span><input id="pwm-cw" class="light-slider light-slider--cool" type="range" min="0" max="255" value="0"></label></div>
       </div>
       <div id="light-preview"></div>
       <div class="light-actions">
         <button id="btn-off" type="button" class="btn">OFF</button>
         <button id="btn-white" type="button" class="btn">WHITE</button>
         <button id="btn-red" type="button" class="btn">RGB</button>
-        <button id="btn-green" type="button" class="btn">FULL</button>
-        <button id="btn-blue" type="button" class="btn" style="display:none;">Hidden</button>
+        <button id="btn-full" type="button" class="btn">FULL</button>
       </div>
+      <div class="sectiontitle" style="margin-top:18px;">
+        <h3 style="font-size:14px;">PWM power-on policy</h3>
+      </div>
+      <div class="pwm-pwr-grid" id="pwm-poweron"></div>
     </div>
   </section>
 
-  <!-- Live I/O -->
-  <div class="sectiontitle">
-    <h3>Live I/O</h3>
-    <p class="hint">Monitor inputs, relay state, buttons, and user LEDs.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <!-- Row 1: DI1, DI2, Relay 1 -->
-      <div class="iogroup">
-        <div class="iocard tint-input">
-          <div class="iotop">
-            <span class="ioid">DI1</span>
-            <span id="state-in1" class="state-dot"></span>
-          </div>
-          <div class="checkRow">
-            <label class="check"><input id="enable-in1" type="checkbox"> Enabled</label>
-            <label class="check"><input id="invert-in1" type="checkbox"> Inverted</label>
-          </div>
-          <div>
-            <label for="action-in1">Action</label>
-            <select id="action-in1">
-              <option value="0">None</option>
-              <option value="1">Toggle</option>
-              <option value="2">Pulse</option>
-            </select>
-          </div>
-          <div style="margin-top:10px;">
-            <label for="target-in1">Target</label>
-            <select id="target-in1">
-              <option value="4">None</option>
-              <option value="0">All</option>
-              <option value="1">Relay 1</option>
-            </select>
-          </div>
-        </div>
+  <div class="sectiontitle"><h3>Digital Inputs (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-inputs"></div></div></section>
 
-        <div class="iocard tint-input">
-          <div class="iotop">
-            <span class="ioid">DI2</span>
-            <span id="state-in2" class="state-dot"></span>
-          </div>
-          <div class="checkRow">
-            <label class="check"><input id="enable-in2" type="checkbox"> Enabled</label>
-            <label class="check"><input id="invert-in2" type="checkbox"> Inverted</label>
-          </div>
-          <div>
-            <label for="action-in2">Action</label>
-            <select id="action-in2">
-              <option value="0">None</option>
-              <option value="1">Toggle</option>
-              <option value="2">Pulse</option>
-            </select>
-          </div>
-          <div style="margin-top:10px;">
-            <label for="target-in2">Target</label>
-            <select id="target-in2">
-              <option value="4">None</option>
-              <option value="0">All</option>
-              <option value="1">Relay 1</option>
-            </select>
-          </div>
-        </div>
+  <div class="sectiontitle"><h3>Relays (1)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-relays"></div></div></section>
 
-        <div class="iocard tint-relay">
-          <div class="iotop">
-            <span class="ioid">Relay 1</span>
-            <input id="state-relay1" type="checkbox" disabled>
-          </div>
-          <div class="checkRow">
-            <label class="check"><input id="enable-relay1" type="checkbox"> Enabled</label>
-            <label class="check"><input id="invert-relay1" type="checkbox"> Inverted</label>
-          </div>
-        </div>
+  <div class="sectiontitle"><h3>Buttons (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
 
-      </div>
-
-      <!-- Row 2: Button 1, Button 2 -->
-      <div class="iogroup">
-        <div class="iocard tint-button">
-          <div class="iotop">
-            <span class="ioid">Button 1</span>
-            <span id="state-button1" class="state-dot"></span>
-          </div>
-          <div>
-            <label for="action-button1">Action</label>
-            <select id="action-button1">
-              <option value="0">None</option>
-              <option value="5">Relay 1 override (toggle)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="iocard tint-button">
-          <div class="iotop">
-            <span class="ioid">Button 2</span>
-            <span id="state-button2" class="state-dot"></span>
-          </div>
-          <div>
-            <label for="action-button2">Action</label>
-            <select id="action-button2">
-              <option value="0">None</option>
-              <option value="5">Relay 1 override (toggle)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Row 3: User LED 1, User LED 2 -->
-      <div class="iogroup">
-        <div class="iocard tint-led">
-          <div class="iotop">
-            <span class="ioid">User LED 1</span>
-            <span id="state-led1" class="state-dot"></span>
-          </div>
-          <div>
-            <label for="mode-led1">Mode</label>
-            <select id="mode-led1">
-              <option value="0">Steady (on with relay)</option>
-              <option value="1">Blink (on with relay)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="iocard tint-led">
-          <div class="iotop">
-            <span class="ioid">User LED 2</span>
-            <span id="state-led2" class="state-dot"></span>
-          </div>
-          <div>
-            <label for="mode-led2">Mode</label>
-            <select id="mode-led2">
-              <option value="0">Steady (on with relay)</option>
-              <option value="1">Blink (on with relay)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <div class="sectiontitle"><h3>User LEDs (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
-    (function () {
-      // ---------- Consts / helpers ----------
-      const LOG_MAX = 4;
-      const logBuffer = [];
-      const $ = (id) => document.getElementById(id);
-      const NUM_DI=2, NUM_RLY=1, NUM_BTN=2, NUM_LED=2;
+  (function(){
+    const $ = id => document.getElementById(id);
+    const NUM_DI = 2, NUM_RLY = 1, NUM_BTN = 2, NUM_LED = 2, NUM_PWM = 5;
+    const PWM_NAMES = ['Red','Green','Blue','Warm White','Cool White'];
+    const PWM_IDS = ['r','g','b','ww','cw'];
+    let pwmSyncLock = false;
 
-      const r=$('pwm-r'), g=$('pwm-g'), b=$('pwm-b'), ww=$('pwm-ww'), cw=$('pwm-cw');
-      const vr=$('val-r'), vg=$('val-g'), vb=$('val-b'), vww=$('val-ww'), vcw=$('val-cw');
+    const r=$('pwm-r'), g=$('pwm-g'), b=$('pwm-b'), ww=$('pwm-ww'), cw=$('pwm-cw');
+    const vr=$('val-r'), vg=$('val-g'), vb=$('val-b'), vww=$('val-ww'), vcw=$('val-cw');
 
-      function updatePreview() {
-        const block = $('light-preview');
-        if (!block) return;
-        const clamp = v => Math.max(0, Math.min(255, Number(v||0)));
-        const rVal = clamp(r.value);
-        const gVal = clamp(g.value);
-        const bVal = clamp(b.value);
-        const wwVal = clamp(ww.value);
-        const cwVal = clamp(cw.value);
-        // compute a single blended color (no gradient)
-        let outR, outG, outB;
-
-        const hasRGB = (rVal + gVal + bVal) > 0;
-        const hasCCT = (wwVal + cwVal) > 0;
-
-        if (!hasRGB && hasCCT) {
-          // Pure CCT (WHITE preset etc): map between warm and cool whites
-          const t = cwVal / (wwVal + cwVal); // 0 = warm, 1 = cool
-          const warm = { r:255, g:247, b:224 }; // slightly warm white
-          const cool = { r:245, g:251, b:255 }; // slightly cool white
-          outR = Math.round(warm.r * (1 - t) + cool.r * t);
-          outG = Math.round(warm.g * (1 - t) + cool.g * t);
-          outB = Math.round(warm.b * (1 - t) + cool.b * t);
-        } else {
-          // RGB present: brighten towards white based on overall level + CCT
-          const rgbAvg   = (rVal + gVal + bVal) / (3 * 255);
-          const cctAvg   = (wwVal + cwVal) / (2 * 255);
-          const brightness = Math.max(rgbAvg, cctAvg); // 0..1
-
-          const boost = v => clamp(v * 0.7 + 255 * brightness * 0.3);
-          outR = boost(rVal);
-          outG = boost(gVal);
-          outB = boost(bVal);
-        }
-
-        block.style.background = `rgb(${outR}, ${outG}, ${outB})`;
+    function updatePreview(){
+      const block=$('light-preview'); if(!block) return;
+      const clamp=v=>Math.max(0,Math.min(255,Number(v||0)));
+      const rVal=clamp(r.value), gVal=clamp(g.value), bVal=clamp(b.value);
+      const wwVal=clamp(ww.value), cwVal=clamp(cw.value);
+      let outR,outG,outB;
+      const hasRGB=(rVal+gVal+bVal)>0, hasCCT=(wwVal+cwVal)>0;
+      if(!hasRGB && hasCCT){
+        const t=cwVal/(wwVal+cwVal);
+        outR=Math.round(255*(1-t)+245*t); outG=Math.round(247*(1-t)+251*t); outB=Math.round(224*(1-t)+255*t);
+      } else {
+        const rgbAvg=(rVal+gVal+bVal)/(3*255), cctAvg=(wwVal+cwVal)/(2*255);
+        const brightness=Math.max(rgbAvg,cctAvg);
+        const boost=v=>clamp(v*0.7+255*brightness*0.3);
+        outR=boost(rVal); outG=boost(gVal); outB=boost(bVal);
       }
+      block.style.background=`rgb(${outR}, ${outG}, ${outB})`;
+    }
 
-      function appendLog(label, data) {
-        const logEl = $('log-content'); if (!logEl) return;
-        const time = new Date().toLocaleTimeString();
-        const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
-        logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
-        logEl.innerText = logBuffer.join('\n');
+    function applyPwmFromExt(pwm){
+      if(!pwm || pwmSyncLock) return;
+      pwmSyncLock=true;
+      const arr=HMWebConfig.toArray(pwm);
+      const sliders=[r,g,b,ww,cw], vals=[vr,vg,vb,vww,vcw];
+      for(let i=0;i<NUM_PWM;i++){
+        const v=Math.max(0,Math.min(255,Number(arr[i]||0)));
+        if(sliders[i] && sliders[i]!==document.activeElement) sliders[i].value=String(v);
+        if(vals[i]) vals[i].textContent=String(v);
       }
+      updatePreview();
+      pwmSyncLock=false;
+    }
 
-      // Populate address dropdown 1..255
-      (function populateAddresses(){
-        const sel=$('modbus-address'); if(!sel) return;
-        for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
-      })();
-
-      // ---------- WebSerial ----------
-      const connection = SimpleWebSerial.setupSerialConnection({
-        requestAccessOnPageLoad:false,
-        requestElement:'connect-button'
+    function applyRgbCfg(ext){
+      const pwr=ext&&ext.pwmPowerOn;
+      if(!pwr) return;
+      HMWebConfig.toArray(pwr).forEach((v,i)=>{
+        const el=$('powerOn-pwm'+(i+1));
+        if(el && el!==document.activeElement) el.value=String(v??0);
       });
+    }
 
-      function isOpen(){
-        try { return typeof connection.isOpen==='function' ? connection.isOpen() : !!connection.port; }
-        catch { return false; }
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
+
+    HMWebConfig.register({
+      channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
+      onCfg: applyRgbCfg
+    });
+    HMWebConfig.connect({ requestElement: 'connect-button' });
+    HMWebConfig.conn.on('ext', ext=>{ if(ext&&ext.pwm) applyPwmFromExt(ext.pwm); });
+
+    (function buildPwmPowerOn(){
+      const c=$('pwm-poweron'); if(!c) return;
+      const pwrOpts=[{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=0;i<NUM_PWM;i++){
+        const d=document.createElement('div');
+        d.innerHTML=`<label for="powerOn-pwm${i+1}">${PWM_NAMES[i]} power-on</label><select id="powerOn-pwm${i+1}">${pwrOpts}</select>`;
+        c.appendChild(d);
       }
-      function setResetEnabled(){} // reset button removed from UI
-
-      connection.on('message', (msg)=>appendLog('RGB-621-R1', msg));
-      connection.on('status', (modbus)=>{
-        $('live-address').textContent = (modbus&&'address'in modbus)?modbus.address:'--';
-        $('live-baud').textContent    = (modbus&&'baud'in modbus)?modbus.baud:'--';
-        if(modbus&&modbus.address) $('modbus-address').value = modbus.address;
-        if(modbus&&modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-        setResetEnabled();
-      });
-
-      // Active readings
-      connection.on('PwmLevels',(arr)=>{
-        if(!arr) return;
-        const clamp = v => Math.max(0, Math.min(255, Number(v||0)));
-        const vals=[clamp(arr[0]),clamp(arr[1]),clamp(arr[2]),clamp(arr[3]),clamp(arr[4])];
-        r.value=vals[0]; g.value=vals[1]; b.value=vals[2]; ww.value=vals[3]; cw.value=vals[4];
-        vr.textContent=vals[0]; vg.textContent=vals[1]; vb.textContent=vals[2]; vww.textContent=vals[3]; vcw.textContent=vals[4];
-        updatePreview();
-      });
-      connection.on('inputs', (list)=> (list||[]).forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background=v?'#22c55e':'#ccc'; }));
-      connection.on('enableList', (list)=> (list||[]).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('invertList', (list)=> (list||[]).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('inputActionList', (list)=> (list||[]).forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v||0); }));
-      connection.on('inputTargetList', (list)=> (list||[]).forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
-
-      connection.on('relayStateList',(list)=> (list||[]).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('relayEnableList',(list)=> (list||[]).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('relayInvertList',(list)=> (list||[]).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }));
-
-      connection.on('ButtonStateList',(list)=> (list||[]).forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background=v?'#22c55e':'#ccc'; }));
-      connection.on('ButtonGroupList',(list)=> (list||[]).forEach((v,i)=>{ const el=$('action-button'+(i+1)); if(el) el.value=String(v||0); }));
-
-      connection.on('LedConfigList',(list)=> (list||[]).forEach((obj,i)=>{ const el=$('mode-led'+(i+1)); if(el && obj && typeof obj.mode!=='undefined') el.value=String(obj.mode); }));
-      connection.on('LedStateList',(list)=> (list||[]).forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background=v?'#16a34a':'#9ca3af'; }));
-
-      // ---------- Modbus config send ----------
-      document.getElementById('modbus-address').addEventListener('input', sendModbus);
-      document.getElementById('modbus-baud').addEventListener('input', sendModbus);
-      async function sendModbus(){
-        const mb_address = parseInt(document.getElementById('modbus-address').value||'1',10);
-        const mb_baud    = parseInt(document.getElementById('modbus-baud').value||'19200',10);
-        await connection.send('values', { mb_address, mb_baud });
-      }
-
-      // ---------- Reset dialog (button removed in this UI variant; keep logic guarded) ----------
-      const resetBtn=document.getElementById('reset-button');
-      const dlg=document.getElementById('reset-dialog');
-      const dlgCancel=document.getElementById('dlg-cancel');
-      const dlgConfirm=document.getElementById('dlg-confirm');
-
-      if (resetBtn) {
-        resetBtn.addEventListener('click', ()=>{
-          setResetEnabled();
-          if(resetBtn.disabled){ appendLog('System','Connect to the device before resetting.'); return; }
-          if (dlg && typeof dlg.showModal==='function' && !dlg.open) dlg.showModal();
-        });
-      }
-      if (dlgCancel) dlgCancel.addEventListener('click', (e)=>{ e.preventDefault(); if(dlg && dlg.open) dlg.close('cancel'); });
-      if (dlgConfirm) dlgConfirm.addEventListener('click', async (e)=>{ e.preventDefault(); if(dlg && dlg.open) dlg.close('confirm'); await doReset(); });
-      if (dlg) dlg.addEventListener('click', (ev)=>{
-        const r=dlg.getBoundingClientRect();
-        const inside = ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY<=r.bottom && ev.clientY>=r.top;
-        if(!inside && dlg.open) dlg.close('backdrop');
-      });
-      async function doReset(){
-        try{ await connection.send('command', {action:'reset'}); appendLog('System','Reset command sent'); if(resetBtn) { resetBtn.disabled=true; setTimeout(setResetEnabled, 3000); } }
-        catch(err){ appendLog('Error','Failed to send reset: '+(err && err.message ? err.message : err)); }
-      }
-
-      // ---------- PWM send helpers ----------
-      function readRGB() { return [Number(r.value||0), Number(g.value||0), Number(b.value||0)]; }
-      function readCCT() { return [Number(ww.value||0), Number(cw.value||0)]; }
-
-      async function sendRGB(){ const rgb=readRGB(); vr.textContent=rgb[0]; vg.textContent=rgb[1]; vb.textContent=rgb[2]; updatePreview(); await connection.send('values', { rgb }); }
-      async function sendCCT(){ const cct=readCCT(); vww.textContent=cct[0]; vcw.textContent=cct[1]; updatePreview(); await connection.send('values', { cct }); }
-
-      // Debounced change events
-      let tRGB=null, tCCT=null;
-      function debounce(fn, holdMs, tag){
-        return (...a)=>{ clearTimeout(tag==='rgb'?tRGB:tCCT); const id=setTimeout(()=>fn(...a), holdMs); if(tag==='rgb') tRGB=id; else tCCT=id; };
-      }
-      const sendRGBdeb = debounce(sendRGB, 40, 'rgb');
-      const sendCCTdeb = debounce(sendCCT, 40, 'cct');
-
-      r.addEventListener('input', sendRGBdeb);
-      g.addEventListener('input', sendRGBdeb);
-      b.addEventListener('input', sendRGBdeb);
-      ww.addEventListener('input', sendCCTdeb);
-      cw.addEventListener('input', sendCCTdeb);
-
-      function setActivePreset(id){
-        const ids=['btn-off','btn-white','btn-red','btn-green'];
-        ids.forEach(x=>{
-          const el=$(x);
-          if(!el) return;
-          el.classList.toggle('btn-seg-active', x===id);
-        });
-      }
-
-      // Quick presets
-      document.getElementById('btn-off').addEventListener('click', async ()=>{
-        r.value=g.value=b.value=ww.value=cw.value=0;
-        vr.textContent=vg.textContent=vb.textContent=vww.textContent=vcw.textContent='0';
-        updatePreview();
-        setActivePreset('btn-off');
-        await connection.send('command', {action:'off'});
-      });
-      document.getElementById('btn-white').addEventListener('click', async ()=>{
-        r.value=g.value=b.value=0; ww.value=cw.value=255; await sendRGB(); await sendCCT();
-        setActivePreset('btn-white');
-      });
-      document.getElementById('btn-red').addEventListener('click', async ()=>{
-        r.value=255; g.value=128; b.value=64; ww.value=64; cw.value=32; await sendRGB(); await sendCCT();
-        setActivePreset('btn-red');
-      });
-      document.getElementById('btn-green').addEventListener('click', async ()=>{
-        r.value=g.value=b.value=255; ww.value=cw.value=255; await sendRGB(); await sendCCT();
-        setActivePreset('btn-green');
-      });
-      document.getElementById('btn-blue').addEventListener('click', async ()=>{
-        b.value=255; r.value=g.value=0; await sendRGB();
-      });
-
-      // ---------- Config change senders ----------
-      // Inputs
-      for(let i=1;i<=NUM_DI;i++){
-        document.getElementById('enable-in'+i).addEventListener('change', sendInputEnable);
-        document.getElementById('invert-in'+i).addEventListener('change', sendInputInvert);
-        document.getElementById('action-in'+i).addEventListener('change', sendInputAction);
-        document.getElementById('target-in'+i).addEventListener('change', sendInputTarget);
-      }
-      async function sendInputEnable(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!document.getElementById('enable-in'+i).checked); await connection.send('Config',{t:'inputEnable',list}); }
-      async function sendInputInvert(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!document.getElementById('invert-in'+i).checked); await connection.send('Config',{t:'inputInvert',list}); }
-      async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt(document.getElementById('action-in'+i).value||'0',10)); await connection.send('Config',{t:'inputAction',list}); }
-      async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt(document.getElementById('target-in'+i).value||'0',10)); await connection.send('Config',{t:'inputTarget',list}); }
-
-      // Relays
-      document.getElementById('enable-relay1').addEventListener('change', sendRelayCfg);
-      document.getElementById('invert-relay1').addEventListener('change', sendRelayCfg);
-      async function sendRelayCfg(){
-        const list=[{enabled:document.getElementById('enable-relay1').checked, inverted:document.getElementById('invert-relay1').checked}];
-        await connection.send('Config', {t:'relays', list});
-      }
-
-      // Buttons
-      document.getElementById('action-button1').addEventListener('change', sendButtons);
-      document.getElementById('action-button2').addEventListener('change', sendButtons);
-      async function sendButtons(){
-        const list=[
-          {action: parseInt(document.getElementById('action-button1').value||'0',10)},
-          {action: parseInt(document.getElementById('action-button2').value||'0',10)},
-        ];
-        await connection.send('Config', {t:'buttons', list});
-      }
-
-      // LEDs
-      document.getElementById('mode-led1').addEventListener('change', sendLeds);
-      document.getElementById('mode-led2').addEventListener('change', sendLeds);
-      async function sendLeds(){
-        const list=[
-          {mode: parseInt(document.getElementById('mode-led1').value||'0',10)},
-          {mode: parseInt(document.getElementById('mode-led2').value||'0',10)},
-        ];
-        await connection.send('Config', {t:'leds', list});
-      }
-
     })();
+
+    (function buildInputs(){
+      const c=$('io-inputs'); if(!c) return;
+      const actionOpts=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const targetOpts=[{v:4,l:'None'},{v:0,l:'Control all'},{v:1,l:'Control relay 1'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_DI;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-input';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+          </div>
+          <div class="split">
+            <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
+            <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildRelays(){
+      const c=$('io-relays'); if(!c) return;
+      const pwrOpts=[{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_RLY;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-relay';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">Relay ${i}</span><span class="ioBadge badgeState"><span id="state-relay${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+          </div>
+          <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildButtons(){
+      const c=$('io-buttons'); if(!c) return;
+      const btnActOpts=[{v:0,l:'None'},{v:5,l:'Relay 1 override (toggle)'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_BTN;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-button';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildLEDs(){
+      const c=$('io-leds'); if(!c) return;
+      const ledModeOpts=[{v:0,l:'Solid'},{v:1,l:'Blink'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const ledSrcOpts=[{v:0,l:'(none)'},{v:5,l:'Overridden Relay 1'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      for(let i=1;i<=NUM_LED;i++){
+        const d=document.createElement('div');
+        d.className='iocard tint-led';
+        d.innerHTML=`
+          <div class="iotop"><span class="ioid">User LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${ledModeOpts}</select></div>
+          <div style="margin-top:10px;"><label for="source-led${i}">Source</label><select id="source-led${i}">${ledSrcOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    $('modbus-address')?.addEventListener('input', ()=>HMWebConfig.sendValues(parseInt($('modbus-address').value||'3',10), parseInt($('modbus-baud').value||'19200',10)));
+    $('modbus-baud')?.addEventListener('input', ()=>HMWebConfig.sendValues(parseInt($('modbus-address').value||'3',10), parseInt($('modbus-baud').value||'19200',10)));
+
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+    function sendInputAction(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
+    function sendInputTarget(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.target', l); }
+    for(let i=1;i<=NUM_DI;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('action-in'+i)?.addEventListener('change', sendInputAction);
+      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+    }
+
+    function sendRelayCfg(){
+      const l=[];
+      for(let i=1;i<=NUM_RLY;i++) l.push({ enabled:$('enable-relay'+i).checked, inverted:$('invert-relay'+i).checked, powerOn:parseInt($('powerOn-relay'+i)?.value||'0',10) });
+      HMWebConfig.sendConfig('relay', l);
+    }
+    for(let i=1;i<=NUM_RLY;i++){
+      $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
+    }
+
+    function sendPwmPowerOn(){
+      const l=[]; for(let i=1;i<=NUM_PWM;i++) l.push(parseInt($('powerOn-pwm'+i)?.value||'0',10));
+      HMWebConfig.sendConfig('ext.pwmPowerOn', l);
+    }
+    for(let i=1;i<=NUM_PWM;i++) $('powerOn-pwm'+i)?.addEventListener('change', sendPwmPowerOn);
+
+    function sendBtnCfg(){ const l=[]; for(let i=1;i<=NUM_BTN;i++) l.push({ action:parseInt($('action-btn'+i).value||'0',10) }); HMWebConfig.sendConfig('btn', l); }
+    for(let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+
+    function sendLedCfg(){
+      const l=[]; for(let i=1;i<=NUM_LED;i++) l.push({ mode:parseInt($('mode-led'+i)?.value||'0',10), source:parseInt($('source-led'+i)?.value||'0',10) });
+      HMWebConfig.sendConfig('led', l);
+    }
+    for(let i=1;i<=NUM_LED;i++){ $('mode-led'+i)?.addEventListener('change', sendLedCfg); $('source-led'+i)?.addEventListener('change', sendLedCfg); }
+
+    function readRGB(){ return [Number(r.value||0), Number(g.value||0), Number(b.value||0)]; }
+    function readCCT(){ return [Number(ww.value||0), Number(cw.value||0)]; }
+    function sendRGB(){ const rgb=readRGB(); vr.textContent=rgb[0]; vg.textContent=rgb[1]; vb.textContent=rgb[2]; updatePreview(); HMWebConfig.conn.send('values',{ rgb }); }
+    function sendCCT(){ const cct=readCCT(); vww.textContent=cct[0]; vcw.textContent=cct[1]; updatePreview(); HMWebConfig.conn.send('values',{ cct }); }
+    let tRGB=null,tCCT=null;
+    function debounce(fn,ms,tag){ return (...a)=>{ clearTimeout(tag==='rgb'?tRGB:tCCT); const id=setTimeout(()=>fn(...a),ms); if(tag==='rgb') tRGB=id; else tCCT=id; }; }
+    r.addEventListener('input', debounce(sendRGB,40,'rgb'));
+    g.addEventListener('input', debounce(sendRGB,40,'rgb'));
+    b.addEventListener('input', debounce(sendRGB,40,'rgb'));
+    ww.addEventListener('input', debounce(sendCCT,40,'cct'));
+    cw.addEventListener('input', debounce(sendCCT,40,'cct'));
+
+    function setActivePreset(id){ ['btn-off','btn-white','btn-red','btn-full'].forEach(x=>{ const el=$(x); if(el) el.classList.toggle('btn-seg-active', x===id); }); }
+    $('btn-off')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=ww.value=cw.value=0; vr.textContent=vg.textContent=vb.textContent=vww.textContent=vcw.textContent='0'; updatePreview(); setActivePreset('btn-off'); await HMWebConfig.sendCommand('off'); });
+    $('btn-white')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=0; ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-white'); });
+    $('btn-red')?.addEventListener('click', async ()=>{ r.value=255; g.value=128; b.value=64; ww.value=64; cw.value=32; await sendRGB(); await sendCCT(); setActivePreset('btn-red'); });
+    $('btn-full')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-full'); });
+  })();
   </script>
 </section>
