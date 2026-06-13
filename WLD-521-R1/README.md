@@ -1059,7 +1059,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+      - path: WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
         vars:
           wld_prefix: "WLD#1"
           wld_id: wld_1
@@ -1338,8 +1338,8 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 ---
 
 **Manufacturer:** ISYSTEMS AUTOMATION S.R.L. (HomeMaster® brand)
-**Registered office (sediul social):** Str. Domnișori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiești, Jud. Prahova, Romania
-**Office / Contact address:** Diligentei 18, Ploiești, Romania
+**Registered office (registered office):** Str. Domnisori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiesti, Jud. Prahova, Romania
+**Office / Contact address:** Diligentei 18, Ploiesti, Romania
 **CUI / VAT:** RO 21537032
 **EUID:** ROONRC.J2007000919293
 **Telephone:** +40 747 757 798

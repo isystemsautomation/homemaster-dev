@@ -751,7 +751,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
+      - path: DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
         vars:
           dim_prefix: "DIM#1"
           dim_id: dim_1
@@ -950,7 +950,7 @@ See LICENSE files in each directory for full terms.
 | Item               | Link                                                                 |
 |--------------------|----------------------------------------------------------------------|
 | **Firmware Source**   | [`/Firmware/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/default_DIM_420_R1) |
-| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
+| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
 | **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
 | **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Schematics) |
 | **Mechanical Images** | See `/Images/` in repo                                             |
@@ -1004,8 +1004,8 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 ---
 
 **Manufacturer:** ISYSTEMS AUTOMATION S.R.L. (HomeMaster® brand)
-**Registered office (sediul social):** Str. Domnișori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiești, Jud. Prahova, Romania
-**Office / Contact address:** Diligentei 18, Ploiești, Romania
+**Registered office (registered office):** Str. Domnisori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiesti, Jud. Prahova, Romania
+**Office / Contact address:** Diligentei 18, Ploiesti, Romania
 **CUI / VAT:** RO 21537032
 **EUID:** ROONRC.J2007000919293
 **Telephone:** +40 747 757 798
