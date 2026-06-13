@@ -1,9 +1,9 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Быстрый старт (текущая версия)
+## 🚀 Quick Start (current version)
 
-**Прошивка на новых модулях: `v0.1.0`**
+**Firmware shipped on new modules: `v0.1.0`**
 
 ```yaml
 packages:
@@ -18,11 +18,11 @@ packages:
           rgb_address: 1
 ```
 
-## 📦 История версий
+## 📦 Version History
 
-| Версия | Путь конфига (`path:`) | Дата | Изменения |
+| Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | First versioned release |
 
 # RGB-621-R1 — Module for RGB+CCT LED Control
 
@@ -646,7 +646,7 @@ See LICENSE files in each directory for full terms.
 - **Repository (module path):**  
   [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
-- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html`
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`
 - **Datasheet & docs:** `RGB-621-R1/Manuals/`
 - **Images & diagrams:** `RGB-621-R1/Images/`

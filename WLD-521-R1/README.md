@@ -1,9 +1,9 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Быстрый старт (текущая версия)
+## 🚀 Quick Start (current version)
 
-**Прошивка на новых модулях: `v0.1.0`**
+**Firmware shipped on new modules: `v0.1.0`**
 
 ```yaml
 packages:
@@ -18,11 +18,11 @@ packages:
           wld_address: 4
 ```
 
-## 📦 История версий
+## 📦 Version History
 
-| Версия | Путь конфига (`path:`) | Дата | Изменения |
+| Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.1.0** | `WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml` | 2026-06 | Первый версионированный выпуск |
+| **v0.1.0** | `WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml` | 2026-06 | First versioned release |
 
 # WLD-521-R1 — Water Meter & Leak Detection Module
 
@@ -1059,7 +1059,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
         vars:
           wld_prefix: "WLD#1"
           wld_id: wld_1
@@ -1227,7 +1227,7 @@ To update the firmware, use the **Arduino IDE** or **PlatformIO** via **USB‑C*
 1. Connect the **USB‑C** cable to the module.
 2. Press **Buttons 1 + 2** together to enter **BOOT mode**, re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
 3. Upload the updated binary located in  
-   `Firmware/v0.1.0/default_wld_521_r1/`.
+   `Firmware/default_wld_521_r1/`.
 
 ---
 <a id="9-maintenance--troubleshooting"></a>
@@ -1289,9 +1289,9 @@ See LICENSE files in each directory for full terms.
 
 # 11. Downloads
 
-- **Firmware binaries** — `Firmware/v0.1.0/default_wld_521_r1/`
-- **ESPHome YAML configs** — `Firmware/v0.1.0/default_wld_521_r1_plc/`
-- **WebConfig Tool** — `Firmware/v0.1.0/ConfigToolPage.html`
+- **Firmware binaries** — `Firmware/default_wld_521_r1/`
+- **ESPHome YAML configs** — `Firmware/default_wld_521_r1_plc/`
+- **WebConfig Tool** — `Firmware/ConfigToolPage.html`
 - **Schematics** — `Schematics/WLD-521-R1-FieldBoard.pdf`, `Schematics/WLD-521-R1-MCUBoard.pdf`
 - **Images & diagrams** — `Images/`
 - **Datasheet** — `Manuals/WLD-521-R1 Datasheet.pdf`

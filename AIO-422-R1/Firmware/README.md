@@ -1,80 +1,80 @@
-# AIO-422-R1 — руководство разработчика прошивки
+# AIO-422-R1 — Firmware Developer Guide
 
-Документ описывает, как на **новом компьютере** установить среду, открыть исходный код, доработать прошивку, собрать и загрузить её в модуль **AIO-422-R1** (MCU **RP2350**).
-
----
-
-## 1. Что входит в проект
-
-| Путь | Назначение |
-|------|------------|
-| `default_aio_422_r1/default_aio_422_r1.ino` | Основная прошивка (Arduino) |
-| `ConfigToolPage.html` | Web-конфигуратор по USB (Web Serial) |
-| `default_aio_422_r1_plc/*.yaml` | Профили ESPHome для MiniPLC (не требуют Arduino IDE) |
-
-**Аппаратура модуля:** 4× AI (ADS1115), 2× AO (MCP4725), 2× RTD (MAX31865), 4 кнопки, 4 LED, Modbus RTU по RS-485, USB Type-C.
+This document describes how to set up a **new computer**, open the source code, modify the firmware, build it, and upload it to an **AIO-422-R1** module (MCU **RP2350**).
 
 ---
 
-## 2. Требования
+## 1. Project Contents
 
-### 2.1. Оборудование
+| Path | Purpose |
+|------|---------|
+| `default_aio_422_r1/default_aio_422_r1.ino` | Main firmware (Arduino) |
+| `ConfigToolPage.html` | USB WebConfig tool (Web Serial) |
+| `default_aio_422_r1_plc/*.yaml` | ESPHome profiles for MiniPLC (no Arduino IDE required) |
 
-- Модуль **AIO-422-R1** с MCU **RP2350A**
-- Кабель **USB Type-C** (данные, не только зарядка)
-- ПК: Windows 10/11, Linux (в т.ч. Fedora/Ubuntu) или macOS
-- Для полевой работы по Modbus: питание **24 V DC**, линия RS-485 (не обязательно для сборки/прошивки по USB)
-
-### 2.2. Программное обеспечение
-
-- **Arduino IDE 2.3+** (рекомендуется): https://www.arduino.cc/en/software  
-- Доступ в интернет (установка ядра плат и библиотек)
-- **Git** (чтобы клонировать репозиторий): https://git-scm.com/
+**Module hardware:** 4× AI (ADS1115), 2× AO (MCP4725), 2× RTD (MAX31865), 4 buttons, 4 LEDs, Modbus RTU over RS-485, USB Type-C.
 
 ---
 
-## 3. Получение исходного кода
+## 2. Requirements
+
+### 2.1. Hardware
+
+- **AIO-422-R1** module with **RP2350A** MCU
+- **USB Type-C** cable (data, not charge-only)
+- PC: Windows 10/11, Linux (Fedora/Ubuntu, etc.), or macOS
+- For field Modbus operation: **24 V DC** power, RS-485 line (not required for USB build/upload)
+
+### 2.2. Software
+
+- **Arduino IDE 2.3+** (recommended): https://www.arduino.cc/en/software  
+- Internet access (board core and library installation)
+- **Git** (to clone the repository): https://git-scm.com/
+
+---
+
+## 3. Getting the Source Code
 
 ```bash
 git clone https://github.com/isystemsautomation/homemaster-dev.git
 cd homemaster-dev/AIO-422-R1/Firmware
 ```
 
-Либо скачайте ZIP архива репозитория с GitHub и распакуйте.
+Alternatively, download a ZIP archive from GitHub and extract it.
 
-Скетч для Arduino IDE:
+Arduino IDE sketch path:
 
 ```text
 homemaster-dev/AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino
 ```
 
-Открывайте именно файл **`.ino`** — Arduino IDE подхватит папку скетча целиком.
+Open the **`.ino`** file — Arduino IDE will load the entire sketch folder.
 
 ---
 
-## 4. Установка Arduino IDE
+## 4. Installing Arduino IDE
 
 ### Windows
 
-1. Скачайте установщик с https://www.arduino.cc/en/software  
-2. Установите с правами администратора при необходимости  
-3. При первом подключении модуля Windows может установить драйвер USB (CDC) автоматически  
+1. Download the installer from https://www.arduino.cc/en/software  
+2. Install with administrator rights if required  
+3. On first USB connection, Windows may install the USB (CDC) driver automatically  
 
-### Linux (Fedora и аналоги)
+### Linux (Fedora and similar)
 
-**Рекомендуется AppImage** с сайта Arduino (полный доступ к USB):
+**AppImage from the Arduino site is recommended** (full USB access):
 
-1. Скачайте AppImage с https://www.arduino.cc/en/software  
-2. Сделайте исполняемым: `chmod +x arduino-ide_*.AppImage`  
-3. Добавьте пользователя в группу serial:
+1. Download the AppImage from https://www.arduino.cc/en/software  
+2. Make it executable: `chmod +x arduino-ide_*.AppImage`  
+3. Add your user to the serial group:
 
    ```bash
    sudo usermod -aG dialout $USER
    ```
 
-4. Выйдите из сессии и войдите снова  
+4. Log out and log back in  
 
-**Flatpak** (`cc.arduino.IDE2`): часто **не видит COM-порт**. Если используете Flatpak:
+**Flatpak** (`cc.arduino.IDE2`): often **does not see the COM port**. If using Flatpak:
 
 ```bash
 flatpak override --user cc.arduino.IDE2 --device=all
@@ -82,18 +82,18 @@ flatpak override --user cc.arduino.IDE2 --device=all
 
 ### macOS
 
-Установите Arduino IDE с официального сайта; при запросе разрешите доступ к USB.
+Install Arduino IDE from the official site; allow USB access when prompted.
 
 ---
 
-## 5. Поддержка платы RP2350 (пакет плат)
+## 5. RP2350 Board Support (Board Package)
 
-Прошивка собирается ядром **Earle Philhower** (arduino-pico), а не «голым» Mbed без RP2350.
+The firmware is built with the **Earle Philhower** core (arduino-pico), not bare Mbed without RP2350 support.
 
-### 5.1. URL менеджера плат
+### 5.1. Board Manager URL
 
-1. **File → Preferences** (Файл → Настройки)  
-2. Поле **Additional boards manager URLs** — добавьте (если пусто — вставьте одной строкой):
+1. **File → Preferences**  
+2. In **Additional boards manager URLs**, add (if empty, paste as a single line):
 
    ```text
    https://arduino.earlephilhower.com/version/stable/package_earlephilhower_index.json
@@ -101,58 +101,58 @@ flatpak override --user cc.arduino.IDE2 --device=all
 
 3. **OK**
 
-### 5.2. Установка ядра
+### 5.2. Installing the Core
 
-1. **Tools → Board → Boards Manager** (Инструменты → Плата → Менеджер плат)  
-2. В поиске: `pico` или `rp2350`  
-3. Установите пакет:
+1. **Tools → Board → Boards Manager**  
+2. Search for: `pico` or `rp2350`  
+3. Install:
 
    **Raspberry Pi Pico/RP2040/RP2350**  
-   автор: **Earle Philhower**
+   author: **Earle Philhower**
 
-Дождитесь окончания загрузки (несколько сотен МБ).
+Wait for the download to finish (several hundred MB).
 
-### 5.3. Выбор платы и параметров
+### 5.3. Board and Tool Settings
 
-**Tools → Board** → группа **Raspberry Pi Pico/RP2040/RP2350**:
+**Tools → Board** → **Raspberry Pi Pico/RP2040/RP2350** group:
 
-- **Raspberry Pi Pico 2**, или  
-- **Generic RP2350** / вариант с **rp2350** в имени  
+- **Raspberry Pi Pico 2**, or  
+- **Generic RP2350** / any variant with **rp2350** in the name  
 
-(точное название зависит от версии ядра; главное — **RP2350**, не только RP2040/Pico 1).
+(exact name depends on core version; must be **RP2350**, not RP2040/Pico 1 only).
 
-| Параметр (Tools) | Рекомендация |
-|------------------|--------------|
-| **Port** | После подключения USB: `COMx` (Windows), `/dev/ttyACM0` (Linux) |
-| Остальные пункты | По умолчанию для выбранной платы |
+| Setting (Tools) | Recommendation |
+|-----------------|----------------|
+| **Port** | After USB connect: `COMx` (Windows), `/dev/ttyACM0` (Linux) |
+| Other options | Defaults for the selected board |
 
-**LittleFS** и **watchdog** входят в ядро Philhower — отдельно не устанавливаются.
+**LittleFS** and **watchdog** are included in the Philhower core — no separate install needed.
 
 ---
 
-## 6. Библиотеки Arduino
+## 6. Arduino Libraries
 
-**Sketch → Include Library → Manage Libraries…** (Эскиз → Подключить библиотеку → Управлять библиотеками…)
+**Sketch → Include Library → Manage Libraries…**
 
-Установите по очереди:
+Install in order:
 
-| № | Искать в Library Manager | Заголовок в коде | Назначение |
-|---|--------------------------|------------------|------------|
-| 1 | **ADS1X15** (Rob Tillaart) | `ADS1X15.h` | Аналоговые входы, ADS1115 |
-| 2 | **Adafruit MCP4725** | `Adafruit_MCP4725.h` | Аналоговые выходы, DAC |
+| # | Search in Library Manager | Header in code | Purpose |
+|---|---------------------------|----------------|---------|
+| 1 | **ADS1X15** (Rob Tillaart) | `ADS1X15.h` | Analog inputs, ADS1115 |
+| 2 | **Adafruit MCP4725** | `Adafruit_MCP4725.h` | Analog outputs, DAC |
 | 3 | **Adafruit MAX31865** | `Adafruit_MAX31865.h` | RTD, MAX31865 |
-| 4 | **Adafruit BusIO** | — | Зависимость Adafruit (часто ставится автоматически) |
+| 4 | **Adafruit BusIO** | — | Adafruit dependency (often installed automatically) |
 | 5 | **Modbus Serial** (epsilonrt) | `ModbusSerial.h` | Modbus RTU slave |
 | 6 | **SimpleWebSerial** | `SimpleWebSerial.h` | USB WebConfig |
-| 7 | **Arduino_JSON** | `Arduino_JSON.h` | JSON для WebSerial |
+| 7 | **Arduino_JSON** | `Arduino_JSON.h` | JSON for WebSerial |
 
-### 6.1. Modbus — важно
+### 6.1. Modbus — Important
 
-Используется библиотека **epsilonrt** с файлом **`ModbusSerial.h`**.
+Use the **epsilonrt** library with **`ModbusSerial.h`**.
 
-**Не устанавливайте** библиотеку **`Modbus`** от автора **UL DARA** — другой API, на RP2040/RP2350 часто **ошибка сборки** (`Modbus.h not found`, конфликт типа `byte`).
+**Do not install** the **`Modbus`** library by **UL DARA** — different API; on RP2040/RP2350 you often get **build errors** (`Modbus.h not found`, `byte` type conflict).
 
-Если в Library Manager нет Modbus Serial, установите вручную:
+If Modbus Serial is not in Library Manager, install manually:
 
 ```bash
 mkdir -p ~/Arduino/libraries
@@ -160,98 +160,97 @@ cd ~/Arduino/libraries
 git clone https://github.com/epsilonrt/modbus-arduino.git Modbus-Arduino
 ```
 
-Перезапустите Arduino IDE.
+Restart Arduino IDE.
 
-### 6.2. Порядок подключения заголовков
+### 6.2. Include Order
 
-В `default_aio_422_r1.ino` уже задан верный порядок:
+`default_aio_422_r1.ino` already uses the correct order:
 
 ```cpp
 #include <Arduino.h>
-#include <ModbusSerial.h>   // обязательно ДО Adafruit
+#include <ModbusSerial.h>   // must be BEFORE Adafruit
 #include <Wire.h>
 // ...
 ```
 
-Не добавляйте `#include <utility>` — на RP2350 возможен конфликт `byte` с Modbus.
+Do not add `#include <utility>` — on RP2350 it can conflict with Modbus `byte`.
 
 ---
 
-## 7. Открытие проекта и компиляция
+## 7. Opening the Project and Compiling
 
-1. **File → Open** → выберите  
+1. **File → Open** → select  
    `default_aio_422_r1/default_aio_422_r1.ino`
-2. Проверьте **Tools → Board** (RP2350) и **Tools → Port** (если модуль подключён)
-3. Нажмите **Verify** (галочка) или **Sketch → Verify/Compile**
+2. Check **Tools → Board** (RP2350) and **Tools → Port** (if the module is connected)
+3. Click **Verify** (checkmark) or **Sketch → Verify/Compile**
 
-Ожидаемый результат: **компиляция без ошибок**, размер прошивки порядка **150–165 KB** (зависит от версии ядра).
+Expected result: **compile with no errors**, firmware size roughly **150–165 KB** (depends on core version).
 
-### Типичные ошибки сборки
+### Common Build Errors
 
-| Сообщение | Решение |
-|-----------|---------|
-| `Modbus.h: No such file` | Установить **epsilonrt** Modbus; удалить Modbus UL DARA из `~/Arduino/libraries` |
-| `byte` ambiguous | `ModbusSerial.h` перед Adafruit; убрать `<utility>` |
-| `PersistConfig was not declared` | Не переносить `struct PersistConfig` в конец файла — должна быть в начале `.ino` |
-| Плата не RP2350 | Установить ядро Philhower (раздел 5) |
+| Message | Fix |
+|---------|-----|
+| `Modbus.h: No such file` | Install **epsilonrt** Modbus; remove Modbus UL DARA from `~/Arduino/libraries` |
+| `byte` ambiguous | Put `ModbusSerial.h` before Adafruit; remove `<utility>` |
+| `PersistConfig was not declared` | Do not move `struct PersistConfig` to end of file — keep it near the top of `.ino` |
+| Board not RP2350 | Install Philhower core (section 5) |
 
 ---
 
-## 8. Загрузка прошивки (Upload)
+## 8. Uploading Firmware
 
-### 8.1. Через USB (обычный способ)
+### 8.1. Via USB (normal method)
 
-1. Подключите модуль по USB-C к ПК  
-2. **Tools → Port** → выберите порт (`COM…` / `ttyACM0`)  
-3. Нажмите **Upload** (стрелка вправо)  
-4. При необходимости на модуле кратко появится режим загрузчика — не отключайте кабель  
+1. Connect the module via USB-C to the PC  
+2. **Tools → Port** → select the port (`COM…` / `ttyACM0`)  
+3. Click **Upload** (right arrow)  
+4. The module may briefly enter bootloader mode — do not disconnect the cable  
 
-После загрузки в Serial Monitor (115200 baud) или WebConfig должно появиться сообщение о успешной загрузке (Boot OK).
+After upload, Serial Monitor (115200 baud) or WebConfig should show a successful boot message (Boot OK).
 
-### 8.2. Через UF2 (если порта нет)
+### 8.2. Via UF2 (if no serial port)
 
-1. Отключите USB  
-2. Зажмите кнопку **BOOTSEL** на плате MCU, подключите USB, отпустите BOOTSEL  
-3. В системе появится диск **RPI-RP2**  
-4. Скопируйте файл **`.uf2`** из папки сборки Arduino (после Compile) на диск RPI-RP2  
-5. Модуль перезагрузится с новой прошивкой  
+1. Disconnect USB  
+2. Hold **BOOTSEL** on the MCU board, connect USB, release BOOTSEL  
+3. A **RPI-RP2** drive appears in the system  
+4. Copy the **`.uf2`** file from the Arduino build folder (after Compile) to the RPI-RP2 drive  
+5. The module reboots with the new firmware  
 
-Путь к `.uf2` после сборки (пример Linux):
+Example `.uf2` path after build (Linux):
 
 ```text
 /tmp/arduino_build_*/default_aio_422_r1.ino.uf2
 ```
 
-или смотрите вывод компиляции / папку `build` рядом со скетчем, если включена детальная сборка.
+Or check the compile output / `build` folder next to the sketch if verbose build is enabled.
 
-### 8.3. Сброс конфигурации на модуле
+### 8.3. Resetting Module Configuration
 
-Прошивка хранит настройки во flash (**LittleFS**, файл `/cfg.bin`). При смене **версии формата** конфигурации выполняется сброс на заводские значения. После первой загрузки новой версии может потребоваться заново задать Modbus-адрес и привязки кнопок/LED через WebConfig.
-
----
-
-## 9. WebConfig (настройка без пересборки)
-
-1. Откройте в браузере Chrome или Edge файл  
-   `ConfigToolPage.html` (двойной клик или drag-and-drop в браузер)  
-2. Подключите модуль по USB  
-3. Нажмите **Connect** → выберите COM-порт модуля  
-4. Доступны: Modbus address/baud, AI/AO/RTD (диагностика), кнопки, LED, RTD-конфиг  
-
-Modbus по RS-485 работает параллельно (по умолчанию адрес **3**, скорость **19200**).
+Settings are stored in flash (**LittleFS**, file `/cfg.bin`). When the **config format version** changes, settings reset to factory defaults. After the first upload of a new version you may need to set Modbus address and button/LED mappings again via WebConfig.
 
 ---
 
-## 10. ESPHome / MiniPLC (отдельно от Arduino)
+## 9. WebConfig (setup without rebuild)
 
-Файлы в `default_aio_422_r1_plc/` — для интеграции через **ESPHome**, не для Arduino IDE:
+1. Open `ConfigToolPage.html` in Chrome or Edge (double-click or drag into the browser)  
+2. Connect the module via USB  
+3. Click **Connect** → select the module COM port  
+4. Available: Modbus address/baud, AI/AO/RTD (diagnostics), buttons, LEDs, RTD config  
 
-| Файл | Описание |
-|------|----------|
-| `default_aio_422_r1_plc.yaml` | Базовый набор: AI, AO, RTD |
-| `default_aio_422_r1_plc_full.yaml` | + кнопки и LED (Modbus discrete) |
+Modbus over RS-485 runs in parallel (default address **3**, baud **19200**).
 
-Проверка YAML (на ПК с установленным ESPHome):
+---
+
+## 10. ESPHome / MiniPLC (separate from Arduino)
+
+Files in `default_aio_422_r1_plc/` are for **ESPHome** integration, not Arduino IDE:
+
+| File | Description |
+|------|-------------|
+| `default_aio_422_r1_plc.yaml` | Basic set: AI, AO, RTD |
+| `default_aio_422_r1_plc_full.yaml` | + buttons and LEDs (Modbus discrete) |
+
+Validate YAML (on a PC with ESPHome installed):
 
 ```bash
 esphome config default_aio_422_r1_plc.yaml
@@ -259,44 +258,44 @@ esphome config default_aio_422_r1_plc.yaml
 
 ---
 
-## 11. Чеклист «новый компьютер»
+## 11. New Computer Checklist
 
 ```
-[ ] Git: клонирован репозиторий homemaster-dev
-[ ] Установлен Arduino IDE 2.x
-[ ] Linux: пользователь в группе dialout; при Flatpak — device=all
-[ ] Preferences: URL earlephilhower package_earlephilhower_index.json
+[ ] Git: homemaster-dev repository cloned
+[ ] Arduino IDE 2.x installed
+[ ] Linux: user in dialout group; if Flatpak — device=all
+[ ] Preferences: earlephilhower package_earlephilhower_index.json URL
 [ ] Boards Manager: Raspberry Pi Pico/RP2040/RP2350 (Earle Philhower)
 [ ] Board: RP2350 / Pico 2
-[ ] Библиотеки: ADS1X15, Adafruit MCP4725, Adafruit MAX31865, Adafruit BusIO,
+[ ] Libraries: ADS1X15, Adafruit MCP4725, Adafruit MAX31865, Adafruit BusIO,
                  Modbus Serial (epsilonrt), SimpleWebSerial, Arduino_JSON
-[ ] НЕТ библиотеки Modbus (UL DARA)
-[ ] Открыт default_aio_422_r1.ino
-[ ] Verify — без ошибок
-[ ] Upload или UF2 — успешно
-[ ] ConfigToolPage.html — Connect по USB работает
+[ ] NO Modbus library (UL DARA)
+[ ] default_aio_422_r1.ino opened
+[ ] Verify — no errors
+[ ] Upload or UF2 — success
+[ ] ConfigToolPage.html — Connect over USB works
 ```
 
 ---
 
-## 12. Структура Modbus (справка)
+## 12. Modbus Map (reference)
 
-| Регистры | Адреса | Описание |
-|----------|--------|----------|
-| Кнопки | ISTS 1–4 | Discrete inputs |
+| Registers | Addresses | Description |
+|-----------|-----------|-------------|
+| Buttons | ISTS 1–4 | Discrete inputs |
 | LED | ISTS 20–23 | Discrete inputs |
 | RTD | HREG 120–121 | °C×10, S_WORD |
 | AI mV | HREG 140–143 | U_WORD |
 | AO raw | HREG 200–201 | U_WORD, 0–4095 |
 
-Подробнее — комментарии в начале `default_aio_422_r1.ino` и YAML для ESPHome.
+See comments at the top of `default_aio_422_r1.ino` and ESPHome YAML for details.
 
 ---
 
-## 13. Поддержка
+## 13. Support
 
-- Репозиторий: https://github.com/isystemsautomation/homemaster-dev  
-- Производитель: ISYSTEMS AUTOMATION S.R.L. (HomeMaster®)  
-- Сайт: https://www.home-master.eu  
+- Repository: https://github.com/isystemsautomation/homemaster-dev  
+- Manufacturer: ISYSTEMS AUTOMATION S.R.L. (HomeMaster®)  
+- Website: https://www.home-master.eu  
 
-При ошибках сборки приложите **полный текст из окна Output** Arduino IDE и версии: IDE, ядра Philhower, ОС.
+For build errors, attach the **full Arduino IDE Output text** plus versions: IDE, Philhower core, OS.

@@ -40,7 +40,7 @@ static const uint32_t CFG_AUTOSAVE_MS = 1500;
 // SimpleWebSerial: MaximumNumberOfEvents = 8 (library default). Never register more than 8 handlers.
 static const char* FW_TAG = "ENM-v20";
 
-// Arduino_JSON: (int)obj["key"] → ASCII первой буквы ключа, не число.
+// Arduino_JSON: (int)obj["key"] returns ASCII of first key char, not the numeric value.
 static inline String jsonBlob(const JSONVar& v) {
   return JSON.stringify((JSONVar&)v);
 }
@@ -73,7 +73,7 @@ static int jvGetInt(const JSONVar& obj, const char* key, int fallback) {
   return parseKeyFromBlob(jsonBlob(obj), key, fallback);
 }
 
-// stringify(JSONVar value) — только число, без бага (int)obj["key"]
+// JSON.stringify(value) for scalars only; avoids (int)obj["key"] bug
 static int jsonVarToInt(const JSONVar& v, int fallback) {
   if (JSON.typeof(v) == "undefined") return fallback;
   const String s = JSON.stringify(v);
