@@ -1,8 +1,31 @@
-**Firmware Version:** 2025-07 snapshot
+**Firmware Version:** v0.1.0 (coming soon)
 
-![Firmware Version](https://img.shields.io/badge/Firmware-2025--07-blue)
+![Firmware Version](https://img.shields.io/badge/Firmware-v0.1.0%20(soon)-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+
+## 🚀 Quick Start (current version)
+
+**Firmware v0.1.0 — coming soon.** ESPHome package path (placeholder YAML until release):
+
+```yaml
+packages:
+  str1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+        vars:
+          str_prefix: "STR#1"
+          str_id: str_1
+          str_address: 21
+```
+
+## 📦 Version History
+
+| Version | Config path (`path:`) | Date | Changes |
+|--------|------------------------|------|-----------|
+| **v0.1.0** | `STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | TBD | First release — in preparation |
 
 # STR-3221-R1 — Module for Smart Lighting & I/O Control
 
@@ -413,7 +436,7 @@ For Arduino or PlatformIO environments, include:
 ### 🧠 How to Update
 1. Connect via **USB-C** to a PC.  
 2. Press **Buttons 1 + 2** to enter **BOOT mode**.  
-3. Upload new firmware (e.g., `default_str_3221_r1.bin`) using:
+3. Upload new firmware (e.g., `default_str_3221_r1.bin` — **v0.1.0 release pending**) using:
    - **Arduino IDE** → “Upload”
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
@@ -472,12 +495,12 @@ See LICENSE files in each directory for full terms.
 
 | Resource | Description |
 |-----------|-------------|
-| **🧠 Firmware (Arduino/PlatformIO)** | [`Firmware/default_str_3221_r1/`](Firmware/default_str_3221_r1/) — main sketch for Modbus, lighting, and WebConfig. |
-| **🛠 WebConfig Tool** | [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html) — browser-based USB-C setup utility. |
+| **🧠 Firmware (Arduino/PlatformIO)** | [`Firmware/v0.1.0/default_str_3221_r1/`](Firmware/v0.1.0/default_str_3221_r1/) — main sketch (coming soon). |
+| **🛠 WebConfig Tool** | [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html) — browser-based USB-C setup (coming soon). |
 | **📷 Images & Diagrams** | [`Images/`](Images/) — module photos, terminal maps, and block diagrams. |
 | **📐 Schematics (PDF)** | [`Schematics/`](Schematics/) — FieldBoard and MCUBoard schematics for hardware developers. |
 | **📄 Datasheet & Manual** | [`Manuals/`](Manuals/) — module datasheet and installation guide. |
-| **📦 Pre-built Firmware** | [Releases page](../../releases) — compiled `.bin` files for direct flashing. |
+| **📦 Pre-built Firmware** | [Releases page](../../releases) — `.bin` files when v0.1.0 ships. |
 
 ---
 

@@ -1,0 +1,15 @@
+# STR-3221-R1 — ESPHome Modbus package (PLACEHOLDER)
+# Firmware v0.1.0 is not published yet. Do not deploy to production.
+# Full register map will ship with default_str_3221_r1.ino.
+#
+# Expected package vars (when released):
+#   str_prefix, str_id, str_address
+
+substitutions:
+  str_id: str
+  str_address: "21"
+  str_prefix: "STR"
+  str_update_interval: 1s
+  str_command_throttle: 0ms
+
+# modbus_controller and entity definitions — coming soon
