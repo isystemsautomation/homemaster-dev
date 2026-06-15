@@ -114,7 +114,7 @@
           </p>
 
           <p>
-            Powered by the Raspberry Pi RP2350 microcontroller, the module supports RS-485 (Modbus RTU) communication and configuration via <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> over USB-C - no drivers or external software required. It connects directly to HomeMaster MicroPLC and MiniPLC controllers or operates as a standalone Modbus slave in any automation network.
+            Powered by the Raspberry Pi RP2350 microcontroller, the module supports RS-485 (Modbus RTU) communication and configuration via <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> over USB-C - no drivers or external software required. It connects directly to HomeMaster MicroPLC and MiniPLC controllers or operates as a standalone Modbus slave in any automation network.
           </p>
         </div>
 
@@ -130,7 +130,7 @@
               decoding="async"
             >
             <div class="plc-caption">
-              DIN rail • 24 V DC • Modbus RTU • USB-C <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a>
+              DIN rail • 24 V DC • Modbus RTU • USB-C <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>
             </div>
           </div>
         </div>
@@ -149,7 +149,7 @@
             <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
             <li>32 low-side MOSFET outputs (12-24 V DC), 2 isolated digital inputs, 4 buttons, 4 status LEDs</li>
             <li>RS-485 Modbus RTU communication</li>
-            <li>Local configuration via USB-C <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> interface</li>
+            <li>Local configuration via USB-C <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> interface</li>
             <li>Isolated I/O, surge and short-circuit protection</li>
           </ul>
         </div>
@@ -289,18 +289,18 @@
             <li>HomeMaster MicroPLC and MiniPLC controllers</li>
             <li>PLC and SCADA systems via Modbus RTU</li>
             <li>Home Assistant using ESPHome or Modbus integration</li>
-            <li>Direct USB-C configuration using browser-based <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> tool</li>
+            <li>Direct USB-C configuration using browser-based <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> tool</li>
           </ul>
 
           <p>
             Configuration parameters are stored persistently in onboard flash and automatically restored at power-up.
           </p>
 
-          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB-C <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB-C <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
           <ol class="plc-steps">
             <li><strong>Mount &amp; Power</strong> - Mount the module on a DIN rail and connect 24 V DC.</li>
             <li><strong>Connect USB-C</strong> - Connect USB-C cable to the module.</li>
-            <li><strong>Open WebConfig</strong> - Open <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> page in Chrome or Edge browser.</li>
+            <li><strong>Open WebConfig</strong> - Open <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> page in Chrome or Edge browser.</li>
             <li><strong>Connect Device</strong> - Click Connect and select the device.</li>
             <li><strong>Configure</strong> - Set Modbus address and baud rate.</li>
             <li><strong>Test I/O</strong> - Test outputs O1-O32, status LEDs and digital inputs.</li>
@@ -316,7 +316,7 @@
           </ul>
 
           <p class="plc-caption">
-            <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> provides Modbus address, baud rate, I/O test, and channel configuration (stored persistently in flash).
+            <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> provides Modbus address, baud rate, I/O test, and channel configuration (stored persistently in flash).
           </p>
         </div>
 
@@ -384,7 +384,7 @@ packages:
     refresh: 1d</code></pre>
 
         <p class="plc-caption">
-          str_address must match the Modbus address configured in <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a>.
+          str_address must match the Modbus address configured in <a href="https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>.
         </p>
 
         <p>

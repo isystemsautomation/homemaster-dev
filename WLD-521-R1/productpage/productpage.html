@@ -128,7 +128,7 @@
               decoding="async"
             >
             <div class="plc-caption">
-              DIN rail • 24 V DC • Modbus RTU • 1-Wire • USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a>
+              DIN rail • 24 V DC • Modbus RTU • 1-Wire • USB-C <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>
             </div>
           </div>
         </div>
@@ -147,7 +147,7 @@
             <li>2 × SPDT relay outputs (NO / COM / NC); dry contacts — observe system current/voltage limits</li>
             <li>Isolated <strong>+5 V</strong> and <strong>+12 V</strong> sensor rails (low-power field sensors only)</li>
             <li>1-Wire interface (+5 V / DATA / GND) for temperature probes (e.g. DS18B20)</li>
-            <li>RS-485 Modbus RTU (A / B / COM) and USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a></li>
+            <li>RS-485 Modbus RTU (A / B / COM) and USB-C <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a></li>
             <li>4 buttons and 4 user LEDs (plus power / comm / relay status LEDs)</li>
           </ul>
         </div>
@@ -294,16 +294,16 @@
             <li>HomeMaster MicroPLC and MiniPLC as Modbus masters</li>
             <li>PLC and SCADA via Modbus RTU</li>
             <li>Home Assistant using ESPHome (on the controller) or a Modbus integration</li>
-            <li>USB-C setup with <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a> (Chrome / Edge, Web Serial)</li>
+            <li>USB-C setup with <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> (Chrome / Edge, Web Serial)</li>
           </ul>
 
           <p>Configuration is saved to flash and restored at power-up.</p>
 
-          <h3 id="quick-setup-process"><strong>Quick Setup (USB-C <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <h3 id="quick-setup-process"><strong>Quick Setup (USB-C <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
           <ol class="plc-steps">
             <li><strong>Mount &amp; power</strong> — DIN rail; connect 24 V DC to V+ / 0V.</li>
             <li><strong>USB-C</strong> — connect to the PC.</li>
-            <li><strong>Open WebConfig</strong> — <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">configtool-wld-521-r1</a> in Chrome or Edge.</li>
+            <li><strong>Open WebConfig</strong> — <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">configtool-wld-521-r1</a> in Chrome or Edge.</li>
             <li><strong>Connect device</strong> — Connect → select the serial port.</li>
             <li><strong>Modbus</strong> — set address (1–255) and baud rate (9600–115200).</li>
             <li><strong>I/O &amp; logic</strong> — inputs (sensor / counter / heat), relays, LEDs, buttons, irrigation zones as required.</li>
@@ -398,7 +398,7 @@ packages:
     refresh: 1d</code></pre>
 
         <p class="plc-caption">
-          <code>wld_address</code> must match the Modbus address set in <a href="https://www.home-master.eu/configtool-wld-521-r1" target="_blank" rel="noopener">WebConfig</a> (factory default is often <code>3</code>).
+          <code>wld_address</code> must match the Modbus address set in <a href="https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> (factory default is often <code>3</code>).
         </p>
       </div>
     </div>
