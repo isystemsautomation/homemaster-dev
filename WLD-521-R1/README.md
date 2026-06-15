@@ -1227,7 +1227,7 @@ To update the firmware, use the **Arduino IDE** or **PlatformIO** via **USB‑C*
 1. Connect the **USB‑C** cable to the module.
 2. Press **Buttons 1 + 2** together to enter **BOOT mode**, re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
 3. Upload the updated binary located in  
-   `Firmware/default_wld_521_r1/`.
+   `Firmware/v0.1.0/default_wld-521-r1/`.
 
 ---
 <a id="9-maintenance--troubleshooting"></a>
@@ -1289,9 +1289,9 @@ See LICENSE files in each directory for full terms.
 
 # 11. Downloads
 
-- **Firmware binaries** — `Firmware/default_wld_521_r1/`
-- **ESPHome YAML configs** — `Firmware/default_wld_521_r1_plc/`
-- **WebConfig Tool** — `Firmware/ConfigToolPage.html`
+- **Firmware binaries** — `Firmware/v0.1.0/default_wld-521-r1/`
+- **ESPHome YAML configs** — `Firmware/v0.1.0/default_wld_521_r1_plc/`
+- **WebConfig Tool** — `Firmware/v0.1.0/ConfigToolPage.html`
 - **Schematics** — `Schematics/WLD-521-R1-FieldBoard.pdf`, `Schematics/WLD-521-R1-MCUBoard.pdf`
 - **Images & diagrams** — `Images/`
 - **Datasheet** — `Manuals/WLD-521-R1 Datasheet.pdf`

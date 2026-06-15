@@ -67,7 +67,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 - Programmable via **Arduino IDE** (recommended for full Modbus + WebConfig firmware)
 - Detailed setup guide for toolchain, libraries, build, and upload: **[Firmware/README.md](./Firmware/README.md)**
-- **ESPHome** profiles also available in `Firmware/default_aio_422_r1_plc/`
+- **ESPHome** profiles also available in `Firmware/v0.1.0/default_aio_422_r1_plc/`
 
 ---
 

@@ -844,7 +844,7 @@ To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
 
 1. Connect the USB‑C cable to the module.
 2. Press **Buttons 1 + 2** together to enter **BOOT mode**.
-3. Upload the updated binary located in `Firmware/default_alm_173_r1/`.
+3. Upload the updated binary from `Firmware/v0.1.0/default_alm_173_r1/`.
 
 ⚠️ Configuration stored in EEPROM is preserved during firmware updates unless manually cleared.
 
@@ -892,10 +892,10 @@ See LICENSE files in each directory for full terms.
 
 The following key project resources are included in this repository:
 
-* **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_alm_173_r1/`](Firmware/default_alm_173_r1/)
+* **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/v0.1.0/default_alm_173_r1/`](Firmware/v0.1.0/default_alm_173_r1/)
   Main sketch implementing relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
-* **🛠 Web Config Tool:** [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html)
+* **🛠 Web Config Tool:** [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)
   HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
 
 * **📷 Images & Visual Documentation:** [`Images/`](Images/)
