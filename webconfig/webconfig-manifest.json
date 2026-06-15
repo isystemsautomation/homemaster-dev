@@ -1,54 +1,54 @@
 {
-  "_comment": "Manifest of HomeMaster module WebConfig pages mirrored into Odoo. The n8n workflow reads this file, fetches each module's ConfigToolPage.html from GitHub, sanitizes it for XML/QWeb, wraps it in page-template.xml and writes it into ir.ui.view by view_id. view_id values pulled live from production Odoo (home-master.eu) on 2026-05-19.",
+  "_comment": "Manifest of HomeMaster module WebConfig pages mirrored into Odoo. The n8n workflow reads this file, fetches each module's ConfigToolPage.html from GitHub, sanitizes it for XML/QWeb, wraps it in page-template.xml and writes it into ir.ui.view by view_id. view_id values pulled live from production Odoo (home-master.eu) on 2026-05-19. html_path pinned to firmware WebConfig v0.1.0 for all modules on 2026-06-15.",
   "pages": [
     {
       "module": "AIO-422-R1",
       "slug": "configtool_aio_422_r1",
       "view_id": 5077,
       "canonical_url": "/configtool-aio-422-r1",
-      "html_path": "AIO-422-R1/Firmware/ConfigToolPage.html"
+      "html_path": "AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "ALM-173-R1",
       "slug": "configtool_alm_173_r1",
       "view_id": 4947,
       "canonical_url": "/configtool-alm-173-r1",
-      "html_path": "ALM-173-R1/Firmware/ConfigToolPage.html"
+      "html_path": "ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "DIM-420-R1",
       "slug": "configtool_dim_420_r1",
       "view_id": 5079,
       "canonical_url": "/configtool-dim-420-r1",
-      "html_path": "DIM-420-R1/Firmware/ConfigToolPage.html"
+      "html_path": "DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "DIO-430-R1",
       "slug": "configtool_dio_430_r1",
       "view_id": 4948,
       "canonical_url": "/configtool-dio-430-r1",
-      "html_path": "DIO-430-R1/Firmware/ConfigToolPage.html"
+      "html_path": "DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "ENM-223-R1",
       "slug": "configtool_enm_223_r1",
       "view_id": 5080,
       "canonical_url": "/configtool-enm-223-r1",
-      "html_path": "ENM-223-R1/Firmware/ConfigToolPage.html"
+      "html_path": "ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "RGB-621-R1",
       "slug": "configtool_rgb_621_r1",
       "view_id": 5959,
       "canonical_url": "/configtool-rgb-621-r1",
-      "html_path": "RGB-621-R1/Firmware/ConfigToolPage.html"
+      "html_path": "RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html"
     },
     {
       "module": "WLD-521-R1",
       "slug": "configtool_wld_521_r1",
       "view_id": 5078,
       "canonical_url": "/configtool-wld-521-r1",
-      "html_path": "WLD-521-R1/Firmware/ConfigToolPage.html"
+      "html_path": "WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html"
     }
   ]
 }
