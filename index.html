@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeMaster WebConfig — Module Configurator</title>
+<meta name="description" content="Browser-based configuration tool and firmware for HomeMaster DIN-rail automation modules. Connect over USB-C in any Chromium browser.">
+<style>
+  :root{
+    --page:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569; --muted2:#64748b;
+    --border:#e2e8f0; --borderStrong:#cbd5e1; --brand:#2563eb; --brandHover:#1d4ed8;
+    --ok:#16a34a; --warn:#f59e0b; --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
+    --shadowHover:0 2px 0 rgba(15,23,42,.06), 0 18px 40px rgba(15,23,42,.14);
+    --r:16px; --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:var(--font);color:var(--text);background:var(--page);line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  a{color:inherit}
+
+  header{border-bottom:1px solid var(--border);background:#fff}
+  .head-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:-.01em}
+  .brand .mark{width:30px;height:30px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px}
+  .brand small{display:block;font-weight:650;font-size:11px;color:var(--muted2);letter-spacing:.04em;text-transform:uppercase}
+  .head-link{font-size:13px;font-weight:700;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:7px 12px;border-radius:999px;background:#fff;white-space:nowrap}
+  .head-link:hover{color:var(--brand);border-color:var(--borderStrong)}
+
+  .intro{padding:40px 0 8px}
+  .intro h1{margin:0 0 10px;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  .intro p{margin:0;max-width:640px;font-size:15px;color:var(--muted)}
+  .note{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:8px 13px;border-radius:999px;font-size:12.5px;font-weight:650;color:#92510a;background:#fff7ed;border:1px solid #fed7aa}
+  .note .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:18px;font-size:12.5px;color:var(--muted)}
+  .legend .item{display:inline-flex;align-items:center;gap:7px}
+  .badge{font-size:10.5px;font-weight:750;letter-spacing:.02em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+  .badge.current{color:#166534;background:#dcfce7;border-color:#bbf7d0}
+  .badge.beta{color:#92510a;background:#fff7ed;border-color:#fed7aa}
+  .badge.old{color:#475569;background:#f1f5f9;border-color:#e2e8f0}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:26px 0 8px}
+  .mod{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+  .thumb{aspect-ratio:16/10;background:#f1f5f9;display:grid;place-items:center;border-bottom:1px solid var(--border)}
+  .thumb img{width:100%;height:100%;object-fit:contain;padding:14px}
+  .body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .pnrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pn{font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e40af;background:#eef6ff;border:1px solid #cfe2ff;padding:3px 9px;border-radius:999px}
+  .mod h2{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em}
+  .mod .desc{margin:0;font-size:13px;color:var(--muted);flex:1}
+
+  .open-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;padding:10px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-size:13.5px;font-weight:750;transition:background .15s ease}
+  .open-btn:hover{background:var(--brandHover)}
+  .open-btn svg{transition:transform .15s ease}
+  .open-btn:hover svg{transform:translateX(3px)}
+  .ver-note{font-size:11.5px;color:var(--muted2);text-align:center}
+
+  details.versions{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
+  details.versions>summary{list-style:none;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;user-select:none}
+  details.versions>summary::-webkit-details-marker{display:none}
+  details.versions>summary .chev{transition:transform .15s ease}
+  details.versions[open]>summary .chev{transform:rotate(90deg)}
+  details.versions>summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}
+
+  .vlist{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+  .vrow{border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:#fcfdfe}
+  .vhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .vver{font-family:var(--mono);font-size:12px;font-weight:700}
+  .vlinks{display:flex;flex-wrap:wrap;gap:6px}
+  .vlink{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;text-decoration:none;padding:5px 9px;border-radius:999px;border:1px solid var(--borderStrong);background:#fff;color:var(--text);white-space:nowrap}
+  .vlink:hover{border-color:var(--brand);color:var(--brand)}
+  .vlink.primary{background:#eef6ff;border-color:#cfe2ff;color:#1e40af}
+  .vlink svg{flex:none}
+
+  footer{margin-top:32px;border-top:1px solid var(--border);background:#fff}
+  .foot-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:20px 0;font-size:12.5px;color:var(--muted2)}
+  .foot-inner a{color:var(--muted);text-decoration:none;font-weight:650}
+  .foot-inner a:hover{color:var(--brand)}
+  .foot-links{display:flex;gap:18px;flex-wrap:wrap}
+
+  @media (max-width:520px){ .intro h1{font-size:25px} .head-inner{padding:14px 0} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head-inner">
+    <div class="brand"><span class="mark">HM</span><span>HomeMaster<small>WebConfig</small></span></div>
+    <a class="head-link" href="https://www.home-master.eu" target="_blank" rel="noopener">home-master.eu</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Module configurator &amp; firmware</h1>
+    <p>Pick your module to open its configuration tool. Settings apply over USB-C and are saved to the module's flash — no drivers, no install. Each module ships with the current stable firmware; beta builds are available for testing.</p>
+    <span class="note"><span class="dot"></span>Desktop Chrome, Edge, Opera or any Chromium browser. Firefox only on Nightly with the Web Serial flag. Not supported in Safari.</span>
+    <div class="legend">
+      <span class="item"><span class="badge current">Current</span> stable, shipped on new modules</span>
+      <span class="item"><span class="badge beta">Beta</span> under testing, may change</span>
+      <span class="item"><span class="badge old">Old</span> superseded, kept for existing units</span>
+    </div>
+  </section>
+
+  <section class="grid" id="grid"></section>
+  <noscript><p class="wrap" style="color:var(--muted)">Enable JavaScript to view the module list, or browse the <a href="https://github.com/isystemsautomation/HOMEMASTER">repository</a> directly.</p></noscript>
+</main>
+
+<footer>
+  <div class="wrap foot-inner">
+    <span>Configure over USB-C, no install required.</span>
+    <span class="foot-links">
+      <a href="https://www.home-master.eu" target="_blank" rel="noopener">home-master.eu</a>
+      <a href="https://github.com/isystemsautomation/HOMEMASTER" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.home-master.eu/support" target="_blank" rel="noopener">Support</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   Module + version data. To add / relabel a version, edit here only.
+   status: "current" | "beta" | "old"
+   ───────────────────────────────────────────────────────────── */
+const MODULES = [
+  { pn:"AIO-422-R1", name:"Analog I/O", img:"AIO-422-R1/Images/photo1_512kb.png",
+    desc:"High-precision analog I/O for HVAC, environmental monitoring and control.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"} ]} ] },
+
+  { pn:"ALM-173-R1", name:"Alarm I/O", img:"ALM-173-R1/Images/photo1_512kb.png",
+    desc:"Alarm I/O for intrusion detection, fault annunciation and local supervision.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"} ]} ] },
+
+  { pn:"DIM-420-R1", name:"AC Dimmer", img:"DIM-420-R1/Images/photo1_512kb.png",
+    desc:"Dimming of AC loads via leading / trailing edge phase control.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"} ]} ] },
+
+  { pn:"DIO-430-R1", name:"Digital I/O", img:"DIO-430-R1/Images/photo1_512kb.png",
+    desc:"Digital input monitoring and relay output for lighting, HVAC and alarms.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"} ]} ] },
+
+  { pn:"ENM-223-R1", name:"Energy Meter", img:"ENM-223-R1/Images/photo1_512kb.png",
+    desc:"3-phase power quality and energy metering.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"} ]} ] },
+
+  { pn:"RGB-621-R1", name:"RGB + CCT LED", img:"RGB-621-R1/Images/photo1_512kb.png",
+    desc:"RGB and tunable-white LED controller for Modbus RTU networks.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"} ]} ] },
+
+  { pn:"WLD-521-R1", name:"Leak & Water", img:"WLD-521-R1/Images/photo1_512kb.png",
+    desc:"Leak detection, water-flow metering, heat-energy monitoring and irrigation.",
+    versions:[
+      { ver:"v0.1.0", status:"current",
+        webconfig:"WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"} ]},
+      { ver:"v0.2.0", status:"beta",
+        webconfig:"WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[
+          {label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
+          {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"} ]} ] },
+];
+
+const ARROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const CHEV  = '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+const FILE  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const STATUS_LABEL = { current:"Current", beta:"Beta", old:"Old" };
+
+function versionRow(v){
+  const fw = v.firmware.map(f =>
+    `<a class="vlink" href="${esc(f.path)}">${FILE}${esc(f.label)}</a>`).join("");
+  return `
+    <div class="vrow">
+      <div class="vhead">
+        <span class="vver">${esc(v.ver)}</span>
+        <span class="badge ${esc(v.status)}">${STATUS_LABEL[v.status]||esc(v.status)}</span>
+      </div>
+      <div class="vlinks">
+        <a class="vlink primary" href="${esc(v.webconfig)}">${ARROW}WebConfig</a>
+        ${fw}
+      </div>
+    </div>`;
+}
+
+function moduleCard(m){
+  const order = {current:0, beta:1, old:2};
+  const sorted = [...m.versions].sort((a,b)=>(order[a.status]??9)-(order[b.status]??9));
+  const current = sorted.find(v=>v.status==="current") || sorted[0];
+  const rows = sorted.map(versionRow).join("");
+  return `
+    <div class="mod">
+      <div class="thumb"><img src="${esc(m.img)}" alt="${esc(m.pn)} module" loading="lazy"></div>
+      <div class="body">
+        <div class="pnrow"><span class="pn">${esc(m.pn)}</span></div>
+        <h2>${esc(m.name)}</h2>
+        <p class="desc">${esc(m.desc)}</p>
+        <a class="open-btn" href="${esc(current.webconfig)}">Open configurator ${ARROW}</a>
+        <div class="ver-note">Current firmware ${esc(current.ver)}</div>
+        <details class="versions">
+          <summary>${CHEV}All versions &amp; firmware</summary>
+          <div class="vlist">${rows}</div>
+        </details>
+      </div>
+    </div>`;
+}
+
+document.getElementById("grid").innerHTML = MODULES.map(moduleCard).join("");
+</script>
+
+</body>
+</html>
