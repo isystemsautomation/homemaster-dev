@@ -40,15 +40,15 @@
   .badge.beta{color:#92510a;background:#fff7ed;border-color:#fed7aa}
   .badge.old{color:#475569;background:#f1f5f9;border-color:#e2e8f0}
 
-  .section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted2);padding:26px 0 0}
+  .section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted2);padding:26px 0 0;margin:0}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:14px 0 8px}
   .mod{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:80px}
   .mod:target{border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.18), var(--shadow)}
-  .thumb{aspect-ratio:16/10;background:#f1f5f9;display:grid;place-items:center;border-bottom:1px solid var(--border)}
-  .thumb img{width:100%;height:100%;object-fit:contain;padding:14px}
+  .thumb{height:180px;padding:14px;background:#f1f5f9;display:grid;place-items:center;border-bottom:1px solid var(--border);overflow:hidden}
+  .thumb img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
   .body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
   .pn{align-self:flex-start;font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e40af;background:#eef6ff;border:1px solid #cfe2ff;padding:3px 9px;border-radius:999px}
-  .mod h2{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em}
+  .mod h3{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em}
   .mod .desc{margin:0;font-size:13px;color:var(--muted);flex:1}
 
   .open-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;padding:10px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-size:13.5px;font-weight:750;transition:background .15s ease}
@@ -86,6 +86,18 @@
   @media (max-width:520px){ .intro h1{font-size:25px} .head-inner{padding:14px 0} }
   @media (prefers-reduced-motion:reduce){ *{transition:none !important;scroll-behavior:auto} }
 </style>
+<link rel="canonical" href="https://config.home-master.eu/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HOMEMASTER">
+<meta property="og:title" content="HomeMaster — Configurator, Firmware &amp; Documentation">
+<meta property="og:description" content="Everything for HomeMaster DIN-rail automation devices: configure modules over USB-C, download firmware (ESPHome YAML), and find datasheets, schematics and declarations of conformity for the PLCs, OpenTherm gateway and every module.">
+<meta property="og:url" content="https://config.home-master.eu/">
+<meta property="og:image" content="https://www.home-master.eu/web/image/2864-6fcde7f4/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HomeMaster — Configurator, Firmware &amp; Documentation">
+<meta name="twitter:description" content="Everything for HomeMaster DIN-rail automation devices: configure modules over USB-C, download firmware (ESPHome YAML), and find datasheets, schematics and declarations of conformity for the PLCs, OpenTherm gateway and every module.">
+<meta name="twitter:image" content="https://www.home-master.eu/web/image/2864-6fcde7f4/logo.jpg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","name":"HomeMaster devices","itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"Product","name":"MiniPLC (MiniPLC)","sku":"MiniPLC","url":"https://config.home-master.eu/#MiniPLC","image":"https://config.home-master.eu/MiniPLC/Images/Photo1_512kb.png","description":"ESP32 Programmable Logic Controller (USB / Ethernet).","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":2,"item":{"@type":"Product","name":"MicroPLC (MicroPLC)","sku":"MicroPLC","url":"https://config.home-master.eu/#MicroPLC","image":"https://config.home-master.eu/MicroPLC/Images/MicroPLC.png","description":"Compact ESP32 PLC for DIN-rail automation.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":3,"item":{"@type":"Product","name":"OpenTherm Gateway (OpenThermGateway)","sku":"OpenThermGateway","url":"https://config.home-master.eu/#OpenThermGateway","image":"https://config.home-master.eu/OpenthermGateway/Images/opentherm_512kb.png","description":"Smart boiler controller using the OpenTherm protocol.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":4,"item":{"@type":"Product","name":"Analog I/O (AIO-422-R1)","sku":"AIO-422-R1","url":"https://config.home-master.eu/#AIO-422-R1","image":"https://config.home-master.eu/AIO-422-R1/Images/photo1_512kb.png","description":"High-precision analog I/O for HVAC, environmental monitoring and control.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":5,"item":{"@type":"Product","name":"Alarm I/O (ALM-173-R1)","sku":"ALM-173-R1","url":"https://config.home-master.eu/#ALM-173-R1","image":"https://config.home-master.eu/ALM-173-R1/Images/photo1_512kb.png","description":"Alarm I/O for intrusion detection, fault annunciation and local supervision.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":6,"item":{"@type":"Product","name":"AC Dimmer (DIM-420-R1)","sku":"DIM-420-R1","url":"https://config.home-master.eu/#DIM-420-R1","image":"https://config.home-master.eu/DIM-420-R1/Images/photo1_512kb.png","description":"Dimming of AC loads via leading / trailing edge phase control.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":7,"item":{"@type":"Product","name":"Digital I/O (DIO-430-R1)","sku":"DIO-430-R1","url":"https://config.home-master.eu/#DIO-430-R1","image":"https://config.home-master.eu/DIO-430-R1/Images/photo1_512kb.png","description":"Digital input monitoring and relay output for lighting, HVAC and alarms.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":8,"item":{"@type":"Product","name":"Energy Meter (ENM-223-R1)","sku":"ENM-223-R1","url":"https://config.home-master.eu/#ENM-223-R1","image":"https://config.home-master.eu/ENM-223-R1/Images/photo1_512kb.png","description":"3-phase power quality and energy metering.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":9,"item":{"@type":"Product","name":"RGB + CCT LED (RGB-621-R1)","sku":"RGB-621-R1","url":"https://config.home-master.eu/#RGB-621-R1","image":"https://config.home-master.eu/RGB-621-R1/Images/photo1_512kb.png","description":"RGB and tunable-white LED controller for Modbus RTU networks.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":10,"item":{"@type":"Product","name":"Leak & Water (WLD-521-R1)","sku":"WLD-521-R1","url":"https://config.home-master.eu/#WLD-521-R1","image":"https://config.home-master.eu/WLD-521-R1/Images/photo1_512kb.png","description":"Leak detection, water-flow metering, heat-energy monitoring and irrigation.","brand":{"@type":"Brand","name":"HomeMaster"}}},{"@type":"ListItem","position":11,"item":{"@type":"Product","name":"Stair LED Controller (STR-3221-R1)","sku":"STR-3221-R1","url":"https://config.home-master.eu/#STR-3221-R1","image":"https://config.home-master.eu/STR-3221-R1/Images/photo1_512kb.png","description":"Stairway LED controller with PIR / digital triggers. Firmware coming soon.","brand":{"@type":"Brand","name":"HomeMaster"}}}]}</script>
 </head>
 <body>
 
@@ -108,8 +120,113 @@
     </div>
   </section>
 
-  <div id="root"></div>
-  <noscript><p style="color:var(--muted)">Enable JavaScript to view the device list, or browse the <a href="https://github.com/isystemsautomation/homemaster-dev">repository</a> directly.</p></noscript>
+  <section>
+    <h2 class="section-title">Controllers &amp; Gateway</h2>
+    <div class="grid"><div class="grid"><div class="mod" id="MiniPLC">
+      <div class="thumb"><img src="MiniPLC/Images/Photo1_512kb.png" alt="MiniPLC" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">MiniPLC</span>
+        <h3>MiniPLC</h3>
+        <p class="desc">ESP32 Programmable Logic Controller (USB / Ethernet).</p>
+        <a class="open-btn alt" href="MiniPLC/Firmware/miniplc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><div class="ver-note">Configured in ESPHome — no USB-C WebConfig</div>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="MiniPLC/Manuals/MiniPLC_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="MiniPLC/Manuals/User%20Manual.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>User Manual</a><a class="vlink" href="MiniPLC/Manuals/DoC-MiniPLC-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="MiniPLC/Schematic/MCU_Board.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="MiniPLC/Schematic/Relay_Board.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a><a class="vlink" href="MiniPLC/Schematic/USB_Board.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>USB Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/miniplc-2" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/esp32-miniplc-55" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="MicroPLC">
+      <div class="thumb"><img src="MicroPLC/Images/MicroPLC.png" alt="MicroPLC" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">MicroPLC</span>
+        <h3>MicroPLC</h3>
+        <p class="desc">Compact ESP32 PLC for DIN-rail automation.</p>
+        <a class="open-btn alt" href="MicroPLC/Firmware/microplc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><div class="ver-note">Configured in ESPHome — no USB-C WebConfig</div>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="MicroPLC/Manuals/MicroPLC_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="MicroPLC/Manuals/DoC-MicroPLC-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="MicroPLC/Schematic/MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="MicroPLC/Schematic/RelayBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/microplc-3" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/esp32-microplc-56" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="OpenThermGateway">
+      <div class="thumb"><img src="OpenthermGateway/Images/opentherm_512kb.png" alt="OpenThermGateway" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">OpenThermGateway</span>
+        <h3>OpenTherm Gateway</h3>
+        <p class="desc">Smart boiler controller using the OpenTherm protocol.</p>
+        <a class="open-btn alt" href="OpenthermGateway/Firmware/opentherm.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><div class="ver-note">Configured in ESPHome — no USB-C WebConfig</div>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="OpenthermGateway/Manuals/OpenTherm_UserManual.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>User Manual</a><a class="vlink" href="OpenthermGateway/Manuals/OpenTherm_Gateway_DoC.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="OpenthermGateway/Schematic/MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="OpenthermGateway/Schematic/RelayBorard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/opentherm-gateway-10" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/opentherm-gateway-59" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div></div></div>
+  </section>
+  <section>
+    <h2 class="section-title">Configurable modules</h2>
+    <div class="grid"><div class="grid"><div class="mod" id="AIO-422-R1">
+      <div class="thumb"><img src="AIO-422-R1/Images/photo1_512kb.png" alt="AIO-422-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">AIO-422-R1</span>
+        <h3>Analog I/O</h3>
+        <p class="desc">High-precision analog I/O for HVAC, environmental monitoring and control.</p>
+        <a class="open-btn" href="AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="AIO-422-R1/Manuals/AIO-422-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="AIO-422-R1/Manuals/DoC-AIO-422-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="AIO-422-R1/Schematics/AIO-422-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="AIO-422-R1/Schematics/AIO-422-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/AIO-422-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/aio-422-r1-9" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/aio-422-r1-analog-input-output-rtd-interface-module-735" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="ALM-173-R1">
+      <div class="thumb"><img src="ALM-173-R1/Images/photo1_512kb.png" alt="ALM-173-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">ALM-173-R1</span>
+        <h3>Alarm I/O</h3>
+        <p class="desc">Alarm I/O for intrusion detection, fault annunciation and local supervision.</p>
+        <a class="open-btn" href="ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="ALM-173-R1/Manuals/DoC-ALM-173-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="ALM-173-R1/Schematics/ALM-173-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="ALM-173-R1/Schematics/ALM-173-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/ALM-173-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/shop/alm-173-r1-module-for-alarm-systems-733" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="DIM-420-R1">
+      <div class="thumb"><img src="DIM-420-R1/Images/photo1_512kb.png" alt="DIM-420-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">DIM-420-R1</span>
+        <h3>AC Dimmer</h3>
+        <p class="desc">Dimming of AC loads via leading / trailing edge phase control.</p>
+        <a class="open-btn" href="DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="DIM-420-R1/Manuals/DIM-420-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="DIM-420-R1/Manuals/DoC-DIM-420-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="DIM-420-R1/Schematics/DIM-420-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="DIM-420-R1/Schematics/DIM-420-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a><a class="vlink" href="DIM-420-R1/Schematics/DIM-420-R1-MOSFETBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MOSFET Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/dim-420-r1-5" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/dim-420-r1-dual-channel-ac-dimmer-module-mosfet-based-736" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="DIO-430-R1">
+      <div class="thumb"><img src="DIO-430-R1/Images/photo1_512kb.png" alt="DIO-430-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">DIO-430-R1</span>
+        <h3>Digital I/O</h3>
+        <p class="desc">Digital input monitoring and relay output for lighting, HVAC and alarms.</p>
+        <a class="open-btn" href="DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="DIO-430-R1/Manuals/DIO-430-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="DIO-430-R1/Manuals/DoC-DIO-430-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a><a class="vlink" href="DIO-430-R1/Schematics/DIO-430-R1-RelayBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/dio-430-r1-6" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/dio-430-r1-relay-module-58" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="ENM-223-R1">
+      <div class="thumb"><img src="ENM-223-R1/Images/photo1_512kb.png" alt="ENM-223-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">ENM-223-R1</span>
+        <h3>Energy Meter</h3>
+        <p class="desc">3-phase power quality and energy metering.</p>
+        <a class="open-btn" href="ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="ENM-223-R1/Manuals/DoC-ENM-223-R1-V1.0%20(1).pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="ENM-223-R1/Schematics/ENM-223-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="ENM-223-R1/Schematics/ENM-223-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a><a class="vlink" href="ENM-223-R1/Schematics/ENM-223-R1-RelayBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/enm223r1-4" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/enm-223-r1-3-phase-power-quality-energy-metering-module-737" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="RGB-621-R1">
+      <div class="thumb"><img src="RGB-621-R1/Images/photo1_512kb.png" alt="RGB-621-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">RGB-621-R1</span>
+        <h3>RGB + CCT LED</h3>
+        <p class="desc">RGB and tunable-white LED controller for Modbus RTU networks.</p>
+        <a class="open-btn" href="RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="RGB-621-R1/Manuals/RGB-620-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="RGB-621-R1/Manuals/DoC-RGB-621-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="RGB-621-R1/Schematics/RGB-621-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="RGB-621-R1/Schematics/RGB-621-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/RGB-621-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/rgb-621-r1-7" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/rgb-621-r1-rgbcct-module-57" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="WLD-521-R1">
+      <div class="thumb"><img src="WLD-521-R1/Images/photo1_512kb.png" alt="WLD-521-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">WLD-521-R1</span>
+        <h3>Leak &amp; Water</h3>
+        <p class="desc">Leak detection, water-flow metering, heat-energy monitoring and irrigation.</p>
+        <a class="open-btn" href="WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html">Open configurator <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><div class="ver-note">Current firmware v0.1.0</div><details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>All versions &amp; firmware</summary><div class="vlist"><div class="vrow"><div class="vhead"><span class="vver">v0.1.0</span><span class="badge current">Current</span></div><div class="vlinks"><a class="vlink primary" href="WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div><div class="vrow"><div class="vhead"><span class="vver">v0.2.0</span><span class="badge beta">Beta</span></div><div class="vlinks"><a class="vlink primary" href="WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>WebConfig</a><a class="vlink" href="WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>ESPHome YAML</a><a class="vlink" href="WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Sketch (.ino)</a></div></div></div></details>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="WLD-521-R1/Manuals/DoC-WLD-521-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="WLD-521-R1/Schematics/WLD-521-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="WLD-521-R1/Schematics/WLD-521-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a><a class="vlink" href="WLD-521-R1/Schematics/WLD-521-R1-RelayBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Relay Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/WLD-521-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/forum/wld-521-r1-8" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Forum</a><a class="vlink" href="https://www.home-master.eu/shop/wld-521-r1-water-meter-leak-detection-module-1035" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div><div class="mod" id="STR-3221-R1">
+      <div class="thumb"><img src="STR-3221-R1/Images/photo1_512kb.png" alt="STR-3221-R1" loading="lazy"></div>
+      <div class="body">
+        <span class="pn">STR-3221-R1</span>
+        <h3>Stair LED Controller</h3>
+        <p class="desc">Stairway LED controller with PIR / digital triggers. Firmware coming soon.</p>
+        <div class="ver-note">Firmware coming soon</div>
+        <details class="disc"><summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Documents &amp; resources</summary><div class="vlist"><div class="vrow"><div class="glabel">Documents</div><div class="vlinks"><a class="vlink" href="STR-3221-R1/Manuals/STR-3221-R1_Datasheet.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Datasheet</a><a class="vlink" href="STR-3221-R1/Manuals/DoC-STR-3221-R1-V1.0.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Declaration of Conformity</a><a class="vlink" href="STR-3221-R1/Schematics/SRT-3221-R1-MCUBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>MCU Board</a><a class="vlink" href="STR-3221-R1/Schematics/SRT-3221-R1-FieldBoard.pdf" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Field Board</a></div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks"><a class="vlink" href="https://github.com/isystemsautomation/homemaster-dev/blob/main/STR-3221-R1/README.md" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>README</a><a class="vlink" href="https://www.home-master.eu/shop/stair-led-controller-66" target="_blank" rel="noopener"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>Shop</a></div></div></div></details>
+      </div>
+    </div></div></div>
+  </section>
 </main>
 
 <footer>
@@ -123,187 +240,527 @@
   </div>
 </footer>
 
-<script>
-/* ─────────────────────────────────────────────────────────────
-   Single source for the device hub. Edit here only.
-   category: "controller" (ESPHome, no WebConfig) | "module"
-   version.status: "current" | "beta" | "old"
-   Internal paths served from config.home-master.eu; readme/forum/shop external.
-   ───────────────────────────────────────────────────────────── */
-const GH = "https://github.com/isystemsautomation/homemaster-dev/blob/main/";
-const EU = "https://www.home-master.eu";
+<!-- DATA REFERENCE — the cards above are STATIC HTML and are the source of truth
+     (rendered server-side for SEO). This JSON mirrors them for easy editing /
+     regeneration. If you change a card, update here too (or regenerate).
 
-const MODULES = [
-  /* ───── Controllers & Gateway (configured via ESPHome, no WebConfig) ───── */
-  { pn:"MiniPLC", name:"MiniPLC", category:"controller", img:"MiniPLC/Images/Photo1_512kb.png",
-    desc:"ESP32 Programmable Logic Controller (USB / Ethernet).",
-    firmwareYaml:"MiniPLC/Firmware/miniplc.yaml",
-    docs:{ datasheet:"MiniPLC/Manuals/MiniPLC_Datasheet.pdf", manual:"MiniPLC/Manuals/User%20Manual.pdf", doc:"MiniPLC/Manuals/DoC-MiniPLC-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"MiniPLC/Schematic/MCU_Board.pdf"},{label:"Relay Board",path:"MiniPLC/Schematic/Relay_Board.pdf"},{label:"USB Board",path:"MiniPLC/Schematic/USB_Board.pdf"}],
-      readme:GH+"MiniPLC/README.md", forum:EU+"/forum/miniplc-2", shop:EU+"/shop/esp32-miniplc-55" } },
-
-  { pn:"MicroPLC", name:"MicroPLC", category:"controller", img:"MicroPLC/Images/MicroPLC.png",
-    desc:"Compact ESP32 PLC for DIN-rail automation.",
-    firmwareYaml:"MicroPLC/Firmware/microplc.yaml",
-    docs:{ datasheet:"MicroPLC/Manuals/MicroPLC_Datasheet.pdf", doc:"MicroPLC/Manuals/DoC-MicroPLC-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"MicroPLC/Schematic/MCUBoard.pdf"},{label:"Relay Board",path:"MicroPLC/Schematic/RelayBoard.pdf"}],
-      readme:GH+"MicroPLC/README.md", forum:EU+"/forum/microplc-3", shop:EU+"/shop/esp32-microplc-56" } },
-
-  { pn:"OpenThermGateway", name:"OpenTherm Gateway", category:"controller", img:"OpenthermGateway/Images/opentherm_512kb.png",
-    desc:"Smart boiler controller using the OpenTherm protocol.",
-    firmwareYaml:"OpenthermGateway/Firmware/opentherm.yaml",
-    docs:{ datasheet:"OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf", manual:"OpenthermGateway/Manuals/OpenTherm_UserManual.pdf", doc:"OpenthermGateway/Manuals/OpenTherm_Gateway_DoC.pdf",
-      schematics:[{label:"MCU Board",path:"OpenthermGateway/Schematic/MCUBoard.pdf"},{label:"Relay Board",path:"OpenthermGateway/Schematic/RelayBorard.pdf"}],
-      readme:GH+"OpenthermGateway/README.md", forum:EU+"/forum/opentherm-gateway-10", shop:EU+"/shop/opentherm-gateway-59" } },
-
-  /* ───── Configurable modules (USB-C WebConfig) ───── */
-  { pn:"AIO-422-R1", name:"Analog I/O", category:"module", img:"AIO-422-R1/Images/photo1_512kb.png",
-    desc:"High-precision analog I/O for HVAC, environmental monitoring and control.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},{label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},{label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"}]} ],
-    docs:{ datasheet:"AIO-422-R1/Manuals/AIO-422-R1_Datasheet.pdf", doc:"AIO-422-R1/Manuals/DoC-AIO-422-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"AIO-422-R1/Schematics/AIO-422-R1-MCUBoard.pdf"},{label:"Field Board",path:"AIO-422-R1/Schematics/AIO-422-R1-FieldBoard.pdf"}],
-      readme:GH+"AIO-422-R1/README.md", forum:EU+"/forum/aio-422-r1-9", shop:EU+"/shop/aio-422-r1-analog-input-output-rtd-interface-module-735" } },
-
-  { pn:"ALM-173-R1", name:"Alarm I/O", category:"module", img:"ALM-173-R1/Images/photo1_512kb.png",
-    desc:"Alarm I/O for intrusion detection, fault annunciation and local supervision.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},{label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},{label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"}]} ],
-    docs:{ datasheet:"ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf", doc:"ALM-173-R1/Manuals/DoC-ALM-173-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"ALM-173-R1/Schematics/ALM-173-R1-MCUBoard.pdf"},{label:"Field Board",path:"ALM-173-R1/Schematics/ALM-173-R1-FieldBoard.pdf"}],
-      readme:GH+"ALM-173-R1/README.md", forum:null, shop:EU+"/shop/alm-173-r1-module-for-alarm-systems-733" } },
-
-  { pn:"DIM-420-R1", name:"AC Dimmer", category:"module", img:"DIM-420-R1/Images/photo1_512kb.png",
-    desc:"Dimming of AC loads via leading / trailing edge phase control.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},{label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},{label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"}]} ],
-    docs:{ datasheet:"DIM-420-R1/Manuals/DIM-420-R1_Datasheet.pdf", doc:"DIM-420-R1/Manuals/DoC-DIM-420-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"DIM-420-R1/Schematics/DIM-420-R1-MCUBoard.pdf"},{label:"Field Board",path:"DIM-420-R1/Schematics/DIM-420-R1-FieldBoard.pdf"},{label:"MOSFET Board",path:"DIM-420-R1/Schematics/DIM-420-R1-MOSFETBoard.pdf"}],
-      readme:GH+"DIM-420-R1/README.md", forum:EU+"/forum/dim-420-r1-5", shop:EU+"/shop/dim-420-r1-dual-channel-ac-dimmer-module-mosfet-based-736" } },
-
-  { pn:"DIO-430-R1", name:"Digital I/O", category:"module", img:"DIO-430-R1/Images/photo1_512kb.png",
-    desc:"Digital input monitoring and relay output for lighting, HVAC and alarms.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},{label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},{label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"}]} ],
-    docs:{ datasheet:"DIO-430-R1/Manuals/DIO-430-R1_Datasheet.pdf", doc:"DIO-430-R1/Manuals/DoC-DIO-430-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf"},{label:"Field Board",path:"DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf"},{label:"Relay Board",path:"DIO-430-R1/Schematics/DIO-430-R1-RelayBoard.pdf"}],
-      readme:GH+"DIO-430-R1/README.md", forum:EU+"/forum/dio-430-r1-6", shop:EU+"/shop/dio-430-r1-relay-module-58" } },
-
-  { pn:"ENM-223-R1", name:"Energy Meter", category:"module", img:"ENM-223-R1/Images/photo1_512kb.png",
-    desc:"3-phase power quality and energy metering.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},{label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},{label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"}]} ],
-    docs:{ datasheet:"ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf", doc:"ENM-223-R1/Manuals/DoC-ENM-223-R1-V1.0%20(1).pdf",
-      schematics:[{label:"MCU Board",path:"ENM-223-R1/Schematics/ENM-223-R1-MCUBoard.pdf"},{label:"Field Board",path:"ENM-223-R1/Schematics/ENM-223-R1-FieldBoard.pdf"},{label:"Relay Board",path:"ENM-223-R1/Schematics/ENM-223-R1-RelayBoard.pdf"}],
-      readme:GH+"ENM-223-R1/README.md", forum:EU+"/forum/enm223r1-4", shop:EU+"/shop/enm-223-r1-3-phase-power-quality-energy-metering-module-737" } },
-
-  { pn:"RGB-621-R1", name:"RGB + CCT LED", category:"module", img:"RGB-621-R1/Images/photo1_512kb.png",
-    desc:"RGB and tunable-white LED controller for Modbus RTU networks.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},{label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},{label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"}]} ],
-    docs:{ datasheet:"RGB-621-R1/Manuals/RGB-620-R1_Datasheet.pdf", doc:"RGB-621-R1/Manuals/DoC-RGB-621-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"RGB-621-R1/Schematics/RGB-621-R1-MCUBoard.pdf"},{label:"Field Board",path:"RGB-621-R1/Schematics/RGB-621-R1-FieldBoard.pdf"}],
-      readme:GH+"RGB-621-R1/README.md", forum:EU+"/forum/rgb-621-r1-7", shop:EU+"/shop/rgb-621-r1-rgbcct-module-57" } },
-
-  { pn:"WLD-521-R1", name:"Leak & Water", category:"module", img:"WLD-521-R1/Images/photo1_512kb.png",
-    desc:"Leak detection, water-flow metering, heat-energy monitoring and irrigation.",
-    versions:[
-      { ver:"v0.1.0", status:"current", webconfig:"WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},{label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"}]},
-      { ver:"v0.2.0", status:"beta", webconfig:"WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[{label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},{label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"}]} ],
-    docs:{ datasheet:"WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf", doc:"WLD-521-R1/Manuals/DoC-WLD-521-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"WLD-521-R1/Schematics/WLD-521-R1-MCUBoard.pdf"},{label:"Field Board",path:"WLD-521-R1/Schematics/WLD-521-R1-FieldBoard.pdf"},{label:"Relay Board",path:"WLD-521-R1/Schematics/WLD-521-R1-RelayBoard.pdf"}],
-      readme:GH+"WLD-521-R1/README.md", forum:EU+"/forum/wld-521-r1-8", shop:EU+"/shop/wld-521-r1-water-meter-leak-detection-module-1035" } },
-
-  { pn:"STR-3221-R1", name:"Stair LED Controller", category:"module", img:"STR-3221-R1/Images/photo1_512kb.png",
-    desc:"Stairway LED controller with PIR / digital triggers. Firmware coming soon.",
-    firmwareSoon:true,
-    docs:{ datasheet:"STR-3221-R1/Manuals/STR-3221-R1_Datasheet.pdf", doc:"STR-3221-R1/Manuals/DoC-STR-3221-R1-V1.0.pdf",
-      schematics:[{label:"MCU Board",path:"STR-3221-R1/Schematics/SRT-3221-R1-MCUBoard.pdf"},{label:"Field Board",path:"STR-3221-R1/Schematics/SRT-3221-R1-FieldBoard.pdf"}],
-      readme:GH+"STR-3221-R1/README.md", forum:null, shop:EU+"/shop/stair-led-controller-66" } },
-];
-
-const ARROW='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-const CHEV='<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
-const FILE='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
-const EXT='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>';
-
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const STATUS_LABEL = { current:"Current", beta:"Beta", old:"Old" };
-
-function versionRow(v){
-  const fw = v.firmware.map(f => `<a class="vlink" href="${esc(f.path)}">${FILE}${esc(f.label)}</a>`).join("");
-  return `<div class="vrow"><div class="vhead"><span class="vver">${esc(v.ver)}</span><span class="badge ${esc(v.status)}">${STATUS_LABEL[v.status]||esc(v.status)}</span></div><div class="vlinks"><a class="vlink primary" href="${esc(v.webconfig)}">${ARROW}WebConfig</a>${fw}</div></div>`;
-}
-
-function docsRow(d){
-  const sch = d.schematics.map(s => `<a class="vlink" href="${esc(s.path)}" target="_blank" rel="noopener">${FILE}${esc(s.label)}</a>`).join("");
-  const docPdfs = [
-    `<a class="vlink" href="${esc(d.datasheet)}" target="_blank" rel="noopener">${FILE}Datasheet</a>`,
-    d.manual ? `<a class="vlink" href="${esc(d.manual)}" target="_blank" rel="noopener">${FILE}User Manual</a>` : "",
-    `<a class="vlink" href="${esc(d.doc)}" target="_blank" rel="noopener">${FILE}Declaration of Conformity</a>`,
-    sch
-  ].join("");
-  const links = [
-    d.readme ? `<a class="vlink" href="${esc(d.readme)}" target="_blank" rel="noopener">${EXT}README</a>` : "",
-    d.forum  ? `<a class="vlink" href="${esc(d.forum)}" target="_blank" rel="noopener">${EXT}Forum</a>` : "",
-    d.shop   ? `<a class="vlink" href="${esc(d.shop)}" target="_blank" rel="noopener">${EXT}Shop</a>` : ""
-  ].join("");
-  return `<div class="vrow"><div class="glabel">Documents</div><div class="vlinks">${docPdfs}</div><div class="glabel" style="margin-top:10px">Resources</div><div class="vlinks">${links}</div></div>`;
-}
-
-function moduleCard(m){
-  let action = "", verNote = "", versionsDisc = "";
-  if (m.versions){
-    const order = {current:0, beta:1, old:2};
-    const sorted = [...m.versions].sort((a,b)=>(order[a.status]??9)-(order[b.status]??9));
-    const current = sorted.find(v=>v.status==="current") || sorted[0];
-    action = `<a class="open-btn" href="${esc(current.webconfig)}">Open configurator ${ARROW}</a>`;
-    verNote = `<div class="ver-note">Current firmware ${esc(current.ver)}</div>`;
-    versionsDisc = `<details class="disc"><summary>${CHEV}All versions &amp; firmware</summary><div class="vlist">${sorted.map(versionRow).join("")}</div></details>`;
-  } else if (m.firmwareYaml){
-    action = `<a class="open-btn alt" href="${esc(m.firmwareYaml)}">${FILE}ESPHome YAML</a>`;
-    verNote = `<div class="ver-note">Configured in ESPHome — no USB-C WebConfig</div>`;
-  } else if (m.firmwareSoon){
-    verNote = `<div class="ver-note">Firmware coming soon</div>`;
+[
+  {
+    "pn": "MiniPLC",
+    "name": "MiniPLC",
+    "category": "controller",
+    "img": "MiniPLC/Images/Photo1_512kb.png",
+    "desc": "ESP32 Programmable Logic Controller (USB / Ethernet).",
+    "firmwareYaml": "MiniPLC/Firmware/miniplc.yaml",
+    "docs": {
+      "datasheet": "MiniPLC/Manuals/MiniPLC_Datasheet.pdf",
+      "manual": "MiniPLC/Manuals/User%20Manual.pdf",
+      "doc": "MiniPLC/Manuals/DoC-MiniPLC-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "MiniPLC/Schematic/MCU_Board.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "MiniPLC/Schematic/Relay_Board.pdf"
+        },
+        {
+          "label": "USB Board",
+          "path": "MiniPLC/Schematic/USB_Board.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/README.md",
+      "forum": "https://www.home-master.eu/forum/miniplc-2",
+      "shop": "https://www.home-master.eu/shop/esp32-miniplc-55"
+    }
+  },
+  {
+    "pn": "MicroPLC",
+    "name": "MicroPLC",
+    "category": "controller",
+    "img": "MicroPLC/Images/MicroPLC.png",
+    "desc": "Compact ESP32 PLC for DIN-rail automation.",
+    "firmwareYaml": "MicroPLC/Firmware/microplc.yaml",
+    "docs": {
+      "datasheet": "MicroPLC/Manuals/MicroPLC_Datasheet.pdf",
+      "doc": "MicroPLC/Manuals/DoC-MicroPLC-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "MicroPLC/Schematic/MCUBoard.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "MicroPLC/Schematic/RelayBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/README.md",
+      "forum": "https://www.home-master.eu/forum/microplc-3",
+      "shop": "https://www.home-master.eu/shop/esp32-microplc-56"
+    }
+  },
+  {
+    "pn": "OpenThermGateway",
+    "name": "OpenTherm Gateway",
+    "category": "controller",
+    "img": "OpenthermGateway/Images/opentherm_512kb.png",
+    "desc": "Smart boiler controller using the OpenTherm protocol.",
+    "firmwareYaml": "OpenthermGateway/Firmware/opentherm.yaml",
+    "docs": {
+      "datasheet": "OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf",
+      "manual": "OpenthermGateway/Manuals/OpenTherm_UserManual.pdf",
+      "doc": "OpenthermGateway/Manuals/OpenTherm_Gateway_DoC.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "OpenthermGateway/Schematic/MCUBoard.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "OpenthermGateway/Schematic/RelayBorard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/README.md",
+      "forum": "https://www.home-master.eu/forum/opentherm-gateway-10",
+      "shop": "https://www.home-master.eu/shop/opentherm-gateway-59"
+    }
+  },
+  {
+    "pn": "AIO-422-R1",
+    "name": "Analog I/O",
+    "category": "module",
+    "img": "AIO-422-R1/Images/photo1_512kb.png",
+    "desc": "High-precision analog I/O for HVAC, environmental monitoring and control.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "AIO-422-R1/Manuals/AIO-422-R1_Datasheet.pdf",
+      "doc": "AIO-422-R1/Manuals/DoC-AIO-422-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "AIO-422-R1/Schematics/AIO-422-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "AIO-422-R1/Schematics/AIO-422-R1-FieldBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/AIO-422-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/aio-422-r1-9",
+      "shop": "https://www.home-master.eu/shop/aio-422-r1-analog-input-output-rtd-interface-module-735"
+    }
+  },
+  {
+    "pn": "ALM-173-R1",
+    "name": "Alarm I/O",
+    "category": "module",
+    "img": "ALM-173-R1/Images/photo1_512kb.png",
+    "desc": "Alarm I/O for intrusion detection, fault annunciation and local supervision.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf",
+      "doc": "ALM-173-R1/Manuals/DoC-ALM-173-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "ALM-173-R1/Schematics/ALM-173-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "ALM-173-R1/Schematics/ALM-173-R1-FieldBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/ALM-173-R1/README.md",
+      "forum": null,
+      "shop": "https://www.home-master.eu/shop/alm-173-r1-module-for-alarm-systems-733"
+    }
+  },
+  {
+    "pn": "DIM-420-R1",
+    "name": "AC Dimmer",
+    "category": "module",
+    "img": "DIM-420-R1/Images/photo1_512kb.png",
+    "desc": "Dimming of AC loads via leading / trailing edge phase control.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "DIM-420-R1/Manuals/DIM-420-R1_Datasheet.pdf",
+      "doc": "DIM-420-R1/Manuals/DoC-DIM-420-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "DIM-420-R1/Schematics/DIM-420-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "DIM-420-R1/Schematics/DIM-420-R1-FieldBoard.pdf"
+        },
+        {
+          "label": "MOSFET Board",
+          "path": "DIM-420-R1/Schematics/DIM-420-R1-MOSFETBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/dim-420-r1-5",
+      "shop": "https://www.home-master.eu/shop/dim-420-r1-dual-channel-ac-dimmer-module-mosfet-based-736"
+    }
+  },
+  {
+    "pn": "DIO-430-R1",
+    "name": "Digital I/O",
+    "category": "module",
+    "img": "DIO-430-R1/Images/photo1_512kb.png",
+    "desc": "Digital input monitoring and relay output for lighting, HVAC and alarms.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "DIO-430-R1/Manuals/DIO-430-R1_Datasheet.pdf",
+      "doc": "DIO-430-R1/Manuals/DoC-DIO-430-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "DIO-430-R1/Schematics/DIO-430-R1-RelayBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/dio-430-r1-6",
+      "shop": "https://www.home-master.eu/shop/dio-430-r1-relay-module-58"
+    }
+  },
+  {
+    "pn": "ENM-223-R1",
+    "name": "Energy Meter",
+    "category": "module",
+    "img": "ENM-223-R1/Images/photo1_512kb.png",
+    "desc": "3-phase power quality and energy metering.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf",
+      "doc": "ENM-223-R1/Manuals/DoC-ENM-223-R1-V1.0%20(1).pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "ENM-223-R1/Schematics/ENM-223-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "ENM-223-R1/Schematics/ENM-223-R1-FieldBoard.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "ENM-223-R1/Schematics/ENM-223-R1-RelayBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/enm223r1-4",
+      "shop": "https://www.home-master.eu/shop/enm-223-r1-3-phase-power-quality-energy-metering-module-737"
+    }
+  },
+  {
+    "pn": "RGB-621-R1",
+    "name": "RGB + CCT LED",
+    "category": "module",
+    "img": "RGB-621-R1/Images/photo1_512kb.png",
+    "desc": "RGB and tunable-white LED controller for Modbus RTU networks.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "RGB-621-R1/Manuals/RGB-620-R1_Datasheet.pdf",
+      "doc": "RGB-621-R1/Manuals/DoC-RGB-621-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "RGB-621-R1/Schematics/RGB-621-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "RGB-621-R1/Schematics/RGB-621-R1-FieldBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/RGB-621-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/rgb-621-r1-7",
+      "shop": "https://www.home-master.eu/shop/rgb-621-r1-rgbcct-module-57"
+    }
+  },
+  {
+    "pn": "WLD-521-R1",
+    "name": "Leak & Water",
+    "category": "module",
+    "img": "WLD-521-R1/Images/photo1_512kb.png",
+    "desc": "Leak detection, water-flow metering, heat-energy monitoring and irrigation.",
+    "versions": [
+      {
+        "ver": "v0.1.0",
+        "status": "current",
+        "webconfig": "WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"
+          }
+        ]
+      },
+      {
+        "ver": "v0.2.0",
+        "status": "beta",
+        "webconfig": "WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        "firmware": [
+          {
+            "label": "ESPHome YAML",
+            "path": "WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"
+          },
+          {
+            "label": "Sketch (.ino)",
+            "path": "WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"
+          }
+        ]
+      }
+    ],
+    "docs": {
+      "datasheet": "WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf",
+      "doc": "WLD-521-R1/Manuals/DoC-WLD-521-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "WLD-521-R1/Schematics/WLD-521-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "WLD-521-R1/Schematics/WLD-521-R1-FieldBoard.pdf"
+        },
+        {
+          "label": "Relay Board",
+          "path": "WLD-521-R1/Schematics/WLD-521-R1-RelayBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/WLD-521-R1/README.md",
+      "forum": "https://www.home-master.eu/forum/wld-521-r1-8",
+      "shop": "https://www.home-master.eu/shop/wld-521-r1-water-meter-leak-detection-module-1035"
+    }
+  },
+  {
+    "pn": "STR-3221-R1",
+    "name": "Stair LED Controller",
+    "category": "module",
+    "img": "STR-3221-R1/Images/photo1_512kb.png",
+    "desc": "Stairway LED controller with PIR / digital triggers. Firmware coming soon.",
+    "firmwareSoon": true,
+    "docs": {
+      "datasheet": "STR-3221-R1/Manuals/STR-3221-R1_Datasheet.pdf",
+      "doc": "STR-3221-R1/Manuals/DoC-STR-3221-R1-V1.0.pdf",
+      "schematics": [
+        {
+          "label": "MCU Board",
+          "path": "STR-3221-R1/Schematics/SRT-3221-R1-MCUBoard.pdf"
+        },
+        {
+          "label": "Field Board",
+          "path": "STR-3221-R1/Schematics/SRT-3221-R1-FieldBoard.pdf"
+        }
+      ],
+      "readme": "https://github.com/isystemsautomation/homemaster-dev/blob/main/STR-3221-R1/README.md",
+      "forum": null,
+      "shop": "https://www.home-master.eu/shop/stair-led-controller-66"
+    }
   }
-  return `<div class="mod" id="${esc(m.pn)}">
-      <div class="thumb"><img src="${esc(m.img)}" alt="${esc(m.pn)}" loading="lazy"></div>
-      <div class="body">
-        <span class="pn">${esc(m.pn)}</span>
-        <h2>${esc(m.name)}</h2>
-        <p class="desc">${esc(m.desc)}</p>
-        ${action}${verNote}${versionsDisc}
-        <details class="disc"><summary>${CHEV}Documents &amp; resources</summary><div class="vlist">${docsRow(m.docs)}</div></details>
-      </div>
-    </div>`;
-}
-
-function gridFor(cat){ return `<div class="grid">${MODULES.filter(m=>m.category===cat).map(moduleCard).join("")}</div>`; }
-
-document.getElementById("root").innerHTML =
-  `<div class="section-title">Controllers &amp; Gateway</div>${gridFor("controller")}` +
-  `<div class="section-title">Configurable modules</div>${gridFor("module")}`;
-</script>
+]
+-->
 
 </body>
 </html>
