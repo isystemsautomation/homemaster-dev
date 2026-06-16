@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HomeMaster WebConfig — Module Configurator</title>
-<meta name="description" content="Browser-based configuration tool and firmware for HomeMaster DIN-rail automation modules. Connect over USB-C in any Chromium browser.">
+<title>HomeMaster WebConfig — Modules, Firmware & Documentation</title>
+<meta name="description" content="Configure HomeMaster DIN-rail automation modules over USB-C in any Chromium browser. Firmware, datasheets, schematics and declarations of conformity for every module.">
 <style>
   :root{
     --page:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569; --muted2:#64748b;
@@ -15,7 +15,7 @@
     --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  html{-webkit-text-size-adjust:100%}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
   body{margin:0;font-family:var(--font);color:var(--text);background:var(--page);line-height:1.5}
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
   a{color:inherit}
@@ -30,7 +30,7 @@
 
   .intro{padding:40px 0 8px}
   .intro h1{margin:0 0 10px;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:800}
-  .intro p{margin:0;max-width:640px;font-size:15px;color:var(--muted)}
+  .intro p{margin:0;max-width:660px;font-size:15px;color:var(--muted)}
   .note{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:8px 13px;border-radius:999px;font-size:12.5px;font-weight:650;color:#92510a;background:#fff7ed;border:1px solid #fed7aa}
   .note .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
 
@@ -42,12 +42,12 @@
   .badge.old{color:#475569;background:#f1f5f9;border-color:#e2e8f0}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:26px 0 8px}
-  .mod{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+  .mod{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:80px}
+  .mod:target{border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.18), var(--shadow)}
   .thumb{aspect-ratio:16/10;background:#f1f5f9;display:grid;place-items:center;border-bottom:1px solid var(--border)}
   .thumb img{width:100%;height:100%;object-fit:contain;padding:14px}
   .body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
-  .pnrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .pn{font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e40af;background:#eef6ff;border:1px solid #cfe2ff;padding:3px 9px;border-radius:999px}
+  .pn{align-self:flex-start;font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e40af;background:#eef6ff;border:1px solid #cfe2ff;padding:3px 9px;border-radius:999px}
   .mod h2{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em}
   .mod .desc{margin:0;font-size:13px;color:var(--muted);flex:1}
 
@@ -57,18 +57,19 @@
   .open-btn:hover svg{transform:translateX(3px)}
   .ver-note{font-size:11.5px;color:var(--muted2);text-align:center}
 
-  details.versions{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
-  details.versions>summary{list-style:none;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;user-select:none}
-  details.versions>summary::-webkit-details-marker{display:none}
-  details.versions>summary .chev{transition:transform .15s ease}
-  details.versions[open]>summary .chev{transform:rotate(90deg)}
-  details.versions>summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}
+  details.disc{margin-top:6px;border-top:1px solid var(--border);padding-top:10px}
+  details.disc>summary{list-style:none;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;user-select:none}
+  details.disc>summary::-webkit-details-marker{display:none}
+  details.disc>summary .chev{transition:transform .15s ease}
+  details.disc[open]>summary .chev{transform:rotate(90deg)}
+  details.disc>summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}
 
   .vlist{margin-top:10px;display:flex;flex-direction:column;gap:10px}
   .vrow{border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:#fcfdfe}
   .vhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .vver{font-family:var(--mono);font-size:12px;font-weight:700}
   .vlinks{display:flex;flex-wrap:wrap;gap:6px}
+  .glabel{font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;color:var(--muted2);margin:2px 0 6px}
   .vlink{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;text-decoration:none;padding:5px 9px;border-radius:999px;border:1px solid var(--borderStrong);background:#fff;color:var(--text);white-space:nowrap}
   .vlink:hover{border-color:var(--brand);color:var(--brand)}
   .vlink.primary{background:#eef6ff;border-color:#cfe2ff;color:#1e40af}
@@ -81,7 +82,7 @@
   .foot-links{display:flex;gap:18px;flex-wrap:wrap}
 
   @media (max-width:520px){ .intro h1{font-size:25px} .head-inner{padding:14px 0} }
-  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important;scroll-behavior:auto} }
 </style>
 </head>
 <body>
@@ -95,8 +96,8 @@
 
 <main class="wrap">
   <section class="intro">
-    <h1>Module configurator &amp; firmware</h1>
-    <p>Pick your module to open its configuration tool. Settings apply over USB-C and are saved to the module's flash — no drivers, no install. Each module ships with the current stable firmware; beta builds are available for testing.</p>
+    <h1>Modules, firmware &amp; documentation</h1>
+    <p>Pick your module to open its configuration tool. Settings apply over USB-C and are saved to the module's flash — no drivers, no install. Each card also holds every firmware version plus datasheets, schematics and the declaration of conformity.</p>
     <span class="note"><span class="dot"></span>Desktop Chrome, Edge, Opera or any Chromium browser. Firefox only on Nightly with the Web Serial flag. Not supported in Safari.</span>
     <div class="legend">
       <span class="item"><span class="badge current">Current</span> stable, shipped on new modules</span>
@@ -106,7 +107,7 @@
   </section>
 
   <section class="grid" id="grid"></section>
-  <noscript><p class="wrap" style="color:var(--muted)">Enable JavaScript to view the module list, or browse the <a href="https://github.com/isystemsautomation/HOMEMASTER">repository</a> directly.</p></noscript>
+  <noscript><p class="wrap" style="color:var(--muted)">Enable JavaScript to view the module list, or browse the <a href="https://github.com/isystemsautomation/homemaster-dev">repository</a> directly.</p></noscript>
 </main>
 
 <footer>
@@ -114,137 +115,158 @@
     <span>Configure over USB-C, no install required.</span>
     <span class="foot-links">
       <a href="https://www.home-master.eu" target="_blank" rel="noopener">home-master.eu</a>
-      <a href="https://github.com/isystemsautomation/HOMEMASTER" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.home-master.eu/support" target="_blank" rel="noopener">Support</a>
+      <a href="https://www.home-master.eu/manuals" target="_blank" rel="noopener">All manuals</a>
+      <a href="https://github.com/isystemsautomation/homemaster-dev" target="_blank" rel="noopener">GitHub</a>
     </span>
   </div>
 </footer>
 
 <script>
 /* ─────────────────────────────────────────────────────────────
-   Module + version data. To add / relabel a version, edit here only.
-   status: "current" | "beta" | "old"
+   Module data — single source for this hub. Edit here only.
+   version.status: "current" | "beta" | "old"
+   Internal paths (webconfig / firmware / docs) are served from
+   config.home-master.eu itself. readme / forum / shop are external.
    ───────────────────────────────────────────────────────────── */
+const GH = "https://github.com/isystemsautomation/homemaster-dev/blob/main/";
+const EU = "https://www.home-master.eu";
+
 const MODULES = [
   { pn:"AIO-422-R1", name:"Analog I/O", img:"AIO-422-R1/Images/photo1_512kb.png",
     desc:"High-precision analog I/O for HVAC, environmental monitoring and control.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1/default_aio_422_r1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1/default_aio_422_r1.ino"}]} ],
+    docs:{ datasheet:"AIO-422-R1/Manuals/AIO-422-R1_Datasheet.pdf", doc:"AIO-422-R1/Manuals/DoC-AIO-422-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"AIO-422-R1/Schematics/AIO-422-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"AIO-422-R1/Schematics/AIO-422-R1-FieldBoard.pdf"}],
+      readme:GH+"AIO-422-R1/README.md", forum:EU+"/forum/aio-422-r1-9", shop:EU+"/shop/aio-422-r1-analog-input-output-rtd-interface-module-735" } },
 
   { pn:"ALM-173-R1", name:"Alarm I/O", img:"ALM-173-R1/Images/photo1_512kb.png",
     desc:"Alarm I/O for intrusion detection, fault annunciation and local supervision.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1/default_alm_173_r1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/default_alm_173_r1.ino"}]} ],
+    docs:{ datasheet:"ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf", doc:"ALM-173-R1/Manuals/DoC-ALM-173-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"ALM-173-R1/Schematics/ALM-173-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"ALM-173-R1/Schematics/ALM-173-R1-FieldBoard.pdf"}],
+      readme:GH+"ALM-173-R1/README.md", forum:null, shop:EU+"/shop/alm-173-r1-module-for-alarm-systems-733" } },
 
   { pn:"DIM-420-R1", name:"AC Dimmer", img:"DIM-420-R1/Images/photo1_512kb.png",
     desc:"Dimming of AC loads via leading / trailing edge phase control.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1/default_DIM_420_R1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"DIM-420-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"DIM-420-R1/Firmware/v0.2.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"DIM-420-R1/Firmware/v0.2.0/default_DIM_420_R1/default_DIM_420_R1.ino"}]} ],
+    docs:{ datasheet:"DIM-420-R1/Manuals/DIM-420-R1_Datasheet.pdf", doc:"DIM-420-R1/Manuals/DoC-DIM-420-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"DIM-420-R1/Schematics/DIM-420-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"DIM-420-R1/Schematics/DIM-420-R1-FieldBoard.pdf"},
+                  {label:"MOSFET Board",path:"DIM-420-R1/Schematics/DIM-420-R1-MOSFETBoard.pdf"}],
+      readme:GH+"DIM-420-R1/README.md", forum:EU+"/forum/dim-420-r1-5", shop:EU+"/shop/dim-420-r1-dual-channel-ac-dimmer-module-mosfet-based-736" } },
 
   { pn:"DIO-430-R1", name:"Digital I/O", img:"DIO-430-R1/Images/photo1_512kb.png",
     desc:"Digital input monitoring and relay output for lighting, HVAC and alarms.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/default_DIO_430_R1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino"}]} ],
+    docs:{ datasheet:"DIO-430-R1/Manuals/DIO-430-R1_Datasheet.pdf", doc:"DIO-430-R1/Manuals/DoC-DIO-430-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf"},
+                  {label:"Relay Board",path:"DIO-430-R1/Schematics/DIO-430-R1-RelayBoard.pdf"}],
+      readme:GH+"DIO-430-R1/README.md", forum:EU+"/forum/dio-430-r1-6", shop:EU+"/shop/dio-430-r1-relay-module-58" } },
 
   { pn:"ENM-223-R1", name:"Energy Meter", img:"ENM-223-R1/Images/photo1_512kb.png",
     desc:"3-phase power quality and energy metering.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"}]} ],
+    docs:{ datasheet:"ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf", doc:"ENM-223-R1/Manuals/DoC-ENM-223-R1-V1.0%20(1).pdf",
+      schematics:[{label:"MCU Board",path:"ENM-223-R1/Schematics/ENM-223-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"ENM-223-R1/Schematics/ENM-223-R1-FieldBoard.pdf"},
+                  {label:"Relay Board",path:"ENM-223-R1/Schematics/ENM-223-R1-RelayBoard.pdf"}],
+      readme:GH+"ENM-223-R1/README.md", forum:EU+"/forum/enm223r1-4", shop:EU+"/shop/enm-223-r1-3-phase-power-quality-energy-metering-module-737" } },
 
   { pn:"RGB-621-R1", name:"RGB + CCT LED", img:"RGB-621-R1/Images/photo1_512kb.png",
     desc:"RGB and tunable-white LED controller for Modbus RTU networks.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1/default_rgb_621_r1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1/default_rgb_621_r1.ino"}]} ],
+    docs:{ datasheet:"RGB-621-R1/Manuals/RGB-620-R1_Datasheet.pdf", doc:"RGB-621-R1/Manuals/DoC-RGB-621-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"RGB-621-R1/Schematics/RGB-621-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"RGB-621-R1/Schematics/RGB-621-R1-FieldBoard.pdf"}],
+      readme:GH+"RGB-621-R1/README.md", forum:EU+"/forum/rgb-621-r1-7", shop:EU+"/shop/rgb-621-r1-rgbcct-module-57" } },
 
   { pn:"WLD-521-R1", name:"Leak & Water", img:"WLD-521-R1/Images/photo1_512kb.png",
     desc:"Leak detection, water-flow metering, heat-energy monitoring and irrigation.",
     versions:[
-      { ver:"v0.1.0", status:"current",
-        webconfig:"WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"} ]},
-      { ver:"v0.2.0", status:"beta",
-        webconfig:"WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html",
-        firmware:[
-          {label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
-          {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"} ]} ] },
+      { ver:"v0.1.0", status:"current", webconfig:"WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.1.0/default_wld-521-r1/default_wld-521-r1.ino"}]},
+      { ver:"v0.2.0", status:"beta", webconfig:"WLD-521-R1/Firmware/v0.2.0/ConfigToolPage.html",
+        firmware:[{label:"ESPHome YAML", path:"WLD-521-R1/Firmware/v0.2.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml"},
+                  {label:"Sketch (.ino)", path:"WLD-521-R1/Firmware/v0.2.0/default_wld-521-r1/default_wld-521-r1.ino"}]} ],
+    docs:{ datasheet:"WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf", doc:"WLD-521-R1/Manuals/DoC-WLD-521-R1-V1.0.pdf",
+      schematics:[{label:"MCU Board",path:"WLD-521-R1/Schematics/WLD-521-R1-MCUBoard.pdf"},
+                  {label:"Field Board",path:"WLD-521-R1/Schematics/WLD-521-R1-FieldBoard.pdf"},
+                  {label:"Relay Board",path:"WLD-521-R1/Schematics/WLD-521-R1-RelayBoard.pdf"}],
+      readme:GH+"WLD-521-R1/README.md", forum:EU+"/forum/wld-521-r1-8", shop:EU+"/shop/wld-521-r1-water-meter-leak-detection-module-1035" } },
 ];
 
-const ARROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-const CHEV  = '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
-const FILE  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+const ARROW='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const CHEV='<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+const FILE='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+const EXT='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const STATUS_LABEL = { current:"Current", beta:"Beta", old:"Old" };
 
 function versionRow(v){
-  const fw = v.firmware.map(f =>
-    `<a class="vlink" href="${esc(f.path)}">${FILE}${esc(f.label)}</a>`).join("");
-  return `
-    <div class="vrow">
-      <div class="vhead">
-        <span class="vver">${esc(v.ver)}</span>
-        <span class="badge ${esc(v.status)}">${STATUS_LABEL[v.status]||esc(v.status)}</span>
-      </div>
+  const fw = v.firmware.map(f => `<a class="vlink" href="${esc(f.path)}">${FILE}${esc(f.label)}</a>`).join("");
+  return `<div class="vrow">
+      <div class="vhead"><span class="vver">${esc(v.ver)}</span><span class="badge ${esc(v.status)}">${STATUS_LABEL[v.status]||esc(v.status)}</span></div>
+      <div class="vlinks"><a class="vlink primary" href="${esc(v.webconfig)}">${ARROW}WebConfig</a>${fw}</div>
+    </div>`;
+}
+
+function docsRow(d){
+  const sch = d.schematics.map(s => `<a class="vlink" href="${esc(s.path)}" target="_blank" rel="noopener">${FILE}${esc(s.label)}</a>`).join("");
+  const links = [
+    d.readme ? `<a class="vlink" href="${esc(d.readme)}" target="_blank" rel="noopener">${EXT}README</a>` : "",
+    d.forum  ? `<a class="vlink" href="${esc(d.forum)}" target="_blank" rel="noopener">${EXT}Forum</a>` : "",
+    d.shop   ? `<a class="vlink" href="${esc(d.shop)}" target="_blank" rel="noopener">${EXT}Shop</a>` : ""
+  ].join("");
+  return `<div class="vrow">
+      <div class="glabel">Documents</div>
       <div class="vlinks">
-        <a class="vlink primary" href="${esc(v.webconfig)}">${ARROW}WebConfig</a>
-        ${fw}
+        <a class="vlink" href="${esc(d.datasheet)}" target="_blank" rel="noopener">${FILE}Datasheet</a>
+        <a class="vlink" href="${esc(d.doc)}" target="_blank" rel="noopener">${FILE}Declaration of Conformity</a>
+        ${sch}
       </div>
+      <div class="glabel" style="margin-top:10px">Resources</div>
+      <div class="vlinks">${links}</div>
     </div>`;
 }
 
@@ -252,20 +274,16 @@ function moduleCard(m){
   const order = {current:0, beta:1, old:2};
   const sorted = [...m.versions].sort((a,b)=>(order[a.status]??9)-(order[b.status]??9));
   const current = sorted.find(v=>v.status==="current") || sorted[0];
-  const rows = sorted.map(versionRow).join("");
-  return `
-    <div class="mod">
+  return `<div class="mod" id="${esc(m.pn)}">
       <div class="thumb"><img src="${esc(m.img)}" alt="${esc(m.pn)} module" loading="lazy"></div>
       <div class="body">
-        <div class="pnrow"><span class="pn">${esc(m.pn)}</span></div>
+        <span class="pn">${esc(m.pn)}</span>
         <h2>${esc(m.name)}</h2>
         <p class="desc">${esc(m.desc)}</p>
         <a class="open-btn" href="${esc(current.webconfig)}">Open configurator ${ARROW}</a>
         <div class="ver-note">Current firmware ${esc(current.ver)}</div>
-        <details class="versions">
-          <summary>${CHEV}All versions &amp; firmware</summary>
-          <div class="vlist">${rows}</div>
-        </details>
+        <details class="disc"><summary>${CHEV}All versions &amp; firmware</summary><div class="vlist">${sorted.map(versionRow).join("")}</div></details>
+        <details class="disc"><summary>${CHEV}Documents &amp; resources</summary><div class="vlist">${docsRow(m.docs)}</div></details>
       </div>
     </div>`;
 }
