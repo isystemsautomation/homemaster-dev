@@ -1,5 +1,5 @@
 ##
-## DIO-430-R1 — ESPHome Modbus package (Phase A block map, v0.2.0 CFG 0x000A)
+## DIO-430-R1 — ESPHome Modbus package (Phase A block map, v0.2.0 CFG 0x000B)
 ##
 ## Single package file — include from your ESPHome YAML:
 ##   packages:
@@ -19,10 +19,10 @@
 ##
 ## Input Registers (FC=04, read) — contiguous 0..29 (one merged poll per cycle):
 ##   0 DI_STATE_MASK · 1 RLY_STATE_MASK · 2 BTN_STATE_MASK · 3 LED_STATE_MASK
-##   4 STATUS_FLAGS (bit0=localLogic, bit1=linkOk, bit3=cfgDirty) · 5 LOCK_MASK
+##   4 STATUS_FLAGS (bit1=linkOk, bit3=cfgDirty) · 5 LOCK_MASK
 ##   6..29 event counters (EVT_BASE=6, source*4+type; sources DI1..4=0..3, Btn1..2=4..5)
 ##
-## Coils (FC=05/15): 0..2 relays · 3 ALL_OFF · 4 LOCAL_LOGIC · 5 IDENTIFY
+## Coils (FC=05/15): 0..2 relays · 3 ALL_OFF · 4 reserved · 5 IDENTIFY
 ##   6 SAVE_CFG · 7 REBOOT · 8..10 LED_HA · 11..14 DI_LOCK
 ##
 ## Holding (FC=03) — config/identity; do not poll in the main loop.
@@ -327,11 +327,6 @@ switch:
     id: ${dio_id}_relay3
     register_type: coil
     address: 2
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Local logic"
-    register_type: coil
-    address: 4
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} LED1 HA"

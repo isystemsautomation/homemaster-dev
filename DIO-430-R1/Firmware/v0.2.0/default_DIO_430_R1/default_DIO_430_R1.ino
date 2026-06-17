@@ -6,7 +6,8 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        2
+#define HM_MAP        1
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -48,6 +49,7 @@ static const uint8_t NUM_EVT_SRC = 6; // DI0..3, Btn4..5
 
 // ================== Enums & config structs ==================
 enum InputType : uint8_t { IN_MAINTAINED = 0, IN_MOMENTARY = 1 };
+enum MaintMode : uint8_t { MAINT_TOGGLE = 0, MAINT_FOLLOW = 1 };
 enum InAction  : uint8_t { ACT_NONE = 0, ACT_TOGGLE = 1, ACT_ON = 2, ACT_OFF = 3, ACT_ALLOFF = 4 };
 // target: 0=All, 1..3=R1..R3, 4=None
 enum LedSource : uint8_t { LED_OFF = 0, LED_HA = 1, LED_LINK = 2, LED_LOCAL = 3, LED_CHILDLOCK = 4, LED_SAFEMODE = 5, LED_IDENTIFY = 6, LED_RELAY = 7 };
@@ -60,6 +62,7 @@ struct InCfg {
   uint8_t shortAction, shortTarget;
   uint8_t longAction, longTarget;
   bool lockLocal;
+  uint8_t maintMode;
 };
 struct RlyCfg { bool enabled, inverted; uint8_t powerOn, safeState; uint16_t autoOffSec; };
 struct LedCfg { uint8_t source, mode; bool inverted; uint8_t arg; };
@@ -72,7 +75,6 @@ LedCfg         ledCfg[NUM_LED];
 BtnCfg         btnCfg[NUM_BTN];
 InterlockCfg   g_interlock;
 
-bool     g_localLogicEnabled = true;
 uint16_t g_longPressMs = 700;
 uint16_t g_multiClickGapMs = 300;
 uint16_t g_debounceMs = 30;
@@ -133,12 +135,33 @@ bool blinkPhase = false;
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 
+// Legacy InCfg without maintMode (CFG 0x000A).
+struct InCfgV10 { bool enabled, inverted; uint8_t type; uint8_t followTarget; uint8_t shortAction, shortTarget; uint8_t longAction, longTarget; bool lockLocal; };
+
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
   InCfg          diCfg[NUM_DI];
+  RlyCfg         rlyCfg[NUM_RLY];
+  LedCfg         ledCfg[NUM_LED];
+  BtnCfg         btnCfg[NUM_BTN];
+  InterlockCfg   interlock;
+  uint16_t       longPressMs;
+  uint16_t       multiClickGapMs;
+  uint16_t       debounceMs;
+  uint16_t       linkTimeoutMs;
+  uint8_t        mb_address;
+  uint32_t       mb_baud;
+  uint32_t       crc32;
+} __attribute__((packed));
+
+struct PersistConfigV10 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  InCfgV10       diCfg[NUM_DI];
   RlyCfg         rlyCfg[NUM_RLY];
   LedCfg         ledCfg[NUM_LED];
   BtnCfg         btnCfg[NUM_BTN];
@@ -189,7 +212,8 @@ struct OutputStateSnapshot {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC = 0x314D4C41UL;
-static const uint16_t CFG_VERSION = 0x000A;
+static const uint16_t CFG_VERSION = 0x000B;
+static const uint16_t CFG_VERSION_V10 = 0x000A;
 static const uint16_t CFG_VERSION_V9 = 0x0009;
 static const uint16_t CFG_VERSION_V7 = 0x0007;
 static const char*    CFG_PATH = "/cfg.bin";
@@ -244,7 +268,7 @@ enum : uint16_t {
   HREG_LED_BASE = 34,
   HREG_INTERLOCK = 40,
   HREG_INTERLOCK_PAUSE = 41,
-  HREG_LOCAL_LOGIC = 42,
+  HREG_DI_MAINT_MODE_MASK = 42,
   HREG_LONGPRESS_MS = 43,
   HREG_MULTICLICK_MS = 44,
   HREG_DEBOUNCE_MS = 45,
@@ -279,8 +303,8 @@ static inline void unpackLedHreg(uint16_t v, LedCfg& lc) {
   lc.source = (v >> 8) & 0x0F;
 }
 
-static inline bool localLayerAllowed(bool lockLocal) {
-  return g_localLogicEnabled && !lockLocal;
+static inline bool localInputAllowed(bool lockLocal) {
+  return !lockLocal;
 }
 
 static inline uint8_t evtSourceForDi(uint8_t i) { return i; }
@@ -294,23 +318,22 @@ void touchCfgDirty() {
 // ================== Defaults / persist ==================
 void setDefaults() {
   for (int i = 0; i < NUM_DI; i++) {
-    diCfg[i] = {true, false, IN_MAINTAINED, (uint8_t)(i + 1), ACT_NONE, 0, ACT_NONE, 0, false};
+    diCfg[i] = {true, false, IN_MAINTAINED, (uint8_t)(i + 1), ACT_NONE, 0, ACT_NONE, 0, false, MAINT_TOGGLE};
   }
-  diCfg[3] = {true, false, IN_MOMENTARY, 0, ACT_ALLOFF, 0, ACT_NONE, 0, false};
+  diCfg[3] = {true, false, IN_MOMENTARY, 0, ACT_ALLOFF, 0, ACT_NONE, 0, false, MAINT_TOGGLE};
 
   for (int i = 0; i < NUM_RLY; i++) {
     rlyCfg[i] = {true, false, HM_PWR_OFF, 0, 0};
   }
 
   ledCfg[0] = {LED_LINK, 0, false, 0};
-  ledCfg[1] = {LED_LOCAL, 0, false, 0};
+  ledCfg[1] = {LED_OFF, 0, false, 0};
   ledCfg[2] = {LED_HA, 0, false, 0};
 
   btnCfg[0] = {ACT_TOGGLE, 1, ACT_ALLOFF, 0};
   btnCfg[1] = {ACT_TOGGLE, 2, ACT_NONE, 0};
 
   g_interlock = {false, 0, 1, 500};
-  g_localLogicEnabled = true;
   g_longPressMs = 700;
   g_multiClickGapMs = 300;
   g_debounceMs = 30;
@@ -332,6 +355,7 @@ static void migrateLegacyDi(const InCfgV9& old, InCfg& neu) {
   neu.lockLocal = false;
   neu.longAction = ACT_NONE;
   neu.longTarget = 0;
+  neu.maintMode = MAINT_TOGGLE;
   if (old.action == 0) {
     neu.type = IN_MAINTAINED;
     neu.followTarget = old.target;
@@ -343,6 +367,23 @@ static void migrateLegacyDi(const InCfgV9& old, InCfg& neu) {
     neu.shortAction = ACT_TOGGLE;
     neu.shortTarget = old.target;
   }
+}
+
+static void migrateDiV10(const InCfgV10& old, InCfg& neu) {
+  neu.enabled = old.enabled;
+  neu.inverted = old.inverted;
+  neu.type = old.type;
+  neu.followTarget = old.followTarget;
+  neu.shortAction = old.shortAction;
+  neu.shortTarget = old.shortTarget;
+  neu.longAction = old.longAction;
+  neu.longTarget = old.longTarget;
+  neu.lockLocal = old.lockLocal;
+  neu.maintMode = (old.type == IN_MAINTAINED) ? MAINT_FOLLOW : MAINT_TOGGLE;
+}
+
+static void sanitizeLedCfg(LedCfg& lc) {
+  if (lc.source == LED_LOCAL) lc.source = LED_OFF;
 }
 
 static void migrateLegacyLed(const LedCfgV9& old, LedCfg& neu) {
@@ -459,7 +500,6 @@ void captureToPersist(PersistConfig& pc) {
   memcpy(pc.ledCfg, ledCfg, sizeof(ledCfg));
   memcpy(pc.btnCfg, btnCfg, sizeof(btnCfg));
   pc.interlock = g_interlock;
-  pc.localLogicEnabled = g_localLogicEnabled;
   pc.longPressMs = g_longPressMs;
   pc.multiClickGapMs = g_multiClickGapMs;
   pc.debounceMs = g_debounceMs;
@@ -481,9 +521,32 @@ bool applyFromPersist(const PersistConfig& pc) {
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  for (int i = 0; i < NUM_LED; i++) sanitizeLedCfg(ledCfg[i]);
   memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
   g_interlock = pc.interlock;
-  g_localLogicEnabled = pc.localLogicEnabled;
+  g_longPressMs = pc.longPressMs ? pc.longPressMs : 700;
+  g_multiClickGapMs = pc.multiClickGapMs ? pc.multiClickGapMs : 300;
+  g_debounceMs = pc.debounceMs ? pc.debounceMs : 30;
+  g_linkTimeoutMs = pc.linkTimeoutMs ? pc.linkTimeoutMs : 5000;
+  g_mb_address = pc.mb_address;
+  g_mb_baud = pc.mb_baud;
+  return true;
+}
+
+bool applyFromPersistV10(const PersistConfigV10& pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV10)) return false;
+  PersistConfigV10 tmp = pc;
+  uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV10)) != crc) return false;
+  if (pc.version != CFG_VERSION_V10) return false;
+
+  for (int i = 0; i < NUM_DI; i++) migrateDiV10(pc.diCfg[i], diCfg[i]);
+  memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
+  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  for (int i = 0; i < NUM_LED; i++) sanitizeLedCfg(ledCfg[i]);
+  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+  g_interlock = pc.interlock;
   g_longPressMs = pc.longPressMs ? pc.longPressMs : 700;
   g_multiClickGapMs = pc.multiClickGapMs ? pc.multiClickGapMs : 300;
   g_debounceMs = pc.debounceMs ? pc.debounceMs : 30;
@@ -573,6 +636,16 @@ bool loadConfigFS() {
     wsLog("load: migrated from v7");
     return true;
   }
+  if (sz == sizeof(PersistConfigV10)) {
+    PersistConfigV10 pc{};
+    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) { wsLog("load: short read (v10)"); return false; }
+    if (!applyFromPersistV10(pc)) { wsLog("load: v10 magic/version/crc mismatch"); return false; }
+    touchCfgDirty();
+    wsLog("load: migrated from v10");
+    return true;
+  }
   if (sz == sizeof(PersistConfigV9)) {
     PersistConfigV9 pc{};
     size_t n = f.read((uint8_t*)&pc, sizeof(pc));
@@ -653,7 +726,7 @@ void updateInputRegisters(uint32_t now);
 void syncCoilsFromState();
 void processModbusCoils(uint32_t now);
 void applyAction(uint8_t target, uint8_t action, uint32_t now);
-void applyMaintainedFollow(uint8_t diIdx, bool level);
+void applyMaintainedInput(uint8_t diIdx, bool level);
 void serviceDebounce(DebounceState& st, bool raw, uint32_t now);
 void serviceMomentaryChannel(uint8_t src, bool lockLocal, uint8_t shortAction, uint8_t shortTarget,
                              uint8_t longAction, uint8_t longTarget, DebounceState& db, ClickState& cs, uint32_t now);
@@ -693,30 +766,32 @@ void applyAction(uint8_t target, uint8_t action, uint32_t now) {
   }
 }
 
-void applyMaintainedFollow(uint8_t diIdx, bool level) {
+void applyMaintainedInput(uint8_t diIdx, bool level) {
   if (diIdx >= NUM_DI) return;
   const InCfg& c = diCfg[diIdx];
   if (!c.enabled || c.type != IN_MAINTAINED) return;
-  if (!localLayerAllowed(c.lockLocal)) return;
-
-  bool eff = level;
-  if (c.inverted) eff = !eff;
+  if (c.lockLocal) return;
   if (c.followTarget == 4) return;
 
   uint32_t now = millis();
+  if (c.maintMode == MAINT_TOGGLE) {
+    applyAction(c.followTarget, ACT_TOGGLE, now);
+    return;
+  }
+
   if (c.followTarget == 0) {
     for (int r = 0; r < NUM_RLY; r++) {
       bool was = desiredRelay[r];
-      desiredRelay[r] = eff;
-      if (!was && eff) armAutoOffTimer((uint8_t)r, now);
-      if (!eff) rlyAutoOffUntil[r] = 0;
+      desiredRelay[r] = level;
+      if (!was && level) armAutoOffTimer((uint8_t)r, now);
+      if (!level) rlyAutoOffUntil[r] = 0;
     }
   } else if (c.followTarget >= 1 && c.followTarget <= 3) {
     int r = c.followTarget - 1;
     bool was = desiredRelay[r];
-    desiredRelay[r] = eff;
-    if (!was && eff) armAutoOffTimer((uint8_t)r, now);
-    if (!eff) rlyAutoOffUntil[r] = 0;
+    desiredRelay[r] = level;
+    if (!was && level) armAutoOffTimer((uint8_t)r, now);
+    if (!level) rlyAutoOffUntil[r] = 0;
   }
 }
 
@@ -740,7 +815,7 @@ void serviceMomentaryChannel(uint8_t src, bool lockLocal, uint8_t shortAction, u
                              uint8_t longAction, uint8_t longTarget, DebounceState& db, ClickState& cs, uint32_t now) {
   bool rising = (!db.prevStable && db.stable);
   bool falling = (db.prevStable && !db.stable);
-  bool localOk = localLayerAllowed(lockLocal);
+  bool localOk = localInputAllowed(lockLocal);
 
   if (rising) {
     cs.pressed = true;
@@ -834,7 +909,6 @@ bool computeLedActive(uint8_t ledIdx, uint32_t now) {
     case LED_OFF: active = false; break;
     case LED_HA: active = ledHaState[ledIdx]; break;
     case LED_LINK: active = linkOk; break;
-    case LED_LOCAL: active = g_localLogicEnabled; break;
     case LED_CHILDLOCK: active = anyChildLockActive(lc.arg); break;
     case LED_SAFEMODE: active = g_inputsInSafeMode; break;
     case LED_IDENTIFY: active = g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs); break;
@@ -857,22 +931,23 @@ void buildModbusMap() {
     mb.setCoil(i, false);
   }
   for (uint16_t i = 0; i <= HREG_LINKTIMEOUT_MS; i++) mb.addHreg(i, 0);
-  hmRegisterIdentityHolding(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP);
+  hmRegisterIdentityHolding(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 }
 
 void syncHoldingFromCfg() {
   mb.setHreg(0, HM_MODEL_ID);
   mb.setHreg(1, (uint16_t)((HM_FW_MAJOR << 8) | HM_FW_MINOR));
-  mb.setHreg(2, HM_MAP);
+  mb.setHreg(2, HM_MAP_VERSION);
   mb.setHreg(HREG_MB_ADDR, g_mb_address);
   mb.setHreg(HREG_MB_BAUD, hmBaudCode(g_mb_baud));
 
-  uint16_t diEn = 0, diInv = 0, diType = 0, diLock = 0;
+  uint16_t diEn = 0, diInv = 0, diType = 0, diLock = 0, diMaint = 0;
   for (int i = 0; i < NUM_DI; i++) {
     if (diCfg[i].enabled) diEn |= (1 << i);
     if (diCfg[i].inverted) diInv |= (1 << i);
     if (diCfg[i].type == IN_MOMENTARY) diType |= (1 << i);
     if (diCfg[i].lockLocal) diLock |= (1 << i);
+    if (diCfg[i].maintMode == MAINT_FOLLOW) diMaint |= (1 << i);
     mb.setHreg(HREG_DI_FOLLOW_BASE + i, diCfg[i].followTarget);
     mb.setHreg(HREG_DI_SHORT_BASE + i, packActTarget(diCfg[i].shortAction, diCfg[i].shortTarget));
     mb.setHreg(HREG_DI_LONG_BASE + i, packActTarget(diCfg[i].longAction, diCfg[i].longTarget));
@@ -903,7 +978,7 @@ void syncHoldingFromCfg() {
   uint16_t ilk = (uint16_t)((g_interlock.enabled ? 1 : 0) << 8) | ((g_interlock.relayA & 0x0F) << 4) | (g_interlock.relayB & 0x0F);
   mb.setHreg(HREG_INTERLOCK, ilk);
   mb.setHreg(HREG_INTERLOCK_PAUSE, g_interlock.pauseMs);
-  mb.setHreg(HREG_LOCAL_LOGIC, g_localLogicEnabled ? 1 : 0);
+  mb.setHreg(HREG_DI_MAINT_MODE_MASK, diMaint);
   mb.setHreg(HREG_LONGPRESS_MS, g_longPressMs);
   mb.setHreg(HREG_MULTICLICK_MS, g_multiClickGapMs);
   mb.setHreg(HREG_DEBOUNCE_MS, g_debounceMs);
@@ -936,16 +1011,18 @@ void applyHoldingToCfg() {
   uint16_t diInv = mb.Hreg(HREG_DI_INV_MASK);
   uint16_t diType = mb.Hreg(HREG_DI_TYPE_MASK);
   uint16_t diLock = mb.Hreg(HREG_DI_LOCK_MASK);
+  uint16_t diMaint = mb.Hreg(HREG_DI_MAINT_MODE_MASK);
   for (int i = 0; i < NUM_DI; i++) {
     bool en = (diEn >> i) & 1;
     bool inv = (diInv >> i) & 1;
     bool mom = (diType >> i) & 1;
     bool lk = (diLock >> i) & 1;
+    uint8_t maint = ((diMaint >> i) & 1) ? MAINT_FOLLOW : MAINT_TOGGLE;
     uint8_t follow = (uint8_t)mb.Hreg(HREG_DI_FOLLOW_BASE + i);
     uint8_t sh = (uint8_t)mb.Hreg(HREG_DI_SHORT_BASE + i);
     uint8_t lg = (uint8_t)mb.Hreg(HREG_DI_LONG_BASE + i);
     if (diCfg[i].enabled != en || diCfg[i].inverted != inv || diCfg[i].type != (mom ? IN_MOMENTARY : IN_MAINTAINED) ||
-        diCfg[i].lockLocal != lk || diCfg[i].followTarget != follow ||
+        diCfg[i].lockLocal != lk || diCfg[i].followTarget != follow || diCfg[i].maintMode != maint ||
         diCfg[i].shortAction != unpackAction(sh) || diCfg[i].shortTarget != unpackTarget(sh) ||
         diCfg[i].longAction != unpackAction(lg) || diCfg[i].longTarget != unpackTarget(lg)) {
       diCfg[i].enabled = en;
@@ -953,6 +1030,7 @@ void applyHoldingToCfg() {
       diCfg[i].type = mom ? IN_MOMENTARY : IN_MAINTAINED;
       diCfg[i].lockLocal = lk;
       diCfg[i].followTarget = follow;
+      diCfg[i].maintMode = maint;
       diCfg[i].shortAction = unpackAction(sh);
       diCfg[i].shortTarget = unpackTarget(sh);
       diCfg[i].longAction = unpackAction(lg);
@@ -1014,10 +1092,6 @@ void applyHoldingToCfg() {
     changed = true;
   }
 
-  if (mb.Hreg(HREG_LOCAL_LOGIC) <= 1) {
-    bool ll = mb.Hreg(HREG_LOCAL_LOGIC) != 0;
-    if (g_localLogicEnabled != ll) { g_localLogicEnabled = ll; changed = true; }
-  }
   if (mb.Hreg(HREG_LONGPRESS_MS) && mb.Hreg(HREG_LONGPRESS_MS) != g_longPressMs) {
     g_longPressMs = mb.Hreg(HREG_LONGPRESS_MS); changed = true;
   }
@@ -1066,7 +1140,6 @@ void updateInputRegisters(uint32_t now) {
   }
 
   uint16_t status = 0;
-  if (g_localLogicEnabled) status |= (1 << 0);
   if (linkOk) status |= (1 << 1);
   if (g_inputsInSafeMode) status |= (1 << 2);
   if (cfgDirty) status |= (1 << 3);
@@ -1095,7 +1168,7 @@ void syncCoilsFromState() {
   applyInterlock(logicalRelay, interlocked, millis());
 
   for (int i = 0; i < NUM_RLY; i++) mb.setCoil(COIL_RLY_BASE + i, interlocked[i]);
-  mb.setCoil(COIL_LOCAL_LOGIC, g_localLogicEnabled);
+  mb.setCoil(COIL_LOCAL_LOGIC, false);
   for (int i = 0; i < NUM_LED; i++) mb.setCoil(COIL_LED_HA_BASE + i, ledHaState[i]);
   for (int i = 0; i < NUM_DI; i++) mb.setCoil(COIL_DI_LOCK_BASE + i, diCfg[i].lockLocal);
 }
@@ -1119,12 +1192,6 @@ void processModbusCoils(uint32_t now) {
   if (mb.Coil(COIL_ALL_OFF)) {
     mb.setCoil(COIL_ALL_OFF, false);
     applyAction(0, ACT_ALLOFF, now);
-  }
-
-  bool ll = mb.Coil(COIL_LOCAL_LOGIC);
-  if (ll != g_localLogicEnabled) {
-    g_localLogicEnabled = ll;
-    touchCfgDirty();
   }
 
   if (mb.Coil(COIL_IDENTIFY)) {
@@ -1325,6 +1392,13 @@ void handleUnifiedConfig(JSONVar obj) {
     for (int i = 0; i < NUM_DI && i < list.length(); i++) diCfg[i].lockLocal = (bool)list[i];
     wsLog("Input child-lock list updated");
     changed = true;
+  } else if (type == "in.maint") {
+    for (int i = 0; i < NUM_DI && i < list.length(); i++) {
+      int m = (int)list[i];
+      diCfg[i].maintMode = (uint8_t)((m == 1) ? MAINT_FOLLOW : MAINT_TOGGLE);
+    }
+    wsLog("Input maintained mode list updated");
+    changed = true;
   } else if (type == "in.action" || type == "inputAction") {
     for (int i = 0; i < NUM_DI && i < list.length(); i++) {
       int a = (int)list[i];
@@ -1386,8 +1460,6 @@ void handleUnifiedConfig(JSONVar obj) {
     changed = true;
   } else if (type == "global") {
     JSONVar g = list;
-    if (g.hasOwnProperty("localLogic") || obj.hasOwnProperty("localLogic"))
-      g_localLogicEnabled = g.hasOwnProperty("localLogic") ? (bool)g["localLogic"] : (bool)obj["localLogic"];
     if (g.hasOwnProperty("longPressMs")) g_longPressMs = (uint16_t)constrain((int)g["longPressMs"], 50, 5000);
     if (g.hasOwnProperty("multiClickGapMs")) g_multiClickGapMs = (uint16_t)constrain((int)g["multiClickGapMs"], 50, 2000);
     if (g.hasOwnProperty("debounceMs")) g_debounceMs = (uint16_t)constrain((int)g["debounceMs"], 1, 500);
@@ -1414,7 +1486,6 @@ void sendWebStatus() {
   st["map"] = HM_MAP;
   st["addr"] = g_mb_address;
   st["baud"] = g_mb_baud;
-  st["localLogic"] = g_localLogicEnabled ? 1 : 0;
   st["linkOk"] = linkOk ? 1 : 0;
   WebSerial.send("status", st);
 }
@@ -1431,6 +1502,7 @@ void sendWebCfg() {
     cfg["in"][i]["longAction"] = diCfg[i].longAction;
     cfg["in"][i]["longTarget"] = diCfg[i].longTarget;
     cfg["in"][i]["lockLocal"] = diCfg[i].lockLocal ? 1 : 0;
+    cfg["in"][i]["maintMode"] = diCfg[i].maintMode;
   }
   for (int i = 0; i < NUM_RLY; i++) {
     cfg["relay"][i]["enabled"] = rlyCfg[i].enabled ? 1 : 0;
@@ -1454,7 +1526,6 @@ void sendWebCfg() {
   cfg["interlock"]["relayA"] = g_interlock.relayA;
   cfg["interlock"]["relayB"] = g_interlock.relayB;
   cfg["interlock"]["pauseMs"] = g_interlock.pauseMs;
-  cfg["global"]["localLogic"] = g_localLogicEnabled ? 1 : 0;
   cfg["global"]["longPressMs"] = g_longPressMs;
   cfg["global"]["multiClickGapMs"] = g_multiClickGapMs;
   cfg["global"]["debounceMs"] = g_debounceMs;
@@ -1497,7 +1568,7 @@ void loop() {
 
     if (diCfg[i].enabled) {
       if (diCfg[i].type == IN_MAINTAINED) {
-        if (diDeb[i].stable != diDeb[i].prevStable) applyMaintainedFollow((uint8_t)i, diDeb[i].stable);
+        if (diDeb[i].stable != diDeb[i].prevStable) applyMaintainedInput((uint8_t)i, diDeb[i].stable);
       } else {
         serviceMomentaryChannel(evtSourceForDi((uint8_t)i), diCfg[i].lockLocal,
                                 diCfg[i].shortAction, diCfg[i].shortTarget,

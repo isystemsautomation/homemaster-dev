@@ -26,7 +26,6 @@
         <div class="pill">Baud: <span id="hm-baud">—</span></div>
       </div>
       <div class="actions">
-        <label class="check" style="margin-right:10px"><input type="checkbox" id="local-logic-toggle"> Local logic</label>
         <button class="btn primary" id="connect-button">Connect</button>
       </div>
     </div>
@@ -64,7 +63,7 @@
     </section>
   </div>
 
-  <div class="sectiontitle"><h3>Digital Inputs (4)</h3><p class="hint">Maintained = follow relay level; Momentary = short/long actions + event counters.</p></div>
+  <div class="sectiontitle"><h3>Digital Inputs (4)</h3><p class="hint">Maintained = toggle relay on edge (default) or follow level; Momentary = short/long actions + event counters.</p></div>
   <section class="card"><div class="cardbody"><div id="io-inputs"></div></div></section>
 
   <div class="sectiontitle"><h3>Relays (3)</h3><p class="hint">Enable, invert, power-on policy, auto-off timeout.</p></div>
@@ -76,7 +75,7 @@
   <div class="sectiontitle"><h3>Buttons (2)</h3><p class="hint">Short and long press actions (GPIO2, GPIO3).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-buttons"></div></div></section>
 
-  <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, Local logic, HA, …).</p></div>
+  <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, HA, relay, …).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-leds"></div></div></section>
 
 <script>
@@ -85,7 +84,7 @@
   const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
   const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'}];
   const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
-  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:3,l:'Local logic'},{v:4,l:'Child lock'},{v:5,l:'Safe mode'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
+  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'},{v:5,l:'Safe mode'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
   const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
   const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
@@ -109,7 +108,9 @@
         <div><label for="type-in${i}">Type</label>
           <select id="type-in${i}"><option value="0">Maintained</option><option value="1">Momentary</option></select></div>
         <div class="maint-fields" id="maint-in${i}">
-          <label for="follow-in${i}">Follow target</label>${tgtSel('follow-in'+i, i<=3?i:0)}
+          <div><label for="maint-mode-in${i}">Maintained mode</label>
+            <select id="maint-mode-in${i}"><option value="0">Toggle</option><option value="1">Follow</option></select></div>
+          <label for="follow-in${i}">Target</label>${tgtSel('follow-in'+i, i<=3?i:0)}
         </div>
         <div class="mom-fields" id="mom-in${i}" style="display:none">
           <div class="split"><div><label>Short</label>${actSel('short-act-in'+i)}${tgtSel('short-tgt-in'+i)}</div>
@@ -188,7 +189,6 @@
     modelName: 'DIO-430-R1',
     fw: '0.2.0',
     map: 2,
-    localLogic: true,
     channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
     onCfg: function(ext, cfg) {
       if (cfg.interlock) {
@@ -197,12 +197,10 @@
         $('ilk-b').value = cfg.interlock.relayB ?? 1;
         $('ilk-pause').value = cfg.interlock.pauseMs ?? 500;
       }
-      if (cfg.global) {
-        $('local-logic-toggle').checked = !!cfg.global.localLogic;
-      }
       for (let i=0;i<NUM_DI;i++) {
         const n=i+1, o=cfg.in?.[i]; if(!o) continue;
         $('type-in'+n).value = o.type ?? 0;
+        $('maint-mode-in'+n).value = o.maintMode ?? 0;
         $('follow-in'+n).value = o.followTarget ?? 0;
         $('short-act-in'+n).value = o.shortAction ?? 0;
         $('short-tgt-in'+n).value = o.shortTarget ?? 0;
@@ -236,6 +234,7 @@
   HMWebConfig.mountTools('hm-tools', { identify: true });
 
   function sendInType(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('type-in'+i).value,10)); HMWebConfig.sendConfig('in.type', l); }
+  function sendInMaint(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('maint-mode-in'+i).value,10)); HMWebConfig.sendConfig('in.maint', l); }
   function sendInFollow(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('follow-in'+i).value,10)); HMWebConfig.sendConfig('in.follow', l); }
   function sendInShort(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push({action:parseInt($('short-act-in'+i).value,10),target:parseInt($('short-tgt-in'+i).value,10)}); HMWebConfig.sendConfig('in.short', l); }
   function sendInLong(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push({action:parseInt($('long-act-in'+i).value,10),target:parseInt($('long-tgt-in'+i).value,10)}); HMWebConfig.sendConfig('in.long', l); }
@@ -289,6 +288,7 @@
     $('enable-in'+i)?.addEventListener('change', sendInputEnable);
     $('invert-in'+i)?.addEventListener('change', sendInputInvert);
     $('lock-in'+i)?.addEventListener('change', sendInLock);
+    $('maint-mode-in'+i)?.addEventListener('change', sendInMaint);
     $('follow-in'+i)?.addEventListener('change', sendInFollow);
     $('short-act-in'+i)?.addEventListener('change', sendInShort);
     $('short-tgt-in'+i)?.addEventListener('change', sendInShort);
