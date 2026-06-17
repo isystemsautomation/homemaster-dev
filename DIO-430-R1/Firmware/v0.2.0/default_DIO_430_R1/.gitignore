@@ -1,7 +1,9 @@
-# Arduino local build output — do not commit (see ../../README.md)
-build/
+# Arduino build artifacts — see ../../README.md
 *.bin
 *.elf
 *.map
 
-# Keep default_DIO_430_R1.ino.uf2 — it is the published release binary
+# In build/: commit only the UF2 (Arduino export path); ignore bin/elf/map
+build/**/*
+!build/**/
+!build/**/*.uf2

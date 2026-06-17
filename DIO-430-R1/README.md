@@ -85,7 +85,7 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 - The module keeps working as configured even with the controller unplugged.
 - Start at **19200 8N1** on RS-485 while setting up.
 - Unplug USB-C once configured and let the controller talk over RS-485.
-- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file, enter **BOOT** mode (see below), and drag it onto the **RPI-RP2** USB drive. [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
+- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file, enter **BOOT** mode (see below), and drag it onto the **RPI-RP2** USB drive. [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
 
 ---
 
@@ -987,7 +987,7 @@ sensor:
 1. Connect **USB‑C** to a PC (disconnect RS‑485 during flashing).
 2. Enter **BOOT** mode using the **1 + 2 + 3** sequence above. The board mounts as a USB flash drive (**RPI-RP2**) for UF2 drag-and-drop, or as a serial port for IDE upload.
 3. Flash:
-   - **UF2**: download the pre-built **v0.2.0** image [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) (or build from source), then drag-and-drop it onto the mounted **RPI-RP2** drive; the module restarts automatically.
+   - **UF2**: download the pre-built **v0.2.0** image [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) (or build from source), then drag-and-drop it onto the mounted **RPI-RP2** drive; the module restarts automatically.
    - **PlatformIO / Arduino IDE**: select the correct board/port and upload.
 4. If needed, press **Buttons 1 + 3** for a hardware **RESET**.
 
@@ -1025,7 +1025,7 @@ sensor:
 ## 8.4 Firmware Updates
 
 - **Method:** USB‑C via **UF2** drag‑drop or **PlatformIO/Arduino** upload.
-- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — enter **BOOT** (hold **1 + 2 + 3**, release **1**, then release **2 + 3** together), copy the file to the **RPI-RP2** USB drive.
+- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) — enter **BOOT** (hold **1 + 2 + 3**, release **1**, then release **2 + 3** together), copy the file to the **RPI-RP2** USB drive.
 - **Config retention:** Settings stored in flash/LittleFS are **preserved** unless explicitly erased.
 - **Recovery:** If the app doesn’t start, use the **1 + 2 + 3** BOOT sequence, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
 
@@ -1079,7 +1079,7 @@ See LICENSE files in each directory for full terms.
 # 11. Downloads
 
 - **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**  
-  - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2)
+  - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2)
 - **Firmware publishing (maintainers — what to commit after compile)**  
   - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
 - **Firmware source (Arduino, v0.2.0)**  
