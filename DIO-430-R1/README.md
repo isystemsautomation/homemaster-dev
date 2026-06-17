@@ -85,7 +85,7 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 - The module keeps working as configured even with the controller unplugged.
 - Start at **19200 8N1** on RS-485 while setting up.
 - Unplug USB-C once configured and let the controller talk over RS-485.
-- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file and drag it onto the module in BOOT mode (hold front buttons **2 + 3** while plugging in USB-C). [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
+- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file, enter **BOOT** mode (see below), and drag it onto the **RPI-RP2** USB drive. [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
 
 ---
 
@@ -980,12 +980,12 @@ sensor:
   ![Button Layout 1‑2‑3](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/buttons1.png)
 
 **Combinations**
-- **2 + 3 → BOOT mode** (enter bootloader for flashing)
+- **1 + 2 + 3 → BOOT mode** (enter bootloader for UF2 flashing): press and hold **Buttons 1, 2, and 3**; release **Button 1**; then release **Buttons 2 and 3** together. The module appears as a USB flash drive (**RPI-RP2**).
 - **1 + 3 → RESET** (hardware reset/restart)
 
 **Steps (UF2/IDE)**
 1. Connect **USB‑C** to a PC (disconnect RS‑485 during flashing).
-2. Hold **Buttons 2 + 3** to enter **BOOT**. The board appears as a USB drive (UF2) or a serial device for IDE upload.
+2. Enter **BOOT** mode using the **1 + 2 + 3** sequence above. The board mounts as a USB flash drive (**RPI-RP2**) for UF2 drag-and-drop, or as a serial port for IDE upload.
 3. Flash:
    - **UF2**: download the pre-built **v0.2.0** image [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) (or build from source), then drag-and-drop it onto the mounted **RPI-RP2** drive; the module restarts automatically.
    - **PlatformIO / Arduino IDE**: select the correct board/port and upload.
@@ -1025,9 +1025,9 @@ sensor:
 ## 8.4 Firmware Updates
 
 - **Method:** USB‑C via **UF2** drag‑drop or **PlatformIO/Arduino** upload.
-- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — enter BOOT with buttons **2 + 3**, copy the file to the **RPI-RP2** USB drive.
+- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — enter **BOOT** (hold **1 + 2 + 3**, release **1**, then release **2 + 3** together), copy the file to the **RPI-RP2** USB drive.
 - **Config retention:** Settings stored in flash/LittleFS are **preserved** unless explicitly erased.
-- **Recovery:** If the app doesn’t start, use **Buttons 2 + 3** to force **BOOT**, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
+- **Recovery:** If the app doesn’t start, use the **1 + 2 + 3** BOOT sequence, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
 
 ---
 
