@@ -69,28 +69,6 @@ binary_sensor:
 
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 1"
-    id: ${dio_id}_rly1_state
-    register_type: read
-    address: 1
-    bitmask: 0x0001
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 2"
-    id: ${dio_id}_rly2_state
-    register_type: read
-    address: 1
-    bitmask: 0x0002
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 3"
-    id: ${dio_id}_rly3_state
-    register_type: read
-    address: 1
-    bitmask: 0x0004
-
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Btn1"
     register_type: read
     address: 2
@@ -121,12 +99,6 @@ binary_sensor:
     address: 3
     bitmask: 0x0004
 
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Local logic"
-    register_type: read
-    address: 4
-    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Link OK"
@@ -395,26 +367,35 @@ switch:
     name: "${dio_prefix} DI4 child lock"
     register_type: coil
     address: 14
-
-button:
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} All off"
+    id: ${dio_id}_cmd_all_off
     register_type: coil
     address: 3
-    write_lambda: |-
-      return {true};
+    internal: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Identify"
+    id: ${dio_id}_cmd_identify
     register_type: coil
     address: 5
-    write_lambda: |-
-      return {true};
+    internal: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Save config"
+    id: ${dio_id}_cmd_save
     register_type: coil
     address: 6
-    write_lambda: |-
-      return {true};
+    internal: true
+
+button:
+  - platform: template
+    name: "${dio_prefix} All off"
+    on_press:
+      - switch.turn_on: ${dio_id}_cmd_all_off
+  - platform: template
+    name: "${dio_prefix} Identify"
+    on_press:
+      - switch.turn_on: ${dio_id}_cmd_identify
+  - platform: template
+    name: "${dio_prefix} Save config"
+    on_press:
+      - switch.turn_on: ${dio_id}_cmd_save
