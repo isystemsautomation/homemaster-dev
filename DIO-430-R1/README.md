@@ -85,6 +85,7 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 - The module keeps working as configured even with the controller unplugged.
 - Start at **19200 8N1** on RS-485 while setting up.
 - Unplug USB-C once configured and let the controller talk over RS-485.
+- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file and drag it onto the module in BOOT mode (hold front buttons **2 + 3** while plugging in USB-C). [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
 
 ---
 
@@ -986,7 +987,7 @@ sensor:
 1. Connect **USB‑C** to a PC (disconnect RS‑485 during flashing).
 2. Hold **Buttons 2 + 3** to enter **BOOT**. The board appears as a USB drive (UF2) or a serial device for IDE upload.
 3. Flash:
-   - **UF2**: drag‑and‑drop the new `.uf2` file onto the mounted drive; the module restarts automatically.
+   - **UF2**: download the pre-built **v0.2.0** image [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) (or build from source), then drag-and-drop it onto the mounted **RPI-RP2** drive; the module restarts automatically.
    - **PlatformIO / Arduino IDE**: select the correct board/port and upload.
 4. If needed, press **Buttons 1 + 3** for a hardware **RESET**.
 
@@ -1024,6 +1025,7 @@ sensor:
 ## 8.4 Firmware Updates
 
 - **Method:** USB‑C via **UF2** drag‑drop or **PlatformIO/Arduino** upload.
+- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2) — enter BOOT with buttons **2 + 3**, copy the file to the **RPI-RP2** USB drive.
 - **Config retention:** Settings stored in flash/LittleFS are **preserved** unless explicitly erased.
 - **Recovery:** If the app doesn’t start, use **Buttons 2 + 3** to force **BOOT**, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
 
@@ -1076,11 +1078,19 @@ See LICENSE files in each directory for full terms.
 
 # 11. Downloads
 
-- **Firmware source (Arduino)**  
+- **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**  
+  - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2)
+- **Firmware source (Arduino, v0.2.0)**  
+  - [`DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1)
+- **YAML configs (ESPHome, v0.2.0)**  
+  - Package: [`DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc)
+- **WebConfig tool (HTML/JS, v0.2.0)**  
+  - [`DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html)
+- **Firmware source (Arduino, v0.1.0 — legacy)**  
   - [`DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1)
-- **YAML configs (ESPHome)**  
+- **YAML configs (ESPHome, v0.1.0 — legacy)**  
   - Package & examples: [`DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc)
-- **WebConfig tool (HTML/JS)**  
+- **WebConfig tool (HTML/JS, v0.1.0 — legacy)**  
   - [`DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - **Schematics (PDF)**  
   - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
