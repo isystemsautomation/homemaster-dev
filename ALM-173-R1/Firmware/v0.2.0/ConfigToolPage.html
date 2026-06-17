@@ -35,7 +35,6 @@
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
-        <button class="btn danger" id="reset-button" disabled>Reset Device</button>
       </div>
     </div>
   </header>
@@ -86,17 +85,6 @@
       </div>
     </section>
   </div>
-
-  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
-    <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
-      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
-      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
-      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button type="button" class="btn" id="dlg-cancel">Cancel</button>
-        <button type="button" class="btn danger" id="dlg-confirm">Reset</button>
-      </div>
-    </form>
-  </dialog>
 
   <div class="sectiontitle">
     <h3>Alarm Status &amp; Modes</h3>
@@ -235,19 +223,6 @@
       setAlarmDot('alarm-g3', !!groups[2]);
     });
 
-    HMWebConfig.conn.on('open', updateResetBtn);
-    HMWebConfig.conn.on('close', updateResetBtn);
-    function updateResetBtn() {
-      const btn = $('reset-button');
-      if (!btn) return;
-      let open = false;
-      try {
-        open = (typeof HMWebConfig.conn.isOpen === 'function') ? HMWebConfig.conn.isOpen() : !!HMWebConfig.conn.port;
-      } catch { open = false; }
-      btn.disabled = !open;
-    }
-    try { updateResetBtn(); } catch(e) { /* isOpen may throw before open */ }
-
     (function buildInputs(){
       const c=$('io-inputs'); if(!c) return;
       const grpOpts = [{v:0,l:'None'},{v:1,l:'Group 1'},{v:2,l:'Group 2'},{v:3,l:'Group 3'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
@@ -380,21 +355,6 @@
       HMWebConfig.sendConfig('ext.alarms', list);
     }
     [1,2,3].forEach(g => $('alarm-mode-g'+g)?.addEventListener('change', sendAlarmModes));
-
-    const resetBtn = $('reset-button');
-    const dlg = $('reset-dialog');
-    resetBtn?.addEventListener('click', () => {
-      if (resetBtn.disabled) { HMWebConfig.appendLog('Connect to the device before resetting.'); return; }
-      if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
-      else if (confirm('Reset the module?')) HMWebConfig.sendCommand('reboot');
-    });
-    $('dlg-cancel')?.addEventListener('click', () => { if (dlg?.open) dlg.close(); });
-    $('dlg-confirm')?.addEventListener('click', () => {
-      if (dlg?.open) dlg.close();
-      HMWebConfig.sendCommand('reboot');
-      resetBtn.disabled = true;
-      setTimeout(updateResetBtn, 3000);
-    });
   })();
   </script>
 </section>
