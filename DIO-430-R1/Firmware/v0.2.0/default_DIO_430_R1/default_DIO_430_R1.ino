@@ -6,8 +6,7 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP        2
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -858,13 +857,13 @@ void buildModbusMap() {
     mb.setCoil(i, false);
   }
   for (uint16_t i = 0; i <= HREG_LINKTIMEOUT_MS; i++) mb.addHreg(i, 0);
-  hmRegisterIdentityHolding(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+  hmRegisterIdentityHolding(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP);
 }
 
 void syncHoldingFromCfg() {
   mb.setHreg(0, HM_MODEL_ID);
   mb.setHreg(1, (uint16_t)((HM_FW_MAJOR << 8) | HM_FW_MINOR));
-  mb.setHreg(2, HM_MAP_VERSION);
+  mb.setHreg(2, HM_MAP);
   mb.setHreg(HREG_MB_ADDR, g_mb_address);
   mb.setHreg(HREG_MB_BAUD, hmBaudCode(g_mb_baud));
 

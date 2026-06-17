@@ -13,8 +13,7 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP        2
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -1045,7 +1044,7 @@ void setup(){
     mb.addHreg(b+0,0); mb.addHreg(b+1,0);
   }
 
-  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP);
 
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);

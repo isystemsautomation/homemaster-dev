@@ -26,8 +26,7 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP        2
 
 #include <Wire.h>
 #include <ADS1X15.h>
@@ -1308,7 +1307,7 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, 0);
 
-  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP);
 
   applyPowerOnOutputs();
 

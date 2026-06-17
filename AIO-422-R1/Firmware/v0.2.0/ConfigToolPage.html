@@ -52,11 +52,13 @@
     </div>
     <div class="statusbar">
       <div class="pillrow">
-        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText" style="color:var(--text)">Disconnected</span></div>
-        <div class="pill">Model: <span id="hm-model" class="mono" style="color:var(--text)">—</span></div>
-        <div class="pill">FW: <span id="hm-fw" class="mono" style="color:var(--text)">—</span></div>
-        <div class="pill">Modbus ID: <span id="hm-addr" style="color:var(--text)">—</span></div>
-        <div class="pill">Baud: <span id="hm-baud" style="color:var(--text)">—</span></div>
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
+        <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
+        <div class="pill">Map: <span id="hm-map" class="mono">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button" type="button">Connect</button>
@@ -264,7 +266,7 @@
       model: 4,
       modelName: 'AIO-422-R1',
       fw: '0.2.0',
-      map: 1,
+      map: 2,
       channels: { in: 0, relay: 0, btn: NUM_BTN, led: NUM_LED },
       onCfg: applyAioCfg
     });

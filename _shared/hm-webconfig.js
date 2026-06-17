@@ -31,6 +31,8 @@
     _compat: { level: 'idle', blocked: false, factoryBlocked: false },
     _statusIdentityTimer: null,
     _toolsIds: { identify: null, factory: null, reboot: null },
+    _localLogic: false,
+    _portOpen: false,
   };
 
   function $(id) { return document.getElementById(id); }
@@ -180,6 +182,76 @@
     applyCompatUI(evaluateCompat(st));
   }
 
+  function resetModuleHeaderFields() {
+    const linkDot = $('linkDot');
+    const linkText = $('linkText');
+    if (linkDot) linkDot.className = 'dot warn';
+    if (linkText) linkText.textContent = '—';
+    ['hm-model', 'hm-fw', 'hm-map', 'hm-addr', 'hm-baud'].forEach((id) => {
+      const el = $(id);
+      if (el) el.textContent = '—';
+    });
+    const ll = $('local-logic-toggle');
+    if (ll && document.activeElement !== ll) ll.checked = false;
+    clearIoDots();
+  }
+
+  function clearIoDots() {
+    ['in', 'relay', 'btn', 'led'].forEach((sec) => {
+      const n = HMWebConfig.channels[sec] || 0;
+      for (let i = 1; i < n + 1; i++) setDot(sec, i, false);
+    });
+  }
+
+  function setDisconnectedUI() {
+    const dot = $('connDot');
+    const txt = $('connText');
+    if (dot) dot.className = 'dot warn';
+    if (txt) txt.textContent = 'Disconnected';
+    resetModuleHeaderFields();
+    HMWebConfig._compat.blocked = true;
+    HMWebConfig._compat.factoryBlocked = true;
+    document.body.classList.add('hm-compat-blocked');
+    const factoryBtn = HMWebConfig._toolsIds.factory && $(HMWebConfig._toolsIds.factory);
+    if (factoryBtn) factoryBtn.disabled = true;
+    if (HMWebConfig._statusIdentityTimer) {
+      clearTimeout(HMWebConfig._statusIdentityTimer);
+      HMWebConfig._statusIdentityTimer = null;
+    }
+    const el = ensureCompatEl();
+    if (el) {
+      el.innerHTML = '';
+      el.style.display = 'none';
+    }
+  }
+
+  function applyLinkStatus(st) {
+    const linkDot = $('linkDot');
+    const linkText = $('linkText');
+    if (!linkDot && !linkText) return;
+    if (st.linkOk == null) return;
+    const linkOk = !!st.linkOk;
+    if (linkDot) linkDot.className = 'dot ' + (linkOk ? 'ok' : 'warn');
+    if (linkText) linkText.textContent = linkOk ? 'Link OK' : 'No poll';
+  }
+
+  function applyLocalLogicStatus(st) {
+    const el = $('local-logic-toggle');
+    if (!el || st.localLogic == null) return;
+    if (document.activeElement !== el) el.checked = !!st.localLogic;
+  }
+
+  function wireLocalLogicToggle() {
+    if (!HMWebConfig._localLogic) return;
+    const el = $('local-logic-toggle');
+    if (!el || el.dataset.hmWired) return;
+    el.dataset.hmWired = '1';
+    el.addEventListener('change', () => {
+      if (HMWebConfig._compat.blocked) return;
+      HMWebConfig.sendConfig('global', { localLogic: el.checked });
+    });
+  }
+
   function appendLog(line) {
     const el = $('hm-log');
     if (!el) return;
@@ -214,8 +286,11 @@
       dot.className = 'dot ok';
       txt.textContent = 'Connected';
     } else {
-      dot.className = 'dot warn';
-      txt.textContent = 'Disconnected';
+      if (HMWebConfig._portOpen) setDisconnectedUI();
+      else {
+        dot.className = 'dot warn';
+        txt.textContent = 'Disconnected';
+      }
     }
   }
 
@@ -271,6 +346,8 @@
     const selBaud = $('modbus-baud');
     if (selAddr && a != null) selAddr.value = String(a);
     if (selBaud && b != null) selBaud.value = String(b);
+    applyLinkStatus(st);
+    applyLocalLogicStatus(st);
     checkCompatFromStatus(st);
   }
 
@@ -340,14 +417,19 @@
 
     conn.on('open', () => {
       appendLog('port: open');
+      HMWebConfig._portOpen = true;
       HMWebConfig._lastDataMs = 0;
+      HMWebConfig._compat.blocked = true;
+      document.body.classList.add('hm-compat-blocked');
+      resetModuleHeaderFields();
       startConnectionMonitoring();
       scheduleIdentityTimeout();
     });
     conn.on('close', () => {
       appendLog('port: close');
+      HMWebConfig._portOpen = false;
       stopConnectionMonitoring();
-      resetCompatState();
+      setDisconnectedUI();
     });
 
     conn.on('message', m => {
@@ -368,8 +450,10 @@
       if (opts.modelName) HMWebConfig.expected.modelName = String(opts.modelName);
       if (opts.fw) HMWebConfig.expected.fw = String(opts.fw);
       if (opts.map != null) HMWebConfig.expected.map = Number(opts.map);
+      if (opts.localLogic) HMWebConfig._localLogic = true;
     }
     if (identityExpected()) ensureCompatEl();
+    wireLocalLogicToggle();
   };
 
   HMWebConfig.connect = function connect(opts) {
@@ -401,7 +485,8 @@
       const errMsg = e.reason?.message || String(e.reason || '');
       if (errMsg.includes('NetworkError') || errMsg.includes('device has been lost')) {
         HMWebConfig._lastDataMs = 0;
-        updateConnectionStatus();
+        if (HMWebConfig._portOpen) setDisconnectedUI();
+        else updateConnectionStatus();
       }
       appendLog('Unhandled Rejection: ' + errMsg);
     });

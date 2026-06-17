@@ -187,7 +187,8 @@
     model: 5,
     modelName: 'DIO-430-R1',
     fw: '0.2.0',
-    map: 1,
+    map: 2,
+    localLogic: true,
     channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
     onCfg: function(ext, cfg) {
       if (cfg.interlock) {
@@ -233,16 +234,6 @@
 
   HMWebConfig.connect({ requestElement: 'connect-button' });
   HMWebConfig.mountTools('hm-tools', { identify: true });
-
-  const conn = HMWebConfig.conn;
-  if (conn) {
-    conn.on('status', st => {
-      const linkOk = !!st.linkOk;
-      $('linkDot').className = 'dot ' + (linkOk ? 'ok' : 'warn');
-      $('linkText').textContent = linkOk ? 'Link OK' : 'No poll';
-      $('local-logic-toggle').checked = !!st.localLogic;
-    });
-  }
 
   function sendInType(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('type-in'+i).value,10)); HMWebConfig.sendConfig('in.type', l); }
   function sendInFollow(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('follow-in'+i).value,10)); HMWebConfig.sendConfig('in.follow', l); }
@@ -294,10 +285,6 @@
     });
   }
 
-  function sendGlobal(){
-    HMWebConfig.sendConfig('global', { localLogic: $('local-logic-toggle').checked });
-  }
-
   for(let i=1;i<=NUM_DI;i++){
     $('enable-in'+i)?.addEventListener('change', sendInputEnable);
     $('invert-in'+i)?.addEventListener('change', sendInputInvert);
@@ -327,7 +314,6 @@
     $('arg-led'+i)?.addEventListener('change', sendLedCfg);
   }
   ['ilk-enabled','ilk-a','ilk-b','ilk-pause'].forEach(id=>$(id)?.addEventListener('change', sendInterlock));
-  $('local-logic-toggle')?.addEventListener('change', sendGlobal);
 
   function pushModbus(){
     HMWebConfig.sendValues(parseInt($('modbus-address').value,10), parseInt($('modbus-baud').value,10));
