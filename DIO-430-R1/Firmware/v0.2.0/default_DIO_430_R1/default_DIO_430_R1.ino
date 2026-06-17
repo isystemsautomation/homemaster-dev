@@ -1311,6 +1311,8 @@ void handleCommand(JSONVar obj) {
       applyModbusSettings(g_mb_address, g_mb_baud);
       syncHoldingFromCfg();
     } else wsLog("ERROR: Save after factory reset failed");
+  } else if (act == "hello" || act == "getconfig") {
+    sendWebBootstrap();
   } else if (act == "identify") {
     g_identifyUntilMs = millis() + IDENTIFY_MS;
     wsLog("Identify started");

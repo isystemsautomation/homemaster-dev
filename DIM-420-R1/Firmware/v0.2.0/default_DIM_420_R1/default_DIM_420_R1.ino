@@ -19,7 +19,8 @@ struct PersistConfig;
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        2
+#define HM_MAP        1
+#define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -537,7 +538,7 @@ void setup(){
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_EN_BASE + i);  mb.setCoil(CMD_DI_EN_BASE + i, false); }
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_DIS_BASE + i); mb.setCoil(CMD_DI_DIS_BASE + i, false); }
 
-  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP);
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
   // WebSerial handlers
   WebSerial.on("values",  handleValues);
@@ -568,6 +569,9 @@ void handleCommand(JSONVar obj){
     delay(120);
     watchdog_reboot(0, 0, 0);
     while (true) { __asm__("wfi"); }
+  }
+  else if(act=="hello" || act=="getconfig"){
+    sendWebBootstrap();
   }
   else if(act=="identify"){
     g_identifyUntilMs = millis() + IDENTIFY_MS;

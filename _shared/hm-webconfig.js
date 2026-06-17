@@ -33,6 +33,7 @@
     _toolsIds: { identify: null, factory: null, reboot: null },
     _localLogic: false,
     _portOpen: false,
+    _helloSent: false,
   };
 
   function $(id) { return document.getElementById(id); }
@@ -204,6 +205,7 @@
     document.body.classList.add('hm-compat-blocked');
     const factoryBtn = HMWebConfig._toolsIds.factory && $(HMWebConfig._toolsIds.factory);
     if (factoryBtn) factoryBtn.disabled = true;
+    HMWebConfig._helloSent = false;
   }
 
   function applyLinkStatus(st) {
@@ -256,6 +258,15 @@
     const txt = $('connText');
     if (dot) dot.className = 'dot ok';
     if (txt) txt.textContent = 'Connected';
+    if (!HMWebConfig._helloSent && HMWebConfig.conn) {
+      HMWebConfig._helloSent = true;
+      const packet = { action: 'hello' };
+      logTx('command', packet);
+      HMWebConfig.conn.send('command', packet).catch(err => {
+        HMWebConfig._helloSent = false;
+        appendLog('Config hello failed: ' + (err?.message || err));
+      });
+    }
   }
 
   function updateConnectionStatus() {
@@ -395,6 +406,7 @@
       appendLog('port: open');
       HMWebConfig._portOpen = true;
       HMWebConfig._lastDataMs = 0;
+      HMWebConfig._helloSent = false;
       HMWebConfig._compat.blocked = true;
       document.body.classList.add('hm-compat-blocked');
       resetModuleHeaderFields();
