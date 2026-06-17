@@ -1,24 +1,26 @@
-# DIO-430-R1 — ESPHome Modbus map (package-friendly)
-# Mirrors the firmware map in default_DIO_430_R1.ino
+# DIO-430-R1 — ESPHome Modbus map (Phase A block layout)
+# Firmware v0.2.0+ (CFG 0x000A): one FC=04 read of Input Registers 0..29 per poll.
 #
-# Notes
-# - Read-only states are exposed as `discrete_input` registers (FC=02)
-#   • DI1..DI4 at 1..4
-#   • Relay logical state R1..R3 at 60..62
-#   • LED logical state LED1..LED3 at 90..92
-# - Relay coils are *maintained* (FC=05/15): write ON/OFF directly (like WLD module)
-#   • Relay state (R1..R3) at 200..202
-# - DI enable/disable are *pulse* coils: write TRUE momentarily; firmware auto-clears
-#   • DI ENABLE (IN1..IN4) at 300..303
-#   • DI DISABLE (IN1..IN4) at 320..323
-# - Tweak substitutions in your main YAML as needed.
+# Input Registers (FC=04, read) — contiguous 0..29:
+#   0 DI_STATE_MASK (bits 0..3 = DI1..4)
+#   1 RLY_STATE_MASK (bits 0..2)
+#   2 BTN_STATE_MASK (bits 0..1)
+#   3 LED_STATE_MASK (bits 0..2)
+#   4 STATUS_FLAGS (bit0=localLogic, bit1=linkOk, bit3=cfgDirty)
+#   5 LOCK_MASK (bits 0..3 = lockLocal DI1..4)
+#   6..29 event counters (EVT_BASE=6, source*4+type)
+#
+# Coils (FC=05/15): 0..2 relays, 3 ALL_OFF, 4 LOCAL_LOGIC, 5 IDENTIFY,
+#   6 SAVE_CFG, 7 REBOOT, 8..10 LED_HA, 11..14 DI_LOCK
+#
+# Holding (FC=03) — config/identity; do not poll in the main loop.
 
 substitutions:
   dio_id: dio
   dio_address: "3"
   dio_prefix: "DIO"
   dio_update_interval: 1s
-  dio_command_throttle: 0ms
+  dio_command_throttle: 50ms
 
 modbus_controller:
   - id: ${dio_id}
@@ -27,136 +29,283 @@ modbus_controller:
     command_throttle: ${dio_command_throttle}
     update_interval: ${dio_update_interval}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TELEMETRY (READ-ONLY): discrete_input registers
-# ─────────────────────────────────────────────────────────────────────────────
+# ── State block (FC=04) — ESPHome merges contiguous reads into one request ──
 binary_sensor:
-  # DI1..DI4 (1..4)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI1"
-    register_type: discrete_input
-    address: 1
+    register_type: read
+    address: 0
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI2"
-    register_type: discrete_input
-    address: 2
+    register_type: read
+    address: 0
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI3"
-    register_type: discrete_input
-    address: 3
+    register_type: read
+    address: 0
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI4"
-    register_type: discrete_input
-    address: 4
-  # Relay logical state R1..R3 (60..62) - used for switch state feedback
+    register_type: read
+    address: 0
+    bitmask: 0x0008
+
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} RLY1 State"
+    name: "${dio_prefix} Relay 1"
     id: ${dio_id}_rly1_state
-    register_type: discrete_input
-    address: 60
+    register_type: read
+    address: 1
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} RLY2 State"
+    name: "${dio_prefix} Relay 2"
     id: ${dio_id}_rly2_state
-    register_type: discrete_input
-    address: 61
+    register_type: read
+    address: 1
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} RLY3 State"
+    name: "${dio_prefix} Relay 3"
     id: ${dio_id}_rly3_state
-    register_type: discrete_input
-    address: 62
-  # LED logical state LED1..LED3 (90..92)
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED1 State"
-    register_type: discrete_input
-    address: 90
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED2 State"
-    register_type: discrete_input
-    address: 91
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED3 State"
-    register_type: discrete_input
-    address: 92
+    register_type: read
+    address: 1
+    bitmask: 0x0004
 
-# ─────────────────────────────────────────────────────────────────────────────
-# COMMANDS: pulse coils (for DI enable/disable)
-# ─────────────────────────────────────────────────────────────────────────────
-output:
-  # DI ENABLE pulses (300..303)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di1_enable
-    address: 300
+    name: "${dio_prefix} Btn1"
+    register_type: read
+    address: 2
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di2_enable
-    address: 301
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di3_enable
-    address: 302
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di4_enable
-    address: 303
-  # DI DISABLE pulses (320..323)
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di1_disable
-    address: 320
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di2_disable
-    address: 321
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di3_disable
-    address: 322
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_di4_disable
-    address: 323
+    name: "${dio_prefix} Btn2"
+    register_type: read
+    address: 2
+    bitmask: 0x0002
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RELAY SWITCHES: Maintained coils (like WLD module)
-# ─────────────────────────────────────────────────────────────────────────────
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED1"
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED2"
+    register_type: read
+    address: 3
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED3"
+    register_type: read
+    address: 3
+    bitmask: 0x0004
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Local logic"
+    register_type: read
+    address: 4
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Link OK"
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Config dirty"
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 lock"
+    register_type: read
+    address: 5
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 lock"
+    register_type: read
+    address: 5
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 lock"
+    register_type: read
+    address: 5
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 lock"
+    register_type: read
+    address: 5
+    bitmask: 0x0008
+
+sensor:
+  # Event counters DI1..4, Btn1..2 × single/double/long (registers 6..29)
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 single"
+    register_type: read
+    address: 6
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 double"
+    register_type: read
+    address: 7
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 long"
+    register_type: read
+    address: 9
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 single"
+    register_type: read
+    address: 10
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 long"
+    register_type: read
+    address: 13
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 single"
+    register_type: read
+    address: 14
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 single"
+    register_type: read
+    address: 18
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn1 single"
+    register_type: read
+    address: 22
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn1 long"
+    register_type: read
+    address: 25
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn2 single"
+    register_type: read
+    address: 26
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+
 switch:
-  # Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 1"
     id: ${dio_id}_relay1
-    address: 200
     register_type: coil
-
+    address: 0
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 2"
     id: ${dio_id}_relay2
-    address: 201
     register_type: coil
-
+    address: 1
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 3"
     id: ${dio_id}_relay3
-    address: 202
     register_type: coil
+    address: 2
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Local logic"
+    register_type: coil
+    address: 4
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED1 HA"
+    register_type: coil
+    address: 8
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED2 HA"
+    register_type: coil
+    address: 9
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED3 HA"
+    register_type: coil
+    address: 10
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 child lock"
+    register_type: coil
+    address: 11
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 child lock"
+    register_type: coil
+    address: 12
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 child lock"
+    register_type: coil
+    address: 13
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 child lock"
+    register_type: coil
+    address: 14
+
+button:
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} All off"
+    register_type: coil
+    address: 3
+    write_lambda: |-
+      return {true};
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Identify"
+    register_type: coil
+    address: 5
+    write_lambda: |-
+      return {true};
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Save config"
+    register_type: coil
+    address: 6
+    write_lambda: |-
+      return {true};
