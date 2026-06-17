@@ -22,7 +22,7 @@
   const HMWebConfig = {
     conn: null,
     channels: { in: 0, relay: 0, btn: 0, led: 0 },
-    expected: { model: null, modelName: '', fw: '', map: null },
+    expected: { model: null, modelName: '', fw: '' },
     onCfg: null,
     _logBuf: [],
     _lastDataMs: 0,
@@ -49,7 +49,7 @@
 
   function identityExpected() {
     const e = HMWebConfig.expected;
-    return e.model != null && !!e.fw && e.map != null;
+    return e.model != null && !!e.fw;
   }
 
   function modelLabel(id) {
@@ -65,8 +65,7 @@
 
   function hasCompleteIdentity(st) {
     return identityField(st, 'model') != null
-      && identityField(st, 'fw') != null
-      && identityField(st, 'map') != null;
+      && identityField(st, 'fw') != null;
   }
 
   function ensureCompatEl() {
@@ -93,34 +92,25 @@
         level: 'no-data',
         blocked: true,
         factoryBlocked: true,
-        message: 'Could not read firmware model/version. The firmware may be incompatible, outdated, or the module is not responding.',
+        message: "Couldn't read module model/firmware — incompatible or old firmware, or the module isn't responding.",
       };
     }
     const gotModel = Number(st.model);
-    const gotMap = Number(st.map);
     const gotFw = String(st.fw);
     if (gotModel !== Number(exp.model)) {
       return {
         level: 'model',
         blocked: true,
         factoryBlocked: true,
-        message: `Model mismatch: this configurator is for ${exp.modelName} (model ${exp.model}), but the module reports model ${gotModel}${modelLabel(gotModel)}. Wrong module or wrong configurator page.`,
-      };
-    }
-    if (gotMap !== Number(exp.map)) {
-      return {
-        level: 'map',
-        blocked: true,
-        factoryBlocked: true,
-        message: `Protocol map mismatch: configurator expects map ${exp.map}, firmware reports map ${gotMap}. Update the configurator or firmware.`,
+        message: `Wrong module: this configurator is for ${exp.modelName} (model ${exp.model}), module reports model ${gotModel}${modelLabel(gotModel)}.`,
       };
     }
     if (gotFw !== String(exp.fw)) {
       return {
         level: 'fw',
-        blocked: false,
+        blocked: true,
         factoryBlocked: false,
-        message: `Configurator built for firmware ${exp.fw}; module has ${gotFw}. Minor differences are possible.`,
+        message: `Firmware version mismatch: module has ${gotFw}, this software is built for ${exp.fw}. Update the module firmware.`,
       };
     }
     return { level: 'ok', blocked: false, factoryBlocked: false, message: '' };
@@ -139,8 +129,7 @@
       el.style.display = 'none';
       return;
     }
-    const cls = result.level === 'fw' ? 'hm-compat-warn-fw'
-      : (result.level === 'map' ? 'hm-compat-warn-map' : 'hm-compat-error');
+    const cls = result.level === 'fw' ? 'hm-compat-warn-fw' : 'hm-compat-error';
     el.className = 'hm-compat-banner ' + cls;
     el.style.display = 'block';
     el.textContent = result.message;
@@ -187,7 +176,7 @@
     const linkText = $('linkText');
     if (linkDot) linkDot.className = 'dot warn';
     if (linkText) linkText.textContent = '—';
-    ['hm-model', 'hm-fw', 'hm-map', 'hm-addr', 'hm-baud'].forEach((id) => {
+    ['hm-model', 'hm-fw', 'hm-addr', 'hm-baud'].forEach((id) => {
       const el = $(id);
       if (el) el.textContent = '—';
     });
@@ -321,12 +310,10 @@
     markDataReceived();
     const model = $('hm-model');
     const fw = $('hm-fw');
-    const map = $('hm-map');
     const addr = $('hm-addr');
     const baud = $('hm-baud');
     if (model && st.model != null) model.textContent = String(st.model);
     if (fw && st.fw != null) fw.textContent = String(st.fw);
-    if (map && st.map != null) map.textContent = String(st.map);
     const a = (st.addr != null) ? st.addr : st.address;
     const b = (st.baud != null) ? st.baud : st.baud;
     if (addr && a != null) addr.textContent = String(a);
@@ -438,7 +425,6 @@
       if (opts.model != null) HMWebConfig.expected.model = Number(opts.model);
       if (opts.modelName) HMWebConfig.expected.modelName = String(opts.modelName);
       if (opts.fw) HMWebConfig.expected.fw = String(opts.fw);
-      if (opts.map != null) HMWebConfig.expected.map = Number(opts.map);
       if (opts.localLogic) HMWebConfig._localLogic = true;
     }
     if (identityExpected()) ensureCompatEl();
