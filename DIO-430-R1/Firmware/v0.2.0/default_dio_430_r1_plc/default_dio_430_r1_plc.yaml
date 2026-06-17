@@ -1,19 +1,31 @@
-# DIO-430-R1 — ESPHome Modbus map (Phase A block layout)
-# Firmware v0.2.0+ (CFG 0x000A): one FC=04 read of Input Registers 0..29 per poll.
-#
-# Input Registers (FC=04, read) — contiguous 0..29:
-#   0 DI_STATE_MASK (bits 0..3 = DI1..4)
-#   1 RLY_STATE_MASK (bits 0..2)
-#   2 BTN_STATE_MASK (bits 0..1)
-#   3 LED_STATE_MASK (bits 0..2)
-#   4 STATUS_FLAGS (bit0=localLogic, bit1=linkOk, bit3=cfgDirty)
-#   5 LOCK_MASK (bits 0..3 = lockLocal DI1..4)
-#   6..29 event counters (EVT_BASE=6, source*4+type)
-#
-# Coils (FC=05/15): 0..2 relays, 3 ALL_OFF, 4 LOCAL_LOGIC, 5 IDENTIFY,
-#   6 SAVE_CFG, 7 REBOOT, 8..10 LED_HA, 11..14 DI_LOCK
-#
-# Holding (FC=03) — config/identity; do not poll in the main loop.
+##
+## DIO-430-R1 — ESPHome Modbus package (Phase A block map, v0.2.0 CFG 0x000A)
+##
+## Single package file — include from your ESPHome YAML:
+##   packages:
+##     dio: github://isystemsautomation/homemaster-dev/DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+##
+## Requires global `modbus:` with id `modbus_bus`. If UART/Modbus are not defined yet, uncomment:
+# uart:
+#   id: rs485_uart
+#   tx_pin: GPIO4
+#   rx_pin: GPIO5
+#   baud_rate: 19200
+#   parity: NONE
+#   stop_bits: 1
+# modbus:
+#   id: modbus_bus
+#   uart_id: rs485_uart
+##
+## Input Registers (FC=04, read) — contiguous 0..29 (one merged poll per cycle):
+##   0 DI_STATE_MASK · 1 RLY_STATE_MASK · 2 BTN_STATE_MASK · 3 LED_STATE_MASK
+##   4 STATUS_FLAGS (bit0=localLogic, bit1=linkOk, bit3=cfgDirty) · 5 LOCK_MASK
+##   6..29 event counters (EVT_BASE=6, source*4+type; sources DI1..4=0..3, Btn1..2=4..5)
+##
+## Coils (FC=05/15): 0..2 relays · 3 ALL_OFF · 4 LOCAL_LOGIC · 5 IDENTIFY
+##   6 SAVE_CFG · 7 REBOOT · 8..10 LED_HA · 11..14 DI_LOCK
+##
+## Holding (FC=03) — config/identity; do not poll in the main loop.
 
 substitutions:
   dio_id: dio
@@ -29,7 +41,6 @@ modbus_controller:
     command_throttle: ${dio_command_throttle}
     update_interval: ${dio_update_interval}
 
-# ── State block (FC=04) — ESPHome merges contiguous reads into one request ──
 binary_sensor:
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
@@ -155,7 +166,7 @@ binary_sensor:
     bitmask: 0x0008
 
 sensor:
-  # Event counters DI1..4, Btn1..2 × single/double/long (registers 6..29)
+  # Event counters: registers 6..29 (all sources × single/double/triple/long)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI1 single"
@@ -168,6 +179,13 @@ sensor:
     name: "${dio_prefix} DI1 double"
     register_type: read
     address: 7
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI1 triple"
+    register_type: read
+    address: 8
     unit_of_measurement: "events"
     accuracy_decimals: 0
   - platform: modbus_controller
@@ -186,6 +204,20 @@ sensor:
     accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 double"
+    register_type: read
+    address: 11
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI2 triple"
+    register_type: read
+    address: 12
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI2 long"
     register_type: read
     address: 13
@@ -200,6 +232,27 @@ sensor:
     accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 double"
+    register_type: read
+    address: 15
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 triple"
+    register_type: read
+    address: 16
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI3 long"
+    register_type: read
+    address: 17
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} DI4 single"
     register_type: read
     address: 18
@@ -207,9 +260,44 @@ sensor:
     accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 double"
+    register_type: read
+    address: 19
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 triple"
+    register_type: read
+    address: 20
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} DI4 long"
+    register_type: read
+    address: 21
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Btn1 single"
     register_type: read
     address: 22
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn1 double"
+    register_type: read
+    address: 23
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn1 triple"
+    register_type: read
+    address: 24
     unit_of_measurement: "events"
     accuracy_decimals: 0
   - platform: modbus_controller
@@ -224,6 +312,27 @@ sensor:
     name: "${dio_prefix} Btn2 single"
     register_type: read
     address: 26
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn2 double"
+    register_type: read
+    address: 27
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn2 triple"
+    register_type: read
+    address: 28
+    unit_of_measurement: "events"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Btn2 long"
+    register_type: read
+    address: 29
     unit_of_measurement: "events"
     accuracy_decimals: 0
 
