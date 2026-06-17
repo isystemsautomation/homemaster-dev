@@ -76,6 +76,97 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 5. **You're done — it saves automatically.** Changes are written to the module's memory a moment after you make them; there is no "Save" button.
 6. **Connect to Home Assistant.** On your MicroPLC/MiniPLC (running ESPHome), add the DIO package and set the same Modbus address. Home Assistant then shows the relays as switches, inputs as sensors, and button presses as events for automations.
 
+### WebConfig — all fields & values
+
+#### Header (read-only status)
+The pills at the top are status, not settings: **Connection** (USB link), **Bus** (RS-485 link to the controller), **Model**, **FW** (firmware version). A red/orange banner appears if the module's model or firmware doesn't match this configurator.
+
+#### Device Setup
+| Field | Values | Meaning |
+|---|---|---|
+| Modbus Address | 1–247 (default 3) | Modbus RTU slave address. Must be unique on the RS-485 bus. |
+| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed, 8N1. Must match the controller. |
+
+#### Tools
+| Button | What it does |
+|---|---|
+| Identify (~5 s) | Blinks the module's user LEDs so you can find it in the cabinet. |
+| Factory reset | Restores all settings to defaults. |
+| Reboot | Restarts the module. |
+
+Changes are saved automatically — there is no Save button.
+
+#### Digital Inputs (IN1–IN4)
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Whether this input is processed. |
+| Inverted | on / off | Invert the read level (use for normally-closed contacts). |
+| Child lock | on / off | Suspend this input's local switching; it still reports events to Home Assistant. |
+| Type | Maintained / Momentary | Latching wall switch vs spring-return push-button. |
+| Maintained mode *(Type = Maintained)* | Toggle / Follow | **Toggle** (default): each change of the switch flips the relay (works together with Home Assistant). **Follow**: the relay mirrors the switch position. |
+| Target *(Type = Maintained)* | All / R1 / R2 / R3 / None | Which relay the switch controls. **None** = report only, no relay. |
+| Short → action *(Type = Momentary)* | None / Toggle / On / Off / All off | Action on a short press. |
+| Short → target | All / R1 / R2 / R3 / None | Relay for the short-press action. |
+| Long → action *(Type = Momentary)* | None / Toggle / On / Off / All off | Action on a long press. |
+| Long → target | All / R1 / R2 / R3 / None | Relay for the long-press action. |
+
+Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
+
+#### Relays (Relay 1–3)
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Whether this relay output is active. |
+| Inverted | on / off | Invert the physical output (for normally-closed wiring). |
+| Power-on | OFF at power-on / ON at power-on / Restore last | Relay state after power-up. **Restore last** = remember the state from before power loss. |
+| Auto-off, s | 0–65535 (0 = off) | Auto-off / staircase timer in seconds: the relay switches off by itself after this time. Switching it on again restarts the countdown. 0 disables it. |
+
+Defaults: all enabled, not inverted, OFF at power-on, auto-off 0.
+
+#### Interlock
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Pair two relays so they can never be on at the same time (e.g. a motor up/down). |
+| Relay A | R1 / R2 / R3 | First relay of the pair (e.g. up). |
+| Relay B | R1 / R2 / R3 | Second relay of the pair (e.g. down). |
+| Pause, ms | integer (default 500) | Dead-time inserted when reversing direction. |
+
+Default: disabled.
+
+#### Buttons (Button 1–2, front panel — GPIO2 / GPIO3)
+| Field | Values | Meaning |
+|---|---|---|
+| Short → action | None / Toggle / On / Off / All off | Action on a short press. |
+| Short → target | All / R1 / R2 / R3 / None | Relay for the short-press action. |
+| Long → action | None / Toggle / On / Off / All off | Action on a long press. |
+| Long → target | All / R1 / R2 / R3 / None | Relay for the long-press action. |
+
+Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None.
+
+#### User LEDs (LED 1–3)
+| Field | Values | Meaning |
+|---|---|---|
+| Source | Off / HA / Link / Child lock / Safe mode / Identify / Relay | What the LED shows: **Off**; **HA** = driven by Home Assistant (alarm/notification); **Link** = RS-485 link to the controller OK; **Child lock** = a child-locked input is active; **Safe mode**; **Identify** = blinks on the Identify command; **Relay** = mirrors a relay's state. |
+| Mode | Steady / Blink | Solid or blinking. |
+| Inverted | on / off | Invert the LED on/off level. |
+| Arg (relay # or DI for child lock) | integer | For Source = **Relay** — which relay; for **Child lock** — which input; otherwise unused. |
+
+Defaults: LED1 = Link / Steady; LED2 = Off; LED3 = HA. (The board already has dedicated indicator LEDs for every relay and every input — these three user LEDs are for other states.)
+
+#### Action / Target reference (used by inputs and buttons)
+| Action | Meaning |
+|---|---|
+| None | Do nothing locally (the input still reports events to Home Assistant). |
+| Toggle | Flip the target relay. |
+| On | Turn the target relay on. |
+| Off | Turn the target relay off. |
+| All off | Turn all relays off. |
+
+| Target | Meaning |
+|---|---|
+| All | All relays. |
+| R1 / R2 / R3 | Relay 1 / 2 / 3. |
+| None | No relay (report only). |
+
 ### Tools (in the configurator)
 - **Identify** — blinks the module's lights for a few seconds so you can spot it in the cabinet.
 - **Factory reset** — returns all settings to defaults.
