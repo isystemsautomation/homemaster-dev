@@ -76,12 +76,10 @@
   <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, Local logic, HA, …).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-leds"></div></div></section>
 
-  <div class="sectiontitle"><h3>Tools</h3></div>
+  <div class="sectiontitle"><h3>Tools</h3><p class="hint">Changes are saved automatically.</p></div>
   <section class="card">
     <div class="cardbody" style="display:flex;flex-wrap:wrap;gap:10px">
       <button class="btn" id="btn-identify">Identify (~5 s)</button>
-      <button class="btn" id="btn-save">Save to flash</button>
-      <button class="btn" id="btn-load">Load from flash</button>
       <button class="btn" id="btn-factory">Factory reset</button>
       <button class="btn danger" id="btn-reboot">Reboot</button>
     </div>
@@ -346,8 +344,6 @@
   $('modbus-baud')?.addEventListener('input', pushModbus);
 
   function cmd(action){ HMWebConfig.sendCommand(action); }
-  $('btn-save')?.addEventListener('click', ()=>cmd('save'));
-  $('btn-load')?.addEventListener('click', ()=>cmd('load'));
   $('btn-factory')?.addEventListener('click', ()=>{ if(confirm('Factory reset?')) cmd('factory'); });
   $('btn-reboot')?.addEventListener('click', ()=>{ if(confirm('Reboot module?')) cmd('reboot'); });
   $('btn-identify')?.addEventListener('click', ()=> cmd('identify'));
