@@ -16,12 +16,14 @@
 
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
 struct PersistConfig;
+struct PersistConfigV10;
 struct PersistConfigV9;
 struct PersistConfigV7;
 struct OutputStateSnapshot;
 
 // Legacy config layouts (must be declared before any function — Arduino auto-prototypes run early).
 struct InCfgV9 { bool enabled; bool inverted; uint8_t action; uint8_t target; };
+struct InCfgV10 { bool enabled, inverted; uint8_t type; uint8_t followTarget; uint8_t shortAction, shortTarget; uint8_t longAction, longTarget; bool lockLocal; };
 struct LedCfgV9 { uint8_t mode; uint8_t source; };
 struct BtnCfgV9 { uint8_t action; };
 struct RlyCfgV9 { bool enabled; bool inverted; uint8_t powerOn; };
@@ -134,9 +136,6 @@ bool blinkPhase = false;
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
-
-// Legacy InCfg without maintMode (CFG 0x000A).
-struct InCfgV10 { bool enabled, inverted; uint8_t type; uint8_t followTarget; uint8_t shortAction, shortTarget; uint8_t longAction, longTarget; bool lockLocal; };
 
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
