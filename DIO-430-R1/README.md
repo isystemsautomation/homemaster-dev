@@ -32,6 +32,62 @@ packages:
 
 ---
 
+## How it works & how to set it up
+
+### What it is
+The DIO-430-R1 is a digital input/output module for a DIN rail (the box that clips into an electrical cabinet). In simple terms it can **switch power to things** and **react to switches and sensors**.
+
+Inside it has:
+- **3 relays** — think of them as 3 remote-controlled switches. Each one can turn a load (a light, a fan, a pump, a valve) on or off.
+- **4 inputs** — where you connect wall switches, push-buttons, or dry-contact sensors (door/window contacts, motion relays, etc.).
+- **2 buttons on the front** — handy for testing and simple local control.
+- **Status lights** — for each relay and each input, plus 3 extra lights you can assign a meaning to.
+
+It talks to a controller (MicroPLC / MiniPLC) over **RS-485** (two wires), and you configure it over **USB-C** from a web browser.
+
+### The big idea: it works from everywhere, all the time
+The relays can be switched from **any** source — the wall switch wired to an input, the front buttons, or Home Assistant over the network — **all at once**. The last command wins. Why it matters:
+- If the network, controller, or Home Assistant is **off or rebooting**, your wall switches **still work**.
+- When everything is online, you also get full control from your phone, dashboards, voice, and automations.
+
+There is **no "local vs remote" switch to flip** — local and remote control always coexist.
+
+### What each input can do
+For every input you choose, in the browser, what it should do:
+- **Wall switch (toggle):** every time the switch changes position, it flips its relay on/off. Default for a normal light switch. (Because you can also control the relay from your phone, the physical switch position may not always match the light — normal for any system mixing a wall switch with app control.)
+- **Wall switch (follow) — optional:** the relay exactly mirrors the switch position (up = on, down = off). Use only when the wall switch should be the *only* control for that load.
+- **Push-button (momentary):** a button that springs back. A **short press** does one thing, a **long press** another (e.g. short = toggle light, long = all off). Each press is also **reported to Home Assistant** (single / double / long), so HA can run scenes — without slowing the local light.
+- **Sensor / "tell Home Assistant only":** the input just reports its state and switches no relay itself. For door contacts, motion, etc.
+
+For switch and button actions you pick the **target**: relay 1, 2, 3, **all relays**, or **none**.
+
+### Handy extras (all optional, set in the browser)
+- **All Off** — one input or button turns every relay off at once (great for a door "everything off" button). Also works from Home Assistant.
+- **Child lock** — temporarily disable a single input (cleaning, or so kids can't flip a switch). It still reports to Home Assistant; only local switching pauses.
+- **Auto-off timer (staircase timer)** — a relay turns itself off after a set time (stairwell light, bathroom fan). Switching on again restarts the timer.
+- **Shutter / roller mode (interlock)** — pair two relays for an up/down motor so they can **never be on together**, with a short pause when reversing. Protects blinds/gate motors.
+- **Status lights** — the 3 extra lights can show: connection to the controller, child-lock active, a custom Home-Assistant indicator (alarm/notification), or "Identify" (blink to find this exact module in a full cabinet).
+
+### How to set it up (step by step)
+1. **Wire it.** Power the module, connect switches/sensors to the inputs and loads to the relays, and run the RS-485 pair to your MicroPLC/MiniPLC controller.
+2. **Open the configurator.** Plug **USB-C** from the module to your computer. In Chrome or Edge, open the module's **WebConfig** page and click **Connect**. No app, no login.
+3. **Set the basics.** Choose the **Modbus address** (default **3**) and **baud rate** (default **19200**). The address must be unique on the RS-485 line.
+4. **Tell each input what to do.** For every input pick its type (toggle switch / push-button / sensor) and which relay it controls. Set any extras (All Off, child lock, auto-off time, shutter pair).
+5. **You're done — it saves automatically.** Changes are written to the module's memory a moment after you make them; there is no "Save" button.
+6. **Connect to Home Assistant.** On your MicroPLC/MiniPLC (running ESPHome), add the DIO package and set the same Modbus address. Home Assistant then shows the relays as switches, inputs as sensors, and button presses as events for automations.
+
+### Tools (in the configurator)
+- **Identify** — blinks the module's lights for a few seconds so you can spot it in the cabinet.
+- **Factory reset** — returns all settings to defaults.
+- **Reboot** — restarts the module.
+
+### Good to know
+- The module keeps working as configured even with the controller unplugged.
+- Start at **19200 8N1** on RS-485 while setting up.
+- Unplug USB-C once configured and let the controller talk over RS-485.
+
+---
+
 # 1. Introduction
 
 The **DIO-430-R1** is a configurable smart digital I/O module designed for **digital input monitoring and relay-based output control** in **building automation, lighting, HVAC, alarms, and general control systems**.  
