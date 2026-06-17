@@ -1255,7 +1255,7 @@ void setup() {
   for (uint8_t i = 0; i < NUM_DI; i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i = 0; i < NUM_RLY; i++) { pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); }
   for (uint8_t i = 0; i < NUM_LED; i++) { pinMode(LED_PINS[i], OUTPUT); digitalWrite(LED_PINS[i], LOW); }
-  for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
+  for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT);   // active-high, external pull-down on board
 
   setDefaults();
 
@@ -1581,7 +1581,7 @@ void loop() {
 
   // -------- Debounced buttons --------
   for (int i = 0; i < NUM_BTN; i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     serviceDebounce(btnDeb[i], pressed, now);
     serviceMomentaryChannel(evtSourceForBtn((uint8_t)i), false,
                             btnCfg[i].shortAction, btnCfg[i].shortTarget,
