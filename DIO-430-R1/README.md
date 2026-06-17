@@ -1080,6 +1080,8 @@ See LICENSE files in each directory for full terms.
 
 - **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**  
   - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/default_DIO_430_R1.ino.uf2)
+- **Firmware publishing (maintainers — what to commit after compile)**  
+  - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
 - **Firmware source (Arduino, v0.2.0)**  
   - [`DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1)
 - **YAML configs (ESPHome, v0.2.0)**  
