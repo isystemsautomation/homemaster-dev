@@ -209,20 +209,12 @@
     if (dot) dot.className = 'dot warn';
     if (txt) txt.textContent = 'Disconnected';
     resetModuleHeaderFields();
+    resetCompatState();
     HMWebConfig._compat.blocked = true;
     HMWebConfig._compat.factoryBlocked = true;
     document.body.classList.add('hm-compat-blocked');
     const factoryBtn = HMWebConfig._toolsIds.factory && $(HMWebConfig._toolsIds.factory);
     if (factoryBtn) factoryBtn.disabled = true;
-    if (HMWebConfig._statusIdentityTimer) {
-      clearTimeout(HMWebConfig._statusIdentityTimer);
-      HMWebConfig._statusIdentityTimer = null;
-    }
-    const el = ensureCompatEl();
-    if (el) {
-      el.innerHTML = '';
-      el.style.display = 'none';
-    }
   }
 
   function applyLinkStatus(st) {
@@ -269,6 +261,7 @@
   }
 
   function markDataReceived() {
+    HMWebConfig._portOpen = true;
     HMWebConfig._lastDataMs = Date.now();
     const dot = $('connDot');
     const txt = $('connText');
@@ -286,11 +279,7 @@
       dot.className = 'dot ok';
       txt.textContent = 'Connected';
     } else {
-      if (HMWebConfig._portOpen) setDisconnectedUI();
-      else {
-        dot.className = 'dot warn';
-        txt.textContent = 'Disconnected';
-      }
+      setDisconnectedUI();
     }
   }
 
@@ -479,14 +468,14 @@
 
     HMWebConfig.conn = conn;
     bindIncoming(conn);
+    startConnectionMonitoring();
 
     window.addEventListener('error', e => appendLog('JS Error: ' + (e.message || e)));
     window.addEventListener('unhandledrejection', e => {
       const errMsg = e.reason?.message || String(e.reason || '');
       if (errMsg.includes('NetworkError') || errMsg.includes('device has been lost')) {
         HMWebConfig._lastDataMs = 0;
-        if (HMWebConfig._portOpen) setDisconnectedUI();
-        else updateConnectionStatus();
+        setDisconnectedUI();
       }
       appendLog('Unhandled Rejection: ' + errMsg);
     });
