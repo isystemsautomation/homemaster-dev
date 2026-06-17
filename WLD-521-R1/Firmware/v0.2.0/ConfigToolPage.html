@@ -217,6 +217,8 @@
     </div>
   </header>
 
+  <div id="hm-tools"></div>
+
   <!-- Top: Device Setup + Log -->
   <div class="grid two">
     <section class="card">
@@ -344,7 +346,7 @@
     </div>
   </section>
 
-  <script src="simple-web-serial.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
@@ -402,6 +404,7 @@
 
     HMWebConfig.register({ channels:{ in:5, relay:2, btn:4, led:4 }, onCfg:applyWldCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });
+    HMWebConfig.mountTools('hm-tools', { identify: true });
     const conn = HMWebConfig.conn;
     const isOpen = ()=>{ try{ return (typeof conn.isOpen==='function') ? conn.isOpen() : !!conn.port; }catch{ return false; } };
     function updateButtons(){ const en=isOpen(); $('scan-button').disabled=!en; }

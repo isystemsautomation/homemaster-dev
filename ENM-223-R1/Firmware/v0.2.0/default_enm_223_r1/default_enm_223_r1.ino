@@ -128,6 +128,8 @@ static bool webHostWasConnected = false;
 static unsigned long lastBlinkToggle = 0;
 static const unsigned long blinkPeriodMs = 400;
 static bool blinkPhase = false;
+static uint32_t g_identifyUntilMs = 0;
+static const uint32_t IDENTIFY_MS = 5000;
 
 static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
@@ -663,6 +665,18 @@ void handleCommand(JSONVar obj) {
     wsLog("Rebooting…");
     delay(50);
     rp2040.reboot();
+  } else if (act == "factory") {
+    setDefaults();
+    if (saveConfigFS()) {
+      wsLog("Factory defaults restored & saved");
+      sendWebBootstrap();
+      applyModbusSettings(g_mb_address, g_mb_baud);
+    } else {
+      wsLog("ERROR: Save after factory reset failed");
+    }
+  } else if (act == "identify") {
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
   } else {
     wsLog(String("Unknown command: ") + actC);
   }
@@ -932,13 +946,19 @@ void loop() {
 
   bool ledPhysState[NUM_LED];
   for (int i = 0; i < NUM_LED; i++) {
-    bool srcActive = false;
-    uint8_t src = ledCfg[i].source;
-    if (src == 5 || src == 6) {
-      int r = src - 5;
-      srcActive = (r >= 0 && r < NUM_RLY) ? relayLogical[r] : false;
+    bool physLed;
+    const bool identifying = g_identifyUntilMs && ((int32_t)(now - g_identifyUntilMs) < 0);
+    if (identifying) {
+      physLed = blinkPhase;
+    } else {
+      bool srcActive = false;
+      uint8_t src = ledCfg[i].source;
+      if (src == 5 || src == 6) {
+        int r = src - 5;
+        srcActive = (r >= 0 && r < NUM_RLY) ? relayLogical[r] : false;
+      }
+      physLed = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
     }
-    bool physLed = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
     ledPhysState[i] = physLed;
     digitalWrite(LED_PINS[i], physLed ? HIGH : LOW);
     mb.setIsts(DI_LED_BASE + i, physLed);

@@ -160,6 +160,8 @@ static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 // ================== Timing ==================
 unsigned long lastSend=0; const unsigned long sendInterval=1000;
 unsigned long lastBlinkToggle=0; const unsigned long blinkPeriodMs=400; bool blinkPhase=false;
+uint32_t g_identifyUntilMs = 0;
+const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address=3; uint32_t g_mb_baud=19200;
@@ -560,6 +562,17 @@ void handleCommand(JSONVar obj){
     LittleFS.remove(OUT_STATE_PATH); setDefaults(); applyPowerOnOutputs();
     if(saveConfigFS()){ wsLog("Factory defaults restored & saved"); sendWebBootstrap(); applyModbusSettings(g_mb_address,g_mb_baud); }
     else wsLog("ERROR: Save after factory reset failed");
+  }
+  else if(act=="reboot" || act=="reset"){
+    if(saveConfigFS()) wsLog("Saved. Rebooting…");
+    else wsLog("WARNING: Save failed. Rebooting anyway…");
+    delay(120);
+    watchdog_reboot(0, 0, 0);
+    while (true) { __asm__("wfi"); }
+  }
+  else if(act=="identify"){
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
   }
 }
 void applyModbusSettings(uint8_t addr,uint32_t baud){
@@ -1020,8 +1033,14 @@ void loop(){
   // LEDs drive + Modbus mirror
   JSONVar ledStateList;
   for(int i=0;i<NUM_LED;i++){
-    bool srcActive = ledSrcActive(ledCfg[i].source);
-    bool phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
+    bool phys;
+    const bool identifying = g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs);
+    if (identifying) {
+      phys = blinkPhase;
+    } else {
+      bool srcActive = ledSrcActive(ledCfg[i].source);
+      phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
+    }
     ledStateList[i] = phys ? 1 : 0;
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, phys);

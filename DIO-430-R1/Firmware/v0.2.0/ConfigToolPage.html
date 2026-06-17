@@ -33,6 +33,8 @@
     <div id="fw-warn" class="mini" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#92510a;font-weight:650"></div>
   </header>
 
+  <div id="hm-tools"></div>
+
   <div class="grid two">
     <section class="card">
       <div class="cardheader"><div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div><span class="tag">Step 1</span></div>
@@ -75,15 +77,6 @@
 
   <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, Local logic, HA, …).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-leds"></div></div></section>
-
-  <div class="sectiontitle"><h3>Tools</h3><p class="hint">Changes are saved automatically.</p></div>
-  <section class="card">
-    <div class="cardbody" style="display:flex;flex-wrap:wrap;gap:10px">
-      <button class="btn" id="btn-identify">Identify (~5 s)</button>
-      <button class="btn" id="btn-factory">Factory reset</button>
-      <button class="btn danger" id="btn-reboot">Reboot</button>
-    </div>
-  </section>
 
 <script>
 (function(){
@@ -235,6 +228,7 @@
   });
 
   HMWebConfig.connect({ requestElement: 'connect-button' });
+  HMWebConfig.mountTools('hm-tools', { identify: true });
 
   const conn = HMWebConfig.conn;
   if (conn) {
@@ -343,10 +337,6 @@
   $('modbus-address')?.addEventListener('input', pushModbus);
   $('modbus-baud')?.addEventListener('input', pushModbus);
 
-  function cmd(action){ HMWebConfig.sendCommand(action); }
-  $('btn-factory')?.addEventListener('click', ()=>{ if(confirm('Factory reset?')) cmd('factory'); });
-  $('btn-reboot')?.addEventListener('click', ()=>{ if(confirm('Reboot module?')) cmd('reboot'); });
-  $('btn-identify')?.addEventListener('click', ()=> cmd('identify'));
 })();
 </script>
 </section>

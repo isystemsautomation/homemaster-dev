@@ -272,6 +272,37 @@
     });
   };
 
+  /**
+   * Mount standard Tools panel (Identify / Factory reset / Reboot).
+   * @param {string} targetId - container element id (e.g. 'hm-tools')
+   * @param {{ identify?: boolean }} [opts] - show Identify when module has user LEDs
+   */
+  HMWebConfig.mountTools = function mountTools(targetId, opts) {
+    const el = $(targetId);
+    if (!el) return;
+    const identify = !!(opts && opts.identify);
+    const uid = targetId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const idIdentify = uid + '_btn_identify';
+    const idFactory = uid + '_btn_factory';
+    const idReboot = uid + '_btn_reboot';
+    el.innerHTML =
+      '<div class="sectiontitle"><h3>Tools</h3></div>' +
+      '<section class="card">' +
+      '<div class="cardbody" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
+      (identify ? '<button type="button" class="btn" id="' + idIdentify + '">Identify (~5 s)</button>' : '') +
+      '<button type="button" class="btn" id="' + idFactory + '">Factory reset</button>' +
+      '<button type="button" class="btn danger" id="' + idReboot + '">Reboot</button>' +
+      '<span class="hint" style="flex:1 1 100%;margin:0">Changes are saved automatically.</span>' +
+      '</div></section>';
+    $(idIdentify)?.addEventListener('click', () => HMWebConfig.sendCommand('identify'));
+    $(idFactory)?.addEventListener('click', () => {
+      if (confirm('Factory reset?')) HMWebConfig.sendCommand('factory');
+    });
+    $(idReboot)?.addEventListener('click', () => {
+      if (confirm('Reboot module?')) HMWebConfig.sendCommand('reboot');
+    });
+  };
+
   HMWebConfig.appendLog = appendLog;
   HMWebConfig.toArray = toArray;
   HMWebConfig.truthy01 = truthy01;

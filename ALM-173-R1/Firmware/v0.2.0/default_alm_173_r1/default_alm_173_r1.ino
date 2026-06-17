@@ -104,6 +104,8 @@ const unsigned long sendInterval = 1000;
 unsigned long lastBlinkToggle = 0;
 const unsigned long blinkPeriodMs = 400;
 bool blinkPhase = false;
+uint32_t g_identifyUntilMs = 0;
+const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
@@ -579,6 +581,9 @@ void handleCommand(JSONVar obj) {
       sendWebBootstrap();
       applyModbusSettings(g_mb_address, g_mb_baud);
     } else wsLog("ERROR: Save after factory reset failed");
+  } else if (act == "identify") {
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
   } else {
     wsLog(String("Unknown command: ") + actC);
   }
@@ -770,8 +775,14 @@ void loop() {
   // -------- User LEDs (ACTIVE-LOW) ----------
   JSONVar LedStateList;
   for (int i = 0; i < 4; i++) {
-    bool active = evalLedSource(ledCfg[i].source, anyAlarmActive, grpAlarmActive);
-    bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase);
+    bool phys;
+    const bool identifying = g_identifyUntilMs && ((int32_t)(now - g_identifyUntilMs) < 0);
+    if (identifying) {
+      phys = blinkPhase;
+    } else {
+      bool active = evalLedSource(ledCfg[i].source, anyAlarmActive, grpAlarmActive);
+      phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase);
+    }
     LedStateList[i] = phys;
     pcf27.write(LED_PINS[i], phys ? LOW : HIGH); // ACTIVE-LOW
   }

@@ -151,6 +151,11 @@ bool rtd_ok[2]  = {false, false};
 bool buttonState[NUM_BTN] = {false,false,false,false};
 bool buttonPrev[NUM_BTN]  = {false,false,false,false};
 bool ledState[NUM_LED]    = {false,false,false,false};
+uint32_t g_identifyUntilMs = 0;
+const uint32_t IDENTIFY_MS = 5000;
+unsigned long lastBlinkToggle = 0;
+const unsigned long blinkPeriodMs = 400;
+bool identifyBlinkPhase = false;
 
 int16_t  aiRaw[4]   = {0,0,0,0};
 uint16_t aiMv[4]    = {0,0,0,0};
@@ -809,6 +814,9 @@ void handleCommand(JSONVar obj) {
     } else {
       wsLog( "ERROR: Save after factory reset failed");
     }
+  } else if (act == "identify") {
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
   } else {
     wsLog( String("Unknown command: ") + actC);
   }
@@ -1462,9 +1470,20 @@ void loop() {
     readSensors();
   }
 
+  if (now - lastBlinkToggle >= blinkPeriodMs) {
+    lastBlinkToggle = now;
+    identifyBlinkPhase = !identifyBlinkPhase;
+  }
+
   // LEDs
+  const bool identifying = g_identifyUntilMs && ((int32_t)(now - g_identifyUntilMs) < 0);
   for (int i=0;i<NUM_LED;i++) {
-    bool on = (ledSrc[i] == LEDSRC_MANUAL) ? ledState[i] : getLedAutoState(ledSrc[i]);
+    bool on;
+    if (identifying) {
+      on = identifyBlinkPhase;
+    } else {
+      on = (ledSrc[i] == LEDSRC_MANUAL) ? ledState[i] : getLedAutoState(ledSrc[i]);
+    }
     if (ledState[i] != on) ledState[i] = on;
     digitalWrite(LED_PINS[i], on ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, on);

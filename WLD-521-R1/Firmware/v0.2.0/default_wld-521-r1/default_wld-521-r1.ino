@@ -140,6 +140,8 @@ bool  buttonPrev[NUM_BTN]  = {false,false,false,false};
 bool blinkPhase=false;
 uint32_t lastBlinkToggle=0;
 const uint32_t blinkPeriodMs=500;
+uint32_t g_identifyUntilMs = 0;
+const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persistence (LittleFS) ==================
 struct RlyCfgV7 { bool enabled; bool inverted; };
@@ -1321,6 +1323,18 @@ void handleCommand(JSONVar obj){
     sendWebBootstrap(); applyModbusSettings(g_mb_address,g_mb_baud);
     return;
   }
+  if (act=="reboot" || act=="reset"){
+    wsLog("Rebooting…");
+    delay(50);
+    watchdog_reboot(0, 0, 0);
+    while (true) { __asm__("wfi"); }
+    return;
+  }
+  if (act=="identify"){
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
+    return;
+  }
   if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){ doOneWireScan(); return; }
 
 
@@ -1596,8 +1610,14 @@ void loop(){
     }
   };
   for(int i=0;i<NUM_LED;i++){
-    bool srcActive = ledSrcActive(ledCfg[i].source);
-    bool phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
+    bool phys;
+    const bool identifying = g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs);
+    if (identifying) {
+      phys = blinkPhase;
+    } else {
+      bool srcActive = ledSrcActive(ledCfg[i].source);
+      phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
+    }
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, phys);
     mb.setHreg(HREG_LED_BASE + i, phys ? 1 : 0); // Mirror to HREG

@@ -97,6 +97,8 @@ const unsigned long sendInterval = 250;
 unsigned long lastBlinkToggle = 0;
 const unsigned long blinkPeriodMs = 400;
 bool blinkPhase = false;
+uint32_t g_identifyUntilMs = 0;
+const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
@@ -494,6 +496,9 @@ void handleCommand(JSONVar obj) {
     applyPwmFromHoldingRegs();
     if (saveConfigFS()) { wsLog("Factory defaults restored & saved"); sendWebBootstrap(); applyModbusSettings(g_mb_address, g_mb_baud); }
     else wsLog("ERROR: Save after factory reset failed");
+  } else if (act == "identify") {
+    g_identifyUntilMs = millis() + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
   } else if (act == "off") {
     for (int i=0;i<NUM_PWM;i++){ pwmLevel[i]=0; mb.Hreg(HR_PWM_BASE+i,0); }
     applyPwmFromHoldingRegs();
@@ -788,16 +793,20 @@ void loop() {
   // -------- LEDs: follow selected source; blink if mode=1 ----------
   JSONVar LedStateList;
   for (int i = 0; i < NUM_LED; i++) {
-    // Determine "source active"
-    bool srcActive = false;
-    uint8_t src = ledCfg[i].source;            // 0=None, 5.. -> relays
-    if (src >= 5 && src < (5+NUM_RLY)) {
-      int r = src - 5;                         // 0..
-      bool relLogical = (r >=0 && r < NUM_RLY) ? (bool)relayStateList[r] : false; // logical relay (after cfg)
-      srcActive = relLogical;
+    bool phys;
+    const bool identifying = g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs);
+    if (identifying) {
+      phys = blinkPhase;
+    } else {
+      bool srcActive = false;
+      uint8_t src = ledCfg[i].source;            // 0=None, 5.. -> relays
+      if (src >= 5 && src < (5+NUM_RLY)) {
+        int r = src - 5;                         // 0..
+        bool relLogical = (r >=0 && r < NUM_RLY) ? (bool)relayStateList[r] : false; // logical relay (after cfg)
+        srcActive = relLogical;
+      }
+      phys = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
     }
-
-    bool phys = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
     LedStateList[i] = phys;
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, phys);

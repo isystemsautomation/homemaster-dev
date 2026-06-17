@@ -64,6 +64,8 @@
     </div>
   </header>
 
+  <div id="hm-tools"></div>
+
   <div class="grid two">
     <section class="card">
       <div class="cardheader">
@@ -158,7 +160,7 @@
     </div>
   </section>
 
-  <script src="simple-web-serial.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function () {
@@ -261,6 +263,7 @@
       onCfg: applyAioCfg
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
+    HMWebConfig.mountTools('hm-tools', { identify: true });
 
     HMWebConfig.conn.on('ext', function (ext) {
       if (!ext) return;
