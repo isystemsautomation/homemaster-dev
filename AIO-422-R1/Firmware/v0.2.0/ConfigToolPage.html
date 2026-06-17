@@ -64,6 +64,8 @@
     </div>
   </header>
 
+  <div id="hm-compat"></div>
+
   <div id="hm-tools"></div>
 
   <div class="grid two">
@@ -259,6 +261,10 @@
     })();
 
     HMWebConfig.register({
+      model: 4,
+      modelName: 'AIO-422-R1',
+      fw: '0.2.0',
+      map: 1,
       channels: { in: 0, relay: 0, btn: NUM_BTN, led: NUM_LED },
       onCfg: applyAioCfg
     });

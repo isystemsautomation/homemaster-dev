@@ -30,8 +30,9 @@
         <button class="btn primary" id="connect-button">Connect</button>
       </div>
     </div>
-    <div id="fw-warn" class="mini" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#92510a;font-weight:650"></div>
   </header>
+
+  <div id="hm-compat"></div>
 
   <div id="hm-tools"></div>
 
@@ -82,7 +83,6 @@
 (function(){
   const $ = id => document.getElementById(id);
   const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
-  const EXPECTED_MAP = 1;
   const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'}];
   const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
   const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:3,l:'Local logic'},{v:4,l:'Child lock'},{v:5,l:'Safe mode'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
@@ -184,6 +184,10 @@
   buildInputs(); buildRelays(); buildInterlock(); buildButtons(); buildLeds();
 
   HMWebConfig.register({
+    model: 5,
+    modelName: 'DIO-430-R1',
+    fw: '0.2.0',
+    map: 1,
     channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
     onCfg: function(ext, cfg) {
       if (cfg.interlock) {
@@ -233,16 +237,10 @@
   const conn = HMWebConfig.conn;
   if (conn) {
     conn.on('status', st => {
-      if (st.map != null) $('hm-map').textContent = st.map;
       const linkOk = !!st.linkOk;
       $('linkDot').className = 'dot ' + (linkOk ? 'ok' : 'warn');
       $('linkText').textContent = linkOk ? 'Link OK' : 'No poll';
       $('local-logic-toggle').checked = !!st.localLogic;
-      const warn = $('fw-warn');
-      if (warn && (Number(st.map) !== EXPECTED_MAP || String(st.fw||'').localeCompare('0.2.0') < 0)) {
-        warn.style.display = 'block';
-        warn.textContent = 'Firmware/WebConfig version mismatch — update to v0.2.0 Phase A (map '+EXPECTED_MAP+').';
-      } else if (warn) warn.style.display = 'none';
     });
   }
 

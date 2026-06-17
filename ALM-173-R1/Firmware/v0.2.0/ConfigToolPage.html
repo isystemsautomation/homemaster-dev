@@ -39,6 +39,8 @@
     </div>
   </header>
 
+  <div id="hm-compat"></div>
+
   <div id="hm-tools"></div>
 
   <div class="grid two">
@@ -208,6 +210,10 @@
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
     HMWebConfig.register({
+      model: 1,
+      modelName: 'ALM-173-R1',
+      fw: '0.2.0',
+      map: 1,
       channels: { in: NUM_IN, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
       onCfg: applyAlmCfg
     });

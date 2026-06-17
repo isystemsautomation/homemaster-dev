@@ -7,15 +7,30 @@
 
   const LOG_MAX = 500;
   const DATA_TIMEOUT_MS = 3000;
+  const STATUS_IDENTITY_TIMEOUT_MS = 3000;
+
+  const MODEL_NAMES = {
+    1: 'ALM-173-R1',
+    2: 'ENM-223-R1',
+    3: 'DIM-420-R1',
+    4: 'AIO-422-R1',
+    5: 'DIO-430-R1',
+    6: 'WLD-521-R1',
+    7: 'RGB-621-R1',
+  };
 
   const HMWebConfig = {
     conn: null,
     channels: { in: 0, relay: 0, btn: 0, led: 0 },
+    expected: { model: null, modelName: '', fw: '', map: null },
     onCfg: null,
     _logBuf: [],
     _lastDataMs: 0,
     _connTimer: null,
     _suppressCfgSend: false,
+    _compat: { level: 'idle', blocked: false, factoryBlocked: false },
+    _statusIdentityTimer: null,
+    _toolsIds: { identify: null, factory: null, reboot: null },
   };
 
   function $(id) { return document.getElementById(id); }
@@ -29,6 +44,141 @@
   }
 
   function truthy01(v) { return v ? 1 : 0; }
+
+  function identityExpected() {
+    const e = HMWebConfig.expected;
+    return e.model != null && !!e.fw && e.map != null;
+  }
+
+  function modelLabel(id) {
+    const n = Number(id);
+    const name = MODEL_NAMES[n];
+    return name ? ` (${name})` : '';
+  }
+
+  function identityField(st, key) {
+    if (!st || st[key] == null || st[key] === '') return null;
+    return st[key];
+  }
+
+  function hasCompleteIdentity(st) {
+    return identityField(st, 'model') != null
+      && identityField(st, 'fw') != null
+      && identityField(st, 'map') != null;
+  }
+
+  function ensureCompatEl() {
+    let el = $('hm-compat');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'hm-compat';
+    const tools = $('hm-tools');
+    if (tools && tools.parentNode) {
+      tools.parentNode.insertBefore(el, tools);
+    } else {
+      const header = document.querySelector('header.appbar');
+      if (header && header.parentNode) {
+        header.parentNode.insertBefore(el, header.nextSibling);
+      }
+    }
+    return el;
+  }
+
+  function evaluateCompat(st) {
+    const exp = HMWebConfig.expected;
+    if (!hasCompleteIdentity(st)) {
+      return {
+        level: 'no-data',
+        blocked: true,
+        factoryBlocked: true,
+        message: 'Could not read firmware model/version. The firmware may be incompatible, outdated, or the module is not responding.',
+      };
+    }
+    const gotModel = Number(st.model);
+    const gotMap = Number(st.map);
+    const gotFw = String(st.fw);
+    if (gotModel !== Number(exp.model)) {
+      return {
+        level: 'model',
+        blocked: true,
+        factoryBlocked: true,
+        message: `Model mismatch: this configurator is for ${exp.modelName} (model ${exp.model}), but the module reports model ${gotModel}${modelLabel(gotModel)}. Wrong module or wrong configurator page.`,
+      };
+    }
+    if (gotMap !== Number(exp.map)) {
+      return {
+        level: 'map',
+        blocked: true,
+        factoryBlocked: true,
+        message: `Protocol map mismatch: configurator expects map ${exp.map}, firmware reports map ${gotMap}. Update the configurator or firmware.`,
+      };
+    }
+    if (gotFw !== String(exp.fw)) {
+      return {
+        level: 'fw',
+        blocked: false,
+        factoryBlocked: false,
+        message: `Configurator built for firmware ${exp.fw}; module has ${gotFw}. Minor differences are possible.`,
+      };
+    }
+    return { level: 'ok', blocked: false, factoryBlocked: false, message: '' };
+  }
+
+  function renderCompatBanner(result) {
+    const el = ensureCompatEl();
+    if (!el) return;
+    if (!identityExpected()) {
+      el.innerHTML = '';
+      el.style.display = 'none';
+      return;
+    }
+    if (result.level === 'ok') {
+      el.innerHTML = '';
+      el.style.display = 'none';
+      return;
+    }
+    const cls = result.level === 'fw' ? 'hm-compat-warn-fw'
+      : (result.level === 'map' ? 'hm-compat-warn-map' : 'hm-compat-error');
+    el.className = 'hm-compat-banner ' + cls;
+    el.style.display = 'block';
+    el.textContent = result.message;
+  }
+
+  function applyCompatUI(result) {
+    HMWebConfig._compat.level = result.level;
+    HMWebConfig._compat.blocked = !!result.blocked;
+    HMWebConfig._compat.factoryBlocked = !!result.factoryBlocked;
+    document.body.classList.toggle('hm-compat-blocked', HMWebConfig._compat.blocked);
+    renderCompatBanner(result);
+    const factoryBtn = HMWebConfig._toolsIds.factory && $(HMWebConfig._toolsIds.factory);
+    if (factoryBtn) factoryBtn.disabled = HMWebConfig._compat.factoryBlocked;
+  }
+
+  function resetCompatState() {
+    if (HMWebConfig._statusIdentityTimer) {
+      clearTimeout(HMWebConfig._statusIdentityTimer);
+      HMWebConfig._statusIdentityTimer = null;
+    }
+    applyCompatUI({ level: 'idle', blocked: false, factoryBlocked: false, message: '' });
+  }
+
+  function scheduleIdentityTimeout() {
+    if (!identityExpected()) return;
+    if (HMWebConfig._statusIdentityTimer) clearTimeout(HMWebConfig._statusIdentityTimer);
+    HMWebConfig._statusIdentityTimer = setTimeout(() => {
+      HMWebConfig._statusIdentityTimer = null;
+      applyCompatUI(evaluateCompat({}));
+    }, STATUS_IDENTITY_TIMEOUT_MS);
+  }
+
+  function checkCompatFromStatus(st) {
+    if (!identityExpected()) return;
+    if (HMWebConfig._statusIdentityTimer) {
+      clearTimeout(HMWebConfig._statusIdentityTimer);
+      HMWebConfig._statusIdentityTimer = null;
+    }
+    applyCompatUI(evaluateCompat(st));
+  }
 
   function appendLog(line) {
     const el = $('hm-log');
@@ -107,10 +257,12 @@
     markDataReceived();
     const model = $('hm-model');
     const fw = $('hm-fw');
+    const map = $('hm-map');
     const addr = $('hm-addr');
     const baud = $('hm-baud');
     if (model && st.model != null) model.textContent = String(st.model);
     if (fw && st.fw != null) fw.textContent = String(st.fw);
+    if (map && st.map != null) map.textContent = String(st.map);
     const a = (st.addr != null) ? st.addr : st.address;
     const b = (st.baud != null) ? st.baud : st.baud;
     if (addr && a != null) addr.textContent = String(a);
@@ -119,6 +271,7 @@
     const selBaud = $('modbus-baud');
     if (selAddr && a != null) selAddr.value = String(a);
     if (selBaud && b != null) selBaud.value = String(b);
+    checkCompatFromStatus(st);
   }
 
   function setCheck(id, v) {
@@ -189,10 +342,12 @@
       appendLog('port: open');
       HMWebConfig._lastDataMs = 0;
       startConnectionMonitoring();
+      scheduleIdentityTimeout();
     });
     conn.on('close', () => {
       appendLog('port: close');
       stopConnectionMonitoring();
+      resetCompatState();
     });
 
     conn.on('message', m => {
@@ -208,6 +363,13 @@
     if (opts && typeof opts.onCfg === 'function') {
       HMWebConfig.onCfg = opts.onCfg;
     }
+    if (opts) {
+      if (opts.model != null) HMWebConfig.expected.model = Number(opts.model);
+      if (opts.modelName) HMWebConfig.expected.modelName = String(opts.modelName);
+      if (opts.fw) HMWebConfig.expected.fw = String(opts.fw);
+      if (opts.map != null) HMWebConfig.expected.map = Number(opts.map);
+    }
+    if (identityExpected()) ensureCompatEl();
   };
 
   HMWebConfig.connect = function connect(opts) {
@@ -248,6 +410,10 @@
   };
 
   HMWebConfig.sendConfig = function sendConfig(t, list) {
+    if (HMWebConfig._compat.blocked) {
+      appendLog('Config write blocked: firmware/model compatibility issue.');
+      return Promise.resolve();
+    }
     if (HMWebConfig._suppressCfgSend) return Promise.resolve();
     const packet = { t, list };
     logTx('Config', packet);
@@ -257,6 +423,10 @@
   };
 
   HMWebConfig.sendValues = function sendValues(addr, baud) {
+    if (HMWebConfig._compat.blocked) {
+      appendLog('Config write blocked: firmware/model compatibility issue.');
+      return Promise.resolve();
+    }
     const packet = { mb_address: addr, mb_baud: baud };
     logTx('values', packet);
     return HMWebConfig.conn.send('values', packet).catch(() => {
@@ -265,6 +435,10 @@
   };
 
   HMWebConfig.sendCommand = function sendCommand(action) {
+    if (action === 'factory' && HMWebConfig._compat.factoryBlocked) {
+      appendLog('Factory reset blocked: firmware/model compatibility issue.');
+      return Promise.resolve();
+    }
     const packet = { action };
     logTx('command', packet);
     return HMWebConfig.conn.send('command', packet).catch(err => {
@@ -289,11 +463,12 @@
       '<div class="sectiontitle"><h3>Tools</h3></div>' +
       '<section class="card">' +
       '<div class="cardbody" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
-      (identify ? '<button type="button" class="btn" id="' + idIdentify + '">Identify (~5 s)</button>' : '') +
-      '<button type="button" class="btn" id="' + idFactory + '">Factory reset</button>' +
-      '<button type="button" class="btn danger" id="' + idReboot + '">Reboot</button>' +
+      (identify ? '<button type="button" class="btn hm-tools-allow" id="' + idIdentify + '">Identify (~5 s)</button>' : '') +
+      '<button type="button" class="btn hm-tools-allow" id="' + idFactory + '">Factory reset</button>' +
+      '<button type="button" class="btn danger hm-tools-allow" id="' + idReboot + '">Reboot</button>' +
       '<span class="hint" style="flex:1 1 100%;margin:0">Changes are saved automatically.</span>' +
       '</div></section>';
+    HMWebConfig._toolsIds = { identify: idIdentify, factory: idFactory, reboot: idReboot };
     $(idIdentify)?.addEventListener('click', () => HMWebConfig.sendCommand('identify'));
     $(idFactory)?.addEventListener('click', () => {
       if (confirm('Factory reset?')) HMWebConfig.sendCommand('factory');

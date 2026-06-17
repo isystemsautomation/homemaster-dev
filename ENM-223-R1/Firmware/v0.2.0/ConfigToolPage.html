@@ -53,6 +53,8 @@
     </div>
   </header>
 
+  <div id="hm-compat"></div>
+
   <div id="hm-tools"></div>
 
   <div class="grid two">
@@ -295,7 +297,12 @@
       if(energy) applyEnergies(energy);
     }
 
-    HMWebConfig.register({ channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
+    HMWebConfig.register({
+      model: 2,
+      modelName: 'ENM-223-R1',
+      fw: '0.2.0',
+      map: 1,
+      channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
 
