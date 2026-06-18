@@ -97,7 +97,7 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 | Diagram |
 |---|
-| ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DIagramBlock.png) **System Block Diagram** |
+| ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_SystemBlock.png) **System Block Diagram** |
 | ![RP2350A Pinouts](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png) **RP2350A MCU Pinout** |
 | ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png) **Field Board Layout** |
 | ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png) **MCU Board Layout** |

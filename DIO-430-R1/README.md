@@ -1139,7 +1139,7 @@ sensor:
 **Pin Mapping (DIO-430-R1 default firmware)**
 - **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH)
 - **Digital Inputs:** IN1=GPIO6, IN2=GPIO11, IN3=GPIO12, IN4=GPIO7 (processed with enable/invert/debounce in firmware)
-- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑LOW)
+- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑HIGH)
 - **User LEDs:** L1=GPIO13, L2=GPIO14, L3=GPIO15 (active‑HIGH)
 - **RS‑485 (UART):** TX=GPIO4, RX=GPIO5 (DE/RE handled in software)
 

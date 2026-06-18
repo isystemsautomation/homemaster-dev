@@ -544,7 +544,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/photo2.png" width="640" alt="DIM-420-R1 Terminal Block">
 </div>
 
 ---

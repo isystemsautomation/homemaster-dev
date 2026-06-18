@@ -488,7 +488,6 @@ For **RLY1…RLY3**:
 > Tip: assign a **Button** to “Relay x override (manual)” for quick field tests.
 
 ### 4.5.6 LEDs & Buttons
-![LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig5.png)
 
 **LEDs (1–4)**  
 - **Mode:** Steady / Blink  
