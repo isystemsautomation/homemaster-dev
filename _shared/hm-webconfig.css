@@ -152,3 +152,8 @@ body.hm-compat-blocked button:not(.hm-tools-allow):not(#connect-button){
   pointer-events:none;
   opacity:.55;
 }
+
+#hm-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
+#hm-links .hm-doc-label{font-size:12px;font-weight:650;color:var(--muted)}
+#hm-links a.hm-doc{text-decoration:none;color:#0f172a;cursor:pointer}
+#hm-links a.hm-doc:hover{background:#eef6ff;border-color:#cfe2ff}

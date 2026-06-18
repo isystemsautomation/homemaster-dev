@@ -451,12 +451,23 @@
     const wc = $('hm-wc');
     if (wc && HMWebConfig.about.version) wc.textContent = HMWebConfig.about.version;
 
+    const a = HMWebConfig.about || {};
+    const ver = a.version || '';
+    const fw = (HMWebConfig.expected && HMWebConfig.expected.fw) || '';
     const links = $('hm-links');
-    if (links && HMWebConfig.about.readmeUrl && HMWebConfig.about.firmwareUrl) {
-      links.innerHTML =
-        '<a href="' + HMWebConfig.about.readmeUrl + '" target="_blank" rel="noopener">README</a>' +
-        ' · ' +
-        '<a href="' + HMWebConfig.about.firmwareUrl + '" target="_blank" rel="noopener">Firmware (UF2)</a>';
+    if (links) {
+      const parts = [];
+      if (ver || fw) {
+        parts.push('<span class="hm-doc-label">WebConfig v' + ver +
+          (fw ? (' · built for firmware v' + fw) : '') + '</span>');
+      }
+      if (a.readmeUrl) {
+        parts.push('<a class="tag hm-doc" href="' + a.readmeUrl + '" target="_blank" rel="noopener">README</a>');
+      }
+      if (a.firmwareUrl) {
+        parts.push('<a class="tag hm-doc" href="' + a.firmwareUrl + '" target="_blank" rel="noopener">Firmware (UF2)</a>');
+      }
+      links.innerHTML = parts.join(' ');
     }
   };
 
