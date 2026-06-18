@@ -40,7 +40,7 @@ The DIO-430-R1 is a digital input/output module for a DIN rail (the box that cli
 Inside it has:
 - **3 relays** — think of them as 3 remote-controlled switches. Each one can turn a load (a light, a fan, a pump, a valve) on or off.
 - **4 inputs** — where you connect wall switches, push-buttons, or dry-contact sensors (door/window contacts, motion relays, etc.).
-- **2 buttons on the front** — handy for testing and simple local control.
+- **3 buttons (2 user-configurable, shown as Button 1 / Button 2; the third is used only for the firmware-update combo)** — handy for testing and simple local control.
 - **Status lights** — for each relay and each input, plus 3 extra lights you can assign a meaning to.
 
 It talks to a controller (MicroPLC / MiniPLC) over **RS-485** (two wires), and you configure it over **USB-C** from a web browser.
@@ -78,6 +78,8 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 
 ### WebConfig — all fields & values
 
+![WebConfig — Header & Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
+
 #### Header (read-only status)
 The pills at the top are status, not settings: **Connection** (USB link), **Bus** (RS-485 link to the controller), **Model**, **FW** (firmware version). A red/orange banner appears if the module's model or firmware doesn't match this configurator.
 
@@ -86,6 +88,8 @@ The pills at the top are status, not settings: **Connection** (USB link), **Bus*
 |---|---|---|
 | Modbus Address | 1–247 (default 3) | Modbus RTU slave address. Must be unique on the RS-485 bus. |
 | Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed, 8N1. Must match the controller. |
+
+![WebConfig — Device Setup & Serial Log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
 
 #### Tools
 | Button | What it does |
@@ -112,6 +116,8 @@ Changes are saved automatically — there is no Save button.
 
 Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
 
+![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
+
 #### Relays (Relay 1–3)
 | Field | Values | Meaning |
 |---|---|---|
@@ -132,6 +138,8 @@ Defaults: all enabled, not inverted, OFF at power-on, auto-off 0.
 
 Default: disabled.
 
+![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
+
 #### Buttons (Button 1–2, front panel — GPIO2 / GPIO3)
 | Field | Values | Meaning |
 |---|---|---|
@@ -151,6 +159,8 @@ Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = T
 | Arg (relay # or DI for child lock) | integer | For Source = **Relay** — which relay; for **Child lock** — which input; otherwise unused. |
 
 Defaults: LED1 = Link / Steady; LED2 = Off; LED3 = HA. (The board already has dedicated indicator LEDs for every relay and every input — these three user LEDs are for other states.)
+
+![WebConfig — Buttons & User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png)
 
 #### Action / Target reference (used by inputs and buttons)
 | Action | Meaning |
@@ -178,12 +188,23 @@ Defaults: LED1 = Link / Steady; LED2 = Off; LED3 = HA. (The board already has de
 - Unplug USB-C once configured and let the controller talk over RS-485.
 - **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file, enter **BOOT** mode (see below), and drag it onto the **RPI-RP2** USB drive. [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
 
+### Updating the firmware (UF2)
+
+The module is updated by copying a `.uf2` file over USB-C — no programmer needed.
+
+1. Download the firmware `.uf2` for the version you want (see the module's `Firmware/` folder on the configurator site / repository).
+2. Connect the module to the PC with **USB-C**.
+3. Enter bootloader mode using the three front buttons: **press and hold all three buttons (1 + 2 + 3), then release button 1, then release buttons 2 and 3.** The module re-enumerates as a USB mass-storage drive (`RPI-RP2`).
+4. Drag-and-drop (copy) the `.uf2` file onto that drive. The module flashes and reboots automatically into the new firmware.
+
+> The three front buttons are used together only for this update combo. In normal operation only two of them are user-configurable (Button 1 / Button 2 in WebConfig).
+
 ---
 
 # 1. Introduction
 
 The **DIO-430-R1** is a configurable smart digital I/O module designed for **digital input monitoring and relay-based output control** in **building automation, lighting, HVAC, alarms, and general control systems**.  
-It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 user buttons**, and **3 configurable user LEDs**. All I/O channels are individually configurable, allowing flexible logic such as toggle, pulse, manual override, and alarm indication.
+It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 buttons (2 user-configurable, shown as Button 1 / Button 2; the third is used only for the firmware-update combo)**, and **3 configurable user LEDs**. All I/O channels are individually configurable, allowing flexible logic such as toggle, pulse, manual override, and alarm indication.
 
 It connects via **RS-485 (Modbus RTU)** to a **MicroPLC, MiniPLC, or any compatible controller**, and can also integrate with **Home Assistant (ESPHome)** or **SCADA/PLC systems**.  
 Configuration and diagnostics are performed through a driverless **Web Serial interface via USB-C**, using the browser-based **WebConfig Tool**. The module supports both **master-controlled** and **standalone local logic** modes.
@@ -193,7 +214,7 @@ Configuration and diagnostics are performed through a driverless **Web Serial in
 | Digital Inputs    | 4   | Opto-isolated, dry contact compatible, noise-protected |
 | Relays            | 3   | SPDT (NO/NC), 16 A rated, dry contacts |
 | LEDs              | 3   | Configurable: Steady or Blink modes, linked to relays |
-| Buttons           | 3   | User-configurable for override or reset |
+| Buttons           | 3   | 2 user-configurable (Button 1 / Button 2 in WebConfig); third for firmware-update combo only |
 | Modbus RTU        | Yes | RS-485 interface (Configurable: Addr 1–255, 9600–115200 baud) |
 | USB-C             | Yes | WebConfig tool access via Web Serial (Chrome/Edge) |
 | Power             | 24 V DC | Fused input, reverse-polarity and surge protected |
@@ -236,7 +257,7 @@ System overview, board callouts, and pin mapping:
 | **Digital Inputs** | 4 | Galvanically isolated (ISO1212 class). Supports dry contacts or 24 V signals. PTC + TVS per channel. |
 | **Relay Outputs** | 3 | SPDT (NO/NC/COM), 16 A dry contacts. Use RC/MOV snubbers or interposing contactors for inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
-| **Buttons** | 3 | Momentary. Configurable for relay override/toggle. |
+| **Buttons** | 3 | Momentary. 2 user-configurable (Button 1 / Button 2); third for firmware-update combo only. |
 | **RS-485 (Modbus RTU)** | 1 | A/B/COM terminals. Daisy-chain topology. 120 Ω termination at both ends. |
 | **USB-C** | 1 | Web Serial setup, diagnostics, and firmware flashing (ESD-protected). |
 | **Power Input** | 1 | 24 V DC SELV. Reverse-polarity + surge protected. |
@@ -285,7 +306,7 @@ System overview, board callouts, and pin mapping:
 
 - **Modbus RTU slave** (factory Addr 3, 19200 8N1; configurable 1–255, 9600–115200).  
 - **Inputs → Relays:** per-input Enable/Invert/Action (`None` / `Toggle` / `Pulse`) and Target (`R1–R3` or `All`).  
-- **Buttons:** assignable to relay override (toggle).  
+- **Buttons:** Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off).  
 - **LEDs:** configurable Steady/Blink following relay status.  
 - **Setup via WebConfig:** USB-C → Chrome/Edge; set comms and I/O mapping.  
 - **Persistent config:** stored in LittleFS and restored on boot.
@@ -359,7 +380,7 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 - **IN3** → `Toggle`, Target = `Relay 1` → Grow Light  
 - **IN4** → `Pulse`,  Target = `Relay 2` → Irrigation Pump  
 - Enable **Relay 1** and **Relay 2**.  
-- Assign **Button 3** to `Relay 2 override (toggle)` for manual watering.  
+- Assign **Button 2** to `Relay 2 override (toggle)` for manual watering.  
 - Set **LED 1** = `Steady` (light status), **LED 2** = `Blink` (pump running).
 
 ---
@@ -482,7 +503,7 @@ The DIO-430-R1 joins your system over **RS-485 (Modbus RTU)**. Setup has two par
 
 | Category          | Item / Notes |
 |-------------------|--------------|
-| **Hardware**      | **DIO-430-R1** — DIN-rail module with **4× DI**, **3× SPDT relays**, **3× buttons**, **3× LEDs**, **USB-C**, **RS-485**.  |
+| **Hardware**      | **DIO-430-R1** — DIN-rail module with **4× DI**, **3× SPDT relays**, **3 buttons (2 user-configurable, shown as Button 1 / Button 2; the third is used only for the firmware-update combo)**, **3× LEDs**, **USB-C**, **RS-485**.  |
 | **Controller (master)** | HomeMaster **MiniPLC/MicroPLC** or any **Modbus RTU** master. |
 | **24 VDC PSU (SELV)** | Regulated **24 VDC**; size for logic + relay coils + sensors; inline panel fuse/breaker. Power input stage includes fuse/TVS/reverse-polarity protection.  |
 | **RS-485 cable**  | Twisted pair for **A/B** + **COM/GND** reference, 120 Ω termination at both ends of the trunk.  |
@@ -630,7 +651,7 @@ Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O
 
 > Screens shown below are from the DIO-430-R1 WebConfig. 
 
-![WebConfig — Header & Modbus](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
+![WebConfig — Header & Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
 
 ### A) WebConfig setup (Address & Baud)
 1. Connect the module via **USB-C** → open the WebConfig page → click **Connect**.   
@@ -640,9 +661,9 @@ Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O
 
 > Default values (Addr **3**, **19200 8N1**) are also noted in the module docs. 
 
----
+![WebConfig — Device Setup & Serial Log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
 
-![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
+---
 
 ### B) Inputs — enable / invert / group (control target)
 Each **IN1…IN4** card provides:
@@ -657,9 +678,9 @@ This matches the firmware’s input options and allows direct mapping from input
 - Use **Toggle** to latch a relay on each press; **Pulse** for momentary actions (timers handled by controller if needed).   
 - For “group” behavior, select **Control all** to operate **Relays 1–3** together. 
 
----
+![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
 
-![WebConfig — Relays, Buttons, LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
+---
 
 ### C) Relays — logic mode (group/manual)
 For **Relay 1–3**:
@@ -670,16 +691,20 @@ For **Relay 1–3**:
 - **Group control**: Achieve via Input **Control target = Control all** (see Inputs section).  
 - **Manual / local override**: Assign **Buttons** (below) to toggle a specific relay even when the PLC also controls it. 
 
+![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
+
 ---
 
 ### D) LED and Button mapping
 
-**Buttons (3)**  
+**Buttons (2)** — Button 1 (GPIO2) and Button 2 (GPIO3) in WebConfig; the third front-panel button is not user-mappable (firmware-update combo only).  
 - **Action**: choose `None` or **Relay override (toggle)** for Relay 1/2/3. This provides local/manual control without a PLC. 
 
 **User LEDs (3)**  
 - **Mode**: `Steady` or `Blink` (active when source is ON).  
-- **Activate when**: select the source relay to follow (e.g., LED1 foll
+- **Activate when**: select the source relay to follow (e.g., LED1 follows Relay 1).
+
+![WebConfig — Buttons & User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png)
 
 ## 5.6 Getting Started (3 Phases)
 
@@ -704,7 +729,7 @@ For **Relay 1–3**:
   - **Modbus Address / Baud** (default: Addr **3**, **19200 8N1**)
   - **Inputs**: Enable / Invert / **Action** (`None / Toggle / Pulse`) / **Control target** (`None / All / R1 / R2 / R3`)
   - **Relays**: Enable (optional **Invert**)
-  - **Buttons**: map to **Relay override (toggle)** (R1/R2/R3)
+  - **Buttons**: map **Button 1 / Button 2** to relay actions (toggle, on, off, all off) for R1/R2/R3
   - **User LEDs**: **Mode** (`Steady / Blink`) + **Activate when** (follow a relay)
 - Click **Reset Device** if prompted; settings auto-save to flash.  
 👉 See: **WebConfig UI**
