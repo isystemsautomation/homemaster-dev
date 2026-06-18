@@ -639,18 +639,6 @@ Use:
 
 ---
 
-### ⏰ Clock & Home Assistant Sync
-
-If using **irrigation windows** or **daily counters**:
-
-- Use **coil 360** = `CMD_TIME_MIDNIGHT` to sync at 00:00
-- Optionally set:
-  - **Minute of day** (`HREG 1100`)
-  - **Day index** (`HREG 1101`)
-
-> This ensures irrigation windows behave predictably and counters roll over cleanly.
-
----
 
 ✅ WebConfig saves all changes immediately to flash. You can disconnect USB-C after setup — the device runs autonomously and responds to Modbus polling.
 

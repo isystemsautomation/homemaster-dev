@@ -79,136 +79,10 @@ For switch and button actions you pick the **target**: relay 1, 2, 3, **all rela
 5. **You're done — it saves automatically.** Changes are written to the module's memory a moment after you make them; there is no "Save" button.
 6. **Connect to Home Assistant.** On your MicroPLC/MiniPLC (running ESPHome), add the DIO package and set the same Modbus address. Home Assistant then shows the relays as switches, inputs as sensors, and button presses as events for automations.
 
-### WebConfig — all fields & values
+### Configuration & firmware
 
-![WebConfig — Header & Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
-
-#### Header (read-only status)
-The pills at the top are status, not settings: **Connection** (USB link), **Bus** (RS-485 link to the controller), **Model**, **FW** (firmware version). A red/orange banner appears if the module's model or firmware doesn't match this configurator.
-
-#### Device Setup
-| Field | Values | Meaning |
-|---|---|---|
-| Modbus Address | 1–247 (default 3) | Modbus RTU slave address. Must be unique on the RS-485 bus. |
-| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed, 8N1. Must match the controller. |
-
-![WebConfig — Device Setup & Serial Log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
-
-#### Tools
-| Button | What it does |
-|---|---|
-| Identify (~5 s) | Blinks the module's user LEDs so you can find it in the cabinet. |
-| Factory reset | Restores all settings to defaults. |
-| Reboot | Restarts the module. |
-
-Changes are saved automatically — there is no Save button.
-
-#### Digital Inputs (IN1–IN4)
-| Field | Values | Meaning |
-|---|---|---|
-| Enabled | on / off | Whether this input is processed. |
-| Inverted | on / off | Invert the read level (use for normally-closed contacts). |
-| Child lock | on / off | Suspend this input's local switching; it still reports events to Home Assistant. |
-| Type | Maintained / Momentary | Latching wall switch vs spring-return push-button. |
-| Maintained mode *(Type = Maintained)* | Toggle / Follow | **Toggle** (default): each change of the switch flips the relay (works together with Home Assistant). **Follow**: the relay mirrors the switch position. |
-| Target *(Type = Maintained)* | All / R1 / R2 / R3 / None | Which relay the switch controls. **None** = report only, no relay. |
-| Short → action *(Type = Momentary)* | None / Toggle / On / Off / All off | Action on a short press. |
-| Short → target | All / R1 / R2 / R3 / None | Relay for the short-press action. |
-| Long → action *(Type = Momentary)* | None / Toggle / On / Off / All off | Action on a long press. |
-| Long → target | All / R1 / R2 / R3 / None | Relay for the long-press action. |
-
-Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
-
-![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
-
-#### Relays (Relay 1–3)
-| Field | Values | Meaning |
-|---|---|---|
-| Enabled | on / off | Whether this relay output is active. |
-| Inverted | on / off | Invert the physical output (for normally-closed wiring). |
-| Power-on | OFF at power-on / ON at power-on / Restore last | Relay state after power-up. **Restore last** = remember the state from before power loss. |
-| Auto-off, s | 0–65535 (0 = off) | Auto-off / staircase timer in seconds: the relay switches off by itself after this time. Switching it on again restarts the countdown. 0 disables it. |
-
-Defaults: all enabled, not inverted, OFF at power-on, auto-off 0.
-
-#### Interlock
-| Field | Values | Meaning |
-|---|---|---|
-| Enabled | on / off | Pair two relays so they can never be on at the same time (e.g. a motor up/down). |
-| Relay A | R1 / R2 / R3 | First relay of the pair (e.g. up). |
-| Relay B | R1 / R2 / R3 | Second relay of the pair (e.g. down). |
-| Pause, ms | integer (default 500) | Dead-time inserted when reversing direction. |
-
-Default: disabled.
-
-#### Timing
-| Field | Values | Meaning |
-|---|---|---|
-| Long-press, ms | 50–5000 (default 700) | How long an input/button must be held to count as a long press. |
-| Multi-click gap, ms | 50–2000 (default 300) | Max pause between presses to count them as double/triple. |
-| Debounce, ms | 1–500 (default 30) | An input/button must stay stable this long before a change is accepted. |
-| Link timeout, ms | 500–60000 (default 5000) | If no valid Modbus traffic arrives for this long, the RS-485 link is treated as lost. |
-
-![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
-
-#### Buttons (Button 1–2, front panel — GPIO2 / GPIO3)
-| Field | Values | Meaning |
-|---|---|---|
-| Short → action | None / Toggle / On / Off / All off | Action on a short press. |
-| Short → target | All / R1 / R2 / R3 / None | Relay for the short-press action. |
-| Long → action | None / Toggle / On / Off / All off | Action on a long press. |
-| Long → target | All / R1 / R2 / R3 / None | Relay for the long-press action. |
-
-Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None.
-
-#### User LEDs (LED 1–3)
-| Field | Values | Meaning |
-|---|---|---|
-| Source | Off / HA / Link / Local / Child lock / Safe mode / Identify / Relay | What the LED shows: **Off**; **HA** = Home Assistant override; **Link** = RS-485 link OK; **Local** = local-logic active; **Child lock** = child-locked input active; **Safe mode** = safe-mode indicator; **Identify** = blinks on Identify command; **Relay** = mirrors a relay state. |
-| Mode | Steady / Blink | Solid or blinking. |
-| Inverted | on / off | Invert the LED on/off level. |
-| Arg (relay # or DI for child lock) | integer | For Source = **Relay** — which relay; for **Child lock** — which input; otherwise unused. |
-
-Defaults: LED1 = Link / Steady; LED2 = Off; LED3 = HA. (The board already has dedicated indicator LEDs for every relay and every input — these three user LEDs are for other states.)
-
-![WebConfig — Buttons & User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png)
-
-#### Action / Target reference (used by inputs and buttons)
-| Action | Meaning |
-|---|---|
-| None | Do nothing locally (the input still reports events to Home Assistant). |
-| Toggle | Flip the target relay. |
-| On | Turn the target relay on. |
-| Off | Turn the target relay off. |
-| All off | Turn all relays off. |
-
-| Target | Meaning |
-|---|---|
-| All | All relays. |
-| R1 / R2 / R3 | Relay 1 / 2 / 3. |
-| None | No relay (report only). |
-
-### Tools (in the configurator)
-- **Identify** — blinks the module's lights for a few seconds so you can spot it in the cabinet.
-- **Factory reset** — returns all settings to defaults.
-- **Reboot** — restarts the module.
-
-### Good to know
-- The module keeps working as configured even with the controller unplugged.
-- Start at **19200 8N1** on RS-485 while setting up.
-- Unplug USB-C once configured and let the controller talk over RS-485.
-- **Firmware upgrade (no build tools):** download the pre-built **v0.2.0** UF2 file, enter **BOOT** mode (see below), and drag it onto the **RPI-RP2** USB drive. [Download `default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) — full flashing steps in [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) below.
-
-### Updating the firmware (UF2)
-
-The module is updated by copying a `.uf2` file over USB-C — no programmer needed.
-
-1. Download the firmware `.uf2` for the version you want (see the module's `Firmware/` folder on the configurator site / repository).
-2. Connect the module to the PC with **USB-C**.
-3. Enter bootloader mode using the three front buttons: **press and hold all three buttons (1 + 2 + 3), then release button 1, then release buttons 2 and 3.** The module re-enumerates as a USB mass-storage drive (`RPI-RP2`).
-4. Drag-and-drop (copy) the `.uf2` file onto that drive. The module flashes and reboots automatically into the new firmware.
-
-> The three front buttons are used together only for this update combo. In normal operation only two of them are user-configurable (Button 1 / Button 2 in WebConfig).
+- **WebConfig field reference (canonical):** [§5.5 Software & UI Configuration](#55-software--ui-configuration)
+- **Firmware UF2 upgrade:** [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only)
 
 ---
 
@@ -242,9 +116,6 @@ All configuration — including input-to-relay mapping, LED modes, and button lo
 - **Baud Rate:** `19200`  
 - **Parity:** `None`  
 - **Stop Bits:** `1`
-
-
-The module’s logic (input→relay mapping, LED modes, button behavior) is stored persistently in internal flash via **LittleFS**, and settings can be changed live using **USB-C + WebConfig**.
 
 ---
 
@@ -315,7 +186,7 @@ System overview, board callouts, and pin mapping:
 
 ## 2.5 Functional Overview
 
-- **Modbus RTU slave** (factory Addr 3, 19200 8N1; configurable 1–255, 9600–115200).  
+- **Modbus RTU slave** (factory defaults in [§1 Introduction](#1-introduction)).  
 - **Inputs → Relays:** per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions from {None, Toggle, On, Off, All off} + target (R1–R3 or All).  
 - **Buttons:** Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off).  
 - **LEDs:** configurable Steady/Blink following relay status.  
@@ -613,7 +484,7 @@ Each input is **isolated**. Land the contact/sensor on **INx** with the paired *
 
 **Tips**
 - Supports **dry contacts** or compatible 24 V field signals.
-- Configure in **WebConfig**: **Enabled/Invert**, **Type** (Maintained/Momentary), **Short/Long actions** (`None / Toggle / On / Off / All off`), **Target** (`None / All / R1 / R2 / R3`).
+- Configure per [§5.5 WebConfig reference](#55-software--ui-configuration-webconfig-reference) (Enabled/Invert/Type/actions/target).
 - Keep field wiring shielded/twisted for long runs; terminate shield at one end only.
 
 ---
@@ -656,67 +527,114 @@ The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded tw
 - Use **USB-C** for **commissioning and diagnostics** only (Web Serial in Chrome/Edge).  
 - Not for powering field devices. Disconnect after setup and hand control to the RS-485 master.
 
-## 5.5 Software & UI Configuration
+## 5.5 Software & UI Configuration (WebConfig reference)
 
-Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O. Changes apply immediately and are saved to flash. 
-
-> Screens shown below are from the DIO-430-R1 WebConfig. 
+Open **https://www.home-master.eu/configtool-dio-430-r1** in Chrome/Edge, connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
 
 ![WebConfig — Header & Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
 
-### A) WebConfig setup (Address & Baud)
-1. Connect the module via **USB-C** → open the WebConfig page → click **Connect**.   
-2. In **Modbus Address**, choose **1–255** (factory default **3**).  
-3. In **Baud Rate**, select **9600–115200** (factory default **19200 8N1**).  
-4. Confirm the **Active Modbus Configuration** banner updates (Address/Baud). 
+### Header (read-only status)
 
-> Default values (Addr **3**, **19200 8N1**) are also noted in the module docs. 
+Status pills (not settings): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**. A banner warns if model/firmware mismatches this configurator.
+
+### Device Setup
+
+| Field | Values | Meaning |
+|---|---|---|
+| Modbus Address | 1–247 (default 3) | Modbus RTU slave address; must be unique on the bus. |
+| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed **8N1**; must match the controller. |
 
 ![WebConfig — Device Setup & Serial Log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
 
----
+### Tools
 
-### B) Inputs — enable / invert / type / actions
-Each **IN1…IN4** card provides:
-- **Enabled**: include the input in logic.  
-- **Inverted**: logical inversion.  
-- **Type**: **Maintained** (Toggle/Follow + target) or **Momentary** (Short/Long actions + target).  
-- **Short/Long → action**: `None / Toggle / On / Off / All off`.  
-- **Short/Long → target**: `None / All / Relay 1 / Relay 2 / Relay 3`.  
+| Button | What it does |
+|---|---|
+| Identify (~5 s) | Blinks user LEDs to locate the module. |
+| Factory reset | Restores all settings to defaults. |
+| Reboot | Restarts the module. |
 
-This matches the firmware input model and allows direct mapping from inputs to relays without a PLC. 
+### Digital Inputs (IN1–IN4)
 
-**Tips**
-- Use **Maintained + Toggle** to latch a relay on each contact change; **Momentary + On/Off** for pulse-style control.   
-- For “group” behavior, select **All** as the target to operate **Relays 1–3** together. 
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Whether this input is processed. |
+| Inverted | on / off | Invert the read level (NC contacts). |
+| Child lock | on / off | Suspend local switching; still reports to Home Assistant. |
+| Type | Maintained / Momentary | Wall switch vs push-button. |
+| Maintained mode | Toggle / Follow | **Toggle**: flip relay on each change. **Follow**: relay mirrors switch. |
+| Target *(Maintained)* | All / R1 / R2 / R3 / None | Controlled relay(s). |
+| Short → action *(Momentary)* | None / Toggle / On / Off / All off | Short-press action. |
+| Short → target | All / R1 / R2 / R3 / None | Short-press target relay(s). |
+| Long → action *(Momentary)* | None / Toggle / On / Off / All off | Long-press action. |
+| Long → target | All / R1 / R2 / R3 / None | Long-press target relay(s). |
+
+Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
 
 ![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
 
----
+### Relays (Relay 1–3)
 
-### C) Relays — logic mode (group/manual)
-For **Relay 1–3**:
-- **Enabled**: relay is controllable.  
-- **Inverted**: invert drive polarity (use only if required by wiring). 
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Relay output active. |
+| Inverted | on / off | Invert drive polarity. |
+| Power-on | OFF / ON / Restore last | State after power-up. |
+| Auto-off, s | 0–65535 (0 = off) | Staircase timer; 0 disables. |
 
-**Logic modes in practice**
-- **Group control**: Achieve via Input **Control target = Control all** (see Inputs section).  
-- **Manual / local override**: Assign **Buttons** (below) to toggle a specific relay even when the PLC also controls it. 
+Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
+
+### Interlock
+
+| Field | Values | Meaning |
+|---|---|---|
+| Enabled | on / off | Pair two relays (motor up/down). |
+| Relay A / B | R1 / R2 / R3 | Interlocked pair. |
+| Pause, ms | integer (default 500) | Dead-time when reversing. |
+
+### Timing
+
+| Field | Values | Meaning |
+|---|---|---|
+| Long-press, ms | 50–5000 (default 700) | Long-press threshold. |
+| Multi-click gap, ms | 50–2000 (default 300) | Double/triple click window. |
+| Debounce, ms | 1–500 (default 30) | Input debounce. |
+| Link timeout, ms | 500–60000 (default 5000) | RS-485 link-loss timeout. |
 
 ![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
 
----
+### Buttons (Button 1–2; GPIO2 / GPIO3)
 
-### D) LED and Button mapping
+| Field | Values | Meaning |
+|---|---|---|
+| Short/Long → action | None / Toggle / On / Off / All off | Press action. |
+| Short/Long → target | All / R1 / R2 / R3 / None | Target relay(s). |
 
-**Buttons (2)** — Button 1 (GPIO2) and Button 2 (GPIO3) in WebConfig; the third front-panel button is not user-mappable (firmware-update combo only).  
-- **Action**: choose `None` or **Relay override (toggle)** for Relay 1/2/3. This provides local/manual control without a PLC. 
+Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None. (Third front button: firmware-update combo only.)
 
-**User LEDs (3)**  
-- **Mode**: `Steady` or `Blink` (active when source is ON).  
-- **Activate when**: select the source relay to follow (e.g., LED1 follows Relay 1).
+### User LEDs (LED 1–3)
+
+| Field | Values | Meaning |
+|---|---|---|
+| Source | Off / HA / Link / Local / Child lock / Safe mode / Identify / Relay | LED meaning (8 firmware sources). |
+| Mode | Steady / Blink | Display mode. |
+| Inverted | on / off | Invert LED level. |
+| Arg | integer | Relay # or DI index for Child lock / Relay sources. |
+
+Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 ![WebConfig — Buttons & User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png)
+
+### Action / Target reference
+
+| Action | Meaning |
+|---|---|
+| None | Report only (no local relay action). |
+| Toggle / On / Off / All off | Flip, energize, de-energize, or all-off. |
+
+| Target | Meaning |
+|---|---|
+| All / R1 / R2 / R3 / None | Relay scope. |
 
 ## 5.6 Getting Started (3 Phases)
 
@@ -735,16 +653,9 @@ For **Relay 1–3**:
 ---
 
 ### Phase 2 — Configure (WebConfig)
-- Open `https://www.home-master.eu/configtool-dio-430-r1`  in **Chrome/Edge**.
-- Connect **USB-C** → **Select port** → **Connect**.
-- Set:
-  - **Modbus Address / Baud** (default: Addr **3**, **19200 8N1**)
-  - **Inputs**: Enable / Invert / **Type** (Maintained/Momentary) / **Short & Long actions** + **Target**
-  - **Relays**: Enable (optional **Invert**)
-  - **Buttons**: map **Button 1 / Button 2** to relay actions (toggle, on, off, all off) for R1/R2/R3
-  - **User LEDs**: **Mode** (`Steady / Blink`) + **Activate when** (follow a relay)
-- Click **Reset Device** if prompted; settings auto-save to flash.  
-👉 See: **WebConfig UI**
+- Open the [configurator](https://www.home-master.eu/configtool-dio-430-r1) in **Chrome/Edge** → **USB-C** → **Connect**.
+- Set Modbus address/baud and map inputs, relays, buttons, LEDs per [§5.5](#55-software--ui-configuration-webconfig-reference).
+- Settings auto-save to flash.
 
 ---
 
@@ -775,8 +686,8 @@ For **Relay 1–3**:
 
 # 6. Modbus RTU Communication
 
-**Role:** RTU **slave** (controller is master)  
-**Defaults:** **Address 3**, **19200 8N1** (change in WebConfig → Modbus)
+**Role:** RTU **slave** (controller is master).  
+**Defaults:** Address **3**, **19200 8N1** — see [§1 Introduction](#1-introduction).
 
 > v0.2.0 map uses **zero-based offsets** matching `default_dio_430_r1_plc.yaml`. Poll **Input Registers (FC04)** for live state; use **Coils (FC05)** for commands.
 
@@ -1107,12 +1018,7 @@ sensor:
 - `Simple Web Serial` (1.0.0)
 - **From core:** `LittleFS`, `Wire` (no separate install)
 
-**Pin Mapping (DIO-430-R1 default firmware)**
-- **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH)
-- **Digital Inputs:** IN1=GPIO6, IN2=GPIO11, IN3=GPIO12, IN4=GPIO7 (processed with enable/invert/debounce in firmware)
-- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑HIGH)
-- **User LEDs:** L1=GPIO13, L2=GPIO14, L3=GPIO15 (active‑HIGH)
-- **RS‑485 (UART):** TX=GPIO4, RX=GPIO5 (DE/RE handled in software)
+**Pin Mapping:** see [§2.1 Diagrams & Pinouts](#21-diagrams--pinouts) (`DIO_MCU_Pinouts.png`) and firmware `default_DIO_430_R1.ino`.
 
 **Build Tips**
 - Start at **19200 8N1** on RS‑485 during bring‑up.
@@ -1122,10 +1028,7 @@ sensor:
 
 ## 8.4 Firmware Updates
 
-- **Method:** USB‑C via **UF2** drag‑drop or **PlatformIO/Arduino** upload.
-- **Pre-built UF2 (v0.2.0, no toolchain):** [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2) — enter **BOOT** (hold **1 + 2 + 3**, release **1**, then release **2 + 3** together), copy the file to the **RPI-RP2** USB drive.
-- **Config retention:** Settings stored in flash/LittleFS are **preserved** unless explicitly erased.
-- **Recovery:** If the app doesn’t start, use the **1 + 2 + 3** BOOT sequence, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
+See [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) and [§11 Downloads](#11-downloads). Configuration in flash/LittleFS is preserved across normal updates unless explicitly erased.
 
 ---
 
