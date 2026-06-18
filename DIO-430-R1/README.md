@@ -44,15 +44,13 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 | **ESPHome / HA** | Ready-made YAML package; DI/relay/button/event entities |
 | **Extras** | All Off, child-lock per input, auto-off (staircase timer), shutter/interlock mode, Identify |
 
-### Applications & use cases
+### Applications
 
-**Staircase light + circulation pump** — IN1 Momentary Short = On → Relay 1 (light); IN2 Momentary Short = On → Relay 2 (pump); LED1 Blink on Relay 1, LED2 Steady on Relay 2.
+Typical uses for the DIO-430-R1:
 
-**Manual light + fan override** — Button 1 Short = Toggle R1 (room light); Button 2 Short = Toggle R2 (fan); LEDs follow relays; optional remote control via Modbus coils 0–2.
-
-**Greenhouse light + irrigation** — IN3 Maintained Toggle → Relay 1 (grow light); IN4 Momentary Short = On → Relay 2 (pump); Button 2 for manual watering override.
-
-For per-input action models (Maintained Toggle/Follow, Momentary Short/Long), see [§6 WebConfig Reference](#6-webconfig-reference).
+- **Lighting** — wall switches or push-buttons drive the relays directly, with optional auto-off (staircase) timers. A controller can override or monitor the same outputs over Modbus.
+- **Pumps, fans, motors** — switch circulation pumps, exhaust fans, or irrigation valves from inputs, buttons, or a PLC. Relay interlock prevents two outputs (e.g. motor up/down) from being on at the same time.
+- **Standalone or controller-driven** — runs its configured logic with no controller attached, and integrates with Home Assistant / ESPHome or any Modbus RTU master when one is present.
 
 ---
 
