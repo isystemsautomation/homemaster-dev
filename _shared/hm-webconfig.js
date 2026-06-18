@@ -23,6 +23,7 @@
     conn: null,
     channels: { in: 0, relay: 0, btn: 0, led: 0 },
     expected: { model: null, modelName: '', fw: '' },
+    about: { version: '', readmeUrl: '', firmwareUrl: '' },
     onCfg: null,
     _logBuf: [],
     _lastDataMs: 0,
@@ -438,9 +439,25 @@
       if (opts.modelName) HMWebConfig.expected.modelName = String(opts.modelName);
       if (opts.fw) HMWebConfig.expected.fw = String(opts.fw);
       if (opts.localLogic) HMWebConfig._localLogic = true;
+
+      const version = (opts.webconfigVersion != null) ? String(opts.webconfigVersion) : '';
+      const readmeUrl = (opts.readmeUrl != null) ? String(opts.readmeUrl) : '';
+      const firmwareUrl = (opts.firmwareUrl != null) ? String(opts.firmwareUrl) : '';
+      HMWebConfig.about = { version, readmeUrl, firmwareUrl };
     }
     if (identityExpected()) ensureCompatEl();
     wireLocalLogicToggle();
+
+    const wc = $('hm-wc');
+    if (wc && HMWebConfig.about.version) wc.textContent = HMWebConfig.about.version;
+
+    const links = $('hm-links');
+    if (links && HMWebConfig.about.readmeUrl && HMWebConfig.about.firmwareUrl) {
+      links.innerHTML =
+        '<a href="' + HMWebConfig.about.readmeUrl + '" target="_blank" rel="noopener">README</a>' +
+        ' · ' +
+        '<a href="' + HMWebConfig.about.firmwareUrl + '" target="_blank" rel="noopener">Firmware (UF2)</a>';
+    }
   };
 
   HMWebConfig.connect = function connect(opts) {

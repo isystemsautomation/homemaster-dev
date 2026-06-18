@@ -209,12 +209,14 @@
         <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
         <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
         <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
+        <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
         <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
         <div class="pill">Baud: <span id="hm-baud">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
       </div>
+      <div id="hm-links" class="mini"></div>
     </div>
   </header>
 
@@ -409,6 +411,9 @@
       model: 6,
       modelName: 'WLD-521-R1',
       fw: '0.2.0',
+      webconfigVersion: '0.2.0',
+      readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/WLD-521-R1/README.md',
+      firmwareUrl: 'https://github.com/isystemsautomation/homemaster-dev/raw/main/WLD-521-R1/Firmware/v0.2.0/WLD-521-R1_v0.2.0.uf2',
       channels:{ in:5, relay:2, btn:4, led:4 }, onCfg:applyWldCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
