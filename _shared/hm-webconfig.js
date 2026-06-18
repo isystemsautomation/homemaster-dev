@@ -324,7 +324,10 @@
     const fw = $('hm-fw');
     const addr = $('hm-addr');
     const baud = $('hm-baud');
-    if (model && st.model != null) model.textContent = String(st.model);
+    if (model && st.model != null) {
+      const mn = Number(st.model);
+      model.textContent = MODEL_NAMES[mn] || String(st.model);
+    }
     if (fw && st.fw != null) fw.textContent = String(st.fw);
     const a = (st.addr != null) ? st.addr : st.address;
     const b = (st.baud != null) ? st.baud : st.baud;
