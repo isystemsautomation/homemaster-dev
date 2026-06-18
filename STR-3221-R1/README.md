@@ -496,7 +496,7 @@ See LICENSE files in each directory for full terms.
 | Resource | Description |
 |-----------|-------------|
 | **🧠 Firmware (Arduino/PlatformIO)** | [`Firmware/v0.1.0/default_str_3221_r1/`](Firmware/v0.1.0/default_str_3221_r1/) — main sketch (coming soon). |
-| **🛠 WebConfig Tool** | [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html) — browser-based USB-C setup (coming soon). |
+| **🛠 WebConfig Tool** | [WebConfig Tool](https://www.home-master.eu/configtool-str-3221-r1) — browser-based USB-C setup (coming soon). |
 | **📷 Images & Diagrams** | [`Images/`](Images/) — module photos, terminal maps, and block diagrams. |
 | **📐 Schematics (PDF)** | [`Schematics/`](Schematics/) — FieldBoard and MCUBoard schematics for hardware developers. |
 | **📄 Datasheet & Manual** | [`Manuals/`](Manuals/) — module datasheet and installation guide. |

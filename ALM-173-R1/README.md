@@ -897,7 +897,7 @@ The following key project resources are included in this repository:
 * **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/v0.1.0/default_alm_173_r1/`](Firmware/v0.1.0/default_alm_173_r1/)
   Main sketch implementing relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
-* **🛠 Web Config Tool:** [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)
+* **🛠 Web Config Tool:** [WebConfig Tool](https://www.home-master.eu/configtool-alm-173-r1)
   HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
 
 * **📷 Images & Visual Documentation:** [`Images/`](Images/)

@@ -396,7 +396,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 #### Steps
 
 1. Connect USB‑C to PC (Chrome/Edge)
-2. Open `tools/ConfigToolPage.html`  
+2. Open [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)  
 3. Click **Connect**, select ENM serial port  
 4. Configure settings: address, relays, LEDs, alarms, calibration  
 5. Click **Save & Disconnect** when finished
@@ -420,7 +420,7 @@ Use diagrams and explain:
 ## 4.5 Software & UI Configuration
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
-(`tools/ConfigToolPage.html`) over **USB‑C**.  
+([WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)) over **USB‑C**.  
 No drivers or software installation is required — configuration happens directly via **Web Serial API** (Chrome/Edge).
 
 - WebConfig refreshes live data every 1 s.
@@ -580,7 +580,7 @@ Each LED has:
 
 ### Phase 2 — Configure (WebConfig)
 
-- Open `tools/ConfigToolPage.html` in Chrome/Edge
+- Open [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1) in Chrome/Edge
 - Connect via **USB‑C** → **Select port → Connect**
 - Set:
   - **Modbus Address / Baud**  
@@ -1160,7 +1160,7 @@ The following key project resources are included in this repository:
   Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.
 
 - 🧰 **WebConfig Tool**  
-  [`tools/ConfigToolPage.html`](tools/ConfigToolPage.html)  
+  [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)  
   HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.
 
 - 🖼 **Images & UI Diagrams**  

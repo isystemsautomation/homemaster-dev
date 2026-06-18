@@ -1293,7 +1293,7 @@ See LICENSE files in each directory for full terms.
 
 - **Firmware binaries** — `Firmware/v0.1.0/default_wld-521-r1/`
 - **ESPHome YAML configs** — `Firmware/v0.1.0/default_wld_521_r1_plc/`
-- **WebConfig Tool** — `Firmware/v0.1.0/ConfigToolPage.html`
+- **WebConfig Tool** — [configtool-wld-521-r1](https://www.home-master.eu/configtool-wld-521-r1)
 - **Schematics** — `Schematics/WLD-521-R1-FieldBoard.pdf`, `Schematics/WLD-521-R1-MCUBoard.pdf`
 - **Images & diagrams** — `Images/`
 - **Datasheet** — `Manuals/WLD-521-R1 Datasheet.pdf`
