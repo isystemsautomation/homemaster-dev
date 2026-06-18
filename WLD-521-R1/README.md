@@ -681,7 +681,7 @@ Summarize steps in 3 phases:
     <tr>
       <td align="center">
         <strong>System Block Diagram</strong><br>
-        <img src="Images/WLD_Diagram.png" alt="System Diagram" width="360">
+        <img src="Images/WLD_SystemBLockDiagram.png" alt="System Diagram" width="360">
       </td>
       <td align="center">
         <strong>Terminal Map</strong><br>
@@ -876,159 +876,136 @@ The WLD‑521‑R1 communicates as a **Modbus RTU slave** over **RS‑485**, exp
 
 ## 6.2 Address Map Overview
 
-| Function | Range       | Description |
-|----------|-------------|-------------|
-| **Coils** (FC01/05) | `200–399`   | Control commands: relay ON/OFF, irrigation, reset |
-| **Discrete Inputs** (FC02) | `1–103`     | Real-time state of DI, relays, LEDs, buttons |
-| **Holding Registers** (FC03/16) | `1100+`    | Flow, temperature, energy, configuration |
-| **Input Registers** (FC04) | *same as holding* | Optional mirror of Holding (read-only) |
+| Function | Range | Description |
+|----------|-------|-------------|
+| **Discrete Inputs** (FC02) | 1–5, 60–61, 90–93, 100–103 | DI, relay, LED, button state mirrors |
+| **Coils** (FC01/05) | 200–201, 220–224, 340–344 | Relay control, DI enable, counter reset |
+| **Holding Registers** (FC03) | 1–173 | Status mirrors, flow/heat/1-Wire telemetry |
+
+> The detailed register table in [§4.3 — WLD-521-R1 Modbus Register Table](#wld-521-r1-modbus-register-table) matches `default_wld_521_r1_plc_full.yaml` (v0.2.0).
 
 ---
 
-## 6.3 Coils (Write – Single/Multiple)
+## 6.3 Coils (FC01/05)
 
-| Coil Address | Description |
-|--------------|-------------|
-| 200–201 | **Relay ON** (Relay 1/2) |
-| 210–211 | **Relay OFF** (Relay 1/2) |
-| 300–304 | Enable DI1…DI5 |
-| 320–324 | Disable DI1…DI5 |
-| 340–344 | **Reset DI counter** |
-| 360     | `CMD_TIME_MIDNIGHT` (pulse at 00:00 to sync time) |
-| 370–371 | Irrigation **START** Z1/Z2 |
-| 380–381 | Irrigation **STOP** Z1/Z2 |
-| 390–391 | Irrigation **RESET** Z1/Z2 |
+### Maintained coils (read/write as switches)
 
-> Coils are **pulse-operated** (write `TRUE`, then `FALSE`).  
-> **Manual overrides** may block Modbus control until cleared.
+| Address | Description |
+|---------|-------------|
+| 200–201 | Relay 1–2 ON/OFF state (maintained) |
+| 220–224 | DI1–DI5 enable state (maintained) |
+
+### Pulse coils (auto-cleared)
+
+| Address | Description |
+|---------|-------------|
+| 340–344 | Reset pulse counter for DI1–DI5 (write `1`) |
 
 ---
 
-## 6.4 Discrete Inputs (Read-only Flags)
+## 6.4 Discrete Inputs (FC02)
 
-| Address | Bit | Function |
-|---------|-----|----------|
-| 1–5     | 1–5 | DI1…DI5 (debounced) |
-| 60–61   | —   | Relay 1/2 state |
-| 90–93   | —   | LED1…LED4 (mapped source ON) |
-| 100–103 | —   | BTN1…BTN4 (pressed = 1) |
-
----
-
-## 6.5 Holding Registers (Read/Write)
-
-These registers expose flow, heat, irrigation state, 1‑Wire temperatures, and runtime status.
-
-### 📊 Input / Flow / Energy Registers
-
-| Address | Description | Format | Unit | Notes |
-|---------|-------------|--------|------|-------|
-| 1100    | Minute of day | `U16` | min (0–1439) | Local module clock |
-| 1101    | Day index     | `U16` | days | Increments daily |
-
-#### Flow Rate & Totals (per DI1–5)
-| Address | Description | Format | Notes |
-|---------|-------------|--------|-------|
-| 1120–1129 | Flow rate (L/min ×1000) | `U32` ×5 | 2 registers each |
-| 1140–1149 | Flow total (L ×1000)    | `U32` ×5 | 2 registers each |
-
-#### Heat Energy (if enabled)
-| Address | Description | Format | Notes |
-|---------|-------------|--------|-------|
-| 1200–1209 | Power (W)        | `S32` ×5 | ΔT × cp × ρ × flow |
-| 1220–1229 | Energy (Wh ×1000) | `U32` ×5 | Accumulator |
-| 1240–1249 | ΔT (°C ×1000)     | `S32` ×5 | TA–TB |
+| Address | Description |
+|---------|-------------|
+| 1–5 | DI1–DI5 debounced state |
+| 60–61 | Relay 1–2 state |
+| 90–93 | LED1–LED4 state |
+| 100–103 | BTN1–BTN4 pressed |
 
 ---
 
-### 🌱 Irrigation Zones (Z1 / Z2)
+## 6.5 Holding Registers (FC03)
 
-| Address     | Description               | Format |
-|-------------|---------------------------|--------|
-| 1300–1301   | Zone state (0=idle, 1=run, 2=alarm) | `U16` |
-| 1310–1313   | Accumulated liters         | `U32` |
-| 1320–1323   | Elapsed time (s)           | `U32` |
-| 1330–1333   | Flow rate (L/min ×1000)    | `U32` |
-| 1340–1341   | Window Open flag           | `U16` |
-| 1342–1343   | Sensors OK flag            | `U16` |
+All telemetry below is read via **FC03** (also mirrored as UINT16 status at addresses 1–103).
 
----
+### Status mirrors (UINT16: 0 or 1)
 
-### 🌡 1-Wire Temperatures
+| Address | Description |
+|---------|-------------|
+| 1–5 | DI1–DI5 state |
+| 60–61 | Relay 1–2 state |
+| 90–93 | LED1–LED4 state |
+| 100–103 | BTN1–BTN4 state |
 
-| Address     | Description         | Format | Notes |
-|-------------|---------------------|--------|-------|
-| 1500–1519   | Temp #1…#10 (°C ×1000) | `S32` | 2 regs per sensor |
+### Flow meter data (UINT32, 2 registers, little-endian)
+
+| Address | Description | Unit |
+|---------|-------------|------|
+| 104–105 | DI1 flow rate | L/min ×1000 |
+| 106–107 | DI2 flow rate | L/min ×1000 |
+| 108–109 | DI3 flow rate | L/min ×1000 |
+| 110–111 | DI4 flow rate | L/min ×1000 |
+| 112–113 | DI5 flow rate | L/min ×1000 |
+| 114–115 | DI1 flow accumulated | L ×1000 |
+| 116–117 | DI2 flow accumulated | L ×1000 |
+| 118–119 | DI3 flow accumulated | L ×1000 |
+| 120–121 | DI4 flow accumulated | L ×1000 |
+| 122–123 | DI5 flow accumulated | L ×1000 |
+
+### Heat energy (S32/U32, 2 registers each)
+
+| Address | Description | Unit |
+|---------|-------------|------|
+| 124–125 | DI1 heat power | W |
+| 126–127 | DI2 heat power | W |
+| 128–129 | DI3 heat power | W |
+| 130–131 | DI4 heat power | W |
+| 132–133 | DI5 heat power | W |
+| 134–135 | DI1 heat energy | Wh ×1000 |
+| 136–137 | DI2 heat energy | Wh ×1000 |
+| 138–139 | DI3 heat energy | Wh ×1000 |
+| 140–141 | DI4 heat energy | Wh ×1000 |
+| 142–143 | DI5 heat energy | Wh ×1000 |
+| 144–145 | DI1 heat ΔT | °C ×1000 |
+| 146–147 | DI2 heat ΔT | °C ×1000 |
+| 148–149 | DI3 heat ΔT | °C ×1000 |
+| 150–151 | DI4 heat ΔT | °C ×1000 |
+| 152–153 | DI5 heat ΔT | °C ×1000 |
+
+### 1-Wire temperatures (SINT32, 2 registers each)
+
+| Address | Description | Unit |
+|---------|-------------|------|
+| 154–155 | OW sensor 1 temp | °C ×1000 |
+| 156–157 | OW sensor 2 temp | °C ×1000 |
+| 158–159 | OW sensor 3 temp | °C ×1000 |
+| 160–161 | OW sensor 4 temp | °C ×1000 |
+| 162–163 | OW sensor 5 temp | °C ×1000 |
+| 164–165 | OW sensor 6 temp | °C ×1000 |
+| 166–167 | OW sensor 7 temp | °C ×1000 |
+| 168–169 | OW sensor 8 temp | °C ×1000 |
+| 170–171 | OW sensor 9 temp | °C ×1000 |
+| 172–173 | OW sensor 10 temp | °C ×1000 |
 
 ---
 
 ## 6.6 Register Use Examples
 
-### ✅ Read DI1 flow total
-- Read `HREG 1140/1141` (2x U16 = U32)
-- Divide result by **1000** → Liters
+### Read DI1 flow total
+- **FC03**, addresses **114–115** → UINT32, divide by **1000** → liters
 
-### ✅ Reset DI3 pulse counter
-- Write `TRUE` → Coil `343`  
-- Then write `FALSE` to return
+### Control Relay 1 ON
+- **FC05**, coil **200**, value `1` (ON) or `0` (OFF)
 
-### ✅ Start irrigation on Zone 1
-- Write `TRUE → FALSE` to **coil 370**
-
-### ✅ Sync module time from Home Assistant
-- Write `0` to `HREG 1100` at midnight  
-- Pulse `coil 360` to trigger time sync
+### Reset counter for DI1
+- **FC05**, coil **340**, value `1` (auto-cleared by firmware)
 
 ---
 
 ## 6.7 Polling Recommendations
 
-| Data Type        | Suggested Rate | Notes |
-|------------------|----------------|-------|
-| **DI / Relay / LED / Button** | 1 s | Coils, discrete inputs |
-| **Flow / Counters**           | 2–5 s | Holding or input regs |
-| **1‑Wire Temps**              | 10–20 s | Poll less frequently to avoid bus errors |
-| **Irrigation state**          | 1–2 s | Needed if controller drives automation |
-| **Heat power/energy**        | 5–10 s | Internal logic updates per cycle |
+| Data Type | Suggested Rate | Notes |
+|-----------|----------------|-------|
+| DI / Relay / LED / Button | 1 s | FC02 or holding mirrors 1–103 |
+| Flow / counters | 2–5 s | Holding 104–123 |
+| 1-Wire temps | 10–20 s | Holding 154–173 |
+| Heat power/energy | 5–10 s | Holding 124–153 |
 
 ---
 
 ## 6.8 Full Register Summary
 
-### Discrete Inputs (FC02)
-- `00001–00005`: DI1–DI5 state  
-- `00060–00061`: Relay 1/2 mirror  
-- `00090–00093`: LED state mirror  
-- `00100–00103`: Button press flags
-
-### Coils (FC01/05)
-- `00200–00201`: Relay ON  
-- `00210–00211`: Relay OFF  
-- `00300–00304`: Enable DI  
-- `00320–00324`: Disable DI  
-- `00340–00344`: Reset DI Counter  
-- `00360`: CMD_TIME_MIDNIGHT  
-- `00370–00371`: Irrigation START  
-- `00380–00381`: Irrigation STOP  
-- `00390–00391`: Irrigation RESET
-
-### Holding/Input Registers (FC03/04)
-- `01100–01101`: Clock  
-- `01120–01129`: Flow rates  
-- `01140–01149`: Flow totals  
-- `01200–01209`: Heat power  
-- `01220–01229`: Heat energy  
-- `01240–01249`: ΔT  
-- `01300–01301`: Irrigation state  
-- `01310–01313`: Irrigation liters  
-- `01320–01323`: Irrigation elapsed  
-- `01330–01333`: Irrigation flow rate  
-- `01340–01343`: Window & sensor status  
-- `01500–01519`: 1-Wire temperatures
-
----
-
-> 💡 All scaling is based on ×1000 (flow, temp, energy). Use ESPHome or controller math to convert to engineering units.
+See the [WLD-521-R1 Modbus Register Table](#wld-521-r1-modbus-register-table) above (§4.3) for the complete FC02/FC03/FC05 map used by ESPHome YAML v0.2.0.
 
 
 <a id="7-esphome-integration-guide"></a>
@@ -1293,7 +1270,7 @@ See LICENSE files in each directory for full terms.
 
 - **Firmware binaries** — `Firmware/v0.1.0/default_wld-521-r1/`
 - **ESPHome YAML configs** — `Firmware/v0.1.0/default_wld_521_r1_plc/`
-- **WebConfig Tool** — [configtool-wld-521-r1](https://www.home-master.eu/configtool-wld-521-r1)
+- **WebConfig Tool** — `Firmware/v0.1.0/ConfigToolPage.html`
 - **Schematics** — `Schematics/WLD-521-R1-FieldBoard.pdf`, `Schematics/WLD-521-R1-MCUBoard.pdf`
 - **Images & diagrams** — `Images/`
 - **Datasheet** — `Manuals/WLD-521-R1 Datasheet.pdf`

@@ -592,20 +592,18 @@ Configuration + low-rate control values (persisted by firmware where applicable)
 | **00050…00053** |    4 | **Any Alarm**, **Group 1**, **Group 2**, **Group 3** |
 | **00060…00062** |    3 | **Relay 1…3** state mirrors                          |
 | **00090…00093** |    4 | **LED 1…4** state mirrors                            |
-| **00100…00103** |    4 | **BTN 1…4** pressed                                  |
 
 ### Coils (write – single/multiple)
 
 | Range           | Count | Action                                 |
 | --------------- | ----: | -------------------------------------- |
-| **00200…00202** |     3 | **Relay ON** (RLY1…RLY3)               |
-| **00210…00212** |     3 | **Relay OFF** (RLY1…RLY3)              |
-| **00220…00222** |     3 | **Override ON** (force RLY1…RLY3)      |
-| **00230…00232** |     3 | **Override OFF / Release** (RLY1…RLY3) |
-| **00240**       |     1 | **Acknowledge All** (pulse)            |
-| **00241…00243** |     3 | **Acknowledge Group 1/2/3** (pulse)    |
-| **00300…00316** |    17 | **Enable DI i** (pulse per input)      |
-| **00320…00336** |    17 | **Disable DI i** (pulse per input)     |
+| **00400…00402** |     3 | **Relay ON** pulse (RLY1…RLY3)         |
+| **00420…00422** |     3 | **Relay OFF** pulse (RLY1…RLY3)        |
+| **00500**       |     1 | **Acknowledge All** (pulse)            |
+| **00501…00503** |     3 | **Acknowledge Group 1/2/3** (pulse)    |
+| **00510…00512** |     3 | **Alarm group pulse** G1/G2/G3 (pulse) |
+| **00200…00216** |    17 | **Enable DI i** (pulse per input)      |
+| **00300…00316** |    17 | **Disable DI i** (pulse per input)     |
 
 > Coils obey **priority**: an **Override** holds a relay irrespective of group/master writes until you release it.
 
@@ -633,17 +631,15 @@ Discrete Inputs
 00050..00053 Any, G1, G2, G3
 00060..00062 Relay1..Relay3 mirrors
 00090..00093 LED1..LED4 mirrors
-00100..00103 BTN1..BTN4 pressed
 
 Coils
-00200..00202 Relay ON (RLY1..RLY3)
-00210..00212 Relay OFF (RLY1..RLY3)
-00220..00222 Override ON (RLY1..RLY3)
-00230..00232 Override OFF (RLY1..RLY3)
-00240 Ack All (pulse)
-00241..00243 Ack G1..G3 (pulse)
-00300..00316 Enable DIi (pulse)
-00320..00336 Disable DIi (pulse)
+00400..00402 Relay ON pulse (RLY1..RLY3)
+00420..00422 Relay OFF pulse (RLY1..RLY3)
+00500 Ack All (pulse)
+00501..00503 Ack G1..G3 (pulse)
+00510..00512 Alarm group pulse G1..G3 (pulse)
+00200..00216 Enable DIi (pulse)
+00300..00316 Disable DIi (pulse)
 
 Input Registers (Read-Only)
 01100 FW version (U16)
@@ -896,7 +892,7 @@ The following key project resources are included in this repository:
 * **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/v0.1.0/default_alm_173_r1/`](Firmware/v0.1.0/default_alm_173_r1/)
   Main sketch implementing relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
-* **🛠 Web Config Tool:** [WebConfig Tool](https://www.home-master.eu/configtool-alm-173-r1)
+* **🛠 Web Config Tool:** [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)
   HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
 
 * **📷 Images & Visual Documentation:** [`Images/`](Images/)

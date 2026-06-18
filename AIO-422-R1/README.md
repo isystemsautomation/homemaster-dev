@@ -99,6 +99,29 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 - Monitor RTD-based industrial temperature points
 - Implement PID control loops locally on MicroPLC
 
+---
+
+## Modbus RTU Register Map
+
+Map matches `default_aio_422_r1_plc_full.yaml` (v0.2.0).
+
+### Discrete Inputs (FC02)
+
+| Address | Signal |
+|---------|--------|
+| 1–4 | Button 1–4 pressed |
+| 20–23 | LED 1–4 state |
+
+### Holding Registers (FC03)
+
+| Address | Signal | Format | Notes |
+|---------|--------|--------|-------|
+| 120–121 | RTD1–2 temperature | S_WORD | °C ×10 |
+| 140–143 | AI1–4 field voltage | U_WORD | mV |
+| 200–201 | AO0–1 raw DAC | U_WORD | 0–4095 |
+
+> Full firmware details: [Firmware/README.md §12](./Firmware/README.md#12-modbus-map-reference)
+
 ## License
 
 Licensing

@@ -777,150 +777,74 @@ For **Relay 1–3**:
 **Role:** RTU **slave** (controller is master)  
 **Defaults:** **Address 3**, **19200 8N1** (change in WebConfig → Modbus)
 
-> Addressing shown below uses **zero-based offsets** (e.g., Holding Reg `40000` = offset `0`).  
-> If your master uses **1-based** display (e.g., 40001), add **+1** to the register number.
+> v0.2.0 map uses **zero-based offsets** matching `default_dio_430_r1_plc.yaml`. Poll **Input Registers (FC04)** for live state; use **Coils (FC05)** for commands.
 
 ---
 
-## 6.1 Address Range & Map (Overview)
+## 6.1 Address Map (Overview)
 
-| Type | Range (offsets) | Purpose |
-|-----|------------------|--------|
-| **Coils** (0x) | `00000…00031` | Relay commands, device control |
-| **Discrete Inputs** (1x) | `10000…10031` | DI states, relay echo states |
-| **Input Registers** (3x) | `30000…30031` | Read-only status (masks, counters) |
-| **Holding Registers** (4x) | `40000…40063` | Config & runtime parameters (DI actions/targets, relay/LED/button settings, comms) |
+| Type | Offsets | Purpose |
+|------|---------|---------|
+| **Input Registers** (FC04) | `0…29` | State masks, status flags, event counters |
+| **Coils** (FC01/05) | `0…14` | Relays, LEDs, DI lock, device commands |
+| **Holding Registers** (FC03) | config block | Identity, DI/relay/button/LED settings (WebConfig primary) |
 
 ---
 
-## 6.2 Coils (0x) — Commands
+## 6.2 Input Registers (FC04) — State & Counters
+
+| Reg | Name | Encoding | Description |
+|----:|------|----------|-------------|
+| 0 | **DI_STATE_MASK** | bitmask | bit0..3 → DI1..DI4 |
+| 1 | **RLY_STATE_MASK** | bitmask | bit0..2 → R1..R3 |
+| 2 | **BTN_STATE_MASK** | bitmask | bit0..1 → Btn1..Btn2 |
+| 3 | **LED_STATE_MASK** | bitmask | bit0..2 → LED1..LED3 |
+| 4 | **STATUS_FLAGS** | bitmask | bit1 = link OK, bit3 = config dirty |
+| 5 | **LOCK_MASK** | bitmask | bit0..3 → DI1..DI4 child-lock |
+| 6–29 | **Event counters** | u16 | DI1..4 and Btn1..2 × single/double/triple/long |
+
+---
+
+## 6.3 Coils (FC01/05) — Commands
 
 | Coil | Name | Description |
 |-----:|------|-------------|
-| `00000` | **R1_CMD** | Relay 1 ON/OFF (write 1/0) |
-| `00001` | **R2_CMD** | Relay 2 ON/OFF |
-| `00002` | **R3_CMD** | Relay 3 ON/OFF |
-| `00010` | **SAVE_CFG** | Persist current settings to flash (write **1**) |
-| `00011` | **RESET** | Soft reset device (write **1**) |
-
-> Coils drive relays regardless of input mappings (local buttons still work as overrides).
-
----
-
-## 6.3 Discrete Inputs (1x) — States
-
-| DI | Name | Description |
-|---:|------|-------------|
-| `10000` | **DI1_STATE** | Digital Input 1 (after invert option) |
-| `10001` | **DI2_STATE** | Digital Input 2 |
-| `10002` | **DI3_STATE** | Digital Input 3 |
-| `10003` | **DI4_STATE** | Digital Input 4 |
-| `10010` | **R1_STATE** | Relay 1 actual state (echo) |
-| `10011` | **R2_STATE** | Relay 2 actual state |
-| `10012` | **R3_STATE** | Relay 3 actual state |
+| 0–2 | **R1–R3** | Relay 1–3 ON/OFF (maintained) |
+| 3 | **ALL_OFF** | Turn all relays off (pulse) |
+| 5 | **IDENTIFY** | Front-panel identify blink (pulse) |
+| 6 | **SAVE_CFG** | Persist settings to flash (pulse) |
+| 7 | **REBOOT** | Soft reset (pulse) |
+| 8–10 | **LED1–3_HA** | Home Assistant LED override |
+| 11–14 | **DI1–4_LOCK** | Child-lock per digital input |
 
 ---
 
-## 6.4 Holding Registers (4x) — Configuration & Runtime
+## 6.4 Holding Registers (FC03) — Configuration
 
-### 6.4.1 Identity / Comms
-
-| Reg | Name | R/W | Encoding | Notes |
-|---:|------|:---:|----------|------|
-| `40000` | **MODEL_ID** | R | u16 | e.g., 0x0430 (DIO-430) |
-| `40001` | **FW_BUILD** | R | YYYYMM | Snapshot / build tag |
-| `40002` | **MB_ADDR** | R/W | u16 | 1…255 |
-| `40003` | **MB_BAUD** | R/W | enum | 0=9600,1=19200,2=38400,3=57600,4=115200 |
-| `40004` | **MB_PARITY** | R/W | enum | 0=None,1=Even,2=Odd (default **0**) |
-
-### 6.4.2 Digital Inputs (per-channel)
-
-**Action codes:** `0=None`, `1=Toggle` (latched), `2=Pulse` (momentary)  
-**Target codes:** `4=None`, `0=Control all`, `1=R1`, `2=R2`, `3=R3`
-
-| Reg | Name | R/W | Encoding | Notes |
-|---:|------|:---:|----------|------|
-| `40010` | **DI_EN_MASK** | R/W | bitmask | bit0..3 → IN1..IN4 enable |
-| `40011` | **DI_INV_MASK** | R/W | bitmask | bit0..3 → IN1..IN4 invert |
-| `40012` | **DI1_ACTION** | R/W | u16 enum | 0/1/2 |
-| `40013` | **DI2_ACTION** | R/W | u16 enum | 0/1/2 |
-| `40014` | **DI3_ACTION** | R/W | u16 enum | 0/1/2 |
-| `40015` | **DI4_ACTION** | R/W | u16 enum | 0/1/2 |
-| `40016` | **DI1_TARGET** | R/W | u16 enum | 4/0/1/2/3 |
-| `40017` | **DI2_TARGET** | R/W | u16 enum | 4/0/1/2/3 |
-| `40018` | **DI3_TARGET** | R/W | u16 enum | 4/0/1/2/3 |
-| `40019` | **DI4_TARGET** | R/W | u16 enum | 4/0/1/2/3 |
-
-### 6.4.3 Relays / Buttons / LEDs
-
-| Reg | Name | R/W | Encoding | Notes |
-|---:|------|:---:|----------|------|
-| `40020` | **RLY_EN_MASK** | R/W | bitmask | bit0..2 → R1..R3 enable |
-| `40021` | **RLY_INV_MASK** | R/W | bitmask | invert coil logic (rarely used) |
-| `40022` | **BTN1_ACTION** | R/W | u16 enum | 0=None, 5=R1 toggle, 6=R2 toggle, 7=R3 toggle |
-| `40023` | **BTN2_ACTION** | R/W | u16 enum | as above |
-| `40024` | **BTN3_ACTION** | R/W | u16 enum | as above |
-| `40025` | **LED_MODE** | R/W | bit-packed | bits0..1 = LED1 (0=Steady,1=Blink), bits2..3 = LED2, bits4..5 = LED3 |
-
-### 6.4.4 Status / Diagnostics
-
-| Reg | Name | R/W | Encoding | Notes |
-|---:|------|:---:|----------|------|
-| `40030` | **UPTIME_S_LO** | R | u16 | lower 16 bits |
-| `40031` | **UPTIME_S_HI** | R | u16 | upper 16 bits (32-bit seconds) |
-| `40032` | **ERR_CODE** | R | u16 | 0=OK; non-zero = last error |
-| `40033` | **FLAGS** | R | bitmask | e.g., cfg-dirty, wd-reset (implementation-specific) |
-
-> **Note:** All configuration is usually done via **WebConfig**. The registers above are provided to enable controller-side provisioning and telemetry when needed.
+Configuration is normally done via **WebConfig**. Holding registers mirror identity (model, firmware build), Modbus address/baud, per-DI action/target, relay enable/invert masks, button actions, LED modes, and diagnostics (uptime, error code). See firmware `default_DIO_430_R1.ino` for the full holding map.
 
 ---
 
-## 6.5 Input Registers (3x) — Convenience (Read-only)
+## 6.5 Register Use Examples
 
-| Reg | Name | Encoding | Description |
-|---:|------|----------|-------------|
-| `30000` | **DI_STATE_MASK** | bitmask | bit0..3 → IN1..IN4 (post-invert) |
-| `30001` | **RLY_STATE_MASK** | bitmask | bit0..2 → R1..R3 |
-| `30002` | **BTN_STATE_MASK** | bitmask | bit0..2 → B1..B3 (momentary) |
-| `30003` | **LED_STATE_MASK** | bitmask | bit0..2 → LED1..LED3 active |
+### A) Toggle Relay 2 from a PLC
+1. Write `1` to **Coil 1** → Relay 2 ON  
+2. Write `0` to **Coil 1** → Relay 2 OFF
 
----
+### B) Read DI3 state
+- Read **Input Register 0** (FC04), test bit 2 of **DI_STATE_MASK**
 
-## 6.6 Register Use Examples
-
-### A) Toggle a relay from a PLC
-1. Write `1` to **Coil `00001` (R2_CMD)** → Relay 2 ON  
-2. Write `0` to the same coil → Relay 2 OFF
-
-### B) Map IN3 to drive **Relay 1** as a latched toggle
-1. `40010 (DI_EN_MASK)` → set bit2 = 1 (enable IN3)  
-2. `40011 (DI_INV_MASK)` → set bit2 = 0 (no invert)  
-3. `40014 (DI3_ACTION)` → write `1` (**Toggle**)  
-4. `40018 (DI3_TARGET)` → write `1` (**R1**)
-
-### C) Set **Button 2** to local override of **Relay 2**
-- `40023 (BTN2_ACTION)` → write `6` (R2 toggle)
-
-### D) Make **LED1** blink when Relay 1 is active
-- In `40025 (LED_MODE)`: set LED1 field to **Blink** (value `1`)
-
-### E) Change Modbus address & baud from the master
-- `40002 (MB_ADDR)` → new address (1…255)  
-- `40003 (MB_BAUD)` → new enum (e.g., `1` for 19200)  
-- **Coil `00010 (SAVE_CFG)`** = 1, then **`00011 (RESET)`** = 1
+### C) Reset event counters after commissioning
+- Use WebConfig or pulse **Coil 6 (SAVE_CFG)** after clearing counters in UI
 
 ---
 
-## 6.7 Polling Recommendations
+## 6.6 Polling Recommendations
 
-- **Transport:** RS-485, daisy-chain, 120 Ω terminators at **both** ends, share **COM/GND** reference.  
-- **Rates:**  
-  - **States (1x/3x):** 5–10 Hz typical (100–200 ms) for DI/relay/LED masks.  
-  - **Coils (0x):** write only on change; read-after-write or echo via `RLY_STATE_MASK`.  
-  - **Holding (4x):** configure at commissioning; read occasionally (e.g., every 5–10 s).  
-- **Framing:** Prefer **19200 8N1** for mixed networks; increase only on short, low-noise trunks.  
-- **Time-outs/Retries:** 100–250 ms timeout, 2–3 retries; back-off on bus errors.  
-- **Edge logic:** If a PLC supervises latching/timers, set DI **Action = Pulse**; if you want module-local latching, set **Action = Toggle**.
+- **Input registers 0–5:** 5–10 Hz (100–200 ms) for DI/relay/LED masks  
+- **Event counters 6–29:** 1–2 s (change slowly)  
+- **Coils:** write on change only; relays 0–2 are maintained  
+- **Holding:** configure at commissioning; avoid frequent writes
 
 ---
 

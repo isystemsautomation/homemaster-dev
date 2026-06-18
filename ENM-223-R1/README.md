@@ -137,7 +137,7 @@ These templates are applicable in energy management, automation, industrial cont
   - Channel: `Totals`, Kinds: `Alarm`
 - **LEDs** → LED 1  
   - Source: `Alarm Totals`, Mode: `Steady`
-- **Acknowledge**: via Web UI, Modbus coils `610–613`, or front panel button (if assigned)
+- **Acknowledge**: via Web UI, Modbus coils `16–19` (L1/L2/L3/Total), or front panel button (if assigned)
 
 ---
 
@@ -184,8 +184,8 @@ These templates are applicable in energy management, automation, industrial cont
   - Mode: `Modbus Controlled`
 - In PLC logic:
   - Monitor `Totals S (VA)` via Input Register
-  - If `S > 8000`, write coil `600 = OFF` (Relay 1)
-  - If `S > 10000`, write coil `601 = OFF` (Relay 2)
+  - If `S > 8000`, write coil `0 = OFF` (Relay 1)
+  - If `S > 10000`, write coil `1 = OFF` (Relay 2)
   - Restore relays when values drop below defined hysteresis limits
 
 > Ideal for HVAC or lighting where priority-based power shedding is needed.
@@ -396,7 +396,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 #### Steps
 
 1. Connect USB‑C to PC (Chrome/Edge)
-2. Open [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)  
+2. Open `Firmware/v0.1.0/ConfigToolPage.html`  
 3. Click **Connect**, select ENM serial port  
 4. Configure settings: address, relays, LEDs, alarms, calibration  
 5. Click **Save & Disconnect** when finished
@@ -420,7 +420,7 @@ Use diagrams and explain:
 ## 4.5 Software & UI Configuration
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
-([WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)) over **USB‑C**.  
+(`Firmware/v0.1.0/ConfigToolPage.html`) over **USB‑C**.  
 No drivers or software installation is required — configuration happens directly via **Web Serial API** (Chrome/Edge).
 
 - WebConfig refreshes live data every 1 s.
@@ -486,7 +486,7 @@ You can configure:
 
 Acknowledgment:
 - Press **Ack L1–L3 / Totals** in UI
-- Or write to Modbus coil (`610–613`)
+- Or write to Modbus coil (`16–19` for L1/L2/L3/Total ACK)
 
 > 💡 ENM has no digital inputs (DIs). These rules are “virtual inputs” based on real-time metering data.
 
@@ -580,7 +580,7 @@ Each LED has:
 
 ### Phase 2 — Configure (WebConfig)
 
-- Open [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1) in Chrome/Edge
+- Open `Firmware/v0.1.0/ConfigToolPage.html` in Chrome/Edge
 - Connect via **USB‑C** → **Select port → Connect**
 - Set:
   - **Modbus Address / Baud**  
@@ -600,7 +600,7 @@ Each LED has:
 - Match **Modbus address / baud**
 - Poll:
   - **Input registers**: meter values (U, I, P, Q, S, PF, angle, kWh, etc.)
-  - **Coils**: relays (600/601), Ack (610–613), button state
+  - **Coils**: relays (0/1), Ack (16–19), button state
 - Send:
   - **Coil writes**: toggle relays, acknowledge alarms
 - Use with:
@@ -800,72 +800,60 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 ## 6.2 Input Registers — Real-Time Telemetry (FC04)
 
-| Address | Type | Metric                        | Unit   | Scaling |
-|---------|------|-------------------------------|--------|---------|
-| 100–102 | U16  | Voltage L1/L2/L3              | V      | ×0.01   |
-| 110–112 | U16  | Current L1/L2/L3              | A      | ×0.001  |
-| 200–207 | S32  | Active Power (L1–3, Totals)   | W      | 1       |
-| 210–217 | S32  | Reactive Power (L1–3, Totals) | var    | 1       |
-| 220–227 | S32  | Apparent Power (L1–3, Totals) | VA     | 1       |
-| 240–243 | S16  | Power Factor L1–3, Total      | –      | ×0.001  |
-| 244–246 | S16  | Phase Angle L1–3              | °      | ×0.1    |
-| 250     | U16  | Frequency                     | Hz     | ×0.01   |
-| 251     | S16  | Temperature (internal)        | °C     | 1       |
+| Address | Type | Metric | Unit | Scaling |
+|---------|------|--------|------|---------|
+| 0–2 | U16 | Urms L1 / L2 / L3 | V | ×0.01 |
+| 3–5 | U16 | Irms L1 / L2 / L3 | A | ×0.001 |
+| 6 | U16 | Line frequency | Hz | ×0.01 |
+| 7 | S16 | Temperature (internal) | °C | 1 |
+| 8–11 | S16 | Power factor L1 / L2 / L3 / Total | – | ×0.001 |
+| 20, 22, 24, 26 | S32 | Active power L1 / L2 / L3 / Total | W | 1 |
+| 28, 30, 32, 34 | S32 | Reactive power L1 / L2 / L3 / Total | var | 1 |
+| 36, 38, 40, 42 | S32 | Apparent power L1 / L2 / L3 / Total | VA | 1 |
+| 44–46 | S16 | Phase angle L1 / L2 / L3 | ° | ×0.1 |
+
+> 32-bit power values use **two consecutive input registers** (low word at base address).
 
 ---
 
-## 6.3 Energy Registers (Wh/varh/VAh, FC04)
+## 6.3 Energy Registers (Wh / varh / VAh, FC04)
 
-| Address   | Type | Energy Type                        | Phase / Total | Unit  |
-|-----------|------|------------------------------------|----------------|--------|
-| 300–307   | U32  | Active Energy (+ import)           | A/B/C/Totals   | Wh     |
-| 308–315   | U32  | Active Energy (− export)           | A/B/C/Totals   | Wh     |
-| 316–323   | U32  | Reactive Energy (+ inductive)      | A/B/C/Totals   | varh   |
-| 324–331   | U32  | Reactive Energy (− capacitive)     | A/B/C/Totals   | varh   |
-| 332–339   | U32  | Apparent Energy                    | A/B/C/Totals   | VAh    |
+| Address (base) | Type | Energy | Phase / Total | Unit |
+|----------------|------|--------|---------------|------|
+| 60, 62, 64, 66 | U32 | Active import (AP) | L1 / L2 / L3 / Total | Wh |
+| 68, 70, 72, 74 | U32 | Active export (AN) | L1 / L2 / L3 / Total | Wh |
+| 76, 78, 80, 82 | U32 | Reactive import (RP) | L1 / L2 / L3 / Total | varh |
+| 84, 86, 88, 90 | U32 | Reactive export (RN) | L1 / L2 / L3 / Total | varh |
+| 92, 94, 96, 98 | U32 | Apparent energy (VAh) | L1 / L2 / L3 / Total | VAh |
 
-> Energy values are **32-bit unsigned integers** (Hi/Lo word pairs).
-
----
-
-## 6.4 Holding Registers — Configuration (FC03/06/16)
-
-| Address | Type | Description                 | Range / Units       |
-|---------|------|-----------------------------|---------------------|
-| 400     | U16  | Sample Interval             | 10–5000 ms          |
-| 401     | U16  | Line Frequency              | 50 or 60 Hz         |
-| 402     | U16  | Sum Mode                    | 0 = algorithmic<br>1 = absolute |
-| 403     | U16  | Ucal Gain                   | 1–65535             |
-| 410–420 | U16  | Ugain A/B/C                 | 16-bit              |
-| 421–431 | S16  | Uoffset A/B/C               | 16-bit              |
-| 440–450 | U16  | Igain A/B/C                 | 16-bit              |
-| 451–461 | S16  | Ioffset A/B/C               | 16-bit              |
-| 499     | U16  | **Factory Reset** Trigger   | Write `1` to reset  |
+> Energy values are **32-bit unsigned integers** (two 16-bit registers per value).
 
 ---
 
-## 6.5 Coils — Output Control (FC01/05/15)
+## 6.4 Coils — Output Control (FC01/05)
 
-| Address | Description                         |
-|---------|-------------------------------------|
-| 600     | Relay 1 Control (ON/OFF)            |
-| 601     | Relay 2 Control (ON/OFF)            |
-| 610–613 | Alarm Acknowledgment (L1–L3, Totals)|
-
----
-
-## 6.6 Discrete Inputs — Read-only Status (FC02)
-
-| Address | Description                   |
-|---------|-------------------------------|
-| 500–503 | LED Status (U.1–U.4)          |
-| 520–523 | Button Press (1–4)            |
-| 540–541 | Relay State (1–2)             |
-| 560–571 | Alarm/Warning/Event flags     |
+| Address | Description |
+|---------|-------------|
+| 0 | Relay 1 (maintained ON/OFF) |
+| 1 | Relay 2 (maintained ON/OFF) |
+| 16–19 | Alarm acknowledge L1 / L2 / L3 / Total (write `1`; device auto-clears) |
 
 ---
 
-## 6.7 Scaling Summary
+## 6.5 Discrete Inputs — Read-only Status (FC02)
+
+| Address | Description |
+|---------|-------------|
+| 0–3 | LED 1–4 state |
+| 4–7 | Button 1–4 pressed |
+| 8–9 | Relay 1–2 state mirrors |
+| 16–27 | Alarm / Warning / Event flags per channel (L1 @16–18, L2 @19–21, L3 @22–24, Total @25–27) |
+
+> Meter calibration, alarm thresholds, and relay/LED mapping are configured via **WebConfig** (not exposed in the ESPHome YAML reference map).
+
+---
+
+## 6.6 Scaling Summary
 
 | Metric         | Register Type | Scale Factor |
 |----------------|----------------|--------------|
@@ -878,7 +866,7 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 ---
 
-## 6.8 Polling Best Practices
+## 6.7 Polling Best Practices
 
 - **Typical polling rate:** 1 s for live data (powers, voltages, current)  
 - **Energy:** poll less often (e.g. every 5–10 s)  
@@ -890,7 +878,7 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 ---
 
-## 6.9 Modbus Integration Example (MiniPLC)
+## 6.8 Modbus Integration Example (MiniPLC)
 
 ```yaml
 modbus_controller:
@@ -904,7 +892,7 @@ sensor:
     modbus_controller_id: enm223
     name: "Urms L1"
     register_type: read
-    address: 100
+    address: 0
     value_type: U_WORD
     unit_of_measurement: "V"
     accuracy_decimals: 2
@@ -916,7 +904,7 @@ switch:
     modbus_controller_id: enm223
     name: "Relay 1"
     register_type: coil
-    address: 600
+    address: 0
 ```
 
 <a id="7-esphome-integration-guide"></a>
@@ -1010,8 +998,8 @@ packages:
 - **Energies**: kWh, kvarh, kVAh (active/reactive/apparent)
 
 ### Switches
-- **Relay 1/2** (Modbus coil 600/601)
-- **Acknowledge** coils 610–613
+- **Relay 1/2** (Modbus coils 0/1)
+- **Acknowledge** coils 16–19
 - **Override** controls (force override toggle, hold-style)
 
 ### Numbers (Optional)
@@ -1156,11 +1144,11 @@ See LICENSE files in each directory for full terms.
 The following key project resources are included in this repository:
 
 - 🧠 **Firmware (Arduino/PlatformIO)**  
-  [`firmware/default_enm_223_r1.ino`](firmware/default_enm_223_r1.ino)  
+  [`Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino`](Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino)  
   Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.
 
 - 🧰 **WebConfig Tool**  
-  [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)  
+  [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)  
   HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.
 
 - 🖼 **Images & UI Diagrams**  
@@ -1172,11 +1160,11 @@ The following key project resources are included in this repository:
   Includes PDF schematics for Field Board and MCU Board — ideal for developers, reviewers, or third-party modders.
 
 - 📄 **Datasheets & Manuals**  
-  [`ENM-223-R1 Datasheet.pdf`](ENM-223-R1%20Datasheet.pdf)  
+  [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)  
   Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.
 
 - 📦 **ESPHome YAML Templates**  
-  [`ENM223R1_ESPHome_Integration_Guide.md`](ENM223R1_ESPHome_Integration_Guide.md)  
+  [`default_enm_223_r1_plc.yaml`](Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
   Ready-to-use `packages:` block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.
 
 > 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
@@ -1224,7 +1212,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0.pdf](./Manuals/DoC-ENM-223-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0 (1).pdf](./Manuals/DoC-ENM-223-R1-V1.0%20%281%29.pdf) |
 | Datasheet | [ENM-223-R1_Datasheet.pdf](./Manuals/ENM-223-R1_Datasheet.pdf) |
 
 ### Trademark
