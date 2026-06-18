@@ -27,6 +27,8 @@ packages:
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_DIO_430_R1/sketch.yaml)
 
+**Document map:** [§1 Introduction](#1-introduction) · [§2 Technical Specification](#2-dio-430-r1--technical-specification) · [§6 Modbus map](#6-modbus-rtu-communication) · [§5.5 WebConfig reference](#55-software--ui-configuration-webconfig-reference) · [§5 Installation](#5-installation--quick-start) · [§7 ESPHome](#7-esphome-integration-guide-miniplc-microplc--dio-430-r1) · [§8 Programming / §11 Downloads](#8-programming--customization-dio-430-r1)
+
 # DIO-430-R1 — Module for Smart I/O Control
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -434,7 +436,7 @@ Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/dia
 
 **Protocol**
 - Role: **RTU slave**; controller is **master**.  
-- **Address:** 1–255. **Factory default**: **Address 3**, **19200 8N1**.   
+- **Address:** 1–247 (factory default in [§1 Introduction](#1-introduction)).
 - Required: Dedicated **24 VDC** power (bus is data-only).
 
 **Checklist**
@@ -518,7 +520,7 @@ The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded tw
 **Checklist**
 - Wire **A→A**, **B→B**, and share **COM/GND** with the controller.
 - Terminate the **two physical bus ends** with **120 Ω**.
-- Default protocol: **Address 3**, **19200 8N1** (change via WebConfig).
+- Default protocol: see [§1 Introduction](#1-introduction) (change via WebConfig).
 
 ---
 
@@ -697,9 +699,11 @@ Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 | Type | Offsets | Purpose |
 |------|---------|---------|
-| **Input Registers** (FC04) | `0…29` | State masks, status flags, event counters |
-| **Coils** (FC01/05) | `0…14` | Relays, LEDs, DI lock, device commands |
-| **Holding Registers** (FC03) | `0…46` | Identity, DI/relay/button/LED config, timing |
+| **Input Registers** (FC04) | `0…29` | State masks (DI/relay/button/LED), status, event counters |
+| **Coils** (FC01/05) | `0…14` | Relays, device commands, LED HA override, DI child-lock |
+| **Holding Registers** (FC03) | `0…46` | Identity, comms, DI/relay/button/LED config, timing |
+
+> **No discrete-input bank (FC02):** firmware does not call `addIsts()`. Read DI/relay/button/LED states from **Input Register** masks below.
 
 ---
 
@@ -707,13 +711,13 @@ Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 | Reg | Name | Encoding | Description |
 |----:|------|----------|-------------|
-| 0 | **DI_STATE_MASK** | bitmask | bit0..3 → DI1..DI4 |
-| 1 | **RLY_STATE_MASK** | bitmask | bit0..2 → R1..R3 |
-| 2 | **BTN_STATE_MASK** | bitmask | bit0..1 → Btn1..Btn2 |
-| 3 | **LED_STATE_MASK** | bitmask | bit0..2 → LED1..LED3 |
+| 0 | **DI_MASK** | bitmask | bit0..3 → IN1..IN4 (after invert) |
+| 1 | **RLY_MASK** | bitmask | bit0..2 → R1..R3 |
+| 2 | **BTN_MASK** | bitmask | bit0..1 → Button1..2 |
+| 3 | **LED_MASK** | bitmask | bit0..2 → LED1..3 |
 | 4 | **STATUS_FLAGS** | bitmask | bit1 = link OK, bit3 = config dirty |
-| 5 | **LOCK_MASK** | bitmask | bit0..3 → DI1..DI4 child-lock |
-| 6–29 | **Event counters** | u16 | Index = `6 + source×4 + type`; sources: DI1..4 = 0..3, Btn1..2 = 4..5; types: 0=single, 1=double, 2=triple, 3=long |
+| 5 | **LOCK_MASK** | bitmask | bit0..3 → child-lock DI1..4 |
+| 6–29 | **Event counters** | u16 | Index = `source×4 + type` (base 6); sources: DI1..4 = 0..3, Btn1..2 = 4..5; types: 0=single, 1=double, 2=triple, 3=long |
 
 ---
 
@@ -721,14 +725,18 @@ Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 | Coil | Name | Description |
 |-----:|------|-------------|
-| 0–2 | **R1–R3** | Relay 1–3 ON/OFF (maintained) |
+| 0 | **R1** | Relay 1 ON/OFF (maintained) |
+| 1 | **R2** | Relay 2 ON/OFF (maintained) |
+| 2 | **R3** | Relay 3 ON/OFF (maintained) |
 | 3 | **ALL_OFF** | Turn all relays off (pulse) |
-| 4 | **LOCAL_LOGIC** | Reserved (internal local-logic flag) |
+| 4 | *(reserved)* | Local-logic flag (internal) |
 | 5 | **IDENTIFY** | Front-panel identify blink (pulse) |
 | 6 | **SAVE_CFG** | Persist settings to flash (pulse) |
 | 7 | **REBOOT** | Soft reset (pulse) |
-| 8–10 | **LED1–3_HA** | Home Assistant LED override |
-| 11–14 | **DI1–4_LOCK** | Child-lock per digital input |
+| 8 | **LED1 HA** | Home Assistant LED1 override |
+| 9 | **LED2 HA** | Home Assistant LED2 override |
+| 10 | **LED3 HA** | Home Assistant LED3 override |
+| 11–14 | **DI1–4 lock** | Child-lock per digital input |
 
 ---
 
@@ -738,61 +746,65 @@ Configuration is normally done via **WebConfig**. Holding registers mirror the p
 
 | Reg | Name | R/W | Encoding | Notes |
 |----:|------|:---:|----------|-------|
-| 0 | **MODEL_ID** | R | u16 | Device model ID (**5** for DIO-430-R1) |
-| 1 | **FW_VERSION** | R | u16 | Packed `(major<<8)\|minor` |
+| 0 | **MODEL_ID** | R | u16 | **5** (DIO-430-R1; not 0x0430) |
+| 1 | **FW_VERSION** | R | u16 | Packed `(major<<8)\|minor` (not a build date) |
 | 2 | **MAP_VERSION** | R | u16 | Modbus map version |
-| 3 | **MB_ADDR** | R/W | u16 | Modbus address 1–255 |
+| 3 | **MB_ADDR** | R/W | u16 | Modbus address **1–247** (default 3) |
 | 4 | **MB_BAUD** | R/W | enum | 0=9600, 1=19200, 2=38400, 3=57600, 4=115200 |
 | 8 | **DI_EN_MASK** | R/W | bitmask | bit0..3 → DI1..DI4 enable |
 | 9 | **DI_INV_MASK** | R/W | bitmask | bit0..3 → DI1..DI4 invert |
 | 10 | **DI_TYPE_MASK** | R/W | bitmask | bit0..3 → 0=Maintained, 1=Momentary |
 | 11 | **DI_LOCK_MASK** | R/W | bitmask | bit0..3 → child-lock per DI |
-| 12–15 | **DI_FOLLOW** | R/W | u16×4 | Follow target per DI (Maintained mode) |
-| 16–19 | **DI_SHORT** | R/W | packed | Short-press action+target per DI (Momentary) |
-| 20–23 | **DI_LONG** | R/W | packed | Long-press action+target per DI (Momentary) |
+| 12–15 | **DI1–4 FOLLOW** | R/W | u16 | Follow target (Maintained/Follow mode) |
+| 16–19 | **DI1–4 SHORT** | R/W | packed | Short-press action+target (Momentary) |
+| 20–23 | **DI1–4 LONG** | R/W | packed | Long-press action+target (Momentary) |
 | 24 | **RLY_EN_MASK** | R/W | bitmask | bit0..2 → R1..R3 enable |
 | 25 | **RLY_INV_MASK** | R/W | bitmask | bit0..2 → R1..R3 invert |
-| 26 | **RLY_POWERON** | R/W | bitmask | Power-on state per relay (0=OFF, 1=ON, 2=restore) |
-| 27–29 | **RLY_AUTOOFF** | R/W | u16×3 | Auto-off timer (s) per relay; 0=disabled |
-| 30–31 | **BTN1_SHORT/LONG** | R/W | packed | Button 1 short/long action+target |
-| 32–33 | **BTN2_SHORT/LONG** | R/W | packed | Button 2 short/long action+target |
-| 34–36 | **LED1–3_CFG** | R/W | packed | Per LED: source, mode, invert, arg (relay/DI index) |
+| 26 | **RLY_POWERON** | R/W | packed | 2 bits per relay: 0=Off, 1=On, 2=Restore |
+| 27–29 | **RLY1–3 AUTO-OFF** | R/W | u16 | Auto-off timer (s) per relay; 0=disabled |
+| 30 / 31 | **BTN1 SHORT / LONG** | R/W | packed | Button 1 short/long action+target |
+| 32 / 33 | **BTN2 SHORT / LONG** | R/W | packed | Button 2 short/long action+target |
+| 34–36 | **LED1–3 config** | R/W | packed | source / mode / inverted / arg per LED |
 | 40 | **INTERLOCK** | R/W | packed | Interlock enable + relay pair |
-| 41 | **INTERLOCK_PAUSE** | R/W | u16 | Interlock dead-time (ms) |
-| 42 | **DI_MAINT_MODE** | R/W | bitmask | Maintained mode per DI: 0=Toggle, 1=Follow |
-| 43 | **LONGPRESS_MS** | R/W | u16 | Long-press threshold (ms) |
-| 44 | **MULTICLICK_MS** | R/W | u16 | Multi-click gap (ms) |
-| 45 | **DEBOUNCE_MS** | R/W | u16 | Debounce time (ms) |
-| 46 | **LINKTIMEOUT_MS** | R/W | u16 | RS-485 link timeout (ms) |
+| 41 | **INTERLOCK_PAUSE** | R/W | u16 | Interlock dead-time (ms); default 500 |
+| 42 | **DI_MAINT_MODE_MASK** | R/W | bitmask | Maintained mode per DI: 0=Toggle, 1=Follow |
+| 43 | **LONGPRESS_MS** | R/W | u16 | Default 700 |
+| 44 | **MULTICLICK_MS** | R/W | u16 | Default 300 |
+| 45 | **DEBOUNCE_MS** | R/W | u16 | Default 30 |
+| 46 | **LINKTIMEOUT_MS** | R/W | u16 | Default 5000 |
 
 **Packed action+target byte:** upper 3 bits = action (0=None, 1=Toggle, 2=On, 3=Off, 4=All off); lower 3 bits = target (0=None, 1=R1, 2=R2, 3=R3, 4=All).
 
 ---
 
-## 6.5 Register Use Examples
+## 6.6 Register Use Examples
 
 ### A) Toggle Relay 2 from a PLC
 1. Write `1` to **Coil 1** → Relay 2 ON  
 2. Write `0` to **Coil 1** → Relay 2 OFF
 
 ### B) Read DI3 state
-- Read **Input Register 0** (FC04), test bit 2 of **DI_STATE_MASK**
+- Read **Input Register 0** (FC04), test bit 2 of **DI_MASK**
 
-### C) Map IN3 as maintained toggle → Relay 1
+### C) Map IN3 as Maintained Toggle → Relay 1
 1. Set bit2 in **HREG 8** (enable IN3)  
-2. Clear bit2 in **HREG 10** (Maintained type)  
-3. Write follow target `1` to **HREG 14** (DI3 follow → R1)  
-4. Pulse **Coil 6 (SAVE_CFG)**
+2. Clear bit2 in **HREG 10** (Maintained type); clear bit2 in **HREG 42** (Toggle mode)  
+3. Write follow target `1` to **HREG 14** (DI3 FOLLOW → R1)  
+4. Write `1` to **Coil 6 (SAVE_CFG)** (auto-clears)
 
-### D) Map Button 1 short press → toggle Relay 2
-- Write packed Toggle+R2 to **HREG 30**; pulse **Coil 6**
+### D) Map Button 1 short press → Toggle Relay 2
+- Write packed Toggle+R2 to **HREG 30**; write `1` to **Coil 6**
 
-### E) Persist and reboot
-- Pulse **Coil 6 (SAVE_CFG)** then **Coil 7 (REBOOT)**
+### E) Change Modbus address / baud from the master
+- **HREG 3 (MB_ADDR)** ← new address; **HREG 4 (MB_BAUD)** ← baud code (e.g. `1` = 19200)  
+- Write `1` to **Coil 6 (SAVE_CFG)**; optional **Coil 7 (REBOOT)**
+
+### F) Persist and reboot
+- Write `1` to **Coil 6 (SAVE_CFG)** then **Coil 7 (REBOOT)**
 
 ---
 
-## 6.6 Polling Recommendations
+## 6.7 Polling Recommendations
 
 - **Input registers 0–5:** 5–10 Hz (100–200 ms) for DI/relay/LED masks  
 - **Event counters 6–29:** 1–2 s (change slowly)  
@@ -804,9 +816,7 @@ Configuration is normally done via **WebConfig**. Holding registers mirror the p
 
 # 7. ESPHome Integration Guide (MiniPLC/MicroPLC + DIO-430-R1)
 
-> **Support status:** ✔️ Supported via ESPHome `uart` + `modbus` + `modbus_controller` and a reusable **package**.  
-> **Module role:** Modbus RTU **slave** on RS-485.  
-> **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
+> **Module role:** Modbus RTU **slave** on RS-485. Comms defaults: [§1 Introduction](#1-introduction).
 
 ---
 
@@ -959,7 +969,7 @@ sensor:
 
 - **No response / timeouts:** check A/B polarity, shared **COM/GND** reference, and **120 Ω** termination at bus ends.
 - **Wrong device:** make sure `dio_address` in the package matches the WebConfig address.
-- **Relays don’t switch:** ensure the relay is **Enabled** in WebConfig and not “held” by an **Override**.
+- **Relays don’t switch:** ensure the relay is **Enabled** in WebConfig.
 - **DI not changing:** verify wiring to **INx/GNDx** (respect isolation); check **Enable/Invert/Type** and Short/Long actions in WebConfig.
 
 ---
@@ -1021,8 +1031,8 @@ sensor:
 **Pin Mapping:** see [§2.1 Diagrams & Pinouts](#21-diagrams--pinouts) (`DIO_MCU_Pinouts.png`) and firmware `default_DIO_430_R1.ino`.
 
 **Build Tips**
-- Start at **19200 8N1** on RS‑485 during bring‑up.
-- After flashing, disconnect USB‑C and return control to the master on RS‑485.
+- Use factory RS-485 defaults from [§1 Introduction](#1-introduction) during bring-up.
+- After flashing, disconnect USB-C and return control to the RS-485 master.
 
 ---
 
@@ -1048,8 +1058,8 @@ See [§8.2 Flashing](#82-flashing-usbc-hardware-buttons-only) and [§11 Download
 | Symptom | Checks |
 |---|---|
 | No Modbus comms | A/B polarity, **COM/GND** reference, 120 Ω termination, address/baud match, only two end terminators |
-| Relays don’t actuate | Relay **Enabled** in WebConfig, no active **Override** holding state, coil invert setting, Modbus coil writes acknowledged |
-| DI not changing | Wire to **INx/GNDx** (isolated field side), check **Enable/Invert/Action/Target** in WebConfig, debounce expectations |
+| Relays don’t actuate | Relay **Enabled** in WebConfig; verify coil writes to 0–2; check invert setting |
+| DI not changing | Wire to **INx/GNDx**; check **Enable/Invert/Type** and Short/Long actions in [§5.5](#55-software--ui-configuration-webconfig-reference) |
 | USB won’t connect | Chrome/Edge with Web Serial, close other serial apps, check cable/port permissions |
 | Config not saved | Allow idle for auto‑save or use *Save* if available; verify LittleFS space |
 
