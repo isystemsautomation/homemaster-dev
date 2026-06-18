@@ -14,11 +14,7 @@ on:
 
 env:
   BOARD_MANAGER_URL: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
-  # TODO (maintainer): add Flash Size menu option that reserves a LittleFS partition
-  # (same as Arduino IDE → Tools → Flash Size). Example shape:
-  #   rp2040:rp2040:generic_rp2350:flash=16777216_15728640
-  # Confirm exact option string from `arduino-cli board details -b rp2040:rp2040:generic_rp2350`.
-  FQBN: rp2040:rp2040:generic_rp2350
+  FQBN: rp2040:rp2040:generic_rp2350:flash=2097152_1048576
 
 jobs:
   build:
