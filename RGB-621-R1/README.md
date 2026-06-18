@@ -157,7 +157,7 @@ RGB + CCT LED controller with:
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
 
-![Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB-620-R1Dimensions.png)
+![Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB-621-R1Dimensions.png)
 
 ---
 
@@ -648,7 +648,7 @@ See LICENSE files in each directory for full terms.
 - **Repository (module path):**  
   [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
-- **WebConfig (HTML page):** [configtool-rgb-621-r1](https://www.home-master.eu/configtool-rgb-621-r1)
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`
 - **Datasheet & docs:** `RGB-621-R1/Manuals/`
 - **Images & diagrams:** `RGB-621-R1/Images/`

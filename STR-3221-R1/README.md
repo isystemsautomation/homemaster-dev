@@ -40,7 +40,7 @@ packages:
 
 The **STR-3221-R1** is a compact and configurable **smart LED / I/O controller** designed for **multi-channel LED lighting and automation control** in architectural and industrial applications.
 
-It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **4 opto-isolated 24 V digital inputs** and **4 local buttons** each with indicator LEDs.  
+It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **1 opto-isolated 24 V discrete input**, **2 presence-sensor inputs**, and **4 local buttons** each with indicator LEDs.  
 Configuration is handled through a browser-based **WebConfig interface** via **USB-C (Web Serial)** — no additional software or drivers are required.
 
 The module communicates with a **MicroPLC/MiniPLC** or any Modbus master via **RS-485 (Modbus RTU)**, making it ideal for **staircase lighting, building automation, ambient illumination, alarm signaling, or other automation systems**.
@@ -55,7 +55,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Subsystem         | Qty | Description |
 |------------------:|----:|-------------|
-| **Digital Inputs** | 3 | **Opto-isolated 3V3 DC** on terminals: **IN1 (GND,+)**, **IN2 (GND,+)** for motion sensors, One DI for switch|
+| **Digital Inputs** | 1 + 2 | **1 × opto-isolated 24 V DC discrete input** (DI + GND) plus **2 × presence-sensor inputs** (3.3 V, IN1/IN2 terminals) |
 | **MOSFET Outputs** | 32 | Low-side **SI2307A** per channel (**O1…O32**), 12–24 V loads; flyback **SS24** diodes; grouped with shared **VCC** pins. |
 | **LED Driver ICs** | 4 | **TLC59208F** (8-ch constant-current sinks) used for status/indication and channel grouping/PWM. |
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
@@ -99,7 +99,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
-| **Digital Inputs** | 2 | Opto-isolated **24 VDC** via **ISO1212 (U23)**, surge-protected (F6/F7, D39). |
+| **Digital Inputs** | 1 + 2 | **1 × opto-isolated 24 V DC discrete input** plus **2 × presence-sensor inputs** (IN1/IN2); ISO1212, surge-protected (F6/F7, D39). |
 | **Outputs** | 32 | Low-side **MOSFET (SI2307A)** channels with **SS24** flyback diodes, grouped with shared **VCC** rails. |
 | **Buttons** | 4 | Local control / override / test switches. |
 | **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
@@ -496,7 +496,7 @@ See LICENSE files in each directory for full terms.
 | Resource | Description |
 |-----------|-------------|
 | **🧠 Firmware (Arduino/PlatformIO)** | [`Firmware/v0.1.0/default_str_3221_r1/`](Firmware/v0.1.0/default_str_3221_r1/) — main sketch (coming soon). |
-| **🛠 WebConfig Tool** | [WebConfig Tool](https://www.home-master.eu/configtool-str-3221-r1) — browser-based USB-C setup (coming soon). |
+| **🛠 WebConfig Tool** | [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html) — browser-based USB-C setup (coming soon). |
 | **📷 Images & Diagrams** | [`Images/`](Images/) — module photos, terminal maps, and block diagrams. |
 | **📐 Schematics (PDF)** | [`Schematics/`](Schematics/) — FieldBoard and MCUBoard schematics for hardware developers. |
 | **📄 Datasheet & Manual** | [`Manuals/`](Manuals/) — module datasheet and installation guide. |

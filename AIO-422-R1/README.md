@@ -45,7 +45,7 @@ packages:
   - Accurate temperature readings with fault detection
 
 - **User Interface**
-  - 4 front-panel buttons + status LEDs
+  - 4 front-panel buttons, 4 user LEDs (plus power, RX, TX status LEDs)
   - USB Type-C for firmware updates & diagnostics
 
 - **Modbus RTU over RS‑485**
@@ -85,6 +85,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 | Input/Output Protection      | ESD, overvoltage                     |
 | Communication Interface      | RS‑485 (Modbus RTU)                  |
 | USB Port                     | USB Type‑C                           |
+| User Interface               | 4 buttons; 7× LEDs (power, 4 user LEDs, RX, TX) |
 | Dimensions                   | DIN-rail, 3 modules wide             |
 | Compatibility                | MicroPLC, MiniPLC                    |
 

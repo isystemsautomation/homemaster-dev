@@ -91,7 +91,7 @@ flowchart TD
 | <a href="./AIO-422-R1/"><img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" height="80"/></a> | [**AIO‑422‑R1**](./AIO-422-R1/) | 4 AI + 2 RTD | 2 AO | 0‑10V I/O, PT100/1000 | HVAC, sensors |
 | <a href="./DIO-430-R1/"><img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" height="80"/></a> | [**DIO‑430‑R1**](./DIO-430-R1/) | 4 DI | 3 Relays | Override buttons, logic mapping | General control |
 | <a href="./RGB-621-R1/"><img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" height="80"/></a> | [**RGB‑621‑R1**](./RGB-621-R1/) | 2 DI | 5 PWM + 1 Relay | RGB+CCT, smooth fades | Color lighting |
-| <a href="./STR-3221-R1/"><img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" height="80"/></a> | [**STR‑3221‑R1**](./STR-3221-R1/) | 3 DI | 32 LED Channels | Animated sequences | Architectural lighting |
+| <a href="./STR-3221-R1/"><img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" height="80"/></a> | [**STR‑3221‑R1**](./STR-3221-R1/) | 1 DI + 2 presence | 32 LED Channels | Animated sequences | Architectural lighting |
 | <a href="./WLD-521-R1/"><img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" height="80"/></a> | [**WLD‑521‑R1**](./WLD-521-R1/) | 5 DI + Temp | 2 Relays | Leak detection, pulse metering | Safety systems |
 
 
@@ -185,7 +185,7 @@ RP2350 module firmware (**v0.2.0** sketches) is built with the **arduino-pico** 
 | Core | **arduino-pico** — platform id `rp2040:rp2040` |
 | Board Manager URL | `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json` |
 | Board | **Generic RP2350** (`generic_rp2350`) |
-| Base FQBN | `rp2040:rp2040:generic_rp2350` |
+| Base FQBN | `rp2040:rp2040:generic_rp2350:flash=2097152_1048576` |
 
 **Install core (arduino-cli):**
 
@@ -193,28 +193,28 @@ RP2350 module firmware (**v0.2.0** sketches) is built with the **arduino-pico** 
 arduino-cli config add board_manager.additional_urls \
   https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
 arduino-cli core update-index
-arduino-cli core install rp2040:rp2040
+arduino-cli core install rp2040:rp2040@5.6.0
 ```
 
-**Arduino IDE:** Boards Manager → search **RP2040/RP2350 by Earle F. Philhower** → install → select board **Generic RP2350**.
+**Arduino IDE:** Boards Manager → search **RP2040/RP2350 by Earle F. Philhower** → install **5.6.0** → select board **Generic RP2350**.
 
-> **Flash Size / LittleFS (required):** In Arduino IDE → **Tools → Flash Size**, choose an option that allocates a **LittleFS** (or filesystem) partition — the sketches persist config in LittleFS. The exact FQBN suffix (e.g. `…:flash=…`) is **TODO** for the maintainer: confirm from IDE or `arduino-cli board details -b rp2040:rp2040:generic_rp2350` and update each `sketch.yaml` and `.github/workflows/build-firmware.yml`.
+> **Flash Size / LittleFS (required):** In Arduino IDE → **Tools → Flash Size**, choose **2MB (Sketch: 1MB, FS: 1MB)** — the sketches persist config in LittleFS. FQBN suffix: `:flash=2097152_1048576` (already set in each `sketch.yaml` and CI).
 
-Provided by the core (do **not** list in `sketch.yaml`): `LittleFS`, `Wire`, `pico/time.h`, `hardware/watchdog.h`. Local sketch headers: `hm_common.h` (all modules), `atm90e32.h` (ENM only).
+Provided by the core (do **not** list in `sketch.yaml`): `LittleFS`, `Wire`, `OneWire` (WLD), `pico/time.h`, `hardware/watchdog.h`. Local sketch headers: `hm_common.h` (all modules), `atm90e32.h` (ENM only).
 
 #### Libraries by module (Library Manager)
 
 | Module | Additional libraries | Common (all modules) |
 |---|---|---|
-| AIO-422-R1 | ADS1X15, Adafruit MAX31865 library, Adafruit MCP4725 | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| ALM-173-R1 | PCF8574 | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| DIM-420-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| DIO-430-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| ENM-223-R1 | — *(atm90e32.h local)* | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| RGB-621-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
-| WLD-521-R1 | OneWire | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| AIO-422-R1 | ADS1X15, Adafruit MAX31865 library, Adafruit MCP4725, Adafruit BusIO | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| ALM-173-R1 | PCF8574 | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| DIM-420-R1 | — | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| DIO-430-R1 | — | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| ENM-223-R1 | — *(atm90e32.h local)* | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| RGB-621-R1 | — | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
+| WLD-521-R1 | — | Arduino_JSON, Modbus-Arduino, Modbus-Serial, Simple Web Serial |
 
-Exact pinned versions live in each sketch’s **`sketch.yaml`** (filled from CI `--dump-profile` after the first green workflow run).
+Pinned versions are listed in each sketch’s **`sketch.yaml`** (aligned with CI).
 
 #### Two ways to build
 
@@ -229,7 +229,7 @@ arduino-cli compile --profile default .
 arduino-cli compile --fqbn rp2040:rp2040:generic_rp2350 --export-binaries .
 ```
 
-CI workflow: [`.github/workflows/build-firmware.yml`](.github/workflows/build-firmware.yml) — runs on changes under `*/Firmware/v0.2.0/**`, uploads `*.ino.uf2` and `profile-dump.txt` per module.
+CI workflow: [`.github/workflows/build-firmware.yml`](.github/workflows/build-firmware.yml) — runs on changes under `*/Firmware/v0.2.0/**`, uploads artifact `firmware-<sketch>` containing `*.ino.uf2` per module.
 
 > **Note:** Arduino IDE 2.x does **not** compile from `sketch.yaml` today; the manifest is for **arduino-cli** and CI, and as the version reference for IDE users (install matching library/core versions manually).
 

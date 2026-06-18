@@ -180,7 +180,74 @@ def extract_technical_specs(readme_text):
     return specs
 
 
-def extract_installation_mechanical(readme_text):
+def extract_user_interface(readme_text):
+    """User Interface row from README bullets, subsystem table, or ### User Interface section."""
+    m = re.search(
+        r'\*\*User Interface\*\*\s*\n\s*-\s*([^\n]+)',
+        readme_text,
+        re.I,
+    )
+    if m:
+        detail = strip_md(m.group(1))
+        if 'button' in detail.lower() or 'led' in detail.lower():
+            return ("User Interface", detail)
+
+    buttons = re.search(r'\|\s*\*\*Buttons\*\*\s*\|\s*(\d+)', readme_text)
+    leds = re.search(r'\|\s*\*\*(?:User LEDs|Status LEDs|LED Indicators)\*\*\s*\|\s*(\d+)', readme_text)
+    if buttons and leds:
+        return (
+            "User Interface",
+            f"{buttons.group(1)} buttons, {leds.group(1)}× LEDs (see module README for LED map)",
+        )
+
+    section = re.search(
+        r'#{2,3}\s*.*?User Interface.*?\n(.*?)(?=\n#{2,3}\s|\Z)',
+        readme_text,
+        re.I | re.S,
+    )
+    if section:
+        block = section.group(1)
+        btn = re.search(r'\|\s*\*\*Buttons\*\*\s*\|\s*(\d+)', block)
+        led = re.search(r'\|\s*\*\*User LEDs\*\*\s*\|\s*(\d+)', block)
+        if btn and led:
+            return (
+                "User Interface",
+                f"{btn.group(1)} buttons; {led.group(1)} user LEDs (plus power, RX, TX status LEDs)",
+            )
+    return None
+
+
+def extract_relay_outputs(readme_text):
+    """Relay type/qty from README (SPST-NO, SPDT, etc.) — not hardcoded."""
+    for row in re.finditer(
+        r'\|\s*\*\*Relay(?:\s+Output)?s?(?:\s*\([^)]*\))?\*\*\s*\|\s*([^|\n]+)\|([^|\n]+)',
+        readme_text,
+        re.I,
+    ):
+        qty = strip_md(row.group(1))
+        desc = strip_md(row.group(2))
+        if qty and desc and re.search(r'relay|SPDT|SPST', desc, re.I):
+            return ("Relay Outputs", f"{qty}; {desc}" if qty.isdigit() or qty in ('1', '2', '3') else desc)
+    m = re.search(
+        r'\|\s*\*\*Relay Output\*\*\s*\|\s*(\d+)\s*\|\s*([^|\n]+)',
+        readme_text,
+        re.I,
+    )
+    if m:
+        return ("Relay Outputs", f"{m.group(1)} × {strip_md(m.group(2))}")
+    return None
+
+
+def extract_supplemental_specs(readme_text):
+    """Specs not always present in generic tables (UI, relay wording)."""
+    extra = []
+    ui = extract_user_interface(readme_text)
+    if ui:
+        extra.append(ui)
+    relay = extract_relay_outputs(readme_text)
+    if relay:
+        extra.append(relay)
+    return extra
     """3-column table: Category | Specification | Details. Only rows where README states a value."""
     rows = []
     term = re.search(r'terminal[^\n]*(5\.08|pitch|wire|torque|Nm|mm²|AWG)[^\n]*', readme_text, re.I | re.DOTALL)
@@ -247,6 +314,11 @@ def build_docx(module_code, product_name, part_no, readme_text, out_path):
     # C) Technical Specifications — only rows with value from README
     doc.add_heading("Technical Specifications", level=1)
     specs = extract_technical_specs(readme_text)
+    seen = {name.lower() for name, _ in specs}
+    for name, detail in extract_supplemental_specs(readme_text):
+        if name.lower() not in seen and detail:
+            specs.append((name, detail))
+            seen.add(name.lower())
     if specs:
         table = doc.add_table(rows=1 + len(specs), cols=2)
         table.style = 'Table Grid'
