@@ -73,6 +73,9 @@
   <div class="sectiontitle"><h3>Interlock</h3><p class="hint">Mutual exclusion between two relays with dead-time.</p></div>
   <section class="card"><div class="cardbody" id="io-interlock"></div></section>
 
+  <div class="sectiontitle"><h3>Timing</h3><p class="hint">Press timing, debounce and bus watchdog.</p></div>
+  <section class="card"><div class="cardbody" id="io-timing"></div></section>
+
   <div class="sectiontitle"><h3>Buttons (2)</h3><p class="hint">Short and long press actions (GPIO2, GPIO3).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-buttons"></div></div></section>
 
@@ -85,7 +88,7 @@
   const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
   const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'}];
   const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
-  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'},{v:5,l:'Safe mode'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
+  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
   const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
   const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
@@ -153,6 +156,19 @@
       </div>`;
   }
 
+  function buildTiming(){
+    const c=$('io-timing'); if(!c) return;
+    c.innerHTML=`
+      <div class="row">
+        <div><label for="glob-longpress">Long-press, ms</label><input type="number" id="glob-longpress" min="50" max="5000" value="700" style="width:100%"><div class="sub">How long to hold for a “long press”.</div></div>
+        <div><label for="glob-multiclick">Multi-click gap, ms</label><input type="number" id="glob-multiclick" min="50" max="2000" value="300" style="width:100%"><div class="sub">Max pause between clicks to count as double/triple.</div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label for="glob-debounce">Debounce, ms</label><input type="number" id="glob-debounce" min="1" max="500" value="30" style="width:100%"><div class="sub">Input/button must stay stable this long.</div></div>
+        <div><label for="glob-linktimeout">Link timeout, ms</label><input type="number" id="glob-linktimeout" min="500" max="60000" value="5000" style="width:100%"><div class="sub">No Modbus traffic for this long → bus link lost.</div></div>
+      </div>`;
+  }
+
   function buildButtons(){
     const c=$('io-buttons'); if(!c) return;
     for(let i=1;i<=NUM_BTN;i++){
@@ -183,7 +199,7 @@
     }
   }
 
-  buildInputs(); buildRelays(); buildInterlock(); buildButtons(); buildLeds();
+  buildInputs(); buildRelays(); buildInterlock(); buildTiming(); buildButtons(); buildLeds();
 
   HMWebConfig.register({
     model: 5,
@@ -199,6 +215,12 @@
         $('ilk-a').value = cfg.interlock.relayA ?? 0;
         $('ilk-b').value = cfg.interlock.relayB ?? 1;
         $('ilk-pause').value = cfg.interlock.pauseMs ?? 500;
+      }
+      if (cfg.global) {
+        $('glob-longpress').value   = cfg.global.longPressMs;
+        $('glob-multiclick').value  = cfg.global.multiClickGapMs;
+        $('glob-debounce').value    = cfg.global.debounceMs;
+        $('glob-linktimeout').value = cfg.global.linkTimeoutMs;
       }
       for (let i=0;i<NUM_DI;i++) {
         const n=i+1, o=cfg.in?.[i]; if(!o) continue;
@@ -287,6 +309,15 @@
     });
   }
 
+  function pushGlobal(){
+    HMWebConfig.sendConfig('global', {
+      longPressMs:     parseInt($('glob-longpress').value,10),
+      multiClickGapMs: parseInt($('glob-multiclick').value,10),
+      debounceMs:      parseInt($('glob-debounce').value,10),
+      linkTimeoutMs:   parseInt($('glob-linktimeout').value,10)
+    });
+  }
+
   for(let i=1;i<=NUM_DI;i++){
     $('enable-in'+i)?.addEventListener('change', sendInputEnable);
     $('invert-in'+i)?.addEventListener('change', sendInputInvert);
@@ -317,6 +348,10 @@
     $('arg-led'+i)?.addEventListener('change', sendLedCfg);
   }
   ['ilk-enabled','ilk-a','ilk-b','ilk-pause'].forEach(id=>$(id)?.addEventListener('change', sendInterlock));
+  ['glob-longpress','glob-multiclick','glob-debounce','glob-linktimeout'].forEach(id=>{
+    $(id)?.addEventListener('input', pushGlobal);
+    $(id)?.addEventListener('change', pushGlobal);
+  });
 
   function pushModbus(){
     HMWebConfig.sendValues(parseInt($('modbus-address').value,10), parseInt($('modbus-baud').value,10));

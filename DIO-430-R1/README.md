@@ -139,6 +139,14 @@ Defaults: all enabled, not inverted, OFF at power-on, auto-off 0.
 
 Default: disabled.
 
+#### Timing
+| Field | Values | Meaning |
+|---|---|---|
+| Long-press, ms | 50–5000 (default 700) | How long an input/button must be held to count as a long press. |
+| Multi-click gap, ms | 50–2000 (default 300) | Max pause between presses to count them as double/triple. |
+| Debounce, ms | 1–500 (default 30) | An input/button must stay stable this long before a change is accepted. |
+| Link timeout, ms | 500–60000 (default 5000) | If no valid Modbus traffic arrives for this long, the RS-485 link is treated as lost. |
+
 ![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
 
 #### Buttons (Button 1–2, front panel — GPIO2 / GPIO3)
@@ -154,7 +162,7 @@ Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = T
 #### User LEDs (LED 1–3)
 | Field | Values | Meaning |
 |---|---|---|
-| Source | Off / HA / Link / Child lock / Safe mode / Identify / Relay | What the LED shows: **Off**; **HA** = driven by Home Assistant (alarm/notification); **Link** = RS-485 link to the controller OK; **Child lock** = a child-locked input is active; **Safe mode**; **Identify** = blinks on the Identify command; **Relay** = mirrors a relay's state. |
+| Source | Off / HA / Link / Child lock / Identify / Relay | What the LED shows: **Off**; **HA** = driven by Home Assistant (alarm/notification); **Link** = RS-485 link to the controller OK; **Child lock** = a child-locked input is active; **Identify** = blinks on the Identify command; **Relay** = mirrors a relay's state. |
 | Mode | Steady / Blink | Solid or blinking. |
 | Inverted | on / off | Invert the LED on/off level. |
 | Arg (relay # or DI for child lock) | integer | For Source = **Relay** — which relay; for **Child lock** — which input; otherwise unused. |
