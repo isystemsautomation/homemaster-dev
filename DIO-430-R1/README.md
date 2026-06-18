@@ -3,7 +3,7 @@
 
 ## 🚀 Quick Start (current version)
 
-**Firmware shipped on new modules: `v0.1.0`**
+**Firmware shipped on new modules: `v0.2.0`**
 
 ```yaml
 packages:
@@ -11,7 +11,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+      - path: DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
         vars:
           dio_prefix: "DIO#1"
           dio_id: dio_1
@@ -20,9 +20,10 @@ packages:
 
 ## 📦 Version History
 
-| Version | Config path (`path:`) | Date | Changes |
-|--------|------------------------|------|-----------|
-| **v0.1.0** | `DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | First versioned release |
+| Version | Config path (`path:`) | Date | Status |
+|--------|------------------------|------|--------|
+| **v0.2.0** | `DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | **Current — shipped on new modules** |
+| v0.1.0 | `DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | Legacy (superseded by v0.2.0) |
 
 # DIO-430-R1 — Module for Smart I/O Control
 
@@ -943,7 +944,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+      - path: DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
         vars:
           dio_prefix: "DIO#1"  # shown in Home Assistant entity names
           dio_id: dio_1        # internal unique id
