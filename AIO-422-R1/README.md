@@ -25,6 +25,8 @@ packages:
 |--------|------------------------|------|-----------|
 | **v0.1.0** | `AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml` | 2026-06 | First versioned release |
 
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_aio_422_r1/sketch.yaml)
+
 ---
 
 ## 🔧 Key Features

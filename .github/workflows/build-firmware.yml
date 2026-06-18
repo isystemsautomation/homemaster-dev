@@ -1,0 +1,90 @@
+# Build all HomeMaster RP2350 module firmware (v0.2.0) with arduino-cli.
+# Produces .uf2 binaries and --dump-profile output for pinning sketch.yaml versions.
+name: Build firmware (v0.2.0)
+
+on:
+  push:
+    paths:
+      - '**/Firmware/v0.2.0/**'
+      - '.github/workflows/build-firmware.yml'
+  pull_request:
+    paths:
+      - '**/Firmware/v0.2.0/**'
+      - '.github/workflows/build-firmware.yml'
+
+env:
+  BOARD_MANAGER_URL: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+  # TODO (maintainer): add Flash Size menu option that reserves a LittleFS partition
+  # (same as Arduino IDE → Tools → Flash Size). Example shape:
+  #   rp2040:rp2040:generic_rp2350:flash=16777216_15728640
+  # Confirm exact option string from `arduino-cli board details -b rp2040:rp2040:generic_rp2350`.
+  FQBN: rp2040:rp2040:generic_rp2350
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: AIO-422-R1
+            sketch: default_aio_422_r1
+          - module: ALM-173-R1
+            sketch: default_alm_173_r1
+          - module: DIM-420-R1
+            sketch: default_DIM_420_R1
+          - module: DIO-430-R1
+            sketch: default_DIO_430_R1
+          - module: ENM-223-R1
+            sketch: default_enm_223_r1
+          - module: RGB-621-R1
+            sketch: default_rgb_621_r1
+          - module: WLD-521-R1
+            sketch: default_wld-521-r1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Configure board manager
+        run: arduino-cli config add board_manager.additional_urls "${{ env.BOARD_MANAGER_URL }}"
+
+      - name: Install RP2040 core
+        run: |
+          arduino-cli core update-index
+          # TODO (maintainer): pin core after first green run, e.g. rp2040:rp2040@4.5.1
+          arduino-cli core install rp2040:rp2040
+
+      - name: Install libraries
+        run: |
+          # TODO (maintainer): pin versions after first green run (--dump-profile / Boards Manager), e.g. "Arduino_JSON@0.2.0"
+          arduino-cli lib install \
+            "Arduino_JSON" \
+            "ModbusSerial" \
+            "Simple Web Serial" \
+            "ADS1X15" \
+            "Adafruit MAX31865 library" \
+            "Adafruit MCP4725" \
+            "PCF8574" \
+            "OneWire"
+
+      - name: Compile ${{ matrix.module }} / ${{ matrix.sketch }}
+        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        run: |
+          arduino-cli compile \
+            --fqbn "${{ env.FQBN }}" \
+            --export-binaries \
+            --dump-profile \
+            . 2>&1 | tee profile-dump.txt
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.sketch }}
+          path: |
+            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/build/**/*.uf2
+            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/profile-dump.txt
+          if-no-files-found: error

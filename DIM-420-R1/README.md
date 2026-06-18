@@ -24,6 +24,8 @@ packages:
 |--------|------------------------|------|-----------|
 | **v0.1.0** | `DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml` | 2026-06 | First versioned release |
 
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_DIM_420_R1/sketch.yaml)
+
 # DIM-420-R1 — Module for Dual-Channel AC Dimming
 
 **HOMEMASTER – Modular control. Custom logic.**

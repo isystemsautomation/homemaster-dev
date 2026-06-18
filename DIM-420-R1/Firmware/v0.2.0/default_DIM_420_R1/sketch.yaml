@@ -1,0 +1,12 @@
+profiles:
+  default:
+    notes: HomeMaster DIM-420-R1 v0.2.0 — reproducible build
+    fqbn: rp2040:rp2040:generic_rp2350  # TODO: add Flash Size option for LittleFS partition
+    platforms:
+      - platform: rp2040:rp2040 (X.Y.Z)  # TODO: pin from CI --dump-profile / Boards Manager
+        platform_index_url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+    libraries:
+      - Arduino_JSON (X.Y.Z)             # TODO: pin from CI dump-profile
+      - ModbusSerial (X.Y.Z)
+      - Simple Web Serial (X.Y.Z)
+default_profile: default

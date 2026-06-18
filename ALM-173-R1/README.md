@@ -24,6 +24,8 @@ packages:
 |--------|------------------------|------|-----------|
 | **v0.1.0** | `ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml` | 2026-06 | First versioned release |
 
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_alm_173_r1/sketch.yaml)
+
 # ALM-173-R1 Module for Alarm Systems
 
 # 1. Overview & Description

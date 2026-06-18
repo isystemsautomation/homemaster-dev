@@ -174,11 +174,64 @@ Both controllers and modules support easy flashing and auto-reset via **USB‑C*
 
 Flashing is only required for advanced users who want to replace default firmware.
 
-### Arduino & PlatformIO Notes
-- Clone the firmware repository
-- Use the provided `default_xxx.ino` sketches per module or controller
-- Add libraries as needed:  
-  `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`
+### Build environment (reproducible)
+
+RP2350 module firmware (**v0.2.0** sketches) is built with the **arduino-pico** core (Earle Philhower). Each sketch folder includes a `sketch.yaml` manifest; GitHub Actions compiles all seven modules and publishes `.uf2` artifacts.
+
+#### Core & board
+
+| Item | Value |
+|---|---|
+| Core | **arduino-pico** — platform id `rp2040:rp2040` |
+| Board Manager URL | `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json` |
+| Board | **Generic RP2350** (`generic_rp2350`) |
+| Base FQBN | `rp2040:rp2040:generic_rp2350` |
+
+**Install core (arduino-cli):**
+
+```bash
+arduino-cli config add board_manager.additional_urls \
+  https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+arduino-cli core update-index
+arduino-cli core install rp2040:rp2040
+```
+
+**Arduino IDE:** Boards Manager → search **RP2040/RP2350 by Earle F. Philhower** → install → select board **Generic RP2350**.
+
+> **Flash Size / LittleFS (required):** In Arduino IDE → **Tools → Flash Size**, choose an option that allocates a **LittleFS** (or filesystem) partition — the sketches persist config in LittleFS. The exact FQBN suffix (e.g. `…:flash=…`) is **TODO** for the maintainer: confirm from IDE or `arduino-cli board details -b rp2040:rp2040:generic_rp2350` and update each `sketch.yaml` and `.github/workflows/build-firmware.yml`.
+
+Provided by the core (do **not** list in `sketch.yaml`): `LittleFS`, `Wire`, `pico/time.h`, `hardware/watchdog.h`. Local sketch headers: `hm_common.h` (all modules), `atm90e32.h` (ENM only).
+
+#### Libraries by module (Library Manager)
+
+| Module | Additional libraries | Common (all modules) |
+|---|---|---|
+| AIO-422-R1 | ADS1X15, Adafruit MAX31865 library, Adafruit MCP4725 | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| ALM-173-R1 | PCF8574 | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| DIM-420-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| DIO-430-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| ENM-223-R1 | — *(atm90e32.h local)* | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| RGB-621-R1 | — | Arduino_JSON, ModbusSerial, Simple Web Serial |
+| WLD-521-R1 | OneWire | Arduino_JSON, ModbusSerial, Simple Web Serial |
+
+Exact pinned versions live in each sketch’s **`sketch.yaml`** (filled from CI `--dump-profile` after the first green workflow run).
+
+#### Two ways to build
+
+1. **Arduino IDE** — install core and libraries at the versions listed in the module’s `sketch.yaml`, open the `.ino` sketch, set board/FQBN and **Flash Size** as above, then **Sketch → Export Compiled Binary** (UF2 appears under `build/<fqbn>/`).
+
+2. **arduino-cli / CI (recommended)** — reproducible, isolated build from the manifest:
+
+```bash
+cd DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1   # example
+arduino-cli compile --profile default .
+# or, before versions are pinned in sketch.yaml:
+arduino-cli compile --fqbn rp2040:rp2040:generic_rp2350 --export-binaries .
+```
+
+CI workflow: [`.github/workflows/build-firmware.yml`](.github/workflows/build-firmware.yml) — runs on changes under `*/Firmware/v0.2.0/**`, uploads `*.ino.uf2` and `profile-dump.txt` per module.
+
+> **Note:** Arduino IDE 2.x does **not** compile from `sketch.yaml` today; the manifest is for **arduino-cli** and CI, and as the version reference for IDE users (install matching library/core versions manually).
 
 ### Home Assistant Example (ESPHome)
 ```yaml

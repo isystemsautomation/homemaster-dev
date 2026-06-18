@@ -24,6 +24,8 @@ packages:
 |--------|------------------------|------|-----------|
 | **v0.1.0** | `WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml` | 2026-06 | First versioned release |
 
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_wld-521-r1/sketch.yaml)
+
 # WLD-521-R1 — Water Meter & Leak Detection Module
 
 **HOMEMASTER – Modular control. Custom logic.**
