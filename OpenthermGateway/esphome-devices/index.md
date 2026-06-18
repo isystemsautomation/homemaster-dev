@@ -11,7 +11,7 @@ difficulty: 1
 
 ## HomeMaster OpenTherm Gateway
 
-![Device](./opentherm.png)
+![Device](../Images/opentherm.png)
 
 ## Description
 
@@ -135,7 +135,7 @@ EN 301 489-1, EN 301 489-17, EN IEC 63000
 
 ## Pinout
 
-![Pinout](./pinout.png)
+![Pinout](../Images/pinout.png)
 
 ## Getting Started
 
