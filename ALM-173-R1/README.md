@@ -542,129 +542,75 @@ For **RLY1…RLY3**:
 
 **Slave role:** Modbus RTU over RS-485 (8N1, selectable **9600…115200** baud; typical **19200**).
 **Address:** **1…255** (set via WebConfig).
-**Data model:** **Discrete Inputs**, **Coils**, **Holding/Input Registers** (live telemetry + configuration snapshots).
+**Data model:** **Discrete Inputs (FC02)** for telemetry + **Coils (FC01/05)** for commands. Configuration is via **WebConfig** (not exposed as holding registers in v0.2.0).
 
-> The tables below describe the **factory default** map used by the ALM-173-R1 firmware.
-
----
-
-## 6.1 Input Registers (Read-Only)
-
-Live, read-only snapshots convenient for dashboards and fast polling.
-
-| Group                     | Address range | Type  | Units (raw) | Scaling | Notes                                                                              |
-| ------------------------- | ------------- | ----- | ----------- | ------- | ---------------------------------------------------------------------------------- |
-| **Firmware / Device**     | 1100…1101     | U16×2 | enum        | 1       | 1100 = firmware version, 1101 = build/variant                                      |
-| **Active Modbus config**  | 1110…1111     | U16×2 | enum        | 1       | 1110 = address (1–255), 1111 = baud code (1=9600,2=19200,3=38400,4=57600,5=115200) |
-| **Digital Inputs bitmap** | 1120…1121     | U16×2 | bitfield    | 1       | IN1…IN16 in 1120, IN17 in 1121 bit0                                                |
-| **Alarm summary**         | 1130          | U16   | bitfield    | 1       | bit0=Any, bit1=G1, bit2=G2, bit3=G3                                                |
-| **Relay state mirrors**   | 1140          | U16   | bitfield    | 1       | bits0..2 = RLY1..RLY3 (1=ON)                                                       |
-| **LED state mirrors**     | 1150          | U16   | bitfield    | 1       | bits0..3 = LED1..LED4 (1=active)                                                   |
-| **Buttons pressed**       | 1160          | U16   | bitfield    | 1       | bits0..3 = BTN1..BTN4 (1=pressed)                                                  |
-
-> All 32-bit values (if any added in future) occupy **two** consecutive registers (lo, hi).
+> Map matches `default_alm_173_r1_plc.yaml` and firmware `default_alm_173_r1.ino`.
 
 ---
 
-## 6.2 Holding Registers (Read/Write)
+## 6.1 Discrete Inputs (FC02) — Telemetry
 
-Configuration + low-rate control values (persisted by firmware where applicable).
-
-| Group                     | Address range |   Type | Description                                                                                                                                                                                         |
-| ------------------------- | ------------: | -----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Alarm modes**           | **1200…1202** |  U16×3 | Mode per group: **0=None**, **1=Active-while**, **2=Latched-until-ack** (G1,G2,G3).                                                                                                                 |
-| **Inputs (per IN1…IN17)** | **1300…1350** | U16×51 | Repeating triplet **[enable, invert, group]** per input. Group: **0=None**, **1=G1**, **2=G2**, **3=G3**. Layout: IN1 at 1300..1302, IN2 at 1303..1305, … IN17 at 1348..1350.                       |
-| **Relays (RLY1…RLY3)**    | **1400…1422** |  U16×9 | Repeating triplet **[enable, invert, group]** per relay. Group: **0=None**, **1=G1**, **2=G2**, **3=G3**, **4=Master (controller controls)**. R1 at 1400..1402, R2 at 1410..1412, R3 at 1420..1422. |
-| **Buttons (BTN1…BTN4)**   | **1500…1503** |  U16×4 | **Action** per button: **0=None**, **1=Ack All**, **2=Ack G1**, **3=Ack G2**, **4=Ack G3**, **5=Relay1 override**, **6=Relay2 override**, **7=Relay3 override**.                                    |
-| **User LEDs (LED1…LED4)** | **1600…1607** |  U16×8 | Per LED: **mode** (0=Steady, 1=Blink) and **source** (0=None, 1=Any, 2=G1, 3=G2, 4=G3, 10=R1 overridden, 11=R2 overridden, 12=R3 overridden).                                                       |
-
-> Most daily setup is done in WebConfig; exposing these fields enables headless provisioning/backups from PLC/HA.
+| Address | Name | Description |
+|---------|------|-------------|
+| 1–17 | **IN1…IN17** | Digital input state (after enable/invert) |
+| 50 | **Any Alarm** | Any group in alarm |
+| 51–53 | **Alarm G1…G3** | Group alarm active |
+| 60–62 | **Relay 1…3** | Effective relay state mirrors |
+| 90–93 | **LED 1…4** | Physical LED state mirrors |
 
 ---
 
-## 6.3 Discrete Inputs & Coils
+## 6.2 Coils (FC01/05) — Commands (pulse; write `1`, auto-clears)
 
-### Discrete Inputs (read-only flags)
+| Address | Name | Description |
+|---------|------|-------------|
+| 200–216 | **Enable IN1…IN17** | Pulse per input |
+| 300–316 | **Disable IN1…IN17** | Pulse per input |
+| 400–402 | **Relay ON** | Manual override ON for RLY1…3 |
+| 420–422 | **Relay OFF** | Manual override OFF for RLY1…3 |
+| 500 | **Ack All** | Acknowledge all alarms |
+| 501–503 | **Ack G1…G3** | Acknowledge group 1/2/3 |
+| 510–512 | **Alarm pulse G1…G3** | Pulse to activate alarm group |
 
-| Range           | Bits | Meaning                                              |
-| --------------- | ---: | ---------------------------------------------------- |
-| **00001…00017** |   17 | **DI1…DI17** debounced state                         |
-| **00050…00053** |    4 | **Any Alarm**, **Group 1**, **Group 2**, **Group 3** |
-| **00060…00062** |    3 | **Relay 1…3** state mirrors                          |
-| **00090…00093** |    4 | **LED 1…4** state mirrors                            |
-
-### Coils (write – single/multiple)
-
-| Range           | Count | Action                                 |
-| --------------- | ----: | -------------------------------------- |
-| **00400…00402** |     3 | **Relay ON** pulse (RLY1…RLY3)         |
-| **00420…00422** |     3 | **Relay OFF** pulse (RLY1…RLY3)        |
-| **00500**       |     1 | **Acknowledge All** (pulse)            |
-| **00501…00503** |     3 | **Acknowledge Group 1/2/3** (pulse)    |
-| **00510…00512** |     3 | **Alarm group pulse** G1/G2/G3 (pulse) |
-| **00200…00216** |    17 | **Enable DI i** (pulse per input)      |
-| **00300…00316** |    17 | **Disable DI i** (pulse per input)     |
-
-> Coils obey **priority**: an **Override** holds a relay irrespective of group/master writes until you release it.
+> Manual relay override coils hold until released via the matching OFF coil or WebConfig.
 
 ---
 
-## 6.4 Scaling Summary
+## 6.3 Scaling Summary
 
 No engineering scaling is required for ALM core points. All values are **boolean/bitfield** or **enum codes** as defined above.
 
 ---
 
-## 6.5 Basics & Function Codes
+## 6.4 Basics & Function Codes
 
 * **Physical:** RS-485 half-duplex; 120 Ω termination at both ends; consistent **A/B** polarity; shared COM/GND recommended if separate PSUs.
-* **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if utilized), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.
-* **Polling:** Discrete/group bits at **5–10 Hz**; mirrors at **2–5 Hz**; holding snapshots **on change** or **1–5 s**.
+* **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x05/0x0F` Write Coils.
+* **Polling:** Discrete inputs at **5–10 Hz**; coil commands on demand only.
 
 ---
 
-## 6.6 Register Map (Summary)
+## 6.5 Register Map (Summary)
 
 ```
-Discrete Inputs
-00001..00017 DI1..DI17 state
-00050..00053 Any, G1, G2, G3
-00060..00062 Relay1..Relay3 mirrors
-00090..00093 LED1..LED4 mirrors
+Discrete Inputs (FC02)
+1..17 IN1..IN17
+50 Any Alarm; 51..53 G1..G3
+60..62 Relay1..Relay3 mirrors
+90..93 LED1..LED4 mirrors
 
-Coils
-00400..00402 Relay ON pulse (RLY1..RLY3)
-00420..00422 Relay OFF pulse (RLY1..RLY3)
-00500 Ack All (pulse)
-00501..00503 Ack G1..G3 (pulse)
-00510..00512 Alarm group pulse G1..G3 (pulse)
-00200..00216 Enable DIi (pulse)
-00300..00316 Disable DIi (pulse)
-
-Input Registers (Read-Only)
-01100 FW version (U16)
-01101 FW build/variant (U16)
-01110 Active address (U16)
-01111 Active baud code (U16)
-01120..01121 DI bitmap (U16 lo/hi)
-01130 Alarm summary bitmap (Any,G1,G2,G3)
-01140 Relay bitmap
-01150 LED bitmap
-01160 Button bitmap
-
-Holding Registers (R/W)
-01200..01202 Group modes G1..G3 (0=None,1=Active-while,2=Latched)
-01300..01350 IN1..IN17 [enable,invert,group] triplets
-01400..01402 RLY1 [enable,invert,group]
-01410..01412 RLY2 [enable,invert,group]
-01420..01422 RLY3 [enable,invert,group]
-01500..01503 BTN1..BTN4 action
-01600..01607 LED1..LED4 [mode,source] pairs
+Coils (FC01/05, pulse)
+200..216 Enable INi
+300..316 Disable INi
+400..402 Relay ON override
+420..422 Relay OFF override
+500 Ack All; 501..503 Ack G1..G3
+510..512 Alarm group pulse G1..G3
 ```
 
 ---
 
-## 6.7 Override Priority
+## 6.6 Override Priority
 
 # 7. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
 

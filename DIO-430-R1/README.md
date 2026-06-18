@@ -164,7 +164,7 @@ Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = T
 #### User LEDs (LED 1–3)
 | Field | Values | Meaning |
 |---|---|---|
-| Source | Off / HA / Link / Child lock / Identify / Relay | What the LED shows: **Off**; **HA** = driven by Home Assistant (alarm/notification); **Link** = RS-485 link to the controller OK; **Child lock** = a child-locked input is active; **Identify** = blinks on the Identify command; **Relay** = mirrors a relay's state. |
+| Source | Off / HA / Link / Local / Child lock / Safe mode / Identify / Relay | What the LED shows: **Off**; **HA** = Home Assistant override; **Link** = RS-485 link OK; **Local** = local-logic active; **Child lock** = child-locked input active; **Safe mode** = safe-mode indicator; **Identify** = blinks on Identify command; **Relay** = mirrors a relay state. |
 | Mode | Steady / Blink | Solid or blinking. |
 | Inverted | on / off | Invert the LED on/off level. |
 | Arg (relay # or DI for child lock) | integer | For Source = **Relay** — which relay; for **Child lock** — which input; otherwise unused. |
@@ -215,7 +215,7 @@ The module is updated by copying a `.uf2` file over USB-C — no programmer need
 # 1. Introduction
 
 The **DIO-430-R1** is a configurable smart digital I/O module designed for **digital input monitoring and relay-based output control** in **building automation, lighting, HVAC, alarms, and general control systems**.  
-It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 buttons (2 user-configurable, shown as Button 1 / Button 2; the third is used only for the firmware-update combo)**, and **3 configurable user LEDs**. All I/O channels are individually configurable, allowing flexible logic such as toggle, pulse, manual override, and alarm indication.
+It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 buttons (2 user-configurable, shown as Button 1 / Button 2; the third is used only for the firmware-update combo)**, and **3 configurable user LEDs**. All I/O channels are individually configurable, allowing flexible logic such as maintained/momentary input mapping, manual override, and status indication.
 
 It connects via **RS-485 (Modbus RTU)** to a **MicroPLC, MiniPLC, or any compatible controller**, and can also integrate with **Home Assistant (ESPHome)** or **SCADA/PLC systems**.  
 Configuration and diagnostics are performed through a driverless **Web Serial interface via USB-C**, using the browser-based **WebConfig Tool**. The module supports both **master-controlled** and **standalone local logic** modes.
@@ -316,7 +316,7 @@ System overview, board callouts, and pin mapping:
 ## 2.5 Functional Overview
 
 - **Modbus RTU slave** (factory Addr 3, 19200 8N1; configurable 1–255, 9600–115200).  
-- **Inputs → Relays:** per-input Enable/Invert/Action (`None` / `Toggle` / `Pulse`) and Target (`R1–R3` or `All`).  
+- **Inputs → Relays:** per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions from {None, Toggle, On, Off, All off} + target (R1–R3 or All).  
 - **Buttons:** Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off).  
 - **LEDs:** configurable Steady/Blink following relay status.  
 - **Setup via WebConfig:** USB-C → Chrome/Edge; set comms and I/O mapping.  
@@ -361,8 +361,8 @@ Below are 3 versatile examples combining both types of loads.
 Automatically turns ON a staircase light and a circulation pump when motion is detected.
 
 **Setup Instructions:**
-- Set **IN1** to `Action = Pulse`, `Target = Relay 1` (light).
-- Set **IN2** to `Action = Pulse`, `Target = Relay 2` (pump).
+- Set **IN1** to **Type = Momentary**, Short = **On**, Target = **Relay 1** (light).
+- Set **IN2** to **Type = Momentary**, Short = **On**, Target = **Relay 2** (pump).
 - Enable **Relay 1** for the staircase lighting.
 - Enable **Relay 2** for the circulation pump.
 - Set **LED 1** = `Blink`, source = `Relay 1`.
@@ -379,7 +379,7 @@ Wall-mounted buttons allow users to toggle lights and exhaust fans independently
 - Assign **Button 2** → `Relay 2 override (toggle)` → Ventilation Fan  
 - Enable both **Relay 1** and **Relay 2**.  
 - Set **LED 1** and **LED 2** to `Steady`, following respective relays.  
-- Optionally use Modbus Coils `200–201` for remote control.
+- Optionally use Modbus **coils 0–2** for remote relay control.
 
 ---
 
@@ -388,8 +388,8 @@ Wall-mounted buttons allow users to toggle lights and exhaust fans independently
 Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
 **Setup Instructions:**
-- **IN3** → `Toggle`, Target = `Relay 1` → Grow Light  
-- **IN4** → `Pulse`,  Target = `Relay 2` → Irrigation Pump  
+- **IN3** → **Type = Maintained**, mode **Toggle**, Target = **Relay 1** → Grow Light  
+- **IN4** → **Type = Momentary**, Short = **On**, Target = **Relay 2** → Irrigation Pump  
 - Enable **Relay 1** and **Relay 2**.  
 - Assign **Button 2** to `Relay 2 override (toggle)` for manual watering.  
 - Set **LED 1** = `Steady` (light status), **LED 2** = `Blink` (pump running).
@@ -613,7 +613,7 @@ Each input is **isolated**. Land the contact/sensor on **INx** with the paired *
 
 **Tips**
 - Supports **dry contacts** or compatible 24 V field signals.
-- Configure in **WebConfig**: **Enabled/Invert**, **Action** (`None / Toggle / Pulse`), **Control target** (`None / All / R1 / R2 / R3`).
+- Configure in **WebConfig**: **Enabled/Invert**, **Type** (Maintained/Momentary), **Short/Long actions** (`None / Toggle / On / Off / All off`), **Target** (`None / All / R1 / R2 / R3`).
 - Keep field wiring shielded/twisted for long runs; terminate shield at one end only.
 
 ---
@@ -676,18 +676,19 @@ Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O
 
 ---
 
-### B) Inputs — enable / invert / group (control target)
+### B) Inputs — enable / invert / type / actions
 Each **IN1…IN4** card provides:
 - **Enabled**: include the input in logic.  
 - **Inverted**: logical inversion.  
-- **Action**: `None / Toggle / Pulse`.  
-- **Control target**: `None / Control all / Relay 1 / Relay 2 / Relay 3`.  
+- **Type**: **Maintained** (Toggle/Follow + target) or **Momentary** (Short/Long actions + target).  
+- **Short/Long → action**: `None / Toggle / On / Off / All off`.  
+- **Short/Long → target**: `None / All / Relay 1 / Relay 2 / Relay 3`.  
 
-This matches the firmware’s input options and allows direct mapping from inputs to one or more relays without a PLC. 
+This matches the firmware input model and allows direct mapping from inputs to relays without a PLC. 
 
 **Tips**
-- Use **Toggle** to latch a relay on each press; **Pulse** for momentary actions (timers handled by controller if needed).   
-- For “group” behavior, select **Control all** to operate **Relays 1–3** together. 
+- Use **Maintained + Toggle** to latch a relay on each contact change; **Momentary + On/Off** for pulse-style control.   
+- For “group” behavior, select **All** as the target to operate **Relays 1–3** together. 
 
 ![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
 
@@ -738,7 +739,7 @@ For **Relay 1–3**:
 - Connect **USB-C** → **Select port** → **Connect**.
 - Set:
   - **Modbus Address / Baud** (default: Addr **3**, **19200 8N1**)
-  - **Inputs**: Enable / Invert / **Action** (`None / Toggle / Pulse`) / **Control target** (`None / All / R1 / R2 / R3`)
+  - **Inputs**: Enable / Invert / **Type** (Maintained/Momentary) / **Short & Long actions** + **Target**
   - **Relays**: Enable (optional **Invert**)
   - **Buttons**: map **Button 1 / Button 2** to relay actions (toggle, on, off, all off) for R1/R2/R3
   - **User LEDs**: **Mode** (`Steady / Blink`) + **Activate when** (follow a relay)
@@ -751,7 +752,7 @@ For **Relay 1–3**:
 - Connect controller (MiniPLC/MicroPLC/PLC/SCADA/ESPHome) via **RS-485**.
 - Match **address** and **baud**.
 - **Poll**:
-  - **Discrete inputs** for DI states and relay states (per your mapping)
+  - **Input registers** 0–5 for DI/relay/LED/button masks (FC04)
 - **Write**:
   - **Coils** to control relays (e.g., R1/R2/R3 ON/OFF)
 - Use with:
@@ -787,7 +788,7 @@ For **Relay 1–3**:
 |------|---------|---------|
 | **Input Registers** (FC04) | `0…29` | State masks, status flags, event counters |
 | **Coils** (FC01/05) | `0…14` | Relays, LEDs, DI lock, device commands |
-| **Holding Registers** (FC03) | config block | Identity, DI/relay/button/LED settings (WebConfig primary) |
+| **Holding Registers** (FC03) | `0…46` | Identity, DI/relay/button/LED config, timing |
 
 ---
 
@@ -801,7 +802,7 @@ For **Relay 1–3**:
 | 3 | **LED_STATE_MASK** | bitmask | bit0..2 → LED1..LED3 |
 | 4 | **STATUS_FLAGS** | bitmask | bit1 = link OK, bit3 = config dirty |
 | 5 | **LOCK_MASK** | bitmask | bit0..3 → DI1..DI4 child-lock |
-| 6–29 | **Event counters** | u16 | DI1..4 and Btn1..2 × single/double/triple/long |
+| 6–29 | **Event counters** | u16 | Index = `6 + source×4 + type`; sources: DI1..4 = 0..3, Btn1..2 = 4..5; types: 0=single, 1=double, 2=triple, 3=long |
 
 ---
 
@@ -811,6 +812,7 @@ For **Relay 1–3**:
 |-----:|------|-------------|
 | 0–2 | **R1–R3** | Relay 1–3 ON/OFF (maintained) |
 | 3 | **ALL_OFF** | Turn all relays off (pulse) |
+| 4 | **LOCAL_LOGIC** | Reserved (internal local-logic flag) |
 | 5 | **IDENTIFY** | Front-panel identify blink (pulse) |
 | 6 | **SAVE_CFG** | Persist settings to flash (pulse) |
 | 7 | **REBOOT** | Soft reset (pulse) |
@@ -821,7 +823,38 @@ For **Relay 1–3**:
 
 ## 6.4 Holding Registers (FC03) — Configuration
 
-Configuration is normally done via **WebConfig**. Holding registers mirror identity (model, firmware build), Modbus address/baud, per-DI action/target, relay enable/invert masks, button actions, LED modes, and diagnostics (uptime, error code). See firmware `default_DIO_430_R1.ino` for the full holding map.
+Configuration is normally done via **WebConfig**. Holding registers mirror the persisted settings (offsets 0–46):
+
+| Reg | Name | R/W | Encoding | Notes |
+|----:|------|:---:|----------|-------|
+| 0 | **MODEL_ID** | R | u16 | Device model ID (**5** for DIO-430-R1) |
+| 1 | **FW_VERSION** | R | u16 | Packed `(major<<8)\|minor` |
+| 2 | **MAP_VERSION** | R | u16 | Modbus map version |
+| 3 | **MB_ADDR** | R/W | u16 | Modbus address 1–255 |
+| 4 | **MB_BAUD** | R/W | enum | 0=9600, 1=19200, 2=38400, 3=57600, 4=115200 |
+| 8 | **DI_EN_MASK** | R/W | bitmask | bit0..3 → DI1..DI4 enable |
+| 9 | **DI_INV_MASK** | R/W | bitmask | bit0..3 → DI1..DI4 invert |
+| 10 | **DI_TYPE_MASK** | R/W | bitmask | bit0..3 → 0=Maintained, 1=Momentary |
+| 11 | **DI_LOCK_MASK** | R/W | bitmask | bit0..3 → child-lock per DI |
+| 12–15 | **DI_FOLLOW** | R/W | u16×4 | Follow target per DI (Maintained mode) |
+| 16–19 | **DI_SHORT** | R/W | packed | Short-press action+target per DI (Momentary) |
+| 20–23 | **DI_LONG** | R/W | packed | Long-press action+target per DI (Momentary) |
+| 24 | **RLY_EN_MASK** | R/W | bitmask | bit0..2 → R1..R3 enable |
+| 25 | **RLY_INV_MASK** | R/W | bitmask | bit0..2 → R1..R3 invert |
+| 26 | **RLY_POWERON** | R/W | bitmask | Power-on state per relay (0=OFF, 1=ON, 2=restore) |
+| 27–29 | **RLY_AUTOOFF** | R/W | u16×3 | Auto-off timer (s) per relay; 0=disabled |
+| 30–31 | **BTN1_SHORT/LONG** | R/W | packed | Button 1 short/long action+target |
+| 32–33 | **BTN2_SHORT/LONG** | R/W | packed | Button 2 short/long action+target |
+| 34–36 | **LED1–3_CFG** | R/W | packed | Per LED: source, mode, invert, arg (relay/DI index) |
+| 40 | **INTERLOCK** | R/W | packed | Interlock enable + relay pair |
+| 41 | **INTERLOCK_PAUSE** | R/W | u16 | Interlock dead-time (ms) |
+| 42 | **DI_MAINT_MODE** | R/W | bitmask | Maintained mode per DI: 0=Toggle, 1=Follow |
+| 43 | **LONGPRESS_MS** | R/W | u16 | Long-press threshold (ms) |
+| 44 | **MULTICLICK_MS** | R/W | u16 | Multi-click gap (ms) |
+| 45 | **DEBOUNCE_MS** | R/W | u16 | Debounce time (ms) |
+| 46 | **LINKTIMEOUT_MS** | R/W | u16 | RS-485 link timeout (ms) |
+
+**Packed action+target byte:** upper 3 bits = action (0=None, 1=Toggle, 2=On, 3=Off, 4=All off); lower 3 bits = target (0=None, 1=R1, 2=R2, 3=R3, 4=All).
 
 ---
 
@@ -834,8 +867,17 @@ Configuration is normally done via **WebConfig**. Holding registers mirror ident
 ### B) Read DI3 state
 - Read **Input Register 0** (FC04), test bit 2 of **DI_STATE_MASK**
 
-### C) Reset event counters after commissioning
-- Use WebConfig or pulse **Coil 6 (SAVE_CFG)** after clearing counters in UI
+### C) Map IN3 as maintained toggle → Relay 1
+1. Set bit2 in **HREG 8** (enable IN3)  
+2. Clear bit2 in **HREG 10** (Maintained type)  
+3. Write follow target `1` to **HREG 14** (DI3 follow → R1)  
+4. Pulse **Coil 6 (SAVE_CFG)**
+
+### D) Map Button 1 short press → toggle Relay 2
+- Write packed Toggle+R2 to **HREG 30**; pulse **Coil 6**
+
+### E) Persist and reboot
+- Pulse **Coil 6 (SAVE_CFG)** then **Coil 7 (REBOOT)**
 
 ---
 
@@ -844,7 +886,8 @@ Configuration is normally done via **WebConfig**. Holding registers mirror ident
 - **Input registers 0–5:** 5–10 Hz (100–200 ms) for DI/relay/LED masks  
 - **Event counters 6–29:** 1–2 s (change slowly)  
 - **Coils:** write on change only; relays 0–2 are maintained  
-- **Holding:** configure at commissioning; avoid frequent writes
+- **Holding:** configure at commissioning; avoid frequent writes  
+- **Edge logic:** use **Maintained/Toggle** for latching inputs; **Momentary/On/Off** when the PLC supervises timers
 
 ---
 
@@ -892,21 +935,22 @@ packages:
 
 ## 7.2 Entities exposed (from the package)
 
-- **Binary Sensors**
-  - **DI1…DI4** (post-invert, debounced)
+- **Binary Sensors** (from **Input Registers**, FC04 bitmasks)
+  - **DI1…DI4** (IREG 0)
+  - **Btn1…Btn2** (IREG 2)
+  - **LED1…LED3** (IREG 3)
+  - **Link OK / Config dirty** (IREG 4)
+  - **DI child-lock flags** (IREG 5)
 - **Switches**
-  - **Relay 1–3** (Modbus coils ON/OFF)
-  - **Override ON/OFF** for Relay 1–3 (forces state until released)
-  - **Save Config** / **Soft Reset** (commissioning helpers)
-- **Sensors (diagnostic)**
-  - **Button state mask** (optional)
-  - **LED state mask** (optional)
-  - **Uptime / flags** (optional)
-- **Select/Number (optional, commissioning)**
-  - Modbus **address/baud** view
-  - Per-input **Enable/Invert/Action/Target** (read/write helpers if enabled in the package)
+  - **Relay 1–3** (coils 0–2, maintained)
+  - **LED1–3 HA override** (coils 8–10)
+  - **DI1–4 child lock** (coils 11–14)
+- **Sensors**
+  - **Event counters** DI1..4 / Btn1..2 × single/double/triple/long (IREG 6–29)
+- **Buttons (template)**
+  - **All off**, **Identify** (pulse coils 3, 5)
 
-> The package sticks to the Modbus map defined in Section **6** (coils for relays, discrete inputs for DI states, holding/input registers for masks and configuration).
+> The package matches `default_dio_430_r1_plc.yaml`: **no discrete-input bank** — DI/relay states are read from **Input Register** masks.
 
 ---
 
@@ -923,27 +967,31 @@ modbus_controller:
     command_throttle: 100ms
 
 binary_sensor:
-  # DI1..DI4 as Discrete Inputs (1x offsets 0..3)
+  # DI1..DI4 from Input Register 0 (FC04 bitmasks)
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 DI1"
-    register_type: discrete_input
+    register_type: read
     address: 0
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 DI2"
-    register_type: discrete_input
-    address: 1
+    register_type: read
+    address: 0
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 DI3"
-    register_type: discrete_input
-    address: 2
+    register_type: read
+    address: 0
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 DI4"
-    register_type: discrete_input
-    address: 3
+    register_type: read
+    address: 0
+    bitmask: 0x0008
 
 switch:
   # Relays as Coils (0x offsets 0..2)
@@ -964,18 +1012,18 @@ switch:
     address: 2
 
 sensor:
-  # (Optional) LED and Button masks from Input Registers 30003/30002
+  # LED and Button masks from Input Registers 3/2 (FC04)
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 LED Mask"
-    register_type: input
+    register_type: read
     address: 3
     value_type: U_WORD
     accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: dio430_4
     name: "DIO#1 Button Mask"
-    register_type: input
+    register_type: read
     address: 2
     value_type: U_WORD
     accuracy_decimals: 0
@@ -987,7 +1035,7 @@ sensor:
 
 - **Dashboards**
   - **Lighting panel:** Card for **Relay 1–3** plus DI tiles (e.g., wall switch/sensor feedback).
-  - **Maintenance card:** **Override ON/OFF** for each relay + **Reset Device** + **Save Config**.
+  - **Maintenance card:** **Relay 1–3** switches + **Identify** / **All off** template buttons
 - **Automations**
   - **DI → Relay:** If you keep the logic in HA/PLC (instead of module mapping), trigger relay switches when a DI goes high.  
   - **Night mode:** When `input_boolean.night_mode` is on, force a specific **Override** ON and release it in the morning.
@@ -1001,7 +1049,7 @@ sensor:
 - **No response / timeouts:** check A/B polarity, shared **COM/GND** reference, and **120 Ω** termination at bus ends.
 - **Wrong device:** make sure `dio_address` in the package matches the WebConfig address.
 - **Relays don’t switch:** ensure the relay is **Enabled** in WebConfig and not “held” by an **Override**.
-- **DI not changing:** verify wiring to **INx/GNDx** (respect isolation); check **Invert/Enable/Action/Target** in WebConfig.
+- **DI not changing:** verify wiring to **INx/GNDx** (respect isolation); check **Enable/Invert/Type** and Short/Long actions in WebConfig.
 
 ---
 
@@ -1053,12 +1101,11 @@ sensor:
 - **USB:** CDC enabled (serial logging)
 - **FS:** LittleFS partition recommended (for settings)
 
-**Required Libraries (typical firmware)**
-- `ModbusSerial` (or equivalent RTU)
-- `Arduino_JSON`
-- `LittleFS`
-- `SimpleWebSerial` (or equivalent transport for WebConfig)
-- `Wire` (I²C; if using expanders in forks)
+**Required Libraries (Library Manager names / versions)**
+- `Arduino_JSON` (0.2.0)
+- `Modbus-Arduino` (1.3.0) + `Modbus-Serial` (2.0.6) — `#include <ModbusSerial.h>` in sketch
+- `Simple Web Serial` (1.0.0)
+- **From core:** `LittleFS`, `Wire` (no separate install)
 
 **Pin Mapping (DIO-430-R1 default firmware)**
 - **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH)

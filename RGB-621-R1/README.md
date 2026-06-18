@@ -525,7 +525,7 @@ Summarize steps in 3 phases:
 
 # 6. Modbus RTU Communication
 
-The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc_full.yaml` (v0.2.0).
+The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc_full.yaml` and firmware v0.2.0.
 
 **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
 
@@ -535,7 +535,9 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 1 | DI1 | Digital input 1 state |
+| 1–2 | **DI1–DI2** | Digital input state |
+| 60 | **Relay 1** | Relay output state mirror |
+| 90–91 | **LED1–LED2** | User LED state mirrors |
 
 ---
 
@@ -543,10 +545,12 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 200 | Relay1 ON | Pulse coil — write `1` to energize relay |
-| 210 | Relay1 OFF | Pulse coil — write `1` to de-energize relay |
+| 200 | **Relay1 ON** | Pulse coil — write `1` to energize |
+| 210 | **Relay1 OFF** | Pulse coil — write `1` to de-energize |
+| 300–301 | **DI1–DI2 Enable** | Pulse per input |
+| 320–321 | **DI1–DI2 Disable** | Pulse per input |
 
-> Pulse coils auto-reset; ESPHome YAML uses 200 ms delay then clears the coil.
+> Pulse coils auto-reset after the action.
 
 ---
 
@@ -554,11 +558,9 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Range | Description |
 |---------|------|-------|-------------|
-| 400 | Red | 0–255 | RGB red channel |
-| 401 | Green | 0–255 | RGB green channel |
-| 402 | Blue | 0–255 | RGB blue channel |
-| 403 | Warm White | 0–255 | CCT warm-white channel |
-| 404 | Cool White | 0–255 | CCT cool-white channel |
+| 400–404 | **R, G, B, WW, CW** | 0–255 | PWM channel levels |
+| 480 | **MB_ADDR** | 1–255 | Modbus address |
+| 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
 
 ---
 
@@ -568,14 +570,15 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 |-----------|--------------|
 | Set red to 128 | Holding **400** ← 128 |
 | Pulse relay ON | Coil **200** ← 1 |
-| Read DI1 | Discrete input **1** (FC02) |
+| Read DI2 | Discrete input **2** (FC02) |
+| Enable DI1 | Coil **300** ← 1 (pulse) |
 
 ---
 
 ## 6.5 Polling Recommendations
 
-- **DI state:** 1 s  
-- **PWM holding registers 400–404:** on change or 1–2 s  
+- **DI / relay / LED state:** 1 s (FC02)  
+- **PWM holding 400–404:** on change or 1–2 s  
 - **Relay pulse coils:** write only on demand
 
 ---
