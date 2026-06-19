@@ -90,7 +90,7 @@ const uint8_t PCF20_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
 const uint8_t PCF21_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
 const uint8_t PCF23_IN17_PIN = 0;
 const uint8_t RELAY_PINS[3] = {3, 7, 6};    // ACTIVE-LOW (PCF8574 on 0x23)
-const uint8_t LED_PINS[4]   = {7, 6, 5, 3}; // ACTIVE-LOW (PCF8574 on 0x27)
+const uint8_t LED_PINS[4]   = {7, 6, 5, 4}; // ACTIVE-LOW (PCF8574 on 0x27): LED1=P7,LED2=P6,LED3=P5,LED4=P4 (P0..P3 = BUTTON1..4)
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
