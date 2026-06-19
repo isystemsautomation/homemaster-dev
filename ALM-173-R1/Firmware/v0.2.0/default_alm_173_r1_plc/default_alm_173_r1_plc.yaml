@@ -1,10 +1,20 @@
-# ALM-173-R1 — ESPHome Modbus map (MAP v2: zone latch memory, arm status, arm/disarm coils)
-# You can override any of these in your main yaml's `substitutions:`.
+# ALM-173-R1 — ESPHome Modbus package (MAP v3, firmware 0.2.0)
+##
+## Input Registers (FC04, read) — contiguous @0..3 (one merged poll per cycle):
+##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay1-3/LED1-4/Armed/Entry/Exit/Tamper
+##   2 Zone1..16 latched · 3 Zone17 latched
+##
+## Coils (FC01/05) — contiguous @0..48:
+##   0..16 enable IN · 17..33 disable IN · 34..36 relay ON · 37..39 relay OFF
+##   40 Ack All · 41..43 Ack G1-G3 · 44..46 alarm pulse G1-G3 · 47 ARM · 48 DISARM
+##
+## Identity (FC04) @200 — MODEL_ID, FW version, MAP_VERSION (read once; not in package).
+
 substitutions:
   alm_id: alm
   alm_address: "3"
   alm_prefix: "ALM"
-  alm_update_interval: 1s
+  alm_update_interval: 500ms
   alm_command_throttle: 0ms
 
 modbus_controller:
@@ -14,562 +24,576 @@ modbus_controller:
     command_throttle: ${alm_command_throttle}
     update_interval: ${alm_update_interval}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TELEMETRY (READ-ONLY): discrete_input registers
-# ─────────────────────────────────────────────────────────────────────────────
 binary_sensor:
-  # IN1..IN8
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN1"
-    register_type: discrete_input
-    address: 1
+    register_type: read
+    address: 0
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN2"
-    register_type: discrete_input
-    address: 2
+    register_type: read
+    address: 0
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN3"
-    register_type: discrete_input
-    address: 3
+    register_type: read
+    address: 0
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN4"
-    register_type: discrete_input
-    address: 4
+    register_type: read
+    address: 0
+    bitmask: 0x0008
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN5"
-    register_type: discrete_input
-    address: 5
+    register_type: read
+    address: 0
+    bitmask: 0x0010
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN6"
-    register_type: discrete_input
-    address: 6
+    register_type: read
+    address: 0
+    bitmask: 0x0020
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN7"
-    register_type: discrete_input
-    address: 7
+    register_type: read
+    address: 0
+    bitmask: 0x0040
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN8"
-    register_type: discrete_input
-    address: 8
-
-  # IN9..IN16
+    register_type: read
+    address: 0
+    bitmask: 0x0080
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN9"
-    register_type: discrete_input
-    address: 9
+    register_type: read
+    address: 0
+    bitmask: 0x0100
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN10"
-    register_type: discrete_input
-    address: 10
+    register_type: read
+    address: 0
+    bitmask: 0x0200
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN11"
-    register_type: discrete_input
-    address: 11
+    register_type: read
+    address: 0
+    bitmask: 0x0400
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN12"
-    register_type: discrete_input
-    address: 12
+    register_type: read
+    address: 0
+    bitmask: 0x0800
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN13"
-    register_type: discrete_input
-    address: 13
+    register_type: read
+    address: 0
+    bitmask: 0x1000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN14"
-    register_type: discrete_input
-    address: 14
+    register_type: read
+    address: 0
+    bitmask: 0x2000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN15"
-    register_type: discrete_input
-    address: 15
+    register_type: read
+    address: 0
+    bitmask: 0x4000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN16"
-    register_type: discrete_input
-    address: 16
-
-  # IN17
+    register_type: read
+    address: 0
+    bitmask: 0x8000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN17"
-    register_type: discrete_input
-    address: 17
-
-  # Alarms 50..53
+    register_type: read
+    address: 1
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Any Alarm"
-    register_type: discrete_input
-    address: 50
+    register_type: read
+    address: 1
+    bitmask: 0x0002
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Alarm Group 1"
-    register_type: discrete_input
-    address: 51
+    register_type: read
+    address: 1
+    bitmask: 0x0004
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Alarm Group 2"
-    register_type: discrete_input
-    address: 52
+    register_type: read
+    address: 1
+    bitmask: 0x0008
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Alarm Group 3"
-    register_type: discrete_input
-    address: 53
+    register_type: read
+    address: 1
+    bitmask: 0x0010
     device_class: problem
-
-  # Effective relay states 60..62
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Relay 1 State"
-    register_type: discrete_input
-    address: 60
+    register_type: read
+    address: 1
+    bitmask: 0x0020
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Relay 2 State"
-    register_type: discrete_input
-    address: 61
+    register_type: read
+    address: 1
+    bitmask: 0x0040
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Relay 3 State"
-    register_type: discrete_input
-    address: 62
-
-  # LED states 90..93
+    register_type: read
+    address: 1
+    bitmask: 0x0080
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 1"
-    register_type: discrete_input
-    address: 90
+    register_type: read
+    address: 1
+    bitmask: 0x0100
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 2"
-    register_type: discrete_input
-    address: 91
+    register_type: read
+    address: 1
+    bitmask: 0x0200
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 3"
-    register_type: discrete_input
-    address: 92
+    register_type: read
+    address: 1
+    bitmask: 0x0400
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 4"
-    register_type: discrete_input
-    address: 93
-
-  # Local arming status (MAP v2) 70..73
+    register_type: read
+    address: 1
+    bitmask: 0x0800
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Armed"
-    register_type: discrete_input
-    address: 70
+    register_type: read
+    address: 1
+    bitmask: 0x1000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Entry pending"
-    register_type: discrete_input
-    address: 71
+    register_type: read
+    address: 1
+    bitmask: 0x2000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Exit pending"
-    register_type: discrete_input
-    address: 72
+    register_type: read
+    address: 1
+    bitmask: 0x4000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Tamper (any)"
-    register_type: discrete_input
-    address: 73
+    register_type: read
+    address: 1
+    bitmask: 0x8000
     device_class: problem
-
-  # Per-zone alarm memory (MAP v2) 100..116
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 1 latched"
-    register_type: discrete_input
-    address: 100
+    register_type: read
+    address: 2
+    bitmask: 0x0001
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 2 latched"
-    register_type: discrete_input
-    address: 101
+    register_type: read
+    address: 2
+    bitmask: 0x0002
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 3 latched"
-    register_type: discrete_input
-    address: 102
+    register_type: read
+    address: 2
+    bitmask: 0x0004
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 4 latched"
-    register_type: discrete_input
-    address: 103
+    register_type: read
+    address: 2
+    bitmask: 0x0008
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 5 latched"
-    register_type: discrete_input
-    address: 104
+    register_type: read
+    address: 2
+    bitmask: 0x0010
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 6 latched"
-    register_type: discrete_input
-    address: 105
+    register_type: read
+    address: 2
+    bitmask: 0x0020
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 7 latched"
-    register_type: discrete_input
-    address: 106
+    register_type: read
+    address: 2
+    bitmask: 0x0040
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 8 latched"
-    register_type: discrete_input
-    address: 107
+    register_type: read
+    address: 2
+    bitmask: 0x0080
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 9 latched"
-    register_type: discrete_input
-    address: 108
+    register_type: read
+    address: 2
+    bitmask: 0x0100
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 10 latched"
-    register_type: discrete_input
-    address: 109
+    register_type: read
+    address: 2
+    bitmask: 0x0200
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 11 latched"
-    register_type: discrete_input
-    address: 110
+    register_type: read
+    address: 2
+    bitmask: 0x0400
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 12 latched"
-    register_type: discrete_input
-    address: 111
+    register_type: read
+    address: 2
+    bitmask: 0x0800
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 13 latched"
-    register_type: discrete_input
-    address: 112
+    register_type: read
+    address: 2
+    bitmask: 0x1000
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 14 latched"
-    register_type: discrete_input
-    address: 113
+    register_type: read
+    address: 2
+    bitmask: 0x2000
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 15 latched"
-    register_type: discrete_input
-    address: 114
+    register_type: read
+    address: 2
+    bitmask: 0x4000
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 16 latched"
-    register_type: discrete_input
-    address: 115
+    register_type: read
+    address: 2
+    bitmask: 0x8000
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 17 latched"
-    register_type: discrete_input
-    address: 116
+    register_type: read
+    address: 3
+    bitmask: 0x0001
     device_class: problem
 
-# ─────────────────────────────────────────────────────────────────────────────
-# COMMANDS (WRITE-ONLY): coils as outputs (ALM auto-clears pulses)
-# ─────────────────────────────────────────────────────────────────────────────
 output:
-  # Acknowledge Alarms (500..503)
+  # Acknowledge (40..43)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_ack_all
-    address: 500
+    address: 40
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_ack_g1
-    address: 501
+    address: 41
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_ack_g2
-    address: 502
+    address: 42
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_ack_g3
-    address: 503
+    address: 43
 
-  # Relay manual override pulses (ON 400..402 / OFF 420..422)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_rly1_on
-    address: 400
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly2_on
-    address: 401
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly3_on
-    address: 402
+    address: 34
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_rly1_off
-    address: 420
+    address: 37
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    register_type: coil
+    id: alm_rly2_on
+    address: 35
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_rly2_off
-    address: 421
+    address: 38
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    register_type: coil
+    id: alm_rly3_on
+    address: 36
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_rly3_off
-    address: 422
-
-  # Enable Inputs (200..216)
+    address: 39
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in1
-    address: 200
+    address: 0
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in2
-    address: 201
+    address: 1
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in3
-    address: 202
+    address: 2
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in4
-    address: 203
+    address: 3
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in5
-    address: 204
+    address: 4
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in6
-    address: 205
+    address: 5
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in7
-    address: 206
+    address: 6
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in8
-    address: 207
+    address: 7
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in9
-    address: 208
+    address: 8
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in10
-    address: 209
+    address: 9
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in11
-    address: 210
+    address: 10
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in12
-    address: 211
+    address: 11
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in13
-    address: 212
+    address: 12
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in14
-    address: 213
+    address: 13
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in15
-    address: 214
+    address: 14
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in16
-    address: 215
+    address: 15
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_en_in17
-    address: 216
-
-  # Disable Inputs (300..316)
+    address: 16
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in1
-    address: 300
+    address: 17
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in2
-    address: 301
+    address: 18
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in3
-    address: 302
+    address: 19
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in4
-    address: 303
+    address: 20
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in5
-    address: 304
+    address: 21
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in6
-    address: 305
+    address: 22
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in7
-    address: 306
+    address: 23
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in8
-    address: 307
+    address: 24
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in9
-    address: 308
+    address: 25
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in10
-    address: 309
+    address: 26
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in11
-    address: 310
+    address: 27
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in12
-    address: 311
+    address: 28
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in13
-    address: 312
+    address: 29
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in14
-    address: 313
+    address: 30
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in15
-    address: 314
+    address: 31
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in16
-    address: 315
+    address: 32
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_dis_in17
-    address: 316
-
-  # Alarm Group Pulses (510..512)
+    address: 33
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_pulse_g1
-    address: 510
+    address: 44
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_pulse_g2
-    address: 511
+    address: 45
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     register_type: coil
     id: alm_pulse_g3
-    address: 512
+    address: 46
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ARM / DISARM (MAP v2) — pulse coils via switch
-# ─────────────────────────────────────────────────────────────────────────────
 switch:
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Arm"
     register_type: coil
-    address: 530
+    address: 47
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Disarm"
     register_type: coil
-    address: 531
+    address: 48
 
-# ─────────────────────────────────────────────────────────────────────────────
-# UI BUTTONS — call output.turn_on: <coil_id>
-# ─────────────────────────────────────────────────────────────────────────────
 button:
-  # Alarm Acks
   - platform: template
     name: "${alm_prefix} Ack All"
     on_press:
@@ -586,168 +610,162 @@ button:
     name: "${alm_prefix} Ack Group 3"
     on_press:
       - output.turn_on: alm_ack_g3
-
-  # Relay overrides
   - platform: template
     name: "${alm_prefix} Relay 1 ON"
     on_press:
       - output.turn_on: alm_rly1_on
   - platform: template
-    name: "${alm_prefix} Relay 2 ON"
-    on_press:
-      - output.turn_on: alm_rly2_on
-  - platform: template
-    name: "${alm_prefix} Relay 3 ON"
-    on_press:
-      - output.turn_on: alm_rly3_on
-  - platform: template
     name: "${alm_prefix} Relay 1 OFF"
     on_press:
       - output.turn_on: alm_rly1_off
+  - platform: template
+    name: "${alm_prefix} Relay 2 ON"
+    on_press:
+      - output.turn_on: alm_rly2_on
   - platform: template
     name: "${alm_prefix} Relay 2 OFF"
     on_press:
       - output.turn_on: alm_rly2_off
   - platform: template
+    name: "${alm_prefix} Relay 3 ON"
+    on_press:
+      - output.turn_on: alm_rly3_on
+  - platform: template
     name: "${alm_prefix} Relay 3 OFF"
     on_press:
       - output.turn_on: alm_rly3_off
-
-  # Enable inputs
   - platform: template
     name: "${alm_prefix} Enable IN1"
     on_press:
       - output.turn_on: alm_en_in1
   - platform: template
-    name: "${alm_prefix} Enable IN2"
-    on_press:
-      - output.turn_on: alm_en_in2
-  - platform: template
-    name: "${alm_prefix} Enable IN3"
-    on_press:
-      - output.turn_on: alm_en_in3
-  - platform: template
-    name: "${alm_prefix} Enable IN4"
-    on_press:
-      - output.turn_on: alm_en_in4
-  - platform: template
-    name: "${alm_prefix} Enable IN5"
-    on_press:
-      - output.turn_on: alm_en_in5
-  - platform: template
-    name: "${alm_prefix} Enable IN6"
-    on_press:
-      - output.turn_on: alm_en_in6
-  - platform: template
-    name: "${alm_prefix} Enable IN7"
-    on_press:
-      - output.turn_on: alm_en_in7
-  - platform: template
-    name: "${alm_prefix} Enable IN8"
-    on_press:
-      - output.turn_on: alm_en_in8
-  - platform: template
-    name: "${alm_prefix} Enable IN9"
-    on_press:
-      - output.turn_on: alm_en_in9
-  - platform: template
-    name: "${alm_prefix} Enable IN10"
-    on_press:
-      - output.turn_on: alm_en_in10
-  - platform: template
-    name: "${alm_prefix} Enable IN11"
-    on_press:
-      - output.turn_on: alm_en_in11
-  - platform: template
-    name: "${alm_prefix} Enable IN12"
-    on_press:
-      - output.turn_on: alm_en_in12
-  - platform: template
-    name: "${alm_prefix} Enable IN13"
-    on_press:
-      - output.turn_on: alm_en_in13
-  - platform: template
-    name: "${alm_prefix} Enable IN14"
-    on_press:
-      - output.turn_on: alm_en_in14
-  - platform: template
-    name: "${alm_prefix} Enable IN15"
-    on_press:
-      - output.turn_on: alm_en_in15
-  - platform: template
-    name: "${alm_prefix} Enable IN16"
-    on_press:
-      - output.turn_on: alm_en_in16
-  - platform: template
-    name: "${alm_prefix} Enable IN17"
-    on_press:
-      - output.turn_on: alm_en_in17
-
-  # Disable inputs
-  - platform: template
     name: "${alm_prefix} Disable IN1"
     on_press:
       - output.turn_on: alm_dis_in1
+  - platform: template
+    name: "${alm_prefix} Enable IN2"
+    on_press:
+      - output.turn_on: alm_en_in2
   - platform: template
     name: "${alm_prefix} Disable IN2"
     on_press:
       - output.turn_on: alm_dis_in2
   - platform: template
+    name: "${alm_prefix} Enable IN3"
+    on_press:
+      - output.turn_on: alm_en_in3
+  - platform: template
     name: "${alm_prefix} Disable IN3"
     on_press:
       - output.turn_on: alm_dis_in3
+  - platform: template
+    name: "${alm_prefix} Enable IN4"
+    on_press:
+      - output.turn_on: alm_en_in4
   - platform: template
     name: "${alm_prefix} Disable IN4"
     on_press:
       - output.turn_on: alm_dis_in4
   - platform: template
+    name: "${alm_prefix} Enable IN5"
+    on_press:
+      - output.turn_on: alm_en_in5
+  - platform: template
     name: "${alm_prefix} Disable IN5"
     on_press:
       - output.turn_on: alm_dis_in5
+  - platform: template
+    name: "${alm_prefix} Enable IN6"
+    on_press:
+      - output.turn_on: alm_en_in6
   - platform: template
     name: "${alm_prefix} Disable IN6"
     on_press:
       - output.turn_on: alm_dis_in6
   - platform: template
+    name: "${alm_prefix} Enable IN7"
+    on_press:
+      - output.turn_on: alm_en_in7
+  - platform: template
     name: "${alm_prefix} Disable IN7"
     on_press:
       - output.turn_on: alm_dis_in7
+  - platform: template
+    name: "${alm_prefix} Enable IN8"
+    on_press:
+      - output.turn_on: alm_en_in8
   - platform: template
     name: "${alm_prefix} Disable IN8"
     on_press:
       - output.turn_on: alm_dis_in8
   - platform: template
+    name: "${alm_prefix} Enable IN9"
+    on_press:
+      - output.turn_on: alm_en_in9
+  - platform: template
     name: "${alm_prefix} Disable IN9"
     on_press:
       - output.turn_on: alm_dis_in9
+  - platform: template
+    name: "${alm_prefix} Enable IN10"
+    on_press:
+      - output.turn_on: alm_en_in10
   - platform: template
     name: "${alm_prefix} Disable IN10"
     on_press:
       - output.turn_on: alm_dis_in10
   - platform: template
+    name: "${alm_prefix} Enable IN11"
+    on_press:
+      - output.turn_on: alm_en_in11
+  - platform: template
     name: "${alm_prefix} Disable IN11"
     on_press:
       - output.turn_on: alm_dis_in11
+  - platform: template
+    name: "${alm_prefix} Enable IN12"
+    on_press:
+      - output.turn_on: alm_en_in12
   - platform: template
     name: "${alm_prefix} Disable IN12"
     on_press:
       - output.turn_on: alm_dis_in12
   - platform: template
+    name: "${alm_prefix} Enable IN13"
+    on_press:
+      - output.turn_on: alm_en_in13
+  - platform: template
     name: "${alm_prefix} Disable IN13"
     on_press:
       - output.turn_on: alm_dis_in13
+  - platform: template
+    name: "${alm_prefix} Enable IN14"
+    on_press:
+      - output.turn_on: alm_en_in14
   - platform: template
     name: "${alm_prefix} Disable IN14"
     on_press:
       - output.turn_on: alm_dis_in14
   - platform: template
+    name: "${alm_prefix} Enable IN15"
+    on_press:
+      - output.turn_on: alm_en_in15
+  - platform: template
     name: "${alm_prefix} Disable IN15"
     on_press:
       - output.turn_on: alm_dis_in15
   - platform: template
+    name: "${alm_prefix} Enable IN16"
+    on_press:
+      - output.turn_on: alm_en_in16
+  - platform: template
     name: "${alm_prefix} Disable IN16"
     on_press:
       - output.turn_on: alm_dis_in16
+  - platform: template
+    name: "${alm_prefix} Enable IN17"
+    on_press:
+      - output.turn_on: alm_en_in17
   - platform: template
     name: "${alm_prefix} Disable IN17"
     on_press:
