@@ -1,4 +1,4 @@
-<!-- updated 2026-05-10 ALM-173-R1 -->
+<!-- updated 2026-06 ALM-173-R1 v0.2.0 -->
 <div class="hm-plc">
   <section class="s_embed_code text-center pt16 pb16 o_colored_level" data-snippet="s_embed_code" data-name="Embed Code">
     <template class="s_embed_code_saved">
@@ -156,6 +156,7 @@
             <li><strong>17 opto-isolated digital inputs (5 V DC)</strong> with per-input enable, invert and alarm group</li>
             <li><strong>3 SPDT relays (3 A @ 250 VAC)</strong> driven by alarm groups, Modbus manual override or button override</li>
             <li>Front panel with <strong>4 buttons</strong> (ack/override) and <strong>4 LEDs</strong> (status/alert)</li>
+            <li>Optional <strong>zone types</strong>, <strong>local arming</strong> (entry/exit delay) and <strong>relay bell cut-off</strong> (WebConfig v0.2.0)</li>
             <li>RS-485 Modbus RTU communication (address 1–255, 9600–115200 baud)</li>
             <li>Local configuration via USB‑C <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig v0.2.0</a> (Chromium-based browsers)</li>
             <li>Persistent configuration stored in external QSPI flash</li>
@@ -328,7 +329,8 @@
           </ul>
 
           <p>
-            Internal firmware implements alarm groups (G1–G3 + Any), latching vs active‑while modes, relay follow/master/override logic and LED/button behavior.
+            Internal firmware implements alarm groups (G1–G3 + Any), latching vs active‑while modes, relay follow/manual/override logic, optional local arming with zone types, and LED/button behaviour.
+            Full Home/Away/Night alarm-panel modes and codes are intended for Home Assistant — not on-module. No EOL line-supervision (dry contact / SELV only).
             Configuration is stored in flash and automatically restored at power‑up.
           </p>
 
@@ -354,8 +356,9 @@
           <ul class="plc-list">
             <li>Modbus address (1–255) and baud rate (9600–115200)</li>
             <li>Alarm modes per group: None / Active‑while / Latched‑until‑ack</li>
-            <li>Digital inputs: Enable / Invert / Alarm Group (None/1/2/3)</li>
-            <li>Relays: Enable / Invert / Alarm Group (None/1/2/3), Power-on (OFF/ON/Restore)</li>
+            <li>Digital inputs: Enable / Invert / Alarm Group / <strong>Zone type</strong> (Instant, Delayed, 24h-Tamper)</li>
+            <li>Relays: Enable / Invert / Alarm Group (None/1/2/3), Power-on, <strong>Bell cut-off (s)</strong></li>
+            <li><strong>Local arming</strong> (opt-in): entry/exit delay; Armed/Entry/Exit/Tamper status</li>
             <li>Buttons: Ack All, Ack G1–G3, or Relay 1–3 override</li>
             <li>LEDs: Steady/Blink, source Any, G1–G3, or relay override</li>
           </ul>

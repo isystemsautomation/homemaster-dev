@@ -34,6 +34,7 @@ Unlike a general-purpose digital I/O module, the ALM is built around **alarm gro
 4. **Acknowledge** (button, Modbus coil, or WebConfig) clears latched groups; non-latched groups clear when the fault clears.
 5. **Button override** (long hold 3 s on buttons configured for Relay 1–3) takes manual control of a relay; another long hold returns control to the alarm group.
 6. **PLC group pulses** (Modbus coils 510–512) can force a one-scan activation of a group for controller-driven annunciation.
+7. **Optional local arming (v0.2.0):** per-input **zone types** (Instant / Delayed / 24h-Tamper), **entry/exit delays**, **relay bell cut-off**, and **per-zone alarm memory** on Modbus (MAP v2) — default off for legacy behaviour.
 
 > **Quick path:** wire inputs → assign groups → set latch modes → map relays/LEDs → RS-485 + WebConfig address/baud → integrate with PLC or Home Assistant.
 
@@ -51,7 +52,8 @@ Unlike a general-purpose digital I/O module, the ALM is built around **alarm gro
 | **WebConfig** | USB-C → Chromium-based browser; Modbus addr/baud, I/O mapping, alarm modes, live status |
 | **Modbus RTU slave** | Discrete Inputs (telemetry) + Coils (commands); config via WebConfig, not holding registers |
 | **ESPHome / HA** | Ready-made YAML package; inputs, alarms, relays, ack/override actions |
-| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION** in Input Registers (see [§7](#7-modbus-register-map)) |
+| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION = 2** (Input Registers) |
+| **Extras** | PLC group pulses (510–512); optional **local arming**; **bell cut-off**; per-zone alarm memory |
 
 ### Applications
 
@@ -269,8 +271,9 @@ Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Fi
 |---------|----------|
 | **Device setup** | Modbus address (1–247), baud 9600–115200 |
 | **Alarm status & modes** | Live Any / G1 / G2 / G3; per-group None / Active-while / Latched |
-| **Digital inputs (17)** | Enable, Invert, Alarm Group |
-| **Relays (3)** | Enable, Invert, Alarm Group, Power-on (OFF / ON / Restore last) |
+| **Digital inputs (17)** | Enable, Invert, Alarm Group, **Zone type** (Instant / Delayed / 24h-Tamper) |
+| **Relays (3)** | Enable, Invert, Alarm Group, Power-on, **Bell cut-off (s)** |
+| **Local arming** | Opt-in (default off); **Entry** / **Exit delay (s)**; status pills Armed/Entry/Exit/Tamper |
 | **Buttons (4)** | Action: None, Ack All, Ack G1–G3, Relay override |
 | **LEDs (4)** | Mode Steady/Blink; source Any / G1–G3 / override |
 | **Tools** | Identify (~5 s), Factory reset, Reboot |
@@ -281,13 +284,17 @@ Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Fi
 
 Changes auto-save to flash after a short idle period.
 
+**Local arming (opt-in, default off):** When enabled in WebConfig, zone types and entry/exit delays gate which inputs contribute to groups while armed. Full **Home / Away / Night** modes and alarm codes belong in **Home Assistant Alarm Control Panel**, not on the module.
+
+**Limitations:** No EOL line-supervision — dry contact / SELV signalling only (no analogue end-of-line resistor networks).
+
 ---
 
 ## 7. Modbus Register Map
 
 **Slave:** Modbus RTU over RS-485 (8N1). **Configuration** is via WebConfig (LittleFS), **not** holding registers.
 
-**Identity (Input Registers FC04, base 200 / 0x00C8):** MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, **MAP_VERSION** (= **1** in firmware 0.2.0 base release).
+**Identity (Input Registers FC04, base 200 / 0x00C8):** MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, **MAP_VERSION** (= **2** in firmware 0.2.0 with alarm extensions).
 
 ### 7.1 Discrete Inputs (FC02) — telemetry
 
@@ -314,6 +321,22 @@ Changes auto-save to flash after a short idle period.
 **Override priority:** Button override → Modbus manual override → Alarm group.
 
 Manual override coils hold until cleared (matching OFF coil or override released).
+
+### 7.3 MAP v2 — extended alarm features (firmware 0.2.0)
+
+Additional Discrete Inputs and Coils when local arming / zone types are used:
+
+| Address | Name | Description |
+|---------|------|-------------|
+| 70 | **Armed** | Local arming active |
+| 71 | **Entry pending** | Entry delay in progress |
+| 72 | **Exit pending** | Exit delay in progress |
+| 73 | **Tamper any** | Any 24h/Tamper zone fault |
+| 100–116 | **Zone latched** | Per-input alarm memory (IN1…IN17) |
+| 530 | **ARM** | Start arm / exit delay (pulse; requires local arming enabled) |
+| 531 | **DISARM** | Disarm (pulse) |
+
+When **local arming is disabled** (default), zone types and arm delays are ignored — behaviour matches the base MAP (§7.1–7.2).
 
 ---
 
