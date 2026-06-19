@@ -12,6 +12,8 @@
     .alarm-grid-3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); }
     .alarm-card { border:1px solid var(--border); border-radius:var(--r2); padding:14px; background:#fff; }
     .alarm-top { display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:14px; }
+    .latch-tag { display:none; font-size:10px; padding:2px 6px; border-radius:999px; background:#fde8e8; color:#b42318; font-weight:700; margin-left:6px; }
+    .latch-tag.on { display:inline-block; }
     @media(max-width:980px) { .alarm-grid-4 { grid-template-columns:repeat(2,1fr); } .alarm-grid-3 { grid-template-columns:1fr; } }
   </style>
 
@@ -34,6 +36,10 @@
         <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
         <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
         <div class="pill">Baud: <span id="hm-baud">—</span></div>
+        <div class="pill"><span class="state-dot dot-off" id="dot-armed"></span> Armed</div>
+        <div class="pill"><span class="state-dot dot-off" id="dot-entry"></span> Entry</div>
+        <div class="pill"><span class="state-dot dot-off" id="dot-exit"></span> Exit</div>
+        <div class="pill"><span class="state-dot dot-off" id="dot-tamper"></span> Tamper</div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
@@ -133,8 +139,29 @@
   </section>
 
   <div class="sectiontitle">
+    <h3>Local Arming (optional)</h3>
+    <p class="hint">Entry/exit delays and zone types (Instant / Delayed / 24h-Tamper) apply only when local arming is enabled below.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <label class="check"><input type="checkbox" id="local-arm-enabled"> Local arming enabled</label>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="entry-delay">Entry delay (s)</label>
+          <input type="number" id="entry-delay" min="0" max="65535" value="30" style="width:100%">
+        </div>
+        <div>
+          <label for="exit-delay">Exit delay (s)</label>
+          <input type="number" id="exit-delay" min="0" max="65535" value="30" style="width:100%">
+        </div>
+      </div>
+      <p class="mini" style="margin-top:10px;color:var(--muted2)">Local arming is optional; full Home/Away/Night modes and codes live in Home Assistant.</p>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
     <h3>Digital Inputs (17)</h3>
-    <p class="hint">Configure enable, invert, and alarm group per input.</p>
+    <p class="hint">Configure enable, invert, alarm group, and zone type per input. Latched badge shows per-zone alarm memory (when local arming is on).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -144,7 +171,7 @@
 
   <div class="sectiontitle">
     <h3>Relays (3)</h3>
-    <p class="hint">Configure enable, invert, alarm group mapping, and power-on policy.</p>
+    <p class="hint">Configure enable, invert, alarm group mapping, power-on policy, and bell cut-off timeout.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -184,6 +211,24 @@
       if (el) el.className = 'state-dot ' + (on ? 'dot-on' : 'dot-off');
     }
 
+    function truthy(v) { return v === 1 || v === true || v === '1'; }
+
+    function applyArmingPills(src) {
+      if (!src) return;
+      setAlarmDot('dot-armed', truthy(src.armed));
+      setAlarmDot('dot-entry', truthy(src.entry));
+      setAlarmDot('dot-exit', truthy(src.exit));
+      setAlarmDot('dot-tamper', truthy(src.tamper));
+    }
+
+    function applyZoneLatch(zl) {
+      if (!zl) return;
+      HMWebConfig.toArray(zl).forEach((v, i) => {
+        const el = $('latch-in' + (i + 1));
+        if (el) el.classList.toggle('on', !!v);
+      });
+    }
+
     function applyAlmCfg(ext, cfg) {
       const inArr = HMWebConfig.toArray(cfg.in);
       for (let i = 0; i < NUM_IN; i++) {
@@ -191,6 +236,10 @@
         if (o.group != null) {
           const el = $('group-in' + (i + 1));
           if (el && el !== document.activeElement) el.value = String(o.group);
+        }
+        if (o.type != null) {
+          const el = $('type-in' + (i + 1));
+          if (el && el !== document.activeElement) el.value = String(o.type);
         }
       }
       const rlyArr = HMWebConfig.toArray(cfg.relay);
@@ -200,6 +249,19 @@
           const el = $('group-relay' + (i + 1));
           if (el && el !== document.activeElement) el.value = String(o.group);
         }
+        if (o.autoOff != null) {
+          const el = $('autoOff-relay' + (i + 1));
+          if (el && el !== document.activeElement) el.value = String(o.autoOff);
+        }
+      }
+      if (cfg.arming) {
+        const a = cfg.arming;
+        const armEl = $('local-arm-enabled');
+        if (armEl && armEl !== document.activeElement) armEl.checked = truthy(a.enabled);
+        const entEl = $('entry-delay');
+        if (entEl && entEl !== document.activeElement && a.entryDelay != null) entEl.value = String(a.entryDelay);
+        const exEl = $('exit-delay');
+        if (exEl && exEl !== document.activeElement && a.exitDelay != null) exEl.value = String(a.exitDelay);
       }
       const modes = (ext && ext.alarms) || (cfg.ext && cfg.ext.alarms);
       if (modes) {
@@ -208,6 +270,18 @@
           if (el && el !== document.activeElement) el.value = String(v ?? 0);
         });
       }
+    }
+
+    function sendConfigDirect(packet) {
+      if (HMWebConfig._compat && HMWebConfig._compat.blocked) {
+        HMWebConfig.appendLog('Config write blocked: firmware/model compatibility issue.');
+        return Promise.resolve();
+      }
+      if (HMWebConfig._suppressCfgSend) return Promise.resolve();
+      HMWebConfig.appendLog('TX Config: ' + JSON.stringify(packet));
+      return HMWebConfig.conn.send('Config', packet).catch(err => {
+        HMWebConfig.appendLog('Config send failed: ' + (err?.message || err));
+      });
     }
 
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
@@ -225,27 +299,39 @@
     HMWebConfig.mountTools('hm-tools', { identify: true });
 
     HMWebConfig.conn.on('ext', function(ext) {
-      if (!ext || !ext.alarm) return;
-      setAlarmDot('alarm-any', !!ext.alarm.any);
-      const groups = HMWebConfig.toArray(ext.alarm.groups);
-      setAlarmDot('alarm-g1', !!groups[0]);
-      setAlarmDot('alarm-g2', !!groups[1]);
-      setAlarmDot('alarm-g3', !!groups[2]);
+      if (!ext) return;
+      if (ext.alarm) {
+        setAlarmDot('alarm-any', !!ext.alarm.any);
+        const groups = HMWebConfig.toArray(ext.alarm.groups);
+        setAlarmDot('alarm-g1', !!groups[0]);
+        setAlarmDot('alarm-g2', !!groups[1]);
+        setAlarmDot('alarm-g3', !!groups[2]);
+      }
+      if (ext.arming) applyArmingPills(ext.arming);
+      applyZoneLatch(ext.zoneLatch);
+    });
+
+    HMWebConfig.conn.on('status', function(st) {
+      if (st) applyArmingPills(st);
     });
 
     (function buildInputs(){
       const c=$('io-inputs'); if(!c) return;
       const grpOpts = [{v:0,l:'None'},{v:1,l:'Group 1'},{v:2,l:'Group 2'},{v:3,l:'Group 3'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const typeOpts = [{v:0,l:'Instant'},{v:1,l:'Delayed'},{v:2,l:'24h / Tamper'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       for(let i=1;i<=NUM_IN;i++){
         const d=document.createElement('div');
         d.className='iocard tint-input';
         d.innerHTML=`
-          <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge"><span id="state-in${i}" class="state-dot dot-off"></span><span id="latch-in${i}" class="latch-tag">Latched</span></span></div>
           <div class="checkRow">
             <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
             <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
           </div>
-          <div><label for="group-in${i}">Alarm Group</label><select id="group-in${i}">${grpOpts}</select></div>`;
+          <div class="split">
+            <div><label for="group-in${i}">Alarm Group</label><select id="group-in${i}">${grpOpts}</select></div>
+            <div><label for="type-in${i}">Type</label><select id="type-in${i}">${typeOpts}</select></div>
+          </div>`;
         c.appendChild(d);
       }
     })();
@@ -266,7 +352,8 @@
           <div class="split">
             <div><label for="group-relay${i}">Alarm Group</label><select id="group-relay${i}">${grpOpts}</select></div>
             <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>
-          </div>`;
+          </div>
+          <div style="margin-top:8px"><label for="autoOff-relay${i}">Bell cut-off (s)</label><input type="number" id="autoOff-relay${i}" min="0" max="65535" value="0" style="width:100%"><div class="mini" style="margin-top:4px">0 = off (relay follows group; auto-off after alarm)</div></div>`;
         c.appendChild(d);
       }
     })();
@@ -316,10 +403,12 @@
     function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
     function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
     function sendInputGroup(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(parseInt($('group-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.group', l); }
+    function sendInputType(){ const l=[]; for(let i=1;i<=NUM_IN;i++) l.push(parseInt($('type-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.type', l); }
     for(let i=1;i<=NUM_IN;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
       $('group-in'+i)?.addEventListener('change', sendInputGroup);
+      $('type-in'+i)?.addEventListener('change', sendInputType);
     }
 
     function sendRelayCfg(){
@@ -329,7 +418,8 @@
           enabled: $('enable-relay'+i).checked,
           inverted: $('invert-relay'+i).checked,
           group: parseInt($('group-relay'+i).value||'0',10),
-          powerOn: parseInt($('powerOn-relay'+i)?.value||'0',10)
+          powerOn: parseInt($('powerOn-relay'+i)?.value||'0',10),
+          autoOff: parseInt($('autoOff-relay'+i)?.value||'0',10) || 0
         });
       }
       HMWebConfig.sendConfig('relay', l);
@@ -339,7 +429,20 @@
       $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('group-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('autoOff-relay'+i)?.addEventListener('change', sendRelayCfg);
     }
+
+    function sendArmingCfg(){
+      sendConfigDirect({
+        t: 'arming',
+        enabled: !!$('local-arm-enabled')?.checked,
+        entryDelay: parseInt($('entry-delay')?.value || '30', 10) || 0,
+        exitDelay: parseInt($('exit-delay')?.value || '30', 10) || 0
+      });
+    }
+    $('local-arm-enabled')?.addEventListener('change', sendArmingCfg);
+    $('entry-delay')?.addEventListener('change', sendArmingCfg);
+    $('exit-delay')?.addEventListener('change', sendArmingCfg);
 
     function sendBtnCfg(){
       const l=[];

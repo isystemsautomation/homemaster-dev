@@ -1072,6 +1072,7 @@ void loop() {
       ext["arming"]["entry"] = entryPending ? 1 : 0;
       ext["arming"]["exit"]  = exitPending ? 1 : 0;
       ext["arming"]["tamper"] = tamperAnyActive ? 1 : 0;
+      for (int i = 0; i < 17; i++) ext["zoneLatch"][i] = zoneLatched[i] ? 1 : 0;
       WebSerial.send("ext", ext);
     }
   }
