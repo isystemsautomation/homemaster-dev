@@ -159,7 +159,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 | Control | Function |
 |---------|----------|
-| **Button 1 / 2** | User-configurable local relay control (see [§6 WebConfig](#6-webconfig-reference)) |
+| **Button 1 / 2** | Front-panel buttons with configurable short/long-press actions (toggle / on / off a target relay, or All-off); press events are also exposed over Modbus as Home Assistant triggers. See [§6 WebConfig](#6-webconfig-reference). |
 | **Button 3** | No software function — part of on-board boot/reset key combo (with Buttons 1+2 → BOOT mode) |
 | **Buttons 1+2+3** | Enter **BOOT** mode for UF2 flashing (see [§9 Programming](#9-programming--build)) |
 | **Buttons 1+3** | Hardware **RESET** |
