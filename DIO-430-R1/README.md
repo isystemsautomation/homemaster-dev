@@ -18,7 +18,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 **Key capabilities at a glance:**
 
 - **4 opto-isolated digital inputs** — dry contacts or 24 V signals; per-input Maintained/Momentary logic
-- **3 SPDT relays** — 16 A dry contacts (NO/NC/COM)
+- **3 SPDT relays** — 3 A @ 250 VAC (resistive) dry contacts (NO/NC/COM); use interposing contactors for loads above 3 A
 - **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
 - **Standalone local logic** — wall switches and front buttons work even when the network or controller is offline
@@ -61,7 +61,7 @@ Typical uses for the DIO-430-R1:
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
 | Digital Inputs | 4 | Opto-isolated, dry contact compatible, noise-protected |
-| Relays | 3 | SPDT (NO/NC), 16 A rated, dry contacts |
+| Relays | 3 | SPDT (NO/NC), 3 A @ 250 VAC (resistive), dry contacts |
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
 | Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
 | Modbus RTU | Yes | RS-485 interface (address 1–247, 9600–115200 baud) |
@@ -73,7 +73,7 @@ Typical uses for the DIO-430-R1:
 | Interface | Qty | Description |
 |-----------|----:|-------------|
 | **Digital Inputs** | 4 | Galvanically isolated (ISO1212 class). Dry contacts or 24 V signals. PTC + TVS per channel. |
-| **Relay Outputs** | 3 | SPDT (NO/NC/COM), 16 A dry contacts. RC/MOV snubbers or interposing contactors for inductive/mains loads. |
+| **Relay Outputs** | 3 | SPDT (NO/NC/COM), 3 A @ 250 VAC (resistive) dry contacts. Relay component rated higher, but module output is limited to 3 A — use interposing contactors for larger or inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
 | **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
 | **RS-485 (Modbus RTU)** | 1 | A/B/COM terminals. Daisy-chain. 120 Ω termination at both ends. |
@@ -87,7 +87,7 @@ Typical uses for the DIO-430-R1:
 | Supply Voltage | 22 | 24 | 28 | V DC | SELV/PELV input |
 | Logic Consumption | – | 1.5 | 3.0 | W | Excludes relay loads |
 | Digital Input Range | 0 | 24 | 30 | V DC | Isolated, noise-protected |
-| Relay Contact Current | – | – | 16 | A | SPDT dry contacts |
+| Relay Contact Current | – | – | 3 | A | @ 250 VAC resistive; module/trace-limited (relay component rated higher) |
 | Relay Contact Voltage | – | – | 250 | V AC | or 30 V DC max |
 | RS-485 Data Rate | – | 19.2 | 115.2 | kbps | Default 19200 8N1 |
 | USB-C Voltage | 4.75 | 5.0 | 5.25 | V DC | Service only |
