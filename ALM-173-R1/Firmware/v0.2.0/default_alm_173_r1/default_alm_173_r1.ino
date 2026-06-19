@@ -6,8 +6,9 @@
 // - Buttons are inverted (pressed = HIGH) per schematic.
 // - LED sources:
 //     0=None, 1=Any alarm, 2=G1, 3=G2, 4=G3, 5=OverrideR1, 6=OverrideR2, 7=OverrideR3
-// - Modbus ON/OFF coils 400..402 / 420..422 still work when override is OFF.
-// - NEW: PLC pulses to activate Alarm Groups via coils 510..512 (auto-clear).
+// - Modbus ON/OFF coils @37..39 / relay ON @34..36 still work when override is OFF.
+// - PLC pulses to activate Alarm Groups via coils 44..46 (auto-clear).
+// - Telemetry: FC04 Input Registers @0..3 (bit-packed); commands: coils @0..48.
 // ============================================================================
 
 #include <Arduino.h>
@@ -20,8 +21,8 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 2
+#define HM_MAP        3
+#define HM_MAP_VERSION 3
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -467,37 +468,23 @@ inline void setSlaveIdIfAvailable(...) {}
 
 // ================== Modbus maps ==================
 enum : uint16_t {
-  // Discrete inputs (telemetry)
-  ISTS_DI_BASE   = 1,   // 1..17 : IN1..IN17 (after enable+invert)
-  ISTS_AL_ANY    = 50,  // any alarm
-  ISTS_AL_G1     = 51,
-  ISTS_AL_G2     = 52,
-  ISTS_AL_G3     = 53,
-  ISTS_RLY_BASE  = 60,  // 60..62 : Relay1..3 effective
-  ISTS_ARMED          = 70,
-  ISTS_ENTRY_PENDING  = 71,
-  ISTS_EXIT_PENDING   = 72,
-  ISTS_TAMPER_ANY     = 73,
-  ISTS_LED_BASE  = 90,  // 90..93 : LED1..4 physical
-  ISTS_ZONE_LATCH_BASE= 100,  // 100..116 : zone alarm memory
+  // Input registers (telemetry, bit-packed @0..3)
+  IREG_STATE_BASE = 0,
 
-  // Command coils (write 1 -> action -> auto-clear)
-  CMD_EN_IN_BASE  = 200, // 200..216 enable IN1..IN17
-  CMD_DIS_IN_BASE = 300, // 300..316 disable IN1..IN17
-  CMD_RLY_ON_BASE = 400, // 400..402 relay 1..3 ON (manual override)
-  CMD_RLY_OFF_BASE= 420, // 420..422 relay 1..3 OFF (manual override)
-  CMD_ACK_ALL     = 500, // 500 acknowledge ALL
-  CMD_ACK_G1      = 501, // 501..503 acknowledge G1..G3
-  CMD_ACK_G2      = 502,
-  CMD_ACK_G3      = 503,
-
-  // NEW: PLC pulse coils to activate alarm groups (auto-clear)
-  CMD_AL_G1_PULSE = 510,
-  CMD_AL_G2_PULSE = 511,
-  CMD_AL_G3_PULSE = 512,
-
-  CMD_ARM    = 530,
-  CMD_DISARM = 531
+  // Command coils (write 1 -> action -> auto-clear) @0..48 contiguous
+  CMD_EN_IN_BASE  = 0,    // 0..16  enable IN1..IN17
+  CMD_DIS_IN_BASE = 17,   // 17..33 disable IN1..IN17
+  CMD_RLY_ON_BASE = 34,   // 34..36 relay ON 1..3
+  CMD_RLY_OFF_BASE= 37,   // 37..39 relay OFF 1..3
+  CMD_ACK_ALL     = 40,
+  CMD_ACK_G1      = 41,   // 41..43
+  CMD_ACK_G2      = 42,
+  CMD_ACK_G3      = 43,
+  CMD_AL_G1_PULSE = 44,   // 44..46
+  CMD_AL_G2_PULSE = 45,
+  CMD_AL_G3_PULSE = 46,
+  CMD_ARM         = 47,
+  CMD_DISARM      = 48
 };
 
 // ================== Forward decls ==================
@@ -658,25 +645,11 @@ void setup() {
   setSlaveIdIfAvailable(mb, g_mb_address);
   // mb.setAdditionalServerData("ALM173");  // uncomment if supported
 
-  // ---- Register telemetry (discrete inputs) ----
-  for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_DI_BASE + i);
-  mb.addIsts(ISTS_AL_ANY); mb.addIsts(ISTS_AL_G1); mb.addIsts(ISTS_AL_G2); mb.addIsts(ISTS_AL_G3);
-  for (uint16_t i=0;i<3;i++) mb.addIsts(ISTS_RLY_BASE + i);
-  mb.addIsts(ISTS_ARMED); mb.addIsts(ISTS_ENTRY_PENDING); mb.addIsts(ISTS_EXIT_PENDING); mb.addIsts(ISTS_TAMPER_ANY);
-  for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_ZONE_LATCH_BASE + i);
-  for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
+  // ---- Register telemetry (input registers, bit-packed) ----
+  for (uint16_t i = 0; i < 4; i++) mb.addIreg(IREG_STATE_BASE + i);
 
-  // ---- Register command coils ----
-  for (uint16_t i=0;i<17;i++) { mb.addCoil(CMD_EN_IN_BASE  + i); mb.addCoil(CMD_DIS_IN_BASE + i); }
-  for (uint16_t r=0;r<3;r++)  { mb.addCoil(CMD_RLY_ON_BASE + r); mb.addCoil(CMD_RLY_OFF_BASE+ r); }
-  mb.addCoil(CMD_ACK_ALL); mb.addCoil(CMD_ACK_G1); mb.addCoil(CMD_ACK_G2); mb.addCoil(CMD_ACK_G3);
-
-  // NEW: PLC group pulse coils
-  mb.addCoil(CMD_AL_G1_PULSE);
-  mb.addCoil(CMD_AL_G2_PULSE);
-  mb.addCoil(CMD_AL_G3_PULSE);
-  mb.addCoil(CMD_ARM);
-  mb.addCoil(CMD_DISARM);
+  // ---- Register command coils (0..48 contiguous) ----
+  for (uint16_t c = 0; c <= CMD_DISARM; c++) mb.addCoil(c);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
@@ -1043,19 +1016,26 @@ void loop() {
     pcf27.write(LED_PINS[i], phys ? LOW : HIGH); // ACTIVE-LOW
   }
 
-  // ---- Publish telemetry to Modbus discrete inputs ----
-  for (int i = 0; i < 17; i++) mb.setIsts(ISTS_DI_BASE + i, (bool)inputs[i]);
-  mb.setIsts(ISTS_AL_ANY, anyAlarmActive);
-  mb.setIsts(ISTS_AL_G1 , grpAlarmActive[1]);
-  mb.setIsts(ISTS_AL_G2 , grpAlarmActive[2]);
-  mb.setIsts(ISTS_AL_G3 , grpAlarmActive[3]);
-  for (int r=0; r<3; r++) mb.setIsts(ISTS_RLY_BASE + r, (bool)relayStateList[r]);
-  mb.setIsts(ISTS_ARMED, armState == 1);
-  mb.setIsts(ISTS_ENTRY_PENDING, entryPending);
-  mb.setIsts(ISTS_EXIT_PENDING, exitPending);
-  mb.setIsts(ISTS_TAMPER_ANY, tamperAnyActive);
-  for (int i = 0; i < 17; i++) mb.setIsts(ISTS_ZONE_LATCH_BASE + i, zoneLatched[i]);
-  for (int l=0; l<4; l++) mb.setIsts(ISTS_LED_BASE + l, (bool)LedStateList[l]);
+  // ---- Publish telemetry to Modbus input registers (bit-packed) ----
+  uint16_t r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  for (int i = 0; i < 16; i++) if ((bool)inputs[i]) r0 |= (1u << i);           // IN1..IN16
+  if ((bool)inputs[16]) r1 |= (1u << 0);                                       // IN17
+  if (anyAlarmActive)   r1 |= (1u << 1);
+  if (grpAlarmActive[1]) r1 |= (1u << 2);
+  if (grpAlarmActive[2]) r1 |= (1u << 3);
+  if (grpAlarmActive[3]) r1 |= (1u << 4);
+  for (int r = 0; r < 3; r++) if ((bool)relayStateList[r]) r1 |= (1u << (5 + r)); // Relay1..3
+  for (int l = 0; l < 4; l++) if ((bool)LedStateList[l])   r1 |= (1u << (8 + l)); // LED1..4
+  if (armState == 1)  r1 |= (1u << 12);
+  if (entryPending)   r1 |= (1u << 13);
+  if (exitPending)    r1 |= (1u << 14);
+  if (tamperAnyActive) r1 |= (1u << 15);
+  for (int i = 0; i < 16; i++) if (zoneLatched[i]) r2 |= (1u << i);            // Zone1..16
+  if (zoneLatched[16]) r3 |= (1u << 0);                                          // Zone17
+  mb.Ireg(IREG_STATE_BASE + 0, r0);
+  mb.Ireg(IREG_STATE_BASE + 1, r1);
+  mb.Ireg(IREG_STATE_BASE + 2, r2);
+  mb.Ireg(IREG_STATE_BASE + 3, r3);
 
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
@@ -1114,7 +1094,7 @@ void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
-  st["map"]   = HM_MAP;
+  st["map"]   = HM_MAP_VERSION;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   st["armed"] = (armState == 1) ? 1 : 0;
