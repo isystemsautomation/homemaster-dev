@@ -275,7 +275,7 @@ Isolation is between the field (24 V) side and the MCU logic, provided by the IS
 | **24 VDC PSU** | Regulated SELV; size for logic + relay coils + sensors; ≥ 30 % headroom |
 | **RS-485 cable** | Twisted pair A/B + COM/GND; 120 Ω termination at both trunk ends |
 | **USB-C cable** | WebConfig via Chromium-based browser (commissioning) |
-| **Software** | Chromium-based browser with Web Serial (Chrome, Edge, Opera, Brave, Vivaldi); [WebConfig tool](https://www.home-master.eu/configtool-dio-430-r1) |
+| **Software** | Chromium-based browser with Web Serial (Chrome, Edge, Opera, Brave, Vivaldi); [WebConfig tool](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 
 ### 5.3 Power notes
 
@@ -303,7 +303,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 **Phase 2 — Configure (WebConfig)**
 
-1. Connect **USB-C**; open [WebConfig](https://www.home-master.eu/configtool-dio-430-r1) in a Chromium-based browser → **Connect**.
+1. Connect **USB-C**; open [WebConfig](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html) in a Chromium-based browser → **Connect**.
 2. Set **Modbus address** and **baud rate** (factory defaults in [§3.4](#34-communication-defaults-canonical)).
 3. Map inputs, relays, buttons, LEDs per [§6 WebConfig Reference](#6-webconfig-reference). Changes auto-save to flash.
 4. Disconnect USB-C; hand control to the RS-485 master.
@@ -343,7 +343,7 @@ Full UART/modbus setup and entity list: [§8 ESPHome Integration](#8-esphome--ho
 
 *(Canonical description of all configuration fields.)*
 
-Open **https://www.home-master.eu/configtool-dio-430-r1** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
+Open **https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
 
 > Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
@@ -871,7 +871,7 @@ The DIO-430-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster®
 ## 13. Support
 
 - **Official Support Portal:** https://www.home-master.eu/support
-- **WebConfig Tool:** https://www.home-master.eu/configtool-dio-430-r1
+- **WebConfig Tool:** https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html
 - **YouTube:** https://youtube.com/@HomeMaster
 - **Hackster:** https://hackster.io/homemaster
 - **Reddit:** https://reddit.com/r/HomeMaster
