@@ -1,0 +1,17 @@
+# --- Arduino / PlatformIO build output ---
+**/build/
+.pio/
+*.hex
+*.elf
+*.map
+*.d
+# НЕ игнорировать released UF2 (они в Firmware/<ver>/ и коммитятся намеренно)
+# (поэтому *.uf2 целиком НЕ добавляем)
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~

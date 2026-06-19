@@ -484,7 +484,7 @@ packages:
 | Resource | Link |
 |----------|------|
 | **Firmware source** | [`Firmware/v0.2.0/default_alm_173_r1/`](Firmware/v0.2.0/default_alm_173_r1/) |
-| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) · [build artifact](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/build/rp2040.rp2040.generic_rp2350/default_alm_173_r1.ino.uf2) |
+| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) |
 | **ESPHome YAML** | [`default_alm_173_r1_plc.yaml`](Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml) |
 | **WebConfig** | [config.home-master.eu v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 | **Schematics** | [`Schematics/`](Schematics/) |
