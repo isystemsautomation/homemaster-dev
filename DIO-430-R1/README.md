@@ -19,7 +19,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 
 - **4 opto-isolated digital inputs** — dry contacts or 24 V signals; per-input Maintained/Momentary logic
 - **3 SPDT relays** — 16 A dry contacts (NO/NC/COM)
-- **3 user-configurable buttons** (Button 1 / Button 2 in WebConfig; third button = firmware-update combo only)
+- **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
 - **Standalone local logic** — wall switches and front buttons work even when the network or controller is offline
 - **Driverless WebConfig** — USB-C + any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). No app or login required.
@@ -37,7 +37,7 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 |------|--------|
 | **Isolation** | Galvanically isolated DI front-end (ISO1212 class); opto-isolated relay drivers |
 | **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions from {None, Toggle, On, Off, All off} + target (R1–R3 or All). |
-| **Buttons** | Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off) |
+| **Buttons** | 3 buttons (2 user-configurable): Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off) |
 | **LEDs** | Configurable Steady/Blink; 8 firmware sources (Off, HA, Link, Local, Child lock, Safe mode, Identify, Relay) |
 | **WebConfig** | USB-C → Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi); set comms and I/O mapping live; auto-save to flash |
 | **Modbus RTU slave** | Poll-based RS-485; factory defaults in [§3 Specifications](#3-specifications) |
@@ -63,7 +63,7 @@ Typical uses for the DIO-430-R1:
 | Digital Inputs | 4 | Opto-isolated, dry contact compatible, noise-protected |
 | Relays | 3 | SPDT (NO/NC), 16 A rated, dry contacts |
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
-| Buttons | 3 | 2 user-configurable (Button 1 / Button 2); third for firmware-update combo only |
+| Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
 | Modbus RTU | Yes | RS-485 interface (address 1–247, 9600–115200 baud) |
 | USB-C | Yes | WebConfig via Web Serial (Chromium-based browsers; see [§6](#6-webconfig-reference)) |
 | Power | 24 V DC | Fused input, reverse-polarity and surge protected |
@@ -75,7 +75,7 @@ Typical uses for the DIO-430-R1:
 | **Digital Inputs** | 4 | Galvanically isolated (ISO1212 class). Dry contacts or 24 V signals. PTC + TVS per channel. |
 | **Relay Outputs** | 3 | SPDT (NO/NC/COM), 16 A dry contacts. RC/MOV snubbers or interposing contactors for inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
-| **Buttons** | 3 | Momentary. 2 user-configurable; third for firmware-update combo only. |
+| **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
 | **RS-485 (Modbus RTU)** | 1 | A/B/COM terminals. Daisy-chain. 120 Ω termination at both ends. |
 | **USB-C** | 1 | Web Serial setup, diagnostics, firmware flashing (ESD-protected). |
 | **Power Input** | 1 | 24 V DC SELV. Reverse-polarity + surge protected. |
@@ -160,7 +160,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 | Control | Function |
 |---------|----------|
 | **Button 1 / 2** | User-configurable local relay control (see [§6 WebConfig](#6-webconfig-reference)) |
-| **Button 3** | Firmware-update combo only (with Buttons 1+2 → BOOT mode) |
+| **Button 3** | No software function — part of on-board boot/reset key combo (with Buttons 1+2 → BOOT mode) |
 | **Buttons 1+2+3** | Enter **BOOT** mode for UF2 flashing (see [§9 Programming](#9-programming--build)) |
 | **Buttons 1+3** | Hardware **RESET** |
 | **PWR LED** | Power present |
@@ -265,7 +265,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 | Category | Item / Notes |
 |----------|--------------|
-| **Hardware** | DIO-430-R1 — 4× DI, 3× SPDT relays, 3 buttons (2 user), 3× LEDs, USB-C, RS-485 |
+| **Hardware** | DIO-430-R1 — 4× DI, 3× SPDT relays, 3 buttons (2 user-configurable), 3× LEDs, USB-C, RS-485 |
 | **Controller** | HomeMaster MiniPLC/MicroPLC or any Modbus RTU master |
 | **24 VDC PSU** | Regulated SELV; size for logic + relay coils + sensors; ≥ 30 % headroom |
 | **RS-485 cable** | Twisted pair A/B + COM/GND; 120 Ω termination at both trunk ends |
@@ -429,7 +429,7 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 | Short/Long → action | None / Toggle / On / Off / All off | Press action. |
 | Short/Long → target | All / R1 / R2 / R3 / None | Target relay(s). |
 
-Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None. (Third front button: firmware-update combo only.)
+Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None. (Third button: no software function — boot/reset combo only.)
 
 **User LEDs (LED 1–3)**
 
