@@ -1,4 +1,4 @@
-# ALM-173-R1 — ESPHome Modbus map (package-friendly, no flow mappings)
+# ALM-173-R1 — ESPHome Modbus map (MAP v2: zone latch memory, arm status, arm/disarm coils)
 # You can override any of these in your main yaml's `substitutions:`.
 substitutions:
   alm_id: alm
@@ -173,6 +173,133 @@ binary_sensor:
     name: "${alm_prefix} LED 4"
     register_type: discrete_input
     address: 93
+
+  # Local arming status (MAP v2) 70..73
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Armed"
+    register_type: discrete_input
+    address: 70
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Entry pending"
+    register_type: discrete_input
+    address: 71
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Exit pending"
+    register_type: discrete_input
+    address: 72
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Tamper (any)"
+    register_type: discrete_input
+    address: 73
+    device_class: problem
+
+  # Per-zone alarm memory (MAP v2) 100..116
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 1 latched"
+    register_type: discrete_input
+    address: 100
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 2 latched"
+    register_type: discrete_input
+    address: 101
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 3 latched"
+    register_type: discrete_input
+    address: 102
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 4 latched"
+    register_type: discrete_input
+    address: 103
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 5 latched"
+    register_type: discrete_input
+    address: 104
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 6 latched"
+    register_type: discrete_input
+    address: 105
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 7 latched"
+    register_type: discrete_input
+    address: 106
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 8 latched"
+    register_type: discrete_input
+    address: 107
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 9 latched"
+    register_type: discrete_input
+    address: 108
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 10 latched"
+    register_type: discrete_input
+    address: 109
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 11 latched"
+    register_type: discrete_input
+    address: 110
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 12 latched"
+    register_type: discrete_input
+    address: 111
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 13 latched"
+    register_type: discrete_input
+    address: 112
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 14 latched"
+    register_type: discrete_input
+    address: 113
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 15 latched"
+    register_type: discrete_input
+    address: 114
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 16 latched"
+    register_type: discrete_input
+    address: 115
+    device_class: problem
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Zone 17 latched"
+    register_type: discrete_input
+    address: 116
+    device_class: problem
 
 # ─────────────────────────────────────────────────────────────────────────────
 # COMMANDS (WRITE-ONLY): coils as outputs (ALM auto-clears pulses)
@@ -422,6 +549,21 @@ output:
     register_type: coil
     id: alm_pulse_g3
     address: 512
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ARM / DISARM (MAP v2) — pulse coils via switch
+# ─────────────────────────────────────────────────────────────────────────────
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Arm"
+    register_type: coil
+    address: 530
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Disarm"
+    register_type: coil
+    address: 531
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UI BUTTONS — call output.turn_on: <coil_id>
