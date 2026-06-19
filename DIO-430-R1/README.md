@@ -22,7 +22,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 - **3 user-configurable buttons** (Button 1 / Button 2 in WebConfig; third button = firmware-update combo only)
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
 - **Standalone local logic** — wall switches and front buttons work even when the network or controller is offline
-- **Driverless WebConfig** — USB-C + Chrome/Edge browser; no app or login required
+- **Driverless WebConfig** — USB-C + any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). No app or login required.
 - **Persistent settings** — configuration stored in LittleFS flash and restored on boot
 
 ### How local and remote control coexist
@@ -39,7 +39,7 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 | **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions from {None, Toggle, On, Off, All off} + target (R1–R3 or All). |
 | **Buttons** | Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off) |
 | **LEDs** | Configurable Steady/Blink; 8 firmware sources (Off, HA, Link, Local, Child lock, Safe mode, Identify, Relay) |
-| **WebConfig** | USB-C → Chrome/Edge; set comms and I/O mapping live; auto-save to flash |
+| **WebConfig** | USB-C → Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi); set comms and I/O mapping live; auto-save to flash |
 | **Modbus RTU slave** | Poll-based RS-485; factory defaults in [§3 Specifications](#3-specifications) |
 | **ESPHome / HA** | Ready-made YAML package; DI/relay/button/event entities |
 | **Extras** | All Off, child-lock per input, auto-off (staircase timer), shutter/interlock mode, Identify |
@@ -65,7 +65,7 @@ Typical uses for the DIO-430-R1:
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
 | Buttons | 3 | 2 user-configurable (Button 1 / Button 2); third for firmware-update combo only |
 | Modbus RTU | Yes | RS-485 interface (address 1–247, 9600–115200 baud) |
-| USB-C | Yes | WebConfig tool access via Web Serial (Chrome/Edge) |
+| USB-C | Yes | WebConfig via Web Serial (Chromium-based browsers; see [§6](#6-webconfig-reference)) |
 | Power | 24 V DC | Fused input, reverse-polarity and surge protected |
 | MCU | RP2350 | Dual-core, QSPI flash, USB, UART, LittleFS |
 | Protection | TVS, PTC | ESD, surge, and short-circuit protection on I/O and power |
@@ -269,8 +269,8 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 | **Controller** | HomeMaster MiniPLC/MicroPLC or any Modbus RTU master |
 | **24 VDC PSU** | Regulated SELV; size for logic + relay coils + sensors; ≥ 30 % headroom |
 | **RS-485 cable** | Twisted pair A/B + COM/GND; 120 Ω termination at both trunk ends |
-| **USB-C cable** | WebConfig via Chromium browser (commissioning) |
-| **Software** | Chrome/Edge with Web Serial; [WebConfig tool](https://www.home-master.eu/configtool-dio-430-r1) |
+| **USB-C cable** | WebConfig via Chromium-based browser (commissioning) |
+| **Software** | Chromium-based browser with Web Serial (Chrome, Edge, Opera, Brave, Vivaldi); [WebConfig tool](https://www.home-master.eu/configtool-dio-430-r1) |
 
 ### 5.3 Power notes
 
@@ -302,7 +302,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 **Phase 2 — Configure (WebConfig)**
 
-1. Connect **USB-C**; open [WebConfig](https://www.home-master.eu/configtool-dio-430-r1) in Chrome/Edge → **Connect**.
+1. Connect **USB-C**; open [WebConfig](https://www.home-master.eu/configtool-dio-430-r1) in a Chromium-based browser → **Connect**.
 2. Set **Modbus address** and **baud rate** (factory defaults in [§3.4](#34-communication-defaults-canonical)).
 3. Map inputs, relays, buttons, LEDs per [§6 WebConfig Reference](#6-webconfig-reference). Changes auto-save to flash.
 4. Disconnect USB-C; hand control to the RS-485 master.
@@ -342,7 +342,9 @@ Full UART/modbus setup and entity list: [§8 ESPHome Integration](#8-esphome--ho
 
 *(Canonical description of all configuration fields.)*
 
-Open **https://www.home-master.eu/configtool-dio-430-r1** in Chrome/Edge, connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
+Open **https://www.home-master.eu/configtool-dio-430-r1** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 ### Status & Tools
 
@@ -780,7 +782,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 | No Modbus comms | A/B polarity, **COM/GND** reference, 120 Ω termination, address/baud match ([§3.4](#34-communication-defaults-canonical)), only two end terminators |
 | Relays don't actuate | Relay **Enabled** in WebConfig; verify coil writes to 0–2; check invert setting |
 | DI not changing | Wire to **INx/GNDx**; check Enable/Invert/Type and Short/Long actions in [§6](#6-webconfig-reference) |
-| USB won't connect | Chrome/Edge with Web Serial, close other serial apps, check cable/port permissions |
+| USB won't connect | Chromium-based browser with Web Serial (not Safari/stable Firefox); close other serial apps, check cable/port permissions |
 | Config not saved | Allow idle for auto-save; verify LittleFS space |
 
 ---
