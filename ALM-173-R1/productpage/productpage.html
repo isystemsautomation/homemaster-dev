@@ -26,7 +26,7 @@
               "@type": "HowToStep",
               "position": 3,
               "name": "Open WebConfig",
-              "text": "Open WebConfig page in Chrome or Edge browser."
+              "text": "Open WebConfig in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)."
             },
             {
               "@type": "HowToStep",
@@ -75,7 +75,7 @@
               "@type": "HowToStep",
               "position": 3,
               "name": "Open WebConfig",
-              "text": "Open WebConfig page in Chrome or Edge browser."
+              "text": "Open WebConfig in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)."
             },
             {
               "@type": "HowToStep",
@@ -111,7 +111,7 @@
 
           <p>
             The <strong>HomeMaster ALM-173-R1</strong> is a configurable alarm and annunciator I/O module for intrusion detection,
-            fault signalling and supervision. It combines <strong>17 opto-isolated digital inputs</strong>, <strong>3 SPDT relay outputs</strong>,
+            fault signalling and supervision. It combines <strong>17 opto-isolated digital inputs (5 V DC; 3.75 kVrms optocoupler isolation)</strong>, <strong>3 SPDT relay outputs (3 A @ 250 VAC resistive, module rating)</strong>,
             and a small front-panel HMI with <strong>4 buttons</strong> and <strong>4 LEDs</strong> to build flexible alarm panels and
             summary annunciators in building and light industrial automation.
           </p>
@@ -136,7 +136,7 @@
               decoding="async"
             >
             <div class="plc-caption">
-              DIN rail • 24 V DC • Modbus RTU • USB-C <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">WebConfig</a>
+              DIN rail • 24 V DC • Modbus RTU • USB-C <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>
             </div>
           </div>
         </div>
@@ -153,11 +153,11 @@
           <ul class="plc-list plc-list--tight">
             <li>Alarm and annunciator I/O expansion module for Modbus automation systems</li>
             <li><strong>DIN-rail form factor</strong> with 24 V DC SELV supply</li>
-            <li><strong>17 opto-isolated digital inputs</strong> with per-input enable, invert and group</li>
-            <li><strong>3 SPDT relays</strong> driven by alarm groups, master or manual override</li>
+            <li><strong>17 opto-isolated digital inputs (5 V DC)</strong> with per-input enable, invert and alarm group</li>
+            <li><strong>3 SPDT relays (3 A @ 250 VAC)</strong> driven by alarm groups, Modbus manual override or button override</li>
             <li>Front panel with <strong>4 buttons</strong> (ack/override) and <strong>4 LEDs</strong> (status/alert)</li>
             <li>RS-485 Modbus RTU communication (address 1–255, 9600–115200 baud)</li>
-            <li>Local configuration via USB‑C <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">WebConfig</a> interface</li>
+            <li>Local configuration via USB‑C <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig v0.2.0</a> (Chromium-based browsers)</li>
             <li>Persistent configuration stored in external QSPI flash</li>
           </ul>
         </div>
@@ -194,15 +194,15 @@
             <tr><th scope="row">Flash Memory</th><td>External QSPI Flash (W25Q32)</td></tr>
             <tr>
               <th scope="row">Power Input</th>
-              <td>24 V DC SELV nominal (V+ / 0V), protected input</td>
+              <td>24 V DC SELV nominal (V+ / 0V), 18–30 V DC; 1 A time-lag fuse, reverse-polarity protection, TVS</td>
             </tr>
             <tr>
               <th scope="row">Digital Inputs</th>
-              <td>17 × opto-isolated digital inputs (IN1…IN17, each with own GND_ISO return); dry contact / isolated low-voltage; per-input Enable / Invert / Group (None, G1, G2, G3)</td>
+              <td>17 × opto-isolated digital inputs (IN1…IN17, 5 V DC, 3.75 kVrms isolation); each with GND_ISO return; dry contact / SELV; Enable / Invert / Group (None, G1, G2, G3)</td>
             </tr>
             <tr>
               <th scope="row">Relay Outputs</th>
-              <td>3 × SPDT relays (RLY1…RLY3), dry contacts COM/NO/NC; system rating limited by PCB and terminal paths (see datasheet; use external contactors for high or inductive loads)</td>
+              <td>3 × SPDT relays (RLY1…RLY3), HF115F/005-1ZS3 dry contacts COM/NO/NC; <strong>3 A @ 250 VAC</strong> resistive (module rating). Relay components rated higher — use external contactors for heavy or inductive loads.</td>
             </tr>
             <tr>
               <th scope="row">User Interface</th>
@@ -218,7 +218,7 @@
             </tr>
             <tr>
               <th scope="row">Sensor Rails</th>
-              <td>Isolated +12 V ISO (PS/1) and +5 V ISO (PS/2) rails for low‑power sensors only (PTC/fuse protected)</td>
+              <td>Isolated +12 V ISO (PS/1, ~2 W / ~150 mA usable) and +5 V ISO (PS/2) for low‑power sensors only (PTC/fuse protected)</td>
             </tr>
             <tr><th scope="row">Modbus Address Range</th><td>1–255 (default: 3)</td></tr>
             <tr><th scope="row">Modbus Baud Rate</th><td>9600–115200 (default: 19200, 8N1)</td></tr>
@@ -324,7 +324,7 @@
             <li>HomeMaster MicroPLC and MiniPLC controllers (ESPHome based)</li>
             <li>Third‑party PLC and SCADA systems via Modbus RTU</li>
             <li>Home Assistant using an ESPHome‑based controller or Modbus integration</li>
-            <li>Direct USB‑C configuration using a Chromium browser <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">WebConfig</a> tool</li>
+            <li>Direct USB‑C configuration using a Chromium browser <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> tool</li>
           </ul>
 
           <p>
@@ -332,11 +332,11 @@
             Configuration is stored in flash and automatically restored at power‑up.
           </p>
 
-          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB‑C <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
+          <h3 id="quick-setup-process"><strong>Quick Setup Process (USB‑C <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>)</strong></h3>
           <ol class="plc-steps">
             <li><strong>Mount &amp; Power</strong> – Mount the module on a DIN rail, wire 24 V DC and RS‑485.</li>
             <li><strong>Connect USB‑C</strong> – Connect the module to a PC using a USB‑C cable.</li>
-            <li><strong>Open WebConfig</strong> – Open <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">configtool-alm-173-r1</a> in Chrome or Edge.</li>
+            <li><strong>Open WebConfig</strong> – Open the <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">v0.2.0 ConfigToolPage</a> in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). Firefox: experimental only (Nightly + Web Serial). Safari/stable Firefox not supported.</li>
             <li><strong>Connect Device</strong> – Click <strong>Connect</strong>, select the serial device and wait for Active Modbus Configuration to appear.</li>
             <li><strong>Configure</strong> – Set Modbus address and baud, choose alarm modes for G1–G3.</li>
             <li><strong>Map I/O</strong> – Assign inputs to groups, configure relays, LEDs and buttons.</li>
@@ -344,8 +344,8 @@
           </ol>
 
           <p>
-            <strong>What WebConfig is and how it works:</strong> WebConfig is a browser-based configuration UI that runs entirely in a Chromium
-            browser using the Web Serial API. It shows live Modbus address/baud in the header, streams a serial log, and lets you edit alarm
+            <strong>What WebConfig is and how it works:</strong> WebConfig is a browser-based configuration UI that runs in a Chromium-based browser using the Web Serial API (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). Firefox Nightly with Web Serial is experimental; Safari and stable Firefox are not supported.
+            It shows live Modbus address/baud in the header, streams a serial log, and lets you edit alarm
             modes, input groups, relay behavior, button actions and LED mapping. Changes apply immediately and are written to flash shortly
             after the last update so that configuration survives power cycles.
           </p>
@@ -355,7 +355,7 @@
             <li>Modbus address (1–255) and baud rate (9600–115200)</li>
             <li>Alarm modes per group: None / Active‑while / Latched‑until‑ack</li>
             <li>Digital inputs: Enable / Invert / Alarm Group (None/1/2/3)</li>
-            <li>Relays: Enable / Invert / Source (Group 1–3, Master, or None)</li>
+            <li>Relays: Enable / Invert / Alarm Group (None/1/2/3), Power-on (OFF/ON/Restore)</li>
             <li>Buttons: Ack All, Ack G1–G3, or Relay 1–3 override</li>
             <li>LEDs: Steady/Blink, source Any, G1–G3, or relay override</li>
           </ul>
@@ -431,7 +431,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ALM-173-R1/Firmware/v0.1.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+      - path: ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
         vars:
           alm_prefix: "ALM#1"   # shown in Home Assistant
           alm_id: alm_1         # unique internal ID
@@ -439,7 +439,7 @@ packages:
     refresh: 1d</code></pre>
 
         <p class="plc-caption">
-          <code>alm_address</code> must match the Modbus address configured in <a href="https://www.home-master.eu/configtool-alm-173-r1" target="_blank" rel="noopener">WebConfig</a>.
+          <code>alm_address</code> must match the Modbus address configured in <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a>.
         </p>
       </div>
     </div>
@@ -572,8 +572,8 @@ packages:
                 <th scope="row">WebConfig Tool</th>
                 <td>Browser-based configuration interface over USB‑C Web Serial</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--html" href="https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html" target="_blank" rel="noopener">
-                    ConfigToolPage.html
+                  <a class="plc-docs-link plc-docs-link--html" href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">
+                    ConfigToolPage.html (v0.2.0)
                   </a>
                 </td>
               </tr>
@@ -615,7 +615,7 @@ packages:
             <tr>
               <th scope="row">24&nbsp;V DC SELV</th>
               <td>V+ / 0V</td>
-              <td>20–30 V DC (typ. 24 V)</td>
+              <td>18–30 V DC (typ. 24 V)</td>
               <td>Primary module supply; see datasheet for exact limits and power budget.</td>
             </tr>
           </tbody>
@@ -754,8 +754,7 @@ packages:
       </p>
 
       <p>
-        <strong>Rating:</strong> the relay outputs are limited by the PCB copper and terminal system rating as specified in the official datasheet.
-        For higher power or inductive loads, use external contactors or power relays and treat the ALM relays as control contacts only.
+        <strong>Rating:</strong> module output is <strong>3 A @ 250 VAC</strong> (resistive, SPDT dry contacts). Relay components (HF115F class) are rated up to 12 A @ 250 VAC at chip level — <strong>that rating does not apply to the module</strong>. Use external contactors for higher power or inductive loads.
       </p>
 
       <p class="plc-callout plc-callout--warning">
@@ -906,17 +905,14 @@ packages:
       <ul class="plc-list">
         <li>ALM-173-R1 operates as a <strong>Modbus RTU slave</strong>; the controller (PLC/ESPHome/SCADA) is the master.</li>
         <li>Address and baud are configured via WebConfig and stored in flash (restored at power‑up).</li>
-        <li>Data model includes discrete inputs, coils, input registers and holding registers for alarms, relays, LEDs and configuration snapshots (see README for full map).</li>
+        <li>Data model: <strong>Discrete Inputs (FC02)</strong> for telemetry and <strong>Coils (FC01/05)</strong> for commands. Module configuration is via <strong>WebConfig</strong> (USB-C), not holding registers. Identity block in Input Registers (FC04): MODEL_ID=1, MAP_VERSION.</li>
       </ul>
 
       <h3><strong>Function Codes</strong></h3>
       <ul class="plc-list">
-        <li><code>0x01</code> Read Coils – relay and control bits.</li>
-        <li><code>0x02</code> Read Discrete Inputs – debounced input and alarm bits.</li>
-        <li><code>0x03</code> Read Holding Registers – configuration and status snapshots.</li>
-        <li><code>0x04</code> Read Input Registers – live telemetry (e.g. active Modbus config, bitmaps).</li>
-        <li><code>0x05 / 0x0F</code> Write Coils – control relays, overrides and acknowledges.</li>
-        <li><code>0x06 / 0x10</code> Write Holding Registers – provisioning and advanced configuration.</li>
+        <li><code>0x02</code> Read Discrete Inputs — inputs, alarm bits, relay/LED mirrors.</li>
+        <li><code>0x04</code> Read Input Registers — MODEL_ID, firmware version, MAP_VERSION.</li>
+        <li><code>0x05 / 0x0F</code> Write Coils — enable/disable inputs, relay override, ack, group pulses.</li>
       </ul>
 
       <h3><strong>RS‑485 Wiring</strong></h3>
