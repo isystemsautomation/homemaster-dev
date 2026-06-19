@@ -344,22 +344,11 @@ Full UART/modbus setup and entity list: [§8 ESPHome Integration](#8-esphome--ho
 
 Open **https://www.home-master.eu/configtool-dio-430-r1** in Chrome/Edge, connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
 
-![WebConfig — Header & Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
+### Status & Tools
 
-### Header (read-only status)
+![DIO-430-R1 WebConfig — Module status (Model, FW, Modbus ID, Baud) and Tools — Identify / Factory reset / Reboot](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig1.png)
 
-Status pills (not settings): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**. A banner warns if model/firmware mismatches this configurator.
-
-### Device Setup
-
-| Field | Values | Meaning |
-|-------|--------|---------|
-| Modbus Address | 1–247 (default 3) | Modbus RTU slave address; must be unique on the bus. |
-| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed **8N1**; must match the controller. |
-
-![WebConfig — Device Setup & Serial Log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
-
-### Tools
+Status pills (read-only, not settings): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**. A banner warns if model/firmware mismatches this configurator.
 
 | Button | What it does |
 |--------|--------------|
@@ -367,7 +356,18 @@ Status pills (not settings): **Connection** (USB), **Bus** (RS-485), **Model**, 
 | Factory reset | Restores all settings to defaults. |
 | Reboot | Restarts the module. |
 
-### Digital Inputs (IN1–IN4)
+### Device Setup
+
+![DIO-430-R1 WebConfig — Serial connection & Modbus addressing (address, baud) with serial log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig2.png)
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| Modbus Address | 1–247 (default 3) | Modbus RTU slave address; must be unique on the bus. |
+| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 (default 19200) | RS-485 speed **8N1**; must match the controller. |
+
+### Digital Inputs
+
+![DIO-430-R1 WebConfig — Per-input setup: Enabled / Inverted / Child-lock, Type (Maintained/Momentary), Short-Long actions & target](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig3.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -384,9 +384,11 @@ Status pills (not settings): **Connection** (USB), **Bus** (RS-485), **Model**, 
 
 Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
 
-![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
+### Relays & Interlock
 
-### Relays (Relay 1–3)
+![DIO-430-R1 WebConfig — Relay enable / invert / power-on / auto-off, and relay interlock (Relay A/B, pause)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig4.png)
+
+**Relays (Relay 1–3)**
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -397,7 +399,7 @@ Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short =
 
 Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 
-### Interlock
+**Interlock**
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -405,7 +407,7 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 | Relay A / B | R1 / R2 / R3 | Interlocked pair. |
 | Pause, ms | integer (default 500) | Dead-time when reversing. |
 
-### Timing
+**Timing**
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -414,9 +416,11 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 | Debounce, ms | 1–500 (default 30) | Input debounce. |
 | Link timeout, ms | 500–60000 (default 5000) | RS-485 link-loss timeout. |
 
-![WebConfig — Relays & Interlock](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png)
+### Buttons & User LEDs
 
-### Buttons (Button 1–2; GPIO2 / GPIO3)
+![DIO-430-R1 WebConfig — Button short/long actions and user-LED source / mode](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig5.png)
+
+**Buttons (Button 1–2; GPIO2 / GPIO3)**
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -425,7 +429,7 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 
 Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None. (Third front button: firmware-update combo only.)
 
-### User LEDs (LED 1–3)
+**User LEDs (LED 1–3)**
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -435,8 +439,6 @@ Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = T
 | Arg | integer | Relay # or DI index for Child lock / Relay sources. |
 
 Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
-
-![WebConfig — Buttons & User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png)
 
 ### Action / Target reference
 
