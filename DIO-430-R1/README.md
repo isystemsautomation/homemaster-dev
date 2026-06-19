@@ -17,7 +17,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 
 **Key capabilities at a glance:**
 
-- **4 opto-isolated digital inputs** — dry contacts or 24 V signals; per-input Maintained/Momentary logic
+- **4 galvanically isolated digital inputs (ISO1212)** — dry contacts or 24 V signals; per-input Maintained/Momentary logic
 - **3 SPDT relays** — 3 A @ 250 VAC (resistive) dry contacts (NO/NC/COM); use interposing contactors for loads above 3 A
 - **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
@@ -60,7 +60,7 @@ Typical uses for the DIO-430-R1:
 
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
-| Digital Inputs | 4 | Opto-isolated, dry contact compatible, noise-protected |
+| Digital Inputs | 4 | Galvanically isolated (ISO1212), dry contact compatible, noise-protected |
 | Relays | 3 | SPDT (NO/NC), 3 A @ 250 VAC (resistive), dry contacts |
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
 | Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
@@ -149,7 +149,12 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 |-------|------|----------|-------|
 | **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
 | **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
-| **DI 1-4** | INx, GNDx | Isolated digital inputs | 24 V field or dry contact |
+| **DI 1-4** | INx, GNDx | Galvanically isolated inputs (ISO1212) | Wetting from internal fused 24 V; dry contact or 24 V signal |
+
+**Input power / wetting.** The digital inputs are built on an ISO1212 isolated input receiver and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. A 24 V field signal can also be applied to INx/GNDx. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
+
+Isolation is between the field (24 V) side and the MCU logic, provided by the ISO1212 — so the field return **GNDx must not be bonded to logic GND**. Inputs share the common fused 24 V field rail; isolation is field-to-logic, not channel-to-channel.
+
 | **RS-485** | B, A, COM | Modbus RTU bus | Terminate 120 Ω at ends |
 | **USB-C** | D+, D−, VBUS, GND | Setup / Service port | Not for field powering |
 
@@ -277,7 +282,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V** for logic; DI front-end is isolated.
 
 - **24 VDC DIN-rail PSU** → **24Vdc(+) / 0V(–)** power terminals (top row: POWER).
-- **Sensor side (DI)** — isolated receivers; feed sensors from the 24 V field rail and return to **DI GND** pins (per-channel). Do **not** back-power logic from sensor rails.
+- **Sensor side (DI)** — ISO1212 receivers wetted from the module's internal fused 24 V (see [§4.2](#42-connectors--terminal-map)); for 3-wire sensors, power from your own source and return the output to **INx/GNDx**. Do **not** back-power logic from sensor rails.
 - Size PSU for base electronics + LEDs + **relay coils** (up to 3 simultaneously) + sensor rails; add **≥ 30 % headroom** (see [§3.2](#32-electrical-ratings)).
 - Correct polarity; keep logic **GND** and DI field ground **separate**; upstream **fusing/breaker** required.
 
@@ -286,7 +291,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 **Phase 1 — Wire**
 
 - **24 VDC** → **V+ / 0V** (top POWER terminals). Regulated SELV; keep pairs twisted.
-- **Digital inputs** → **INx / GNDx** (isolated; do not bridge logic GND ↔ field GND).
+- **Digital inputs** → **INx / GNDx** (galvanically isolated field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and isolation.
 - **Relay outputs** → **COM / NO / NC**. Interposing contactors for motors/pumps; RC/MOV on inductive loads.
 - **RS-485** → **A / B / COM (GND)**. Shielded twisted pair; daisy-chain; 120 Ω at both ends.
 
@@ -294,11 +299,11 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 ![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
 
+> Wiring detail: internal fused 24 V wets dry contacts; no auxiliary 12 V/5 V sensor rail — see **Input power / wetting** under [§4.2 Connectors](#42-connectors--terminal-map).
+
 ![Relay wiring example](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png)
 
 ![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png)
-
-> This module does **not** export auxiliary 12 V/5 V sensor rails. Power sensors from your panel 24 V rail; return to matching **DI GNDx** terminals.
 
 **Phase 2 — Configure (WebConfig)**
 
