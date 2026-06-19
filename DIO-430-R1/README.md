@@ -119,7 +119,7 @@ Factory settings applied to every new module:
 | **Parity** | `None` |
 | **Stop Bits** | `1` |
 
-Address range **1–247**; baud options 9600 / 19200 / 38400 / 57600 / 115200. Change via [WebConfig](#6-webconfig-reference) or Modbus holding registers — see [§7 Modbus Register Map](#7-modbus-register-map).
+Address **1–247**; baud 9600 / 19200 / 38400 / 57600 / 115200. **Set via [WebConfig](#6-webconfig-reference) over USB-C — recommended.** Address and baud can also be written over Modbus holding registers (see [§7 Modbus Register Map](#7-modbus-register-map)) for remote re-commissioning of already-installed modules — **note: the change applies immediately, so the current Modbus connection drops and you must reconnect at the new address/baud.**
 
 The module communicates over **RS-485 Modbus RTU** (A/B differential + shared COM/GND). Configuration is stored persistently in **LittleFS** and can be changed live through **USB-C + WebConfig**.
 
@@ -547,7 +547,7 @@ Configuration is normally done via **WebConfig** ([§6](#6-webconfig-reference))
 
 **D) Map Button 1 short press → Toggle Relay 2** — write packed Toggle+R2 to **HREG 30**; pulse **Coil 6**.
 
-**E) Change Modbus address / baud** — **HREG 3 (MB_ADDR)** and **HREG 4 (MB_BAUD)**; pulse **Coil 6**; optional **Coil 7 (REBOOT)**.
+**E) Change Modbus address / baud (remote re-commissioning)** — write **HREG 3 (MB_ADDR)** and **HREG 4 (MB_BAUD)**; settings apply **immediately** (current connection drops — reconnect at the new address/baud). Optional pulse **Coil 6 (SAVE_CFG)** and **Coil 7 (REBOOT)**. Prefer [WebConfig](#6-webconfig-reference) over USB-C for initial setup.
 
 **F) Persist and reboot** — pulse **Coil 6 (SAVE_CFG)** then **Coil 7 (REBOOT)**.
 
