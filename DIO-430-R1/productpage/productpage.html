@@ -26,7 +26,7 @@
               "@type": "HowToStep",
               "position": 3,
               "name": "Open WebConfig",
-              "text": "Open WebConfig page in Chrome or Edge browser."
+              "text": "Open WebConfig page in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)."
             },
             {
               "@type": "HowToStep",
@@ -75,7 +75,7 @@
               "@type": "HowToStep",
               "position": 3,
               "name": "Open WebConfig",
-              "text": "Open WebConfig page in Chrome or Edge browser."
+              "text": "Open WebConfig page in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)."
             },
             {
               "@type": "HowToStep",
@@ -110,7 +110,7 @@
           <h2><strong>HomeMaster DIO-430-R1</strong></h2>
 
           <p>
-            The <strong>HomeMaster DIO-430-R1</strong> is a professional, open-source DIN-rail digital I/O module designed for reliable digital input monitoring and relay-based control in building automation and light industrial panels. It provides isolated digital inputs, high-current relay outputs, RS-485 Modbus communication, and USB-C configuration interface.
+            The <strong>HomeMaster DIO-430-R1</strong> is a professional, open-source DIN-rail digital I/O module designed for reliable digital input monitoring and relay-based control in building automation and light industrial panels. It provides galvanically isolated (ISO1212) digital inputs, relay outputs, RS-485 Modbus communication, and USB-C configuration interface.
           </p>
 
           <p>
@@ -167,7 +167,7 @@
           <ul class="plc-list plc-list--tight">
             <li>Smart digital I/O expansion module for Modbus automation systems</li>
             <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
-            <li>4 isolated digital inputs and 3 relay outputs</li>
+            <li>4 galvanically isolated (ISO1212) digital inputs and 3 relay outputs</li>
             <li>RS-485 Modbus RTU communication</li>
             <li>Local configuration via USB-C <a href="https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> interface</li>
             <li>Persistent onboard logic and configuration storage</li>
@@ -209,7 +209,7 @@
               <th scope="row">Power Input</th>
               <td>24 V DC nominal (V+ / 0V)</td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>4 × isolated 24 V DC discrete inputs (DIx + GNDx), dry-contact or 24 V; per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>4 × galvanically isolated (ISO1212) 24 V DC digital inputs (DIx + GNDx), dry-contact or 24 V; per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs</th>
               <td>
@@ -347,12 +347,14 @@
           <ol class="plc-steps">
             <li><strong>Mount &amp; Power</strong> – Mount the module on a DIN rail and connect power.</li>
             <li><strong>Connect USB-C</strong> – Connect USB-C cable to the module.</li>
-            <li><strong>Open WebConfig</strong> – Open <a href="https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> page in Chrome or Edge browser.</li>
+            <li><strong>Open WebConfig</strong> – Open <a href="https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> page in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi).</li>
             <li><strong>Connect Device</strong> – Click Connect and select the device.</li>
             <li><strong>Configure</strong> – Configure Modbus address and baud rate.</li>
             <li><strong>Map I/O</strong> – Configure input-to-relay mapping and LED behavior.</li>
             <li><strong>Save &amp; Disconnect</strong> – Save settings and disconnect USB-C.</li>
           </ol>
+
+          <p><em>Firefox: experimental only (Nightly with the Web Serial flag); Safari and stable Firefox not supported.</em></p>
 
           <p><strong>Features:</strong></p>
           <ul class="plc-list">
