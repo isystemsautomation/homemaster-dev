@@ -1,0 +1,8 @@
+# Arduino build artifacts — commit only UF2 under build/<board>/
+*.bin
+*.elf
+*.map
+
+build/**/*
+!build/**/
+!build/**/*.uf2

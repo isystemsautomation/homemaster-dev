@@ -28,6 +28,11 @@
 #include <utility>
 #include "hardware/watchdog.h"
 
+// Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
+struct PersistConfig;
+struct PersistConfigV2;
+struct OutputStateSnapshot;
+
 // ================== Hardware pins ==================
 #define SDA 6
 #define SCL 7
