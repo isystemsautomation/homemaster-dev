@@ -21,7 +21,7 @@
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
 #define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP_VERSION 2
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -31,6 +31,7 @@
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
 struct PersistConfig;
 struct PersistConfigV2;
+struct PersistConfigV3;
 struct OutputStateSnapshot;
 
 // ================== Hardware pins ==================
@@ -90,6 +91,24 @@ bool    latchedGroup[4]  = {false,false,false,false}; // [1..3] used
 // --- NEW: PLC pulse flags for groups (set for one scan on coil write) ---
 volatile bool plcAlarmPulse[4] = {false,false,false,false}; // index 1..3 used
 
+// --- Zone types, local arm, bell cut-off (opt-in via localArmEnabled) ---
+uint8_t  inputType[17];        // 0=Instant, 1=Delayed, 2=24h/Tamper
+uint16_t relayAutoOffSec[3];   // bell cut-off seconds, 0=off
+bool     localArmEnabled;      // default false → legacy behaviour
+uint16_t entryDelaySec;        // default 30
+uint16_t exitDelaySec;         // default 30
+
+uint8_t  armState = 0;         // 0=Disarmed, 1=Armed
+bool     exitPending = false;
+bool     entryPending = false;
+uint32_t exitUntilMs = 0;
+uint32_t entryUntilMs = 0;
+bool     zoneLatched[17] = {false};
+uint32_t relayOnSinceMs[3] = {0, 0, 0};
+bool     relayBellCut[3]   = {false, false, false};
+bool     prevGrpFollow[3]   = {false, false, false};
+bool     tamperAnyActive    = false;
+
 // ================== Pin maps ==================
 const uint8_t PCF20_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
 const uint8_t PCF21_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
@@ -131,7 +150,7 @@ struct PersistConfigV2 {
   uint32_t  crc32;
 } __attribute__((packed));
 
-struct PersistConfig {
+struct PersistConfigV3 {
   uint32_t magic;       // 'ALM1'
   uint16_t version;
   uint16_t size;
@@ -146,6 +165,26 @@ struct PersistConfig {
   uint32_t  crc32;
 } __attribute__((packed));
 
+struct PersistConfig {
+  uint32_t magic;       // 'ALM1'
+  uint16_t version;
+  uint16_t size;
+  ThreeCfg  digitalInputs[17];
+  ThreeCfg  relayConfigs[3];
+  LedCfg    ledCfg[4];
+  ButtonCfg buttonCfg[4];
+  uint8_t   alarmModeList[3];
+  uint8_t   relayPowerOn[3];
+  uint8_t   inputType[17];
+  uint16_t  relayAutoOffSec[3];
+  bool      localArmEnabled;
+  uint16_t  entryDelaySec;
+  uint16_t  exitDelaySec;
+  uint8_t   mb_address;
+  uint32_t  mb_baud;
+  uint32_t  crc32;
+} __attribute__((packed));
+
 struct OutputStateSnapshot {
   uint32_t magic; uint16_t version; uint16_t size;
   bool relayPhysical[3];
@@ -154,7 +193,8 @@ struct OutputStateSnapshot {
 
 static const uint32_t CFG_MAGIC   = 0x314D4C41UL; // 'ALM1'
 static const uint16_t CFG_VERSION_V2 = 0x0002;
-static const uint16_t CFG_VERSION = 0x0003;  // Phase B: relayPowerOn, output state decoupled
+static const uint16_t CFG_VERSION_V3 = 0x0003;  // relayPowerOn, output state decoupled
+static const uint16_t CFG_VERSION = 0x0004;     // zone types, local arm, bell cut-off
 static const char*    CFG_PATH    = "/cfg.bin";
 static const char*    OUT_STATE_PATH = "/cfg_out.bin";
 static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL; // 'HMOS'
@@ -182,13 +222,35 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   return ~crc;
 }
 
+void setNewFieldDefaults() {
+  for (int i = 0; i < 17; i++) inputType[i] = 0;
+  for (int i = 0; i < 3; i++) relayAutoOffSec[i] = 0;
+  localArmEnabled = false;
+  entryDelaySec = 30;
+  exitDelaySec = 30;
+}
+
+void resetArmRuntime() {
+  armState = 0;
+  exitPending = false;
+  entryPending = false;
+  exitUntilMs = 0;
+  entryUntilMs = 0;
+  memset(zoneLatched, 0, sizeof(zoneLatched));
+  memset(relayOnSinceMs, 0, sizeof(relayOnSinceMs));
+  memset(relayBellCut, 0, sizeof(relayBellCut));
+  memset(prevGrpFollow, 0, sizeof(prevGrpFollow));
+}
+
 void setDefaults() {
   for (int i = 0; i < 17; i++) digitalInputs[i] = { true, false, 0 };
   for (int i = 0; i < 3;  i++) relayConfigs[i]   = { true, false, 0 }; // group 0 = no follow
   for (int i = 0; i < 4;  i++) { ledCfg[i] = { 0, 0 }; buttonCfg[i] = { 0 }; }
   for (int i = 0; i < 3;  i++) { alarmModeList[i] = 0; relayPowerOn[i] = HM_PWR_OFF; }
+  setNewFieldDefaults();
   g_mb_address = 3;
   g_mb_baud    = 19200;
+  resetArmRuntime();
 
   // Clear overrides
   for (int r=0;r<3;r++){
@@ -273,6 +335,11 @@ void captureToPersist(PersistConfig &pc) {
   memcpy(pc.buttonCfg,     buttonCfg,     sizeof(buttonCfg));
   memcpy(pc.alarmModeList, alarmModeList, sizeof(alarmModeList));
   memcpy(pc.relayPowerOn, relayPowerOn, sizeof(relayPowerOn));
+  memcpy(pc.inputType, inputType, sizeof(inputType));
+  memcpy(pc.relayAutoOffSec, relayAutoOffSec, sizeof(relayAutoOffSec));
+  pc.localArmEnabled = localArmEnabled;
+  pc.entryDelaySec = entryDelaySec;
+  pc.exitDelaySec = exitDelaySec;
   pc.mb_address = g_mb_address;
   pc.mb_baud    = g_mb_baud;
   pc.crc32 = 0;
@@ -294,6 +361,28 @@ bool applyFromPersistV2(const PersistConfigV2 &pc) {
   memcpy(buttonCfg,     pc.buttonCfg,     sizeof(buttonCfg));
   memcpy(alarmModeList, pc.alarmModeList, sizeof(alarmModeList));
   relayPowerOn[0] = relayPowerOn[1] = relayPowerOn[2] = HM_PWR_OFF;
+  setNewFieldDefaults();
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+  return true;
+}
+
+bool applyFromPersistV3(const PersistConfigV3 &pc) {
+  if (pc.magic != CFG_MAGIC) return false;
+  if (pc.version != CFG_VERSION_V3) return false;
+  if (pc.size != sizeof(PersistConfigV3)) return false;
+  PersistConfigV3 tmp = pc;
+  uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(PersistConfigV3)) != crc)
+    return false;
+  memcpy(digitalInputs, pc.digitalInputs, sizeof(digitalInputs));
+  memcpy(relayConfigs,  pc.relayConfigs,  sizeof(relayConfigs));
+  memcpy(ledCfg,        pc.ledCfg,        sizeof(ledCfg));
+  memcpy(buttonCfg,     pc.buttonCfg,     sizeof(buttonCfg));
+  memcpy(alarmModeList, pc.alarmModeList, sizeof(alarmModeList));
+  memcpy(relayPowerOn, pc.relayPowerOn, sizeof(relayPowerOn));
+  setNewFieldDefaults();
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
   return true;
@@ -314,6 +403,11 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(buttonCfg,     pc.buttonCfg,     sizeof(buttonCfg));
   memcpy(alarmModeList, pc.alarmModeList, sizeof(alarmModeList));
   memcpy(relayPowerOn, pc.relayPowerOn, sizeof(relayPowerOn));
+  memcpy(inputType, pc.inputType, sizeof(inputType));
+  memcpy(relayAutoOffSec, pc.relayAutoOffSec, sizeof(relayAutoOffSec));
+  localArmEnabled = pc.localArmEnabled;
+  entryDelaySec = pc.entryDelaySec;
+  exitDelaySec = pc.exitDelaySec;
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
   return true;
@@ -339,7 +433,17 @@ bool loadConfigFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     if (!applyFromPersistV2(pc)) return false;
-    wsLog("Loaded legacy config v2 → migrated to v3 (relayPowerOn defaults OFF).");
+    wsLog("Loaded legacy config v2 → migrated to v4 (relayPowerOn defaults OFF).");
+    cfgDirty = true; lastCfgTouchMs = millis();
+    return true;
+  }
+  if (sz == sizeof(PersistConfigV3)) {
+    PersistConfigV3 pc{};
+    size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applyFromPersistV3(pc)) return false;
+    wsLog("migrated v3 → v4 (defaults: Instant zones, bell-cutoff off, local arm off)");
     cfgDirty = true; lastCfgTouchMs = millis();
     return true;
   }
@@ -368,7 +472,12 @@ enum : uint16_t {
   ISTS_AL_G2     = 52,
   ISTS_AL_G3     = 53,
   ISTS_RLY_BASE  = 60,  // 60..62 : Relay1..3 effective
+  ISTS_ARMED          = 70,
+  ISTS_ENTRY_PENDING  = 71,
+  ISTS_EXIT_PENDING   = 72,
+  ISTS_TAMPER_ANY     = 73,
   ISTS_LED_BASE  = 90,  // 90..93 : LED1..4 physical
+  ISTS_ZONE_LATCH_BASE= 100,  // 100..116 : zone alarm memory
 
   // Command coils (write 1 -> action -> auto-clear)
   CMD_EN_IN_BASE  = 200, // 200..216 enable IN1..IN17
@@ -383,7 +492,10 @@ enum : uint16_t {
   // NEW: PLC pulse coils to activate alarm groups (auto-clear)
   CMD_AL_G1_PULSE = 510,
   CMD_AL_G2_PULSE = 511,
-  CMD_AL_G3_PULSE = 512
+  CMD_AL_G3_PULSE = 512,
+
+  CMD_ARM    = 530,
+  CMD_DISARM = 531
 };
 
 // ================== Forward decls ==================
@@ -401,6 +513,8 @@ void sendWebCfg();
 void sendWebBootstrap();
 void ackAll();
 void ackGroup(uint8_t g);
+void disarmLocal();
+static bool readEnabledInput(int i);
 
 // ================== Handlers ==================
 // values: { "mb_address": <1..255>, "mb_baud": <9600..115200> }
@@ -441,6 +555,11 @@ void handleUnifiedConfig(JSONVar obj) {
     wsLog("Input Alarm Group list updated");
     changed = true;
 
+  } else if (type == "in.type") {
+    for (int i=0;i<17 && i<list.length();i++) inputType[i] = (uint8_t)constrain((int)list[i], 0, 2);
+    wsLog("Input Zone Type list updated");
+    changed = true;
+
   } else if (type == "relay" || type == "relays") {
     for (int i = 0; i < 3 && i < list.length(); i++) {
       relayConfigs[i].enabled  = (bool)list[i]["enabled"];
@@ -449,8 +568,18 @@ void handleUnifiedConfig(JSONVar obj) {
       if (list[i].hasOwnProperty("powerOn")) {
         relayPowerOn[i] = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
       }
+      if (list[i].hasOwnProperty("autoOff")) {
+        relayAutoOffSec[i] = (uint16_t)constrain((int)list[i]["autoOff"], 0, 65535);
+      }
     }
     wsLog("Relay Configuration updated");
+    changed = true;
+
+  } else if (type == "arming") {
+    localArmEnabled = (bool)obj["enabled"];
+    entryDelaySec = (uint16_t)constrain((int)obj["entryDelay"], 0, 65535);
+    exitDelaySec = (uint16_t)constrain((int)obj["exitDelay"], 0, 65535);
+    wsLog("Arming Configuration updated");
     changed = true;
 
   } else if (type == "btn" || type == "buttons") {
@@ -531,6 +660,8 @@ void setup() {
   for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_DI_BASE + i);
   mb.addIsts(ISTS_AL_ANY); mb.addIsts(ISTS_AL_G1); mb.addIsts(ISTS_AL_G2); mb.addIsts(ISTS_AL_G3);
   for (uint16_t i=0;i<3;i++) mb.addIsts(ISTS_RLY_BASE + i);
+  mb.addIsts(ISTS_ARMED); mb.addIsts(ISTS_ENTRY_PENDING); mb.addIsts(ISTS_EXIT_PENDING); mb.addIsts(ISTS_TAMPER_ANY);
+  for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_ZONE_LATCH_BASE + i);
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
 
   // ---- Register command coils ----
@@ -542,6 +673,8 @@ void setup() {
   mb.addCoil(CMD_AL_G1_PULSE);
   mb.addCoil(CMD_AL_G2_PULSE);
   mb.addCoil(CMD_AL_G3_PULSE);
+  mb.addCoil(CMD_ARM);
+  mb.addCoil(CMD_DISARM);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
@@ -617,8 +750,50 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 }
 
 // ================== Ack helpers ==================
-void ackAll() { latchedGroup[1] = latchedGroup[2] = latchedGroup[3] = false; }
-void ackGroup(uint8_t g) { if (g >= 1 && g <= 3) latchedGroup[g] = false; }
+static void clearZoneLatchedForGroup(uint8_t g) {
+  if (!localArmEnabled || g < 1 || g > 3) return;
+  for (int i = 0; i < 17; i++) {
+    if (digitalInputs[i].group == g) zoneLatched[i] = false;
+  }
+}
+
+static void clearRelayBellCutForGroup(uint8_t g) {
+  if (g < 1 || g > 3) return;
+  for (int r = 0; r < 3; r++) {
+    if (relayConfigs[r].group == g) relayBellCut[r] = false;
+  }
+}
+
+void disarmLocal() {
+  armState = 0;
+  exitPending = false;
+  entryPending = false;
+  for (int r = 0; r < 3; r++) relayBellCut[r] = false;
+}
+
+void ackAll() {
+  if (localArmEnabled) memset(zoneLatched, 0, sizeof(zoneLatched));
+  latchedGroup[1] = latchedGroup[2] = latchedGroup[3] = false;
+  for (int r = 0; r < 3; r++) relayBellCut[r] = false;
+}
+
+void ackGroup(uint8_t g) {
+  if (g >= 1 && g <= 3) {
+    latchedGroup[g] = false;
+    clearZoneLatchedForGroup(g);
+    clearRelayBellCutForGroup(g);
+  }
+}
+
+static bool readEnabledInput(int i) {
+  if (!digitalInputs[i].enabled) return false;
+  bool val = false;
+  if (i < 8)       val = pcf20.read(PCF20_INPUT_PINS[i]);
+  else if (i < 16) val = pcf21.read(PCF21_INPUT_PINS[i - 8]);
+  else             val = pcf23.read(PCF23_IN17_PIN);
+  if (digitalInputs[i].inverted) val = !val;
+  return val;
+}
 
 // ================== Main loop ==================
 void loop() {
@@ -705,19 +880,65 @@ void loop() {
 
   // -------- Inputs (17) + Alarm evaluation ----------
   bool grpCondition[4] = {false,false,false,false};
+  tamperAnyActive = false;
   JSONVar inputs;
 
-  for (int i = 0; i < 17; i++) {
-    bool val = false;
-    if (digitalInputs[i].enabled) {
-      if (i < 8)       val = pcf20.read(PCF20_INPUT_PINS[i]);
-      else if (i < 16) val = pcf21.read(PCF21_INPUT_PINS[i - 8]);
-      else             val = pcf23.read(PCF23_IN17_PIN);
-      if (digitalInputs[i].inverted) val = !val;
+  if (localArmEnabled) {
+    if (exitPending && now >= exitUntilMs) {
+      armState = 1;
+      exitPending = false;
     }
-    inputs[i] = val;
-    uint8_t g = digitalInputs[i].group;
-    if (val && g >= 1 && g <= 3) grpCondition[g] = true;
+
+    for (int i = 0; i < 17; i++) {
+      bool val = readEnabledInput(i);
+      inputs[i] = val;
+      if (!val) continue;
+      uint8_t g = digitalInputs[i].group;
+      if (g < 1 || g > 3) continue;
+
+      uint8_t type = inputType[i];
+      if (type == 2) {
+        grpCondition[g] = true;
+        tamperAnyActive = true;
+        if (alarmModeList[g - 1] == 2) zoneLatched[i] = true;
+      } else if (armState == 1 && !exitPending) {
+        if (type == 0) {
+          grpCondition[g] = true;
+          if (alarmModeList[g - 1] == 2) zoneLatched[i] = true;
+        } else if (type == 1) {
+          if (entryDelaySec == 0) {
+            grpCondition[g] = true;
+            if (alarmModeList[g - 1] == 2) zoneLatched[i] = true;
+          } else {
+            if (!entryPending) {
+              entryPending = true;
+              entryUntilMs = now + (uint32_t)entryDelaySec * 1000UL;
+            }
+            if (now >= entryUntilMs) {
+              grpCondition[g] = true;
+              if (alarmModeList[g - 1] == 2) zoneLatched[i] = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (entryPending && entryDelaySec > 0) {
+      bool delayedFault = false;
+      for (int i = 0; i < 17; i++) {
+        if (inputType[i] != 1 || !readEnabledInput(i)) continue;
+        uint8_t g = digitalInputs[i].group;
+        if (g >= 1 && g <= 3 && armState == 1 && !exitPending) { delayedFault = true; break; }
+      }
+      if (!delayedFault) entryPending = false;
+    }
+  } else {
+    for (int i = 0; i < 17; i++) {
+      bool val = readEnabledInput(i);
+      inputs[i] = val;
+      uint8_t g = digitalInputs[i].group;
+      if (val && g >= 1 && g <= 3) grpCondition[g] = true;
+    }
   }
 
   // OR in the PLC pulse requests for this scan
@@ -744,6 +965,7 @@ void loop() {
   bool relayPhysicalNow[3] = {false, false, false};
   for (int r = 0; r < 3; r++) {
     bool desired = false;
+    bool fromGroup = false;
 
     if (buttonOverrideMode[r]) {
       desired = buttonOverrideState[r];
@@ -751,14 +973,36 @@ void loop() {
       desired = relayManualValue[r];
     } else {
       uint8_t g = relayConfigs[r].group; // 0..3
-      if (g >= 1 && g <= 3) desired = grpAlarmActive[g];
-      else desired = false; // group 0
+      fromGroup = (g >= 1 && g <= 3);
+      if (fromGroup) {
+        desired = grpAlarmActive[g];
+        if (desired && !prevGrpFollow[r]) relayBellCut[r] = false;
+        prevGrpFollow[r] = desired;
+        if (relayBellCut[r]) desired = false;
+      } else {
+        desired = false;
+        prevGrpFollow[r] = false;
+      }
     }
 
     // Apply enable + inversion
     bool outVal = desired;
     if (!relayConfigs[r].enabled) outVal = false;
     if (relayConfigs[r].inverted) outVal = !outVal;
+
+    if (fromGroup && !buttonOverrideMode[r] && !relayManualActive[r]) {
+      if (outVal && !prevRelayPhysical[r] && relayAutoOffSec[r] > 0) {
+        relayOnSinceMs[r] = now;
+      }
+      if (!outVal) relayOnSinceMs[r] = 0;
+      if (outVal && relayAutoOffSec[r] > 0 && !relayBellCut[r] && relayOnSinceMs[r] > 0 &&
+          (now - relayOnSinceMs[r]) >= (uint32_t)relayAutoOffSec[r] * 1000UL) {
+        relayBellCut[r] = true;
+        outVal = false;
+      }
+    } else if (!fromGroup) {
+      relayOnSinceMs[r] = 0;
+    }
 
     relayStateList[r] = outVal;
     relayPhysicalNow[r] = outVal;
@@ -801,6 +1045,11 @@ void loop() {
   mb.setIsts(ISTS_AL_G2 , grpAlarmActive[2]);
   mb.setIsts(ISTS_AL_G3 , grpAlarmActive[3]);
   for (int r=0; r<3; r++) mb.setIsts(ISTS_RLY_BASE + r, (bool)relayStateList[r]);
+  mb.setIsts(ISTS_ARMED, armState == 1);
+  mb.setIsts(ISTS_ENTRY_PENDING, entryPending);
+  mb.setIsts(ISTS_EXIT_PENDING, exitPending);
+  mb.setIsts(ISTS_TAMPER_ANY, tamperAnyActive);
+  for (int i = 0; i < 17; i++) mb.setIsts(ISTS_ZONE_LATCH_BASE + i, zoneLatched[i]);
   for (int l=0; l<4; l++) mb.setIsts(ISTS_LED_BASE + l, (bool)LedStateList[l]);
 
   if (millis() - lastSend >= sendInterval) {
@@ -819,6 +1068,10 @@ void loop() {
       JSONVar ext;
       ext["alarm"]["any"] = anyAlarmActive ? 1 : 0;
       for (int g = 1; g <= 3; g++) ext["alarm"]["groups"][g - 1] = grpAlarmActive[g] ? 1 : 0;
+      ext["arming"]["armed"] = (armState == 1) ? 1 : 0;
+      ext["arming"]["entry"] = entryPending ? 1 : 0;
+      ext["arming"]["exit"]  = exitPending ? 1 : 0;
+      ext["arming"]["tamper"] = tamperAnyActive ? 1 : 0;
       WebSerial.send("ext", ext);
     }
   }
@@ -858,6 +1111,10 @@ void sendWebStatus() {
   st["map"]   = HM_MAP;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
+  st["armed"] = (armState == 1) ? 1 : 0;
+  st["entry"] = entryPending ? 1 : 0;
+  st["exit"]  = exitPending ? 1 : 0;
+  st["tamper"] = tamperAnyActive ? 1 : 0;
   WebSerial.send("status", st);
 }
 
@@ -867,12 +1124,14 @@ void sendWebCfg() {
     cfg["in"][i]["enabled"] = digitalInputs[i].enabled ? 1 : 0;
     cfg["in"][i]["invert"]  = digitalInputs[i].inverted ? 1 : 0;
     cfg["in"][i]["group"]   = digitalInputs[i].group;
+    cfg["in"][i]["type"]    = inputType[i];
   }
   for (int i = 0; i < 3; i++) {
     cfg["relay"][i]["enabled"] = relayConfigs[i].enabled ? 1 : 0;
     cfg["relay"][i]["invert"]  = relayConfigs[i].inverted ? 1 : 0;
     cfg["relay"][i]["group"]   = relayConfigs[i].group;
     cfg["relay"][i]["powerOn"] = relayPowerOn[i];
+    cfg["relay"][i]["autoOff"] = relayAutoOffSec[i];
   }
   for (int i = 0; i < 4; i++) {
     cfg["btn"][i]["action"] = buttonCfg[i].action;
@@ -883,6 +1142,9 @@ void sendWebCfg() {
     cfg["led"][i]["source"] = ledList[i]["source"];
   }
   for (int g = 0; g < 3; g++) cfg["ext"]["alarms"][g] = alarmModeList[g];
+  cfg["arming"]["enabled"] = localArmEnabled ? 1 : 0;
+  cfg["arming"]["entryDelay"] = entryDelaySec;
+  cfg["arming"]["exitDelay"] = exitDelaySec;
   WebSerial.send("cfg", cfg);
 }
 
@@ -933,6 +1195,23 @@ void processCommandPulses() {
   if (mb.Coil(CMD_AL_G1_PULSE)) { plcAlarmPulse[1] = true; mb.Coil(CMD_AL_G1_PULSE, false); }
   if (mb.Coil(CMD_AL_G2_PULSE)) { plcAlarmPulse[2] = true; mb.Coil(CMD_AL_G2_PULSE, false); }
   if (mb.Coil(CMD_AL_G3_PULSE)) { plcAlarmPulse[3] = true; mb.Coil(CMD_AL_G3_PULSE, false); }
+
+  if (mb.Coil(CMD_ARM)) {
+    if (localArmEnabled && armState != 1) {
+      if (exitDelaySec == 0) {
+        armState = 1;
+        exitPending = false;
+      } else {
+        exitPending = true;
+        exitUntilMs = millis() + (uint32_t)exitDelaySec * 1000UL;
+      }
+    }
+    mb.Coil(CMD_ARM, false);
+  }
+  if (mb.Coil(CMD_DISARM)) {
+    disarmLocal();
+    mb.Coil(CMD_DISARM, false);
+  }
 
   // Acknowledge alarms
   if (mb.Coil(CMD_ACK_ALL)) { ackAll(); mb.Coil(CMD_ACK_ALL, false); }
