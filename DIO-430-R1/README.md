@@ -288,22 +288,18 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 ### 5.4 Step-by-step
 
-**Phase 1 — Wire**
+**Phase 1 — Wire (field wiring)**
+
+| 24 V DC Power | Digital Inputs | Relay Output | RS-485 (120 Ω) |
+|:---:|:---:|:---:|:---:|
+| ![24 Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png) | ![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png) | ![Relay wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png) | ![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png) |
 
 - **24 VDC** → **V+ / 0V** (top POWER terminals). Regulated SELV; keep pairs twisted.
 - **Digital inputs** → **INx / GNDx** (galvanically isolated field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and isolation.
 - **Relay outputs** → **COM / NO / NC**. Interposing contactors for motors/pumps; RC/MOV on inductive loads.
 - **RS-485** → **A / B / COM (GND)**. Shielded twisted pair; daisy-chain; 120 Ω at both ends.
 
-![24Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png)
-
-![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
-
-> Wiring detail: internal fused 24 V wets dry contacts; no auxiliary 12 V/5 V sensor rail — see **Input power / wetting** under [§4.2 Connectors](#42-connectors--terminal-map).
-
-![Relay wiring example](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png)
-
-![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png)
+> **Digital inputs:** internal fused 24 V wets dry contacts; no auxiliary 12 V/5 V sensor rail — see **Input power / wetting** under [§4.2 Connectors](#42-connectors--terminal-map).
 
 **Phase 2 — Configure (WebConfig)**
 
