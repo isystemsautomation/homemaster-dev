@@ -9,21 +9,6 @@
 
 **Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [Licensing](#open-source--licensing) · [§13 Compliance](#13-compliance--certifications) · [§14 Support](#14-support)
 
-**Firmware shipped on new modules:** `v0.2.0`
-
-```yaml
-packages:
-  alm1:
-    url: https://github.com/isystemsautomation/homemaster-dev
-    ref: main
-    files:
-      - path: ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
-        vars:
-          alm_prefix: "ALM#1"
-          alm_id: alm_1
-          alm_address: 3
-```
-
 ---
 
 ## 1. Overview
