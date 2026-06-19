@@ -101,6 +101,7 @@ uint16_t exitDelaySec;         // default 30
 uint8_t  armState = 0;         // 0=Disarmed, 1=Armed
 bool     exitPending = false;
 bool     entryPending = false;
+bool     entryDelayedActive[4] = {false, false, false, false};
 uint32_t exitUntilMs = 0;
 uint32_t entryUntilMs = 0;
 bool     zoneLatched[17] = {false};
@@ -236,6 +237,7 @@ void resetArmRuntime() {
   entryPending = false;
   exitUntilMs = 0;
   entryUntilMs = 0;
+  memset(entryDelayedActive, 0, sizeof(entryDelayedActive));
   memset(zoneLatched, 0, sizeof(zoneLatched));
   memset(relayOnSinceMs, 0, sizeof(relayOnSinceMs));
   memset(relayBellCut, 0, sizeof(relayBellCut));
@@ -768,6 +770,7 @@ void disarmLocal() {
   armState = 0;
   exitPending = false;
   entryPending = false;
+  memset(entryDelayedActive, 0, sizeof(entryDelayedActive));
   for (int r = 0; r < 3; r++) relayBellCut[r] = false;
 }
 
@@ -913,24 +916,26 @@ void loop() {
             if (!entryPending) {
               entryPending = true;
               entryUntilMs = now + (uint32_t)entryDelaySec * 1000UL;
+              memset(entryDelayedActive, 0, sizeof(entryDelayedActive));
             }
-            if (now >= entryUntilMs) {
-              grpCondition[g] = true;
-              if (alarmModeList[g - 1] == 2) zoneLatched[i] = true;
-            }
+            entryDelayedActive[g] = true;
           }
         }
       }
     }
 
-    if (entryPending && entryDelaySec > 0) {
-      bool delayedFault = false;
-      for (int i = 0; i < 17; i++) {
-        if (inputType[i] != 1 || !readEnabledInput(i)) continue;
-        uint8_t g = digitalInputs[i].group;
-        if (g >= 1 && g <= 3 && armState == 1 && !exitPending) { delayedFault = true; break; }
+    if (entryPending && entryDelaySec > 0 && now >= entryUntilMs) {
+      entryPending = false;
+      for (int g = 1; g <= 3; g++) {
+        if (!entryDelayedActive[g]) continue;
+        grpCondition[g] = true;
+        if (alarmModeList[g - 1] == 2) {
+          for (int j = 0; j < 17; j++) {
+            if (inputType[j] == 1 && digitalInputs[j].group == g) zoneLatched[j] = true;
+          }
+        }
       }
-      if (!delayedFault) entryPending = false;
+      memset(entryDelayedActive, 0, sizeof(entryDelayedActive));
     }
   } else {
     for (int i = 0; i < 17; i++) {
