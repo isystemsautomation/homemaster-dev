@@ -365,11 +365,10 @@
           <h3 id="webconfig-configuration-options"><strong>WebConfig Configuration Options</strong></h3>
           <ul class="plc-list">
             <li>Modbus address (1–255) and baud rate (9600–115200)</li>
-            <li>Digital input: enable / invert</li>
-            <li>Digital input action: None / Toggle / Pulse</li>
-            <li>Digital input target: None / All / Relay 1 / Relay 2 / Relay 3</li>
-            <li>Relay: enable (and inversion if present)</li>
-            <li>Buttons: relay override assignment</li>
+            <li>Relay: enable / invert / power-on / auto-off</li>
+            <li>Interlock: relay pair with dead-time pause</li>
+            <li>Timing: long-press, multi-click gap, debounce, link timeout</li>
+            <li>Buttons: short/long-press actions and targets</li>
             <li>LEDs: steady/blink and source mapping</li>
             <li>Persistent save to flash and restore on boot</li>
           </ul>
@@ -404,7 +403,37 @@
           <div class="plc-wirecard" style="margin-top: 16px;">
             <img
               src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig3.png"
-              alt="WebConfig interface: advanced settings"
+              alt="WebConfig: digital inputs"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig4.png"
+              alt="WebConfig: relays and interlock"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig6.png"
+              alt="WebConfig: timing (long-press, debounce, link timeout)"
+              loading="lazy"
+              width="600"
+              height="400"
+              decoding="async"
+            >
+          </div>
+          <div class="plc-wirecard" style="margin-top: 16px;">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/webconfig5.png"
+              alt="WebConfig: buttons and user LEDs"
               loading="lazy"
               width="600"
               height="400"

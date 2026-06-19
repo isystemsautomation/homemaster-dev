@@ -410,7 +410,9 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 | Relay A / B | R1 / R2 / R3 | Interlocked pair. |
 | Pause, ms | integer (default 500) | Dead-time when reversing. |
 
-**Timing**
+### Timing
+
+![DIO-430-R1 WebConfig — Press timing, debounce and bus watchdog (long-press, multi-click gap, debounce, link timeout)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIO-430-R1/Images/webconfig6.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
