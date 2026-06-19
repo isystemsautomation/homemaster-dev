@@ -313,7 +313,7 @@ Add ESPHome package on controller ([§9](#9-esphome--home-assistant-integration)
 
 Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html)** in a **Chromium-based browser** (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). **Firefox:** experimental only (Nightly with Web Serial enabled). **Safari** and stable Firefox are not supported.
 
-![WebConfig overview](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig1.png)
+![WebConfig — overview, connection & status (Armed/Entry/Exit/Tamper)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig1.png)
 
 | Section | Settings |
 |---------|----------|
@@ -326,9 +326,10 @@ Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Fi
 | **LEDs (4)** | Mode Steady/Blink; source Any / G1–G3 / override |
 | **Tools** | Identify (~5 s), Factory reset, Reboot |
 
-![Alarm modes](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig2.png)  
-![Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig3.png)  
-![Relays](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig4.png)
+![Device setup — Modbus address & baud, serial log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig2.png)  
+![Alarm status & per-group latch modes](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig3.png)  
+![Digital inputs — enable, invert, alarm group, zone type (latched badge)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig4.png)  
+![Relays (bell cut-off), buttons & user LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig5.png)
 
 Changes auto-save to flash after a short idle period. See [§3 Alarm Logic](#3-alarm-logic--how-it-works) for zone types, local arming, and bell cut-off behaviour.
 
@@ -418,8 +419,8 @@ packages:
 
 ### 9.2 Entities (summary)
 
-- **Binary sensors:** IN1–IN17, Any Alarm, G1–G3, relay/LED mirrors
-- **Switches:** Relay ON/OFF, Ack All / G1–G3, override helpers
+- **Binary sensors:** IN1–IN17, Any Alarm, G1–G3, relay/LED mirrors; **MAP v2:** Armed, Entry/Exit pending, Tamper, Zone 1–17 latched
+- **Switches / buttons:** Relay ON/OFF, Ack All / G1–G3, **Arm / Disarm**, override helpers
 - Configure LED/button mapping on-module via WebConfig; HA consumes resulting states
 
 ### 9.3 Troubleshooting
@@ -483,7 +484,7 @@ packages:
 | Resource | Link |
 |----------|------|
 | **Firmware source** | [`Firmware/v0.2.0/default_alm_173_r1/`](Firmware/v0.2.0/default_alm_173_r1/) |
-| **Pre-built UF2** | [`default_alm_173_r1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/build/rp2040.rp2040.generic_rp2350/default_alm_173_r1.ino.uf2) |
+| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) · [build artifact](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1/build/rp2040.rp2040.generic_rp2350/default_alm_173_r1.ino.uf2) |
 | **ESPHome YAML** | [`default_alm_173_r1_plc.yaml`](Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml) |
 | **WebConfig** | [config.home-master.eu v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 | **Schematics** | [`Schematics/`](Schematics/) |
