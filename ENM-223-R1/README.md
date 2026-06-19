@@ -87,7 +87,7 @@ It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master
 | LEDs            | 4   | User LEDs; sources: overrides/alarms/warnings/events; steady or blink |
 | Buttons         | 4   | User actions (toggle relays/LEDs, overrides, acks) with live state feedback |
 | Metering & Energy | — | ATM90E32AS: Urms/Irms, **P/Q/S**, PF, angle, freq; energy kWh/kvarh/kVAh (phase & totals) |
-| Config UI       | Web Serial | In‑browser **WebConfig** over **USB‑C** (Chrome/Edge); live meter, calibration, alarms, relays, LEDs, buttons |
+| Config UI       | Web Serial | In‑browser **WebConfig** over **USB‑C** (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); live meter, calibration, alarms, relays, LEDs, buttons |
 | Modbus RTU      | RS‑485 | Multi‑drop slave; address 1…255; baud 9600–115200 (default **19200 8N1**) |
 | MCU             | RP2350 + QSPI | Dual‑core MCU, native USB, external W25Q32 flash; RS‑485 via MAX485 transceiver |
 | Power           | 24 VDC | Buck to 5 V → 3.3 V LDO; **isolated analog domain** via B0505S DC‑DC + ISO7761 |
@@ -309,7 +309,7 @@ The **ENM‑223‑R1** connects to your system over **RS‑485 (Modbus RTU)** an
 | **Controller** | MicroPLC, MiniPLC, or any Modbus RTU master |
 | **24 VDC Power (SELV)** | Regulated 24 V DC @ ~100–200 mA |
 | **RS‑485 Cable** | Twisted pair for A/B + COM/GND; external 120 Ω end-termination |
-| **USB‑C Cable** | For WebConfig setup via Chromium browser (Chrome/Edge) |
+| **USB‑C Cable** | For WebConfig setup via Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) |
 | **Software** | Web browser (Web Serial enabled), ConfigToolPage.html |
 | **Field Wiring** | L1/L2/L3/N/PE → voltage inputs, CT1/2/3 → external CTs |
 | **Load Wiring** | Relay outputs (NO/COM/NC); observe relay max rating and use snubbers on inductive loads |
@@ -395,7 +395,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 #### Steps
 
-1. Connect USB‑C to PC (Chrome/Edge)
+1. Connect USB‑C to PC (Chromium-based browser)
 2. Open `Firmware/v0.1.0/ConfigToolPage.html`  
 3. Click **Connect**, select ENM serial port  
 4. Configure settings: address, relays, LEDs, alarms, calibration  
@@ -421,7 +421,9 @@ Use diagrams and explain:
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
 (`Firmware/v0.1.0/ConfigToolPage.html`) over **USB‑C**.  
-No drivers or software installation is required — configuration happens directly via **Web Serial API** (Chrome/Edge).
+No drivers or software installation is required — configuration happens directly via **Web Serial API** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 - WebConfig refreshes live data every 1 s.
 - Click into a field to pause refresh for that field.
@@ -580,7 +582,7 @@ Each LED has:
 
 ### Phase 2 — Configure (WebConfig)
 
-- Open `Firmware/v0.1.0/ConfigToolPage.html` in Chrome/Edge
+- Open `Firmware/v0.1.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
 - Connect via **USB‑C** → **Select port → Connect**
 - Set:
   - **Modbus Address / Baud**  
@@ -1177,7 +1179,7 @@ If you need help using or configuring the ENM‑223‑R1 module, the following s
 
 ### 🛠 Official Resources
 
-- 🧰 [WebConfig Tool (USB-C)](https://www.home-master.eu/configtool-enm-223-r1)  
+- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html)  
   Configure the module directly from your browser — no drivers or software required.
 
 - 📘 [Official Support Portal](https://www.home-master.eu/support)  

@@ -61,7 +61,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
 | **Status LEDs** | 4 | User-assignable (steady/blink) for power/activity/logic states. |
 | **Modbus RTU** | Yes | RS-485 via **MAX485** transceiver; activity LEDs. |
-| **USB-C** | Yes | **WebConfig over Web Serial** (Chromium-based browsers); ESD-protected port. |
+| **USB-C** | Yes | **WebConfig over Web Serial** (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); ESD-protected port. |
 | **Power** | 24 VDC | Reverse/surge-protected input; **AP64501** buck → **5 V**, **AMS1117-3.3** LDO → **3.3 V** logic. |
 | **MCU** | RP2350 + **W25Q32** | Dual-core MCU with external QSPI flash for firmware/config. |
 | **Protection** | TVS, PTC | Surge/ESD and resettable fuses across field & comms lines. |
@@ -460,10 +460,10 @@ If flashing fails or the module is unresponsive:
 | **TX/RX LEDs – blink** | Active Modbus communication on RS-485. |
 | **No TX/RX blink** | Check A/B polarity, COM reference, and termination resistors. |
 | **Buttons unresponsive** | Verify 3.3 V logic; reboot using **Buttons 3 + 4**. |
-| **No communication via USB-C** | Ensure Chromium-based browser; close other serial apps. |
+| **No communication via USB-C** | Ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
 | **Outputs not responding** | Check 24 V LED PS supply and output VCC rail. |
 | **Digital inputs not changing** | Verify sensor wiring polarity (INx GND/+); ensure 24 V signal present. |
-| **WebConfig not connecting** | Use Chrome/Edge; allow serial access permission; reset module if busy. |
+| **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |
 
@@ -509,7 +509,10 @@ See LICENSE files in each directory for full terms.
 If you need help using or configuring the **STR-3221-R1**, visit:
 
 - 🌐 **[Official Support Portal](https://www.home-master.eu/support)** – knowledge base, ticketing, and FAQs.  
-- 🧰 **[WebConfig Tool](https://www.home-master.eu/configtool-str-3221-r1)** – in-browser setup and diagnostics.  
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
+
+- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html)** – in-browser setup and diagnostics.  
 - ▶️ **[YouTube Channel](https://youtube.com/@HomeMaster)** – setup videos and feature walkthroughs.  
 - 💡 **[Hackster.io](https://hackster.io/homemaster)** – integration examples and community projects.  
 - 💬 **[Reddit](https://reddit.com/r/HomeMaster)** – discussion and troubleshooting community.  

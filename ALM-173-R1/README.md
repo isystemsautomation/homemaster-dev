@@ -38,7 +38,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detect
 - **I/O:** **17 opto-isolated digital inputs**, **3 SPDT relays**
 - **Local HMI:** **4 buttons** (ack/override) and **4 LEDs** (status/alert)
 - **Interface:** RS-485 (Modbus RTU), address **1–255**, **9600–115200** baud
-- **Setup:** Web browser (Chromium) via USB-C **WebConfig**; live status + safe **device reset**
+- **Setup:** any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) via USB-C **WebConfig**; live status + safe **device reset**
 - **Design:** **Galvanically isolated** field side; **RP2350 MCU** with **MAX485** and **PCF8574** expanders; powered from **24 VDC**
 - **Integration:** Modbus map exposes inputs, alarm/group bits, and relay states (works smoothly with **Home Assistant** / PLC / SCADA)
 
@@ -66,7 +66,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** for **intrusion detect
 | **Role** | Standalone Modbus slave running local group/ack logic; mirrors states to PLC/SCADA |
 | **Position** | Expansion module on RS-485 trunk (A/B/COM) |
 | **Default Modbus ID** | `3` (change per installation) |
-| **USB-C** | Setup/diagnostics with Chromium browser |
+| **USB-C** | Setup/diagnostics with any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) |
 | **Daisy-chain** | Multiple ALMs on the same bus with unique IDs |
 
 ---
@@ -315,7 +315,7 @@ The **ALM-173-R1** joins your system over **RS-485 (Modbus RTU)**. Setup has two
 |  | **Controller (master)** | HomeMaster MiniPLC/MicroPLC or any Modbus RTU master. |
 |  | **24 VDC PSU (SELV)** | Regulated **24 VDC** to **V+ / 0V**; size for ALM + sensor rails. |
 |  | **RS‑485 cable** | Twisted pair for **A/B** + **COM/GND** reference; **120 Ω** end‑termination and proper bias. |
-|  | **USB‑C cable** | For WebConfig via Chromium browser (service only). |
+|  | **USB‑C cable** | For WebConfig via any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) (service only). |
 |  | **Enclosure & DIN rail** | Clean/dry enclosure; strain relief and shield management. |
 | **Software** | **WebConfig (browser)** | Set **Address/Baud**, map **Inputs/Relays/Buttons/LEDs**, pick **Alarm Modes**, live status, device reset. |
 |  | **ESPHome (optional)** | On the controller; exposes ALM entities to Home Assistant. |
@@ -384,16 +384,18 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 - Consistent **A/B** polarity end-to-end
 
 ### 5.3.2 USB‑C (WebConfig)
-**Purpose:** Chromium (Chrome/Edge) **Web Serial** setup/diagnostics.
+**Purpose:** any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) **Web Serial** setup/diagnostics.
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 **Steps**
 1. Connect **USB‑C** to the module.
-2. Open **https://www.home-master.eu/configtool-alm-173-r1** and click **Connect**.
+2. Open **https://config.home-master.eu/ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html** and click **Connect**.
 3. Set **Modbus Address** & **Baud** (header shows **Active Modbus Configuration**).
 4. Configure **Inputs / Relays / LEDs / Buttons**; changes apply live.
 5. Use **Serial Log**; **Reset Device** if needed (auto-reconnect).
 
-**If Connect is disabled:** ensure Chromium + serial permission; on macOS/Linux verify user serial permissions and that no other app is holding the port.
+**If Connect is disabled:** ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) + serial permission; on macOS/Linux verify user serial permissions and that no other app is holding the port.
 
 ---
 
@@ -854,7 +856,7 @@ The following key project resources are included in this repository:
 
 If you need help using or configuring the ALM-173-R1 module, the following resources are available:
 
-* [🛠 Web Config Tool](https://www.home-master.eu/configtool-alm-173-r1) – Configure and calibrate via USB‑C in your browser.
+* [🛠 Web Config Tool](https://config.home-master.eu/ALM-173-R1/Firmware/v0.1.0/ConfigToolPage.html) – Configure and calibrate via USB‑C in your browser.
 * [🌐 Official Support Page](https://www.home-master.eu/support) – Knowledge base and contact options.
 
 ## 📡 Community & Updates

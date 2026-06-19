@@ -86,7 +86,7 @@ It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Mo
 | **Relays**         | 0      | – |
 | **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
 | **User Buttons**   | 4      | Local acknowledge/override; firmware press‑logic for toggle, ramp (ping‑pong), preset, max.  |
-| **Config UI**      | Web Serial | **WebConfig** in Chromium browser over **USB‑C**; edit Modbus addr/baud, thresholds, cut mode, presets; live log & JSON snapshot.  |
+| **Config UI**      | Web Serial | **WebConfig** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) over **USB‑C**; edit Modbus addr/baud, thresholds, cut mode, presets; live log & JSON snapshot.  |
 | **Modbus RTU**     | RS‑485 | Multi‑drop slave; **FC01/05/02/03/06/16** with discrete inputs, coils, and holding registers. Defaults **ID=3, 19200, 8N1**.  |
 | **MCU**            | RP2350A | Dual‑core MCU; **QSPI flash** for firmware/config; Arduino/PlatformIO supported.  |
 | **Power**          | 24 VDC | Protected 24 V input; on‑board **isolated 5 V rails** for power stages (B2405S‑2WR3) and local 3.3 V regulation.  |
@@ -232,8 +232,8 @@ The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and on
 |                     | Controller (master) | HomeMaster MiniPLC / MicroPLC or any Modbus RTU master |
 |                     | 24 VDC PSU (SELV) | Regulated 24 VDC to `V+ / 0V` (logic + UI). AC loads powered separately. |
 |                     | RS‑485 Cable     | Twisted pair (shielded). Use `A/B/COM`, terminate with 120 Ω if needed. |
-|                     | USB‑C cable      | For WebConfig via Chromium browser (setup only) |
-| **Software**         | WebConfig (built-in) | Open `ConfigToolPage.html` in a Chromium browser |
+|                     | USB‑C cable      | For WebConfig via any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) (setup only) |
+| **Software**         | WebConfig (built-in) | Open `ConfigToolPage.html` in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) |
 |                     | PLC/HA YAML (optional) | For ESPHome/Home Assistant: exposes CH/DI/LED control |
 | **Field I/O**        | AC Load          | CH1/CH2 outputs to **trailing- or leading-edge dimmable** loads |
 |                     | DI Switches      | Wall switches (dry contact). Use `DIx` + `GND`. Momentary/latching supported. |
@@ -298,7 +298,7 @@ Use **shielded twisted pair**, terminate at both ends (~120 Ω), and bias if r
 
 ### 4.3.2 USB‑C (WebConfig)
 
-For setup/diagnostics via Chromium:
+For setup/diagnostics via any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+):
 
 #### 🖥 Steps
 
@@ -314,7 +314,7 @@ For setup/diagnostics via Chromium:
 5. Click **Save**
 6. Disconnect USB → RS‑485 master takes over
 
-> 🔐 If **Connect** is disabled, ensure you're using Chromium + USB permission is granted. On macOS/Linux, close any app that may be holding the port (e.g., serial monitor).
+> 🔐 If **Connect** is disabled, ensure you're using a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) + USB permission is granted. On macOS/Linux, close any app that may be holding the port (e.g., serial monitor).
 
 ---
 
@@ -372,7 +372,7 @@ Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
 ### 🧰 USB‑C Port (Front)
 
 For **setup/diagnostics only**:
-- In‑browser WebConfig over Web Serial (Chromium‑based browsers)
+- In‑browser WebConfig over Web Serial (any Chromium-based browser: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+)
 - Firmware updates via UF2 bootloader
 
 Disconnect USB‑C after commissioning; use RS‑485 for runtime control.
@@ -384,10 +384,12 @@ Disconnect USB‑C after commissioning; use RS‑485 for runtime control.
 
 ## 4.5 Software & UI Configuration
 
-You can configure the DIM‑420‑R1 entirely from a Chromium browser using **Web Serial**. No drivers or apps required.
+You can configure the DIM‑420‑R1 entirely from any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) using **Web Serial**. No drivers or apps required.
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 > 🔗 **Online WebConfig:**  
-> [https://www.home-master.eu/configtool-dim-420-r1](https://www.home-master.eu/configtool-dim-420-r1)
+> [https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html](https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html)
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
@@ -397,7 +399,7 @@ You can configure the DIM‑420‑R1 entirely from a Chromium browser using **We
 
 ### 🖥 Browser & Cable
 
-- Use a **Chromium‑based browser** (Chrome / Edge / Brave).
+- Use any **Chromium-based browser** (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
 - Connect a **USB‑C cable** to the module.
 - Power the module with **24 VDC** (USB only provides data).
 
@@ -471,7 +473,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 - Config is stored automatically in flash after changes.
 - Settings persist through power loss and reset.
 
-> If Connect is greyed out: check USB cable, browser support (Chrome/Edge), and Serial permissions.
+> If Connect is greyed out: check USB cable, browser support (any Chromium-based browser: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), and Serial permissions.
 
 ---
 
@@ -953,7 +955,7 @@ See LICENSE files in each directory for full terms.
 |--------------------|----------------------------------------------------------------------|
 | **Firmware Source**   | [`/Firmware/v0.1.0/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1) |
 | **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
-| **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
+| **WebConfig Tool**    | [Online Version](https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html) |
 | **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Schematics) |
 | **Mechanical Images** | See `/Images/` in repo                                             |
 | **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Manuals) |
@@ -967,7 +969,7 @@ See LICENSE files in each directory for full terms.
 Need help using, wiring, or flashing the DIM‑420‑R1? Try these:
 
 - 💼 [Official Support Portal](https://www.home-master.eu/support)
-- 🔧 [WebConfig Tool](https://www.home-master.eu/configtool-dim-420-r1)
+- 🔧 [WebConfig Tool](https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - 🎥 [YouTube Tutorials](https://youtube.com/@HomeMaster)
 - 💬 [Reddit Community](https://reddit.com/r/HomeMaster)
 - 🧪 [Hackster Projects](https://hackster.io/homemaster)

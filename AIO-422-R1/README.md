@@ -68,6 +68,10 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 ## 📦 Firmware & Programming
 
 - Programmable via **Arduino IDE** (recommended for full Modbus + WebConfig firmware)
+- **WebConfig** over USB-C: open [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html) in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+)
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
+
 - Detailed setup guide for toolchain, libraries, build, and upload: **[Firmware/README.md](./Firmware/README.md)**
 - **ESPHome** profiles also available in `Firmware/v0.1.0/default_aio_422_r1_plc/`
 
@@ -141,6 +145,20 @@ MIT License
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 
 See LICENSE files in each directory for full terms.
+
+---
+
+# Downloads
+
+- **Firmware & examples:** `AIO-422-R1/Firmware/`
+- **WebConfig (HTML page):** [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html)
+
+---
+
+# Support
+
+- **Official Support:** https://www.home-master.eu/support
+- **WebConfig Tool (AIO-422-R1):** https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html
 
 ---
 

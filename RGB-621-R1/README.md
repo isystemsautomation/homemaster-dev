@@ -424,7 +424,7 @@ Isolation between these domains is provided internally through the ISO1212 and S
 | **Controller** | HomeMaster **MicroPLC** / **MiniPLC** or any **Modbus RTU master** |
 | **Power Supply (PSU)** | Regulated **24 V DC SELV/PELV**, sized for module and LED load |
 | **Cables** | 1× **USB-C** cable (for setup), 1× **twisted-pair RS-485** cable |
-| **Software** | Any Chromium-based browser (Chrome/Edge) with **Web Serial** support for WebConfig |
+| **Software** | Any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) with **Web Serial** support for WebConfig |
 | **Optional** | Shielded wiring for long RS-485 runs, DIN-rail enclosure, terminal labels |
 
 ---
@@ -477,9 +477,11 @@ Isolation between these domains is provided internally through the ISO1212 and S
   - **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)  
 
 - **Configuration:**  
-  - Connect via **USB-C** and open **WebConfig** in a Chromium-based browser.  
+  - Connect via **USB-C** and open **WebConfig** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).  
   - Set module address, baud rate, and optional relay/input parameters.  
   - Save settings to non-volatile memory.  
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 - **Ground reference use:**  
   - In most RS-485 systems, differential A/B are sufficient.  
@@ -707,7 +709,7 @@ See LICENSE files in each directory for full terms.
 # 12. Support
 
 - **Official Support:** https://www.home-master.eu/support  
-- **WebConfig Tool (RGB-621-R1):** https://www.home-master.eu/configtool-rgb-621-r1  
+- **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html  
 - **YouTube:** https://youtube.com/@HomeMaster  
 - **Hackster:** https://hackster.io/homemaster  
 - **Reddit:** https://reddit.com/r/HomeMaster  

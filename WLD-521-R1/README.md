@@ -100,7 +100,7 @@ The **WLD-521-R1** is a smart Modbus RTU slave. It can operate autonomously for 
 | **Master Controller** | MiniPLC / MicroPLC or any third-party Modbus RTU master |
 | **Address / Baud**  | Configurable via WebConfig (1–255, 9600–115200 baud) |
 | **Bus Type**        | RS‑485 multi-drop (A/B/COM terminals) |
-| **USB‑C Port**      | For configuration/diagnostics using Web Serial (Chrome/Edge) |
+| **USB‑C Port**      | For configuration/diagnostics using Web Serial (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) |
 | **Default Modbus ID** | `3` (user-changeable per module) |
 | **Daisy-Chaining**  | Multiple modules supported; assign unique IDs to each device |
 
@@ -247,7 +247,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 | Interface           | Warning |
 |---------------------|---------|
 | **RS‑485 A/B/COM (Bottom left)** | Use twisted pair for A/B. COM is signal ground. Protect against surges. Not suitable for long unshielded runs or outdoor wiring. |
-| **USB‑C (Front panel)**   | For **setup only** using Web Serial in Chrome/Edge. ESD protected. Not for field use or runtime connection. Disconnect after configuration. |
+| **USB‑C (Front panel)**   | For **setup only** using Web Serial in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). ESD protected. Not for field use or runtime connection. Disconnect after configuration. |
 
 ---
 
@@ -501,14 +501,16 @@ Use diagrams and explain:
 
 ## 4.5 Software & UI Configuration
 
-The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C interface that runs in Chrome/Edge via Web Serial. All settings apply immediately and are saved to the module's flash.
+The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C interface that runs in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) via Web Serial. All settings apply immediately and are saved to the module's flash.
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 ---
 
 ### 🔌 WebConfig Setup
 
 1. Connect the module to your PC using a **USB-C** cable.
-2. Open **https://www.home-master.eu/configtool-wld-521-r1** in Chrome or Edge.
+2. Open **[ConfigToolPage.html](https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html)** in a Chromium-based browser.
 3. Click **“Connect”** and select the serial device.
 4. The header will show the **Active Modbus Configuration** (Address, Baudrate).
 
@@ -1111,7 +1113,7 @@ packages:
 
 ## 8.2 Flashing
 
-1. **Connect via USB-C** to a computer using Chrome/Edge browser or a serial flasher.
+1. **Connect via USB-C** to a computer using a Chromium-based browser or a serial flasher.
 2. To enter **bootloader mode**, press and hold **Buttons 1+2**, then release while connecting power.
 3. To trigger a **hardware reset**, press and hold **Buttons 3+4** for 3 seconds.
 4. Use **PlatformIO** or **Arduino IDE** with appropriate RP2040 board profile.
@@ -1224,7 +1226,7 @@ To update the firmware, use the **Arduino IDE** or **PlatformIO** via **USB‑C*
 | Relay won’t trigger | Relay in **override**, or **Owner** set to *None/Logic* |
 | Flow stays 0 | DI not set to *Water counter*, wrong PPL, no pulses |
 | 1‑Wire not found | Wiring to +5V/D/GND, long bus, or pull‑up issue |
-| WebConfig not connecting | Use Chrome/Edge; close other serial apps; try new cable/port |
+| WebConfig not connecting | Use a Chromium-based browser (not Safari/stable Firefox); close other serial apps; try new cable/port |
 
 ---
 
@@ -1270,7 +1272,7 @@ See LICENSE files in each directory for full terms.
 # 12. Support
 
 - **Support Portal:** https://www.home-master.eu/support
-- **WebConfig:** https://www.home-master.eu/configtool-wld-521-r1
+- **WebConfig:** https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html
 - **YouTube:** https://youtube.com/@HomeMaster
 - **Hackster:** https://hackster.io/homemaster
 - **Reddit:** https://reddit.com/r/HomeMaster
