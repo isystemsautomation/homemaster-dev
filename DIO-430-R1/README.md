@@ -138,10 +138,19 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 ### 4.1 Diagrams & pinouts *(canonical)*
 
-- ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
-- ![Control Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
-- ![Relay Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
-- ![RP2350A Pin Map](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
+<table>
+  <tr>
+    <th>Block Diagram</th><th>Control Board</th><th>Relay / Field Board</th><th>RP2350A Pinout</th>
+  </tr>
+  <tr>
+    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png"></td>
+    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png"></td>
+    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png"></td>
+    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png"></td>
+  </tr>
+</table>
+
+> **RP2350A pinout** is dense — zoom the image or open [`DIO_MCU_Pinouts.png`](Images/DIO_MCU_Pinouts.png) full size if labels are hard to read at table width.
 
 ### 4.2 Connectors & terminal map
 
