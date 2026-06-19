@@ -158,7 +158,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 |-------|------|----------|-------|
 | **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
 | **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
-| **DI 1-4** | INx, GNDx | Galvanically isolated inputs (ISO1212) | Wetting from internal fused 24 V; dry contact or 24 V signal |
+| **DI 1-4** | INx, GNDx | Galvanically isolated inputs (ISO1212) | Dry contact or 24 V signal; wetting & isolation — see notes below |
 
 **Input power / wetting.** The digital inputs are built on an ISO1212 isolated input receiver and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
 
