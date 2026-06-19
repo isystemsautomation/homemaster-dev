@@ -7,7 +7,22 @@
 
 ![ALM-173-R1 module photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
-**Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-installation--getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
+**Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [§13 Compliance](#13-compliance--certifications) · [§14 Support](#14-support)
+
+**Firmware shipped on new modules:** `v0.2.0`
+
+```yaml
+packages:
+  alm1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+        vars:
+          alm_prefix: "ALM#1"
+          alm_id: alm_1
+          alm_address: 3
+```
 
 ---
 
@@ -24,17 +39,7 @@ The **ALM-173-R1** is a configurable **alarm and annunciator I/O module** for in
 - **Driverless WebConfig** — USB-C + any Chromium-based browser; no app or login
 - **Persistent settings** — configuration stored in LittleFS flash
 
-### How ALM alarm logic works (not DIO-style I/O mapping)
-
-Unlike a general-purpose digital I/O module, the ALM is built around **alarm groups**:
-
-1. Each enabled input is assigned to **Alarm Group 1, 2, or 3** (or None).
-2. Each group runs in **None**, **Active while condition** (non-latched), or **Latched until acknowledged** mode.
-3. When a group is in alarm, relays mapped to that group energize (unless overridden).
-4. **Acknowledge** (button, Modbus coil, or WebConfig) clears latched groups; non-latched groups clear when the fault clears.
-5. **Button override** (long hold 3 s on buttons configured for Relay 1–3) takes manual control of a relay; another long hold returns control to the alarm group.
-6. **PLC group pulses** (Modbus coils 510–512) can force a one-scan activation of a group for controller-driven annunciation.
-7. **Optional local arming (v0.2.0):** per-input **zone types** (Instant / Delayed / 24h-Tamper), **entry/exit delays**, **relay bell cut-off**, and **per-zone alarm memory** on Modbus (MAP v2) — default off for legacy behaviour.
+Alarm groups, zone types, local arming, and bell cut-off are described in [§3 Alarm Logic — How It Works](#3-alarm-logic--how-it-works). This is **not** DIO-style per-input relay mapping.
 
 > **Quick path:** wire inputs → assign groups → set latch modes → map relays/LEDs → RS-485 + WebConfig address/baud → integrate with PLC or Home Assistant.
 
@@ -52,7 +57,7 @@ Unlike a general-purpose digital I/O module, the ALM is built around **alarm gro
 | **WebConfig** | USB-C → Chromium-based browser; Modbus addr/baud, I/O mapping, alarm modes, live status |
 | **Modbus RTU slave** | Discrete Inputs (telemetry) + Coils (commands); config via WebConfig, not holding registers |
 | **ESPHome / HA** | Ready-made YAML package; inputs, alarms, relays, ack/override actions |
-| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION = 2** (Input Registers) |
+| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION = 2** (Input Registers; see [§8](#8-modbus-register-map)) |
 | **Extras** | PLC group pulses (510–512); optional **local arming**; **bell cut-off**; per-zone alarm memory |
 
 ### Applications
@@ -67,9 +72,52 @@ Typical uses for the ALM-173-R1:
 
 ---
 
-## 3. Specifications
+## 3. Alarm Logic — How It Works
 
-### 3.1 I/O summary
+> **Zones, groups, relays.** Each input is a **zone** assigned to one of three **Alarm Groups** (G1–G3). Each group has a mode: **None** (disabled), **Non-latched** (follows live zone state), or **Latched** (trips on activation and holds until **ACK**). Each relay is bound to a group and energizes while that group is in alarm. Relay control priority: **Button override → Modbus manual → Group**.
+
+**PLC group pulses** (Modbus coils 510–512) can force a one-scan group activation for controller-driven annunciation. **Button override:** long hold **3 s** on a button configured for Relay 1–3 enters manual relay control; another long hold exits and returns control to the alarm group.
+
+### Zone types (when Local arming is enabled)
+
+Each zone has a type that defines when its activation contributes to its group:
+
+| Zone type | Disarmed | Armed | Typical use |
+|-----------|----------|-------|-------------|
+| **Instant** | does not trigger | triggers immediately | Perimeter: windows, glass-break |
+| **Delayed** | does not trigger | starts **Entry delay**; alarm if not disarmed in time | Entry doors |
+| **24h / Tamper** | **always triggers** | **always triggers** | Tamper, sabotage, 24-hour loops |
+
+### Local arming (optional, default off)
+
+The module supports minimal **local arming** so protection continues if the controller is offline:
+
+- **ARM** (coil **530** or configured button) → **Exit delay** (**Exit-pending**): activations are ignored so you can leave. When the timer expires → **Armed**.
+- While **Armed**: Instant zones trigger immediately; a **Delayed** zone starts **Entry delay** (**Entry-pending**) — if **DISARM** (coil **531**) does not arrive before the timer expires, the group alarms; **24h/Tamper** zones trigger regardless.
+- **DISARM** → **Disarmed** immediately; Entry/Exit-pending are cleared. **Latched groups are not cleared** — only **ACK** (coil **500** or **501–503**) clears them.
+- With **Local arming disabled** (factory default), behaviour matches legacy firmware: all enabled zones feed their group at all times; zone types and arm delays are ignored.
+
+**State machine (simplified):** `Disarmed → (ARM) → Exit-pending → Armed → (Delayed zone) → Entry-pending → Triggered → (ACK) → Armed/Disarmed`. Non-latched, latched, and 24h/Tamper behaviour apply on top of this.
+
+### Bell cut-off (siren timeout)
+
+Each relay can be configured with an **auto-off** time (seconds). When a relay is ON **because its alarm group is active**, if it stays ON longer than the configured time it is turned OFF (the siren stops), but the **group remains latched** — Home Assistant / the PLC still sees the alarm. A new alarm edge on that group can turn the relay ON again. **0** = disabled.
+
+### Alarm memory (per-zone latch)
+
+When local arming is enabled and a zone contributes to a **latched** group alarm, the module records **which zones** triggered (Modbus Discrete Inputs **100–116**). Cleared by **ACK** for the relevant group(s).
+
+### Module vs Home Assistant
+
+Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, schedules — belong in the **Home Assistant Alarm Control Panel** (the de-facto standard). The ALM exposes zones, drives sirens/relays, and provides optional minimal local arming for resilience.
+
+**Limitations:** No **EOL line-supervision** — dry contact / SELV signalling only; no analogue end-of-line resistor networks.
+
+---
+
+## 4. Specifications
+
+### 4.1 I/O summary
 
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
@@ -83,7 +131,7 @@ Typical uses for the ALM-173-R1:
 | Sensor rails | 2 | Isolated **+12 V** (PS/1) and **+5 V** (PS/2); ~2 W / ~150 mA usable on 12 V rail |
 | MCU | RP2350A | Dual-core; QSPI flash; LittleFS |
 
-### 3.2 Electrical ratings
+### 4.2 Electrical ratings
 
 | Parameter | Min | Typ | Max | Unit | Notes |
 |-----------|----:|----:|----:|:----:|-------|
@@ -99,7 +147,7 @@ Typical uses for the ALM-173-R1:
 
 > **Power budgeting:** logic + LEDs + relay coils + sensor rails → add ≥ 30 % PSU headroom.
 
-### 3.3 Mechanical & environmental
+### 4.3 Mechanical & environmental
 
 | Property | Specification |
 |----------|---------------|
@@ -112,7 +160,7 @@ Typical uses for the ALM-173-R1:
 
 ![ALM-173-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALMMDimensions.png)
 
-### 3.4 Communication defaults
+### 4.4 Communication defaults
 
 | Parameter | Default |
 |-----------|---------|
@@ -127,7 +175,7 @@ Address **1–247** (248–255 reserved by Modbus); baud 9600 / 19200 / 38400 / 
 
 Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot optional for power-on **Restore** policy.
 
-### 3.5 Reliability & protection
+### 4.5 Reliability & protection
 
 - Reverse-polarity diode + TVS on 24 V input; 1 A time-lag fuse.
 - Opto-isolated digital inputs (3.75 kVrms); isolated sensor rails with PTC/fuse limiting.
@@ -138,9 +186,9 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 ---
 
-## 4. Hardware & Interface
+## 5. Hardware & Interface
 
-### 4.1 Diagrams & pinouts
+### 5.1 Diagrams & pinouts
 
 <table>
   <tr>
@@ -154,7 +202,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
   </tr>
 </table>
 
-### 4.2 Connectors & terminal map
+### 5.2 Connectors & terminal map
 
 | Block | Pins | Function | Notes |
 |-------|------|----------|-------|
@@ -172,7 +220,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 **Sensor rails.** **PS/1 (+12 V)** and **PS/2 (+5 V)** are isolated, fuse/PTC limited outputs for **low-power sensors only**. Do not backfeed or parallel with external supplies.
 
-### 4.3 I/O warnings
+### 5.3 I/O warnings
 
 | Area | Warning |
 |------|---------|
@@ -184,7 +232,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 | **USB-C** | Setup/maintenance only |
 | **Buttons** | Can ack alarms or override relays — document procedures for safety-critical installs |
 
-### 4.4 Front panel — buttons & LEDs
+### 5.4 Front panel — buttons & LEDs
 
 ![Button layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/buttons1.png)
 
@@ -199,9 +247,9 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 ---
 
-## 5. Installation & Getting Started
+## 6. Installation & Getting Started
 
-### 5.1 Safety *(read before wiring)*
+### 6.1 Safety *(read before wiring)*
 
 > ⚠️ **SELV only** — 24 V DC, RS-485, USB 5 V. Never connect mains to logic, input, or relay terminals. Use interposing contactors for mains loads.
 
@@ -219,7 +267,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 - [ ] Relays wired COM/NO/NC; snubbers on inductive loads
 - [ ] Sensor rail load within limits
 
-### 5.2 What you need
+### 6.2 What you need
 
 | Category | Item |
 |----------|------|
@@ -230,7 +278,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 | **Browser** | Chromium-based (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). Firefox: experimental only (Nightly + Web Serial flag). Safari/stable Firefox not supported. |
 | **WebConfig** | [ConfigToolPage.html v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 
-### 5.3 Step-by-step
+### 6.3 Step-by-step
 
 **Phase 1 — Wire**
 
@@ -241,15 +289,15 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 **Phase 2 — Configure (WebConfig)**
 
 1. Connect **USB-C**; open [WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) → **Connect**.
-2. Set **Modbus address** and **baud** ([§3.4](#34-communication-defaults)).
-3. Configure alarm modes, inputs, relays, buttons, LEDs ([§6](#6-webconfig-reference)).
+2. Set **Modbus address** and **baud** ([§4.4](#44-communication-defaults)).
+3. Configure alarm modes, inputs, relays, buttons, LEDs ([§7](#7-webconfig-reference)).
 4. Disconnect USB-C; hand control to RS-485 master.
 
 **Phase 3 — Integrate**
 
-Add ESPHome package on controller ([§8](#8-esphome--home-assistant-integration)) or poll Modbus from PLC/SCADA ([§7](#7-modbus-register-map)).
+Add ESPHome package on controller ([§9](#9-esphome--home-assistant-integration)) or poll Modbus from PLC/SCADA ([§8](#8-modbus-register-map)).
 
-### 5.4 Verify
+### 6.4 Verify
 
 | Check | Expected |
 |-------|----------|
@@ -261,7 +309,7 @@ Add ESPHome package on controller ([§8](#8-esphome--home-assistant-integration)
 
 ---
 
-## 6. WebConfig Reference
+## 7. WebConfig Reference
 
 Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html)** in a **Chromium-based browser** (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). **Firefox:** experimental only (Nightly with Web Serial enabled). **Safari** and stable Firefox are not supported.
 
@@ -282,21 +330,17 @@ Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Fi
 ![Inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig3.png)  
 ![Relays](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig4.png)
 
-Changes auto-save to flash after a short idle period.
-
-**Local arming (opt-in, default off):** When enabled in WebConfig, zone types and entry/exit delays gate which inputs contribute to groups while armed. Full **Home / Away / Night** modes and alarm codes belong in **Home Assistant Alarm Control Panel**, not on the module.
-
-**Limitations:** No EOL line-supervision — dry contact / SELV signalling only (no analogue end-of-line resistor networks).
+Changes auto-save to flash after a short idle period. See [§3 Alarm Logic](#3-alarm-logic--how-it-works) for zone types, local arming, and bell cut-off behaviour.
 
 ---
 
-## 7. Modbus Register Map
+## 8. Modbus Register Map
 
 **Slave:** Modbus RTU over RS-485 (8N1). **Configuration** is via WebConfig (LittleFS), **not** holding registers.
 
 **Identity (Input Registers FC04, base 200 / 0x00C8):** MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, **MAP_VERSION** (= **2** in firmware 0.2.0 with alarm extensions).
 
-### 7.1 Discrete Inputs (FC02) — telemetry
+### 8.1 Discrete Inputs (FC02) — telemetry
 
 | Address | Name | Description |
 |---------|------|-------------|
@@ -306,7 +350,7 @@ Changes auto-save to flash after a short idle period.
 | 60–62 | **Relay 1…3** | Effective relay output |
 | 90–93 | **LED 1…4** | Physical LED state |
 
-### 7.2 Coils (FC01/05) — commands (write `1`, auto-clear)
+### 8.2 Coils (FC01/05) — commands (write `1`, auto-clear)
 
 | Address | Name | Description |
 |---------|------|-------------|
@@ -322,7 +366,7 @@ Changes auto-save to flash after a short idle period.
 
 Manual override coils hold until cleared (matching OFF coil or override released).
 
-### 7.3 MAP v2 — extended alarm features (firmware 0.2.0)
+### 8.3 MAP v2 — extended alarm features (firmware 0.2.0)
 
 Additional Discrete Inputs and Coils when local arming / zone types are used:
 
@@ -336,15 +380,15 @@ Additional Discrete Inputs and Coils when local arming / zone types are used:
 | 530 | **ARM** | Start arm / exit delay (pulse; requires local arming enabled) |
 | 531 | **DISARM** | Disarm (pulse) |
 
-When **local arming is disabled** (default), zone types and arm delays are ignored — behaviour matches the base MAP (§7.1–7.2).
+When **local arming is disabled** (default), zone types and arm delays are ignored — behaviour matches the base MAP (§8.1–8.2).
 
 ---
 
-## 8. ESPHome & Home Assistant Integration
+## 9. ESPHome & Home Assistant Integration
 
 The **MiniPLC/MicroPLC** running **ESPHome** polls the ALM over RS-485 and publishes entities to **Home Assistant**.
 
-### 8.1 Minimal package (v0.2.0)
+### 9.1 Minimal package (v0.2.0)
 
 ```yaml
 uart:
@@ -372,13 +416,13 @@ packages:
     refresh: 1d
 ```
 
-### 8.2 Entities (summary)
+### 9.2 Entities (summary)
 
 - **Binary sensors:** IN1–IN17, Any Alarm, G1–G3, relay/LED mirrors
 - **Switches:** Relay ON/OFF, Ack All / G1–G3, override helpers
 - Configure LED/button mapping on-module via WebConfig; HA consumes resulting states
 
-### 8.3 Troubleshooting
+### 9.3 Troubleshooting
 
 - **Timeouts:** A/B polarity, COM/GND reference, termination
 - **Wrong address:** `alm_address` must match WebConfig
@@ -386,15 +430,15 @@ packages:
 
 ---
 
-## 9. Programming & Build
+## 10. Programming & Build
 
-### 9.1 Supported toolchains
+### 10.1 Supported toolchains
 
 - **Arduino IDE** / **arduino-cli** (Generic RP2350)
 - **PlatformIO**
 - **MicroPython** (community RP2350 builds)
 
-### 9.2 Flashing (USB-C)
+### 10.2 Flashing (USB-C)
 
 | Combination | Action |
 |-------------|--------|
@@ -402,10 +446,10 @@ packages:
 | **Buttons 3 + 4** | Hardware **RESET** |
 
 1. Connect USB-C; enter BOOT (Buttons 1+2).
-2. Copy UF2 from [§11 Downloads](#11-downloads--resources) or build from source.
+2. Copy UF2 from [§12 Downloads](#12-downloads--resources) or build from source.
 3. Configuration in LittleFS is preserved unless factory reset.
 
-### 9.3 Build notes
+### 10.3 Build notes
 
 - **FQBN:** `rp2040:rp2040:generic_rp2350:flash=2097152_1048576` (see [`sketch.yaml`](Firmware/v0.2.0/default_alm_173_r1/sketch.yaml))
 - **Libraries:** Arduino_JSON, Modbus-Serial, Simple Web Serial, PCF8574
@@ -413,7 +457,7 @@ packages:
 
 ---
 
-## 10. Maintenance & Troubleshooting
+## 11. Maintenance & Troubleshooting
 
 | Symptom | Checks |
 |---------|--------|
@@ -434,7 +478,7 @@ packages:
 
 ---
 
-## 11. Downloads & Resources
+## 12. Downloads & Resources
 
 | Resource | Link |
 |----------|------|
@@ -447,7 +491,7 @@ packages:
 
 ---
 
-## 12. Compliance & Certifications
+## 13. Compliance & Certifications
 
 The ALM-173-R1 is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand) maintains technical documentation and EU DoC.
 
@@ -466,7 +510,7 @@ The ALM-173-R1 is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 
 ---
 
-## 13. Support
+## 14. Support
 
 - [WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html)
 - [Official support](https://www.home-master.eu/support)

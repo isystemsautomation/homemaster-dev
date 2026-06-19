@@ -156,7 +156,7 @@
             <li><strong>17 opto-isolated digital inputs (5 V DC)</strong> with per-input enable, invert and alarm group</li>
             <li><strong>3 SPDT relays (3 A @ 250 VAC)</strong> driven by alarm groups, Modbus manual override or button override</li>
             <li>Front panel with <strong>4 buttons</strong> (ack/override) and <strong>4 LEDs</strong> (status/alert)</li>
-            <li>Optional <strong>zone types</strong>, <strong>local arming</strong> (entry/exit delay) and <strong>relay bell cut-off</strong> (WebConfig v0.2.0)</li>
+            <li>Optional <strong>zone types</strong>, <strong>local arming</strong> (entry/exit delay), <strong>relay bell cut-off</strong>, and <strong>per-zone alarm memory</strong> (WebConfig v0.2.0)</li>
             <li>RS-485 Modbus RTU communication (address 1–255, 9600–115200 baud)</li>
             <li>Local configuration via USB‑C <a href="https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig v0.2.0</a> (Chromium-based browsers)</li>
             <li>Persistent configuration stored in external QSPI flash</li>
@@ -179,6 +179,25 @@
       </div>
     </div>
     <!-- =================== /QUICK OVERVIEW + APPLICATIONS =================== -->
+
+    <!-- ===================== ALARM LOGIC ===================== -->
+    <div class="plc-section">
+      <h2 id="alarm-logic"><strong>Alarm Logic</strong></h2>
+      <div class="plc-copy">
+        <p>
+          Each of the <strong>17 inputs</strong> is a <strong>zone</strong> assigned to one of three <strong>Alarm Groups</strong> (G1–G3).
+          Groups can be <strong>None</strong>, <strong>Active-while</strong> (non-latched), or <strong>Latched-until-ack</strong>.
+          <strong>3 SPDT relays</strong> follow their bound group; control priority is <strong>button override → Modbus manual → group</strong>.
+        </p>
+        <p>
+          With optional <strong>local arming</strong> (default off), zones gain types — <strong>Instant</strong>, <strong>Delayed</strong> (entry delay), or <strong>24h/Tamper</strong> (always active) —
+          and the module runs minimal ARM/DISARM with exit/entry delays so protection continues if the controller is offline.
+          <strong>Bell cut-off</strong> auto-silences a relay after N seconds while the latched group stays active; <strong>per-zone alarm memory</strong> records which inputs triggered (Modbus) until ACK.
+          Full Home/Away/Night modes and alarm codes belong in <strong>Home Assistant</strong>, not on the module.
+        </p>
+      </div>
+    </div>
+    <!-- =================== /ALARM LOGIC =================== -->
 
     <!-- ===================== TECH SPECS ===================== -->
     <div class="plc-section">
