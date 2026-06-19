@@ -108,7 +108,7 @@ Typical uses for the DIO-430-R1:
 
 ![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
 
-### 3.4 Communication defaults *(canonical)*
+### 3.4 Communication defaults
 
 Factory settings applied to every new module:
 
@@ -136,7 +136,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 ## 4. Hardware & Interface
 
-### 4.1 Diagrams & pinouts *(canonical)*
+### 4.1 Diagrams & pinouts
 
 <table>
   <tr>
@@ -313,7 +313,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 **Phase 2 — Configure (WebConfig)**
 
 1. Connect **USB-C**; open [WebConfig](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html) in a Chromium-based browser → **Connect**.
-2. Set **Modbus address** and **baud rate** (factory defaults in [§3.4](#34-communication-defaults-canonical)).
+2. Set **Modbus address** and **baud rate** (factory defaults in [§3.4](#34-communication-defaults)).
 3. Map inputs, relays, buttons, LEDs per [§6 WebConfig Reference](#6-webconfig-reference). Changes auto-save to flash.
 4. Disconnect USB-C; hand control to the RS-485 master.
 
@@ -349,8 +349,6 @@ Full UART/modbus setup and entity list: [§8 ESPHome Integration](#8-esphome--ho
 ---
 
 ## 6. WebConfig Reference
-
-*(Canonical description of all configuration fields.)*
 
 Open **https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button).
 
@@ -469,9 +467,7 @@ Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 ## 7. Modbus Register Map
 
-*(Canonical source for all register addresses.)*
-
-**Role:** RTU **slave** (controller is master). **Defaults:** see [§3.4 Communication defaults](#34-communication-defaults-canonical).
+**Role:** RTU **slave** (controller is master). **Defaults:** see [§3.4 Communication defaults](#34-communication-defaults).
 
 > v0.2.0 map uses **zero-based offsets** matching `default_dio_430_r1_plc.yaml`. Poll **Input Registers (FC04)** for live state; use **Coils (FC05)** for commands.
 
@@ -575,7 +571,7 @@ Configuration is normally done via **WebConfig** ([§6](#6-webconfig-reference))
 
 ## 8. ESPHome / Home Assistant Integration
 
-> **Module role:** Modbus RTU **slave** on RS-485. Comms defaults: [§3.4](#34-communication-defaults-canonical).
+> **Module role:** Modbus RTU **slave** on RS-485. Comms defaults: [§3.4](#34-communication-defaults).
 
 ### 8.1 Minimal YAML (controller side)
 
@@ -761,11 +757,11 @@ sensor:
 - `Simple Web Serial` (1.0.0)
 - **From core:** `LittleFS`, `Wire` (no separate install)
 
-**Pin mapping:** see [§4.1 Diagrams & pinouts](#41-diagrams--pinouts-canonical) (`DIO_MCU_Pinouts.png`) and firmware `default_DIO_430_R1.ino`.
+**Pin mapping:** see [§4.1 Diagrams & pinouts](#41-diagrams--pinouts) (`DIO_MCU_Pinouts.png`) and firmware `default_DIO_430_R1.ino`.
 
 **Build tips**
 
-- Use factory RS-485 defaults from [§3.4](#34-communication-defaults-canonical) during bring-up.
+- Use factory RS-485 defaults from [§3.4](#34-communication-defaults) during bring-up.
 - After flashing, disconnect USB-C and return control to the RS-485 master.
 
 ### 9.4 Firmware updates
@@ -791,7 +787,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 
 | Symptom | Checks |
 |---------|--------|
-| No Modbus comms | A/B polarity, **COM/GND** reference, 120 Ω termination, address/baud match ([§3.4](#34-communication-defaults-canonical)), only two end terminators |
+| No Modbus comms | A/B polarity, **COM/GND** reference, 120 Ω termination, address/baud match ([§3.4](#34-communication-defaults)), only two end terminators |
 | Relays don't actuate | Relay **Enabled** in WebConfig; verify coil writes to 0–2; check invert setting |
 | DI not changing | Wire to **INx/GNDx**; check Enable/Invert/Type and Short/Long actions in [§6](#6-webconfig-reference) |
 | USB won't connect | Chromium-based browser with Web Serial (not Safari/stable Firefox); close other serial apps, check cable/port permissions |
@@ -812,7 +808,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 
 ### Files
 
-- **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)** *(canonical UF2 link)*
+- **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**
   - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2)
 - **Firmware publishing (maintainers)**
   - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
