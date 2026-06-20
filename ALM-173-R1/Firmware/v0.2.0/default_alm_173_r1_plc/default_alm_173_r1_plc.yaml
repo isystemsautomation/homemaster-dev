@@ -3,7 +3,7 @@
 ## Input Registers (FC04, read) — contiguous @0..3 (one poll per cycle):
 ##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay/LED/Armed/Entry/Exit/Tamper
 ##   2 Zone1..16 latched · 3 Zone17 latched
-##   (Relay/Armed bits in @1 are read back via stateful coil switches, not duplicated here)
+##   Relay/Armed state: FC04 @1 read sensors; coils @0..3 for control only
 ##
 ## Coils (FC01/05) @0..10:
 ##   0..2 Relay 1..3 (stateful) · 3 Armed (stateful)
@@ -124,7 +124,7 @@ binary_sensor:
     address: 0
     bitmask: 0x8000
 
-  # IN17, alarms, LEDs, arming status @ IREG 1 (no Relay/Armed — use switches @0..3)
+  # IN17, alarms, relay/armed state, LEDs, arming status @ IREG 1
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN17"
@@ -161,6 +161,24 @@ binary_sensor:
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 1 state"
+    register_type: read
+    address: 1
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 2 state"
+    register_type: read
+    address: 1
+    bitmask: 0x0040
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 3 state"
+    register_type: read
+    address: 1
+    bitmask: 0x0080
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 1"
     register_type: read
     address: 1
@@ -183,6 +201,12 @@ binary_sensor:
     register_type: read
     address: 1
     bitmask: 0x0800
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Armed state"
+    register_type: read
+    address: 1
+    bitmask: 0x1000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Entry pending"
