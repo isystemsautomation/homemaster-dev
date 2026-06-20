@@ -293,11 +293,6 @@ bool saveOutputStateSnapshot(const bool physical[3]) {
   return n == sizeof(snap);
 }
 
-static bool physicalToManualValue(int r, bool physical) {
-  if (!relayConfigs[r].enabled) return false;
-  return relayConfigs[r].inverted ? !physical : physical;
-}
-
 void applyPowerOnOutputs() {
   bool restored[3] = {false, false, false};
   bool haveSnap = readOutputStateSnapshot(restored);
@@ -309,7 +304,7 @@ void applyPowerOnOutputs() {
       relayManualValue[r] = true;
     } else if (relayPowerOn[r] == HM_PWR_RESTORE && haveSnap) {
       relayManualActive[r] = true;
-      relayManualValue[r] = physicalToManualValue(r, restored[r]);
+      relayManualValue[r] = relayConfigs[r].enabled ? restored[r] : false;
     } else {
       relayManualActive[r] = false;
       relayManualValue[r] = false;
@@ -985,29 +980,31 @@ void loop() {
       }
     }
 
-    // Apply enable + inversion
-    bool outVal = desired;
-    if (!relayConfigs[r].enabled) outVal = false;
-    if (relayConfigs[r].inverted) outVal = !outVal;
+    // Logical state for coil/Modbus/HA — invert applied only at the pin (DIO pattern)
+    bool logical = desired;
+    if (!relayConfigs[r].enabled) logical = false;
 
     if (fromGroup && !buttonOverrideMode[r] && !relayManualActive[r]) {
-      if (outVal && !prevRelayPhysical[r] && relayAutoOffSec[r] > 0) {
+      if (logical && !prevRelayPhysical[r] && relayAutoOffSec[r] > 0) {
         relayOnSinceMs[r] = now;
       }
-      if (!outVal) relayOnSinceMs[r] = 0;
-      if (outVal && relayAutoOffSec[r] > 0 && !relayBellCut[r] && relayOnSinceMs[r] > 0 &&
+      if (!logical) relayOnSinceMs[r] = 0;
+      if (logical && relayAutoOffSec[r] > 0 && !relayBellCut[r] && relayOnSinceMs[r] > 0 &&
           (now - relayOnSinceMs[r]) >= (uint32_t)relayAutoOffSec[r] * 1000UL) {
         relayBellCut[r] = true;
-        outVal = false;
+        logical = false;
       }
     } else if (!fromGroup) {
       relayOnSinceMs[r] = 0;
     }
 
-    relayStateList[r] = outVal;
-    relayPhysicalNow[r] = outVal;
-    pcf23.write(RELAY_PINS[r], outVal ? LOW : HIGH); // ACTIVE-LOW
-    lastRelayOut[r] = outVal;
+    relayStateList[r] = logical;
+    relayPhysicalNow[r] = logical;
+    lastRelayOut[r] = logical;
+
+    bool physical = logical;
+    if (relayConfigs[r].inverted) physical = !physical;
+    pcf23.write(RELAY_PINS[r], physical ? LOW : HIGH); // ACTIVE-LOW
   }
 
   if (!outTrackInit) {
@@ -1194,7 +1191,7 @@ void processStatefulCoilInputs() {
 // ---- Stateful coil read-back (actual state after relay/arm evaluation) ----
 void syncStatefulCoilReadback(const JSONVar &relayStateList) {
   for (int r = 0; r < 3; r++) {
-    bool actual = (bool)relayStateList[r];
+    bool actual = relayConfigs[r].enabled ? (bool)relayStateList[r] : false;
     mb.Coil(CMD_RELAY_BASE + r, actual);
     lastRelayCoil[r] = actual;
   }
