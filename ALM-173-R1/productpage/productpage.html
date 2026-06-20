@@ -937,13 +937,13 @@ packages:
       <ul class="plc-list">
         <li>ALM-173-R1 operates as a <strong>Modbus RTU slave</strong>; the controller (PLC/ESPHome/SCADA) is the master.</li>
         <li>Address and baud are configured via WebConfig and stored in flash (restored at power‑up).</li>
-        <li>Data model: <strong>Input Registers (FC04) @0..3</strong> — bit-packed telemetry (inputs, alarms, relays, LEDs, arming, zone latch); <strong>Coils (FC01/05) @0..48</strong> for commands. Configuration via <strong>WebConfig</strong> (USB-C), not holding registers. Identity @200: MODEL_ID=1, MAP_VERSION=3.</li>
+        <li>Data model: <strong>Input Registers (FC04) @0..3</strong> — bit-packed telemetry (inputs, alarms, LEDs, entry/exit/tamper, zone latch); <strong>Coils (FC01/05) @0..10</strong> — stateful relay/armed outputs (0–3) + momentary ack/pulse commands (4–10). Configuration via <strong>WebConfig</strong> (USB-C), not holding registers. Identity @200: MODEL_ID=1, MAP_VERSION=4. Relay/Armed state is read via coil read-back (uniform with DIO).</li>
       </ul>
 
       <h3><strong>Function Codes</strong></h3>
       <ul class="plc-list">
         <li><code>0x04</code> Read Input Registers — state bitmasks @0..3; identity @200+.</li>
-        <li><code>0x05 / 0x0F</code> Write Coils — enable/disable inputs, relay override, ack, group pulses, arm/disarm.</li>
+        <li><code>0x05 / 0x0F</code> Write Coils — stateful relay/armed (0–3), momentary ack and group pulse (4–10).</li>
       </ul>
 
       <h3><strong>RS‑485 Wiring</strong></h3>

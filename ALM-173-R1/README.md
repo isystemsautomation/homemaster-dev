@@ -42,8 +42,8 @@ Alarm groups, zone types, local arming, and bell cut-off are described in [§3 A
 | **WebConfig** | USB-C → Chromium-based browser; Modbus addr/baud, I/O mapping, alarm modes, live status |
 | **Modbus RTU slave** | Input Registers (FC04) bitmasks for telemetry + Coils (commands); config via WebConfig, not holding registers |
 | **ESPHome / HA** | Ready-made YAML package; inputs, alarms, relays, ack/override actions |
-| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION = 3** (Input Registers; see [§8](#8-modbus-register-map)) |
-| **Extras** | PLC group pulses (coils **44–46**); optional **local arming**; **bell cut-off**; per-zone alarm memory |
+| **Identity** | **MODEL_ID = 1**; firmware **0.2.0**; **MAP_VERSION = 4** (Input Registers + stateful coils; see [§8](#8-modbus-register-map)) |
+| **Extras** | PLC group pulses (coils **8–10**); optional **local arming**; **bell cut-off**; per-zone alarm memory |
 
 ### Applications
 
@@ -61,7 +61,7 @@ Typical uses for the ALM-173-R1:
 
 > **Zones, groups, relays.** Each input is a **zone** assigned to one of three **Alarm Groups** (G1–G3). Each group has a mode: **None** (disabled), **Non-latched** (follows live zone state), or **Latched** (trips on activation and holds until **ACK**). Each relay is bound to a group and energizes while that group is in alarm. Relay control priority: **Button override → Modbus manual → Group**.
 
-**PLC group pulses** (Modbus coils **44–46**) can force a one-scan group activation for controller-driven annunciation. **Button override:** long hold **3 s** on a button configured for Relay 1–3 enters manual relay control; another long hold exits and returns control to the alarm group.
+**PLC group pulses** (Modbus coils **8–10**) can force a one-scan group activation for controller-driven annunciation. **Button override:** long hold **3 s** on a button configured for Relay 1–3 enters manual relay control; another long hold exits and returns control to the alarm group.
 
 ### Zone types (when Local arming is enabled)
 
@@ -77,9 +77,9 @@ Each zone has a type that defines when its activation contributes to its group:
 
 The module supports minimal **local arming** so protection continues if the controller is offline:
 
-- **ARM** (coil **47** or configured button) → **Exit delay** (**Exit-pending**): activations are ignored so you can leave. When the timer expires → **Armed**.
-- While **Armed**: Instant zones trigger immediately; a **Delayed** zone starts **Entry delay** (**Entry-pending**) — if **DISARM** (coil **48**) does not arrive before the timer expires, the group alarms; **24h/Tamper** zones trigger regardless.
-- **DISARM** → **Disarmed** immediately; Entry/Exit-pending are cleared. **Latched groups are not cleared** — only **ACK** (coil **40** or **41–43**) clears them.
+- **Arm** (stateful coil **3** = `1`, or configured button) → **Exit delay** (**Exit-pending**): activations are ignored so you can leave. When the timer expires → **Armed**.
+- While **Armed**: Instant zones trigger immediately; a **Delayed** zone starts **Entry delay** (**Entry-pending**) — if **Disarm** (coil **3** = `0`) does not arrive before the timer expires, the group alarms; **24h/Tamper** zones trigger regardless.
+- **Disarm** (coil **3** = `0`) → **Disarmed** immediately; Entry/Exit-pending are cleared. **Latched groups are not cleared** — only **ACK** (coil **4** or **5–7**) clears them.
 - With **Local arming disabled** (factory default), behaviour matches legacy firmware: all enabled zones feed their group at all times; zone types and arm delays are ignored.
 
 **State machine (simplified):** `Disarmed → (ARM) → Exit-pending → Armed → (Delayed zone) → Entry-pending → Triggered → (ACK) → Armed/Disarmed`. Non-latched, latched, and 24h/Tamper behaviour apply on top of this.
@@ -384,7 +384,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 | Field | Values | Meaning |
 |-------|--------|---------|
-| Local arming | on / off (default **off**) | Enables zone types, entry/exit delays, ARM/DISARM coils. |
+| Local arming | on / off (default **off**) | Enables zone types, entry/exit delays, **Armed** coil (stateful @3). |
 | Entry delay, s | 0–65535 (default 30) | Delayed-zone entry timer while armed. |
 | Exit delay, s | 0–65535 (default 30) | Exit timer after ARM before zones are active. |
 
@@ -400,106 +400,81 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 **Configuration** is via **WebConfig** (LittleFS), **not** holding registers (FC03).
 
-> v0.2.0 (**MAP v3**) uses **Input Registers (FC04)** for telemetry — **bit-packed masks @0..3** (read in one block, like DIO) — and **Coils (FC01/05) @0..48** for commands. **Identity** is also FC04 at base **200** (0x00C8): MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, **MAP_VERSION** (= **3**).
+> v0.2.0 (**MAP v4**) uses **Input Registers (FC04)** for telemetry — **bit-packed masks @0..3** (read in one block) — and **Coils (FC01/05) @0..10** for outputs and momentary actions. **Identity** is FC04 at base **200** (0x00C8): MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, **MAP_VERSION** (= **4**).
 
-### 8.1 Address map (overview)
+The ALM Modbus model is aligned with the **HomeMaster line standard** (reference: [DIO-430-R1](../DIO-430-R1/README.md)): **bit-packed Input Registers** for live states and **stateful coils** for relay/armed outputs (industry-standard, same as DIO and Waveshare-style I/O). Home Assistant entities are uniform across modules — toggles for outputs, sensors for telemetry, buttons for momentary actions.
 
-| Type | Addresses | Purpose |
-|------|-----------|---------|
-| **Input Registers** (FC04) | **0** | IN1..IN16 state mask |
-| | **1** | IN17, Any/G1–G3, Relay1–3, LED1–4, Armed/Entry/Exit/Tamper |
-| | **2** | Zone 1..16 latched (alarm memory) |
-| | **3** | Zone 17 latched |
-| | **200+** | Identity (MODEL_ID, FW version, MAP_VERSION) |
-| **Coils** (FC01/05) | **0..16** | Enable IN1…17 |
-| | **17..33** | Disable IN1…17 |
-| | **34..36** | Relay manual ON |
-| | **37..39** | Relay manual OFF |
-| | **40** | Ack All |
-| | **41..43** | Ack G1…G3 |
-| | **44..46** | Alarm pulse G1…G3 (one-scan PLC) |
-| | **47..48** | ARM / DISARM *(local arming)* |
+Per-input **enable/invert/group/type**, relay **group-mapping/bell-cutoff/power-on**, and button/LED mapping are configured in **WebConfig only** — not over Modbus (same principle as momentary/interlock settings on KinCony-class devices).
 
 > **No FC02 (Discrete Inputs)** and **no Holding Registers (FC03)** for configuration — use [§7 WebConfig](#7-webconfig-reference).
 
-### 8.2 Input Registers (FC04) — state bitmasks
+### 8.1 Input Registers (FC04) — telemetry (bit-packed)
 
-Poll **registers 0..3** as one contiguous block (500 ms typical). Bit assignments:
+Poll **registers 0..3** as one contiguous block (500 ms typical):
 
-**Register 0 — IN1..IN16**
+| IReg | Bit | Signal |
+|------|-----|--------|
+| **@0** | 0–15 | **IN1…IN16** (after enable + invert) |
+| **@1** | 0 | **IN17** |
+| | 1–4 | **Any Alarm** / **G1** / **G2** / **G3** |
+| | 8–11 | **LED 1…4** |
+| | 13–15 | **Entry pending** / **Exit pending** / **Tamper any** |
+| **@2** | 0–15 | **Zone latched 1…16** (per-zone alarm memory) |
+| **@3** | 0 | **Zone latched 17** |
 
-| Bit | Signal |
-|-----|--------|
-| 0..15 | **IN1..IN16** (after enable + invert) |
+> **Relay 1–3** and **Armed** state are **not duplicated here** — read them via **coil read-back** ([§8.2](#82-coils-fc0105--stateful--momentary)). Firmware still mirrors relay/armed bits in IREG 1 internally; integrators should use coils **0–3** for those outputs.
 
-**Register 1 — summary & arming**
+When **local arming is disabled** (default), zone types and arm delays are ignored; Entry/Exit-pending bits (13–14) stay inactive unless local arming is enabled in WebConfig.
 
-| Bit | Signal |
-|-----|--------|
-| 0 | **IN17** |
-| 1 | **Any Alarm** |
-| 2..4 | **Alarm G1..G3** |
-| 5..7 | **Relay 1..3** (effective output) |
-| 8..11 | **LED 1..4** |
-| 12 | **Armed** *(local arming)* |
-| 13 | **Entry pending** |
-| 14 | **Exit pending** |
-| 15 | **Tamper any** (24h/Tamper zones) |
+### 8.2 Coils (FC01/05) — stateful + momentary
 
-**Register 2 — zone latch 1..16**
+| Coil | Type | Purpose |
+|------|------|---------|
+| **0–2** | **Stateful R/W** | **Relay 1/2/3** — write `1`=ON / `0`=OFF; read back actual state (like DIO/Waveshare) |
+| **3** | **Stateful R/W** | **Armed** — write `1`=arm / `0`=disarm; read back actual armed state *(requires local arming in WebConfig)* |
+| **4** | Momentary | **Ack All** — clear all latched groups |
+| **5–7** | Momentary | **Ack G1/G2/G3** — clear latched group |
+| **8–10** | Momentary | **Group test-pulse G1/G2/G3** — one-scan group activation (PLC) |
 
-| Bit | Signal |
-|-----|--------|
-| 0..15 | **Zone 1..16 latched** (per-zone alarm memory) |
+**Override priority:** Button override → Modbus manual (coils **0–2**) → Alarm group.
 
-**Register 3 — zone latch 17**
+Stateful coils **0–3** hold until changed; momentary coils **4–10** auto-clear in firmware after execution.
 
-| Bit | Signal |
-|-----|--------|
-| 0 | **Zone 17 latched** |
+### 8.3 Identity (FC04 @200)
 
-When **local arming is disabled** (default), zone types and arm delays are ignored; arming bits (12–14) stay inactive unless local arming is enabled in WebConfig.
+| Offset | Field | Value (v0.2.0) |
+|--------|-------|----------------|
+| 200 | MODEL_ID | **1** (ALM-173-R1) |
+| 201 | FW_MAJOR | **0** |
+| 202 | FW_MINOR | **2** |
+| 203 | FW_PATCH | **0** |
+| 204 | MAP_VERSION | **4** |
 
-### 8.3 Coils (FC01/05) — commands (write `1`, auto-clear)
-
-| Address | Name | Description |
-|--------:|------|-------------|
-| 0..16 | **Enable IN1…17** | Enable input |
-| 17..33 | **Disable IN1…17** | Disable input |
-| 34..36 | **Relay ON** | Manual override ON (per relay) |
-| 37..39 | **Relay OFF** | Manual override OFF |
-| 40 | **Ack All** | Clear all latched groups |
-| 41..43 | **Ack G1…G3** | Clear latched group |
-| 44..46 | **Alarm pulse G1…G3** | One-scan group activation (PLC) |
-| 47 | **ARM** | Start arm / exit delay (pulse; requires local arming) |
-| 48 | **DISARM** | Disarm (pulse) |
-
-**Override priority:** Button override → Modbus manual override → Alarm group.
-
-Manual override coils hold until cleared (matching OFF coil or override released).
+Read once at startup or after firmware update.
 
 ### 8.4 Register use examples
 
-**A) Acknowledge Alarm Group 1** — write `1` to **Coil 41** (Ack G1). Module auto-clears the coil.
+**A) Acknowledge Alarm Group 1** — write `1` to **Coil 5** (Ack G1). Module auto-clears the coil.
 
-**B) Arm / Disarm (local arming enabled)** — pulse **Coil 47 (ARM)** or **Coil 48 (DISARM)**. Requires local arming enabled in WebConfig.
+**B) Arm / Disarm (local arming enabled)** — write **`1`** or **`0`** to **Coil 3 (Armed)**. Requires local arming enabled in WebConfig.
 
-**C) Enable input 5 remotely** — write `1` to **Coil 4** (Enable IN5). To disable: **Coil 21** (Disable IN5).
+**C) Manual relay 2 ON/OFF** — write **`1`** or **`0`** to **Coil 1** (Relay 2). Read coil to confirm state; button override takes priority until released.
 
 **D) Read zone 3 alarm memory** — read **Input Register 2** (FC04), test **bit 2** (Zone 3 latched).
 
-**E) Manual relay 2 ON** — write `1` to **Coil 35**; clear with **Coil 38** or release button override.
+**E) PLC-driven annunciation** — pulse **Coils 8–10** for one-scan activation of Alarm Group 1–3.
 
-**F) PLC-driven annunciation** — pulse **Coils 44–46** for one-scan activation of Alarm Group 1–3.
+**F) Read IN7 state** — read **Input Register 0**, test **bit 6**.
 
-**G) Read IN7 state** — read **Input Register 0**, test **bit 6**.
+**G) Configure input enable/invert/group** — use [WebConfig](#7-webconfig-reference); not available via Modbus coils.
 
 ### 8.5 Polling recommendations
 
 - **Input registers 0..3:** 2–5 Hz (200–500 ms) — single contiguous read covers all telemetry
-- **Coils:** write on change only (pulse commands); do **not** poll command coils for state
+- **Stateful coils 0..3:** read on demand or at same rate as outputs if supervising relay/armed state
+- **Momentary coils 4..10:** write on change only; firmware auto-clears — do not poll for state
 - **Identity (IREG @200):** read once at startup or after firmware update
-- **Local arming bits (reg 1, bits 12–14):** same rate as summary alarms when arming is used
+- **Local arming bits (IREG 1, bits 13–14):** same rate as summary alarms when arming is used
 
 ---
 
@@ -542,15 +517,17 @@ packages:
 - **Binary sensors** (from **Input Register** bitmasks, FC04)
   - **IN1…IN17** (IREG **0** bits 0–15, **1** bit 0)
   - **Any Alarm / G1–G3** (IREG **1** bits 1–4)
-  - **Relay 1–3 / LED 1–4** mirrors (IREG **1** bits 5–11)
-  - **Armed / Entry / Exit / Tamper** (IREG **1** bits 12–15)
+  - **LED 1–4** (IREG **1** bits 8–11)
+  - **Entry / Exit / Tamper** (IREG **1** bits 13–15)
   - **Zone 1–17 latched** (IREG **2** bits 0–15, **3** bit 0)
-- **Switches**
-  - **Arm / Disarm** (coils **47–48**)
-- **Outputs + template buttons**
-  - Relay manual ON/OFF (**34–39**), Ack All / G1–G3 (**40–43**), Enable/Disable inputs (**0–33**), group pulses (**44–46**)
+- **Switches** (stateful coils, read-back)
+  - **Relay 1–3** (coils **0–2**)
+  - **Armed** (coil **3**)
+- **Buttons** (template → internal momentary coils)
+  - **Ack All / G1–G3** (coils **4–7**)
+  - **Pulse G1–G3** (coils **8–10**)
 
-> The package matches `default_alm_173_r1_plc.yaml`: **no FC02 discrete-input bank** — all telemetry is read from **Input Registers 0..3**.
+> The package matches `default_alm_173_r1_plc.yaml`: **no FC02 discrete-input bank** — telemetry from **Input Registers 0..3**; relay/armed state from **stateful coil switches**, not duplicated as binary sensors.
 
 ### 9.3 Optional: direct (manual) entity mapping
 
@@ -576,38 +553,31 @@ binary_sensor:
     address: 1
     bitmask: 0x0004
     device_class: problem
-  - platform: modbus_controller
-    modbus_controller_id: alm_1
-    name: "ALM#1 Armed"
-    register_type: read
-    address: 1
-    bitmask: 0x1000
 
 switch:
   - platform: modbus_controller
     modbus_controller_id: alm_1
-    name: "ALM#1 Arm"
+    name: "ALM#1 Relay 2"
     register_type: coil
-    address: 47
-
-output:
+    address: 1
   - platform: modbus_controller
     modbus_controller_id: alm_1
-    register_type: coil
     id: alm1_ack_g1
-    address: 41
+    register_type: coil
+    address: 5
+    internal: true
 
 button:
   - platform: template
     name: "ALM#1 Ack Group 1"
     on_press:
-      - output.turn_on: alm1_ack_g1
+      - switch.turn_on: alm1_ack_g1
 ```
 
 ### 9.4 Home Assistant tips
 
 - **Dashboards:** alarm summary tile (Any + G1–G3), zone tiles for IN1–IN17, siren/relay switches, Ack buttons.
-- **Automations:** trigger on **IREG 1** alarm bits or **IREG 2/3** zone-latch bits; use **Ack** coils (**40–43**) or template buttons to clear latched groups.
+- **Automations:** trigger on **IREG 1** alarm bits or **IREG 2/3** zone-latch bits; use **Ack** buttons (coils **4–7**) to clear latched groups.
 - **Alarm Control Panel:** use HA's built-in panel for Home/Away/Night; ALM provides zones and relay/siren outputs via Modbus.
 - **Naming:** use `alm_prefix` for readable entities (`ALM#1 IN5`, `ALM#1 Alarm Group 2`, etc.).
 
@@ -615,12 +585,12 @@ button:
 
 - **Timeouts:** A/B polarity, shared **COM/GND**, **120 Ω** termination at bus ends.
 - **Wrong device:** `alm_address` must match WebConfig Modbus address.
-- **Latched won't clear:** send Ack (coil **40** or **41–43**); non-latched groups clear when the input returns to normal.
-- **Arm/Disarm no effect:** enable **Local arming** in WebConfig first.
+- **Latched won't clear:** press **Ack** button (coil **4** or **5–7**); non-latched groups clear when the input returns to normal.
+- **Arm/Disarm no effect:** enable **Local arming** in WebConfig first; use **Armed** switch (coil **3**).
 
 ### 9.6 Notes & versions
 
-- Package matches `default_alm_173_r1_plc.yaml` — **MAP v3** (firmware **0.2.0**); poll **IREG 0..3** in one block (`update_interval: 500ms` recommended).
+- Package matches `default_alm_173_r1_plc.yaml` — **MAP v4** (firmware **0.2.0**); poll **IREG 0..3** in one block (`update_interval: 500ms` recommended).
 - For multiple ALM modules, duplicate the package block with unique `alm_id`, `alm_prefix`, and `alm_address`.
 
 ---
@@ -678,7 +648,7 @@ See [§10.2 Flashing](#102-flashing-usb-c) and [§12 Downloads](#12-downloads--r
 | No Modbus | Address/baud match controller; A/B polarity; termination; COM/GND reference |
 | Input stuck / wrong | Enable/Invert/Group in WebConfig; wiring **INx–GND I.x** (isolated return) |
 | Relay won't follow group | Relay **Enabled**; **Alarm Group** assigned; group **Mode** not None; not in button/manual override |
-| Latched alarm won't clear | Send **Ack** (button, coil **40** or **41–43**); check group mode |
+| Latched alarm won't clear | Send **Ack** (button, coil **4** or **5–7**); check group mode |
 | **LED4 dark / Button4 dead** | Requires firmware **v0.2.0** (LED4 pin fix) — see [§12 Downloads](#12-downloads--resources) |
 | USB won't connect | Chromium-based browser; close other serial apps using the port |
 | Config lost | Factory reset clears flash; normal firmware updates preserve config |
