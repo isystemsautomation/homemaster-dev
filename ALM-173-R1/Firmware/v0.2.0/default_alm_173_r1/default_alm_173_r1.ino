@@ -8,7 +8,7 @@
 //     0=None, 1=Any alarm, 2=G1, 3=G2, 4=G3, 5=OverrideR1, 6=OverrideR2, 7=OverrideR3
 // - Modbus ON/OFF coils @37..39 / relay ON @34..36 still work when override is OFF.
 // - PLC pulses to activate Alarm Groups via coils 44..46 (auto-clear).
-// - Telemetry: FC04 Input Registers @0..3 (bit-packed); commands: coils @0..48.
+// - Telemetry: FC04 Input Registers @0..3 (bit-packed); commands: coils @0..10 (stateful + momentary).
 // ============================================================================
 
 #include <Arduino.h>
@@ -21,8 +21,8 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        3
-#define HM_MAP_VERSION 3
+#define HM_MAP        4
+#define HM_MAP_VERSION 4
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -81,6 +81,8 @@ bool buttonOverrideState[3] = {false,false,false}; // the ON/OFF state while in 
 // --- Modbus "manual override" pulses (coils) memory ---
 bool relayManualActive[3] = {false,false,false};
 bool relayManualValue[3]  = {false,false,false};
+bool lastRelayCoil[3]     = {false,false,false};
+bool lastArmedCoil        = false;
 
 // --- For LED sources 5..7 and smooth handover on entering override ---
 bool lastRelayOut[3] = {false,false,false};
@@ -471,20 +473,16 @@ enum : uint16_t {
   // Input registers (telemetry, bit-packed @0..3)
   IREG_STATE_BASE = 0,
 
-  // Command coils (write 1 -> action -> auto-clear) @0..48 contiguous
-  CMD_EN_IN_BASE  = 0,    // 0..16  enable IN1..IN17
-  CMD_DIS_IN_BASE = 17,   // 17..33 disable IN1..IN17
-  CMD_RLY_ON_BASE = 34,   // 34..36 relay ON 1..3
-  CMD_RLY_OFF_BASE= 37,   // 37..39 relay OFF 1..3
-  CMD_ACK_ALL     = 40,
-  CMD_ACK_G1      = 41,   // 41..43
-  CMD_ACK_G2      = 42,
-  CMD_ACK_G3      = 43,
-  CMD_AL_G1_PULSE = 44,   // 44..46
-  CMD_AL_G2_PULSE = 45,
-  CMD_AL_G3_PULSE = 46,
-  CMD_ARM         = 47,
-  CMD_DISARM      = 48
+  // Command coils @0..10: stateful relay/armed + momentary ack/pulse
+  CMD_RELAY_BASE  = 0,   // 0..2  Relay 1..3 (stateful R/W)
+  CMD_ARMED       = 3,     //       Armed (stateful R/W: 1=arm, 0=disarm)
+  CMD_ACK_ALL     = 4,     //       ACK all (momentary)
+  CMD_ACK_G1      = 5,     // 5..7  ACK G1..G3 (momentary)
+  CMD_ACK_G2      = 6,
+  CMD_ACK_G3      = 7,
+  CMD_AL_G1_PULSE = 8,     // 8..10 group test-pulse G1..G3 (momentary)
+  CMD_AL_G2_PULSE = 9,
+  CMD_AL_G3_PULSE = 10
 };
 
 // ================== Forward decls ==================
@@ -494,6 +492,10 @@ void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void performReset();
 void processCommandPulses();
+void applyManualRelayOverride(int r, bool on);
+void armLocal();
+void processStatefulCoilInputs();
+void syncStatefulCoilReadback(const JSONVar &relayStateList);
 
 bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]);
 JSONVar LedConfigListFromCfg();
@@ -648,8 +650,8 @@ void setup() {
   // ---- Register telemetry (input registers, bit-packed) ----
   for (uint16_t i = 0; i < 4; i++) mb.addIreg(IREG_STATE_BASE + i);
 
-  // ---- Register command coils (0..48 contiguous) ----
-  for (uint16_t c = 0; c <= CMD_DISARM; c++) mb.addCoil(c);
+  // ---- Register command coils (0..10) ----
+  for (uint16_t c = 0; c <= CMD_AL_G3_PULSE; c++) mb.addCoil(c);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
@@ -747,6 +749,23 @@ void disarmLocal() {
   for (int r = 0; r < 3; r++) relayBellCut[r] = false;
 }
 
+void armLocal() {
+  if (!localArmEnabled || armState == 1) return;
+  if (exitDelaySec == 0) {
+    armState = 1;
+    exitPending = false;
+  } else {
+    exitPending = true;
+    exitUntilMs = millis() + (uint32_t)exitDelaySec * 1000UL;
+  }
+}
+
+void applyManualRelayOverride(int r, bool on) {
+  if (r < 0 || r > 2 || buttonOverrideMode[r]) return;
+  relayManualActive[r] = true;
+  relayManualValue[r]  = on;
+}
+
 void ackAll() {
   if (localArmEnabled) memset(zoneLatched, 0, sizeof(zoneLatched));
   latchedGroup[1] = latchedGroup[2] = latchedGroup[3] = false;
@@ -792,8 +811,11 @@ void loop() {
   // Modbus stack
   mb.task();
 
-  // Handle incoming command pulses (including PLC group pulses)
+  // Handle incoming command pulses (ACK / group pulse)
   processCommandPulses();
+
+  // Stateful coil writes from master (before relay/alarm evaluation)
+  processStatefulCoilInputs();
 
   // -------- Buttons (inverted schematic) + long/short handling ----------
   for (int i = 0; i < 4; i++) {
@@ -1037,6 +1059,8 @@ void loop() {
   mb.Ireg(IREG_STATE_BASE + 2, r2);
   mb.Ireg(IREG_STATE_BASE + 3, r3);
 
+  syncStatefulCoilReadback(relayStateList);
+
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
@@ -1139,69 +1163,43 @@ void sendWebBootstrap() {
   sendWebCfg();
 }
 
-// ---- Process "auto-pulse" command coils and clear them ----
+// ---- Momentary command coils (ACK / group pulse) ----
 void processCommandPulses() {
-  // Inputs enable/disable
-  for (int i = 0; i < 17; i++) {
-    uint16_t enAddr  = CMD_EN_IN_BASE  + i;
-    uint16_t disAddr = CMD_DIS_IN_BASE + i;
-    if (mb.Coil(enAddr)) {
-      digitalInputs[i].enabled = true;
-      cfgDirty = true; lastCfgTouchMs = millis();
-      mb.Coil(enAddr, false); // auto-clear
-    }
-    if (mb.Coil(disAddr)) {
-      digitalInputs[i].enabled = false;
-      cfgDirty = true; lastCfgTouchMs = millis();
-      mb.Coil(disAddr, false); // auto-clear
-    }
-  }
-
-  // Relay manual overrides from Modbus (ignored while Button override is ON)
-  for (int r = 0; r < 3; r++) {
-    uint16_t onAddr  = CMD_RLY_ON_BASE  + r;
-    uint16_t offAddr = CMD_RLY_OFF_BASE + r;
-    if (mb.Coil(onAddr)) {
-      if (!buttonOverrideMode[r]) { // don't disturb button override
-        relayManualActive[r] = true;
-        relayManualValue[r]  = true;
-      }
-      mb.Coil(onAddr, false);
-    }
-    if (mb.Coil(offAddr)) {
-      if (!buttonOverrideMode[r]) {
-        relayManualActive[r] = true;
-        relayManualValue[r]  = false;
-      }
-      mb.Coil(offAddr, false);
-    }
-  }
-
-  // NEW: PLC alarm group pulses (auto-clear; affect this scan)
   if (mb.Coil(CMD_AL_G1_PULSE)) { plcAlarmPulse[1] = true; mb.Coil(CMD_AL_G1_PULSE, false); }
   if (mb.Coil(CMD_AL_G2_PULSE)) { plcAlarmPulse[2] = true; mb.Coil(CMD_AL_G2_PULSE, false); }
   if (mb.Coil(CMD_AL_G3_PULSE)) { plcAlarmPulse[3] = true; mb.Coil(CMD_AL_G3_PULSE, false); }
 
-  if (mb.Coil(CMD_ARM)) {
-    if (localArmEnabled && armState != 1) {
-      if (exitDelaySec == 0) {
-        armState = 1;
-        exitPending = false;
-      } else {
-        exitPending = true;
-        exitUntilMs = millis() + (uint32_t)exitDelaySec * 1000UL;
-      }
-    }
-    mb.Coil(CMD_ARM, false);
-  }
-  if (mb.Coil(CMD_DISARM)) {
-    disarmLocal();
-    mb.Coil(CMD_DISARM, false);
-  }
-
-  // Acknowledge alarms
   if (mb.Coil(CMD_ACK_ALL)) { ackAll(); mb.Coil(CMD_ACK_ALL, false); }
   if (mb.Coil(CMD_ACK_G1 )) { ackGroup(1); mb.Coil(CMD_ACK_G1 , false); }
   if (mb.Coil(CMD_ACK_G2 )) { ackGroup(2); mb.Coil(CMD_ACK_G2 , false); }
   if (mb.Coil(CMD_ACK_G3 )) { ackGroup(3); mb.Coil(CMD_ACK_G3 , false); }
+}
+
+// ---- Stateful coil commands from master (before relay evaluation) ----
+void processStatefulCoilInputs() {
+  for (int r = 0; r < 3; r++) {
+    bool master = mb.Coil(CMD_RELAY_BASE + r);
+    if (master != lastRelayCoil[r]) {
+      applyManualRelayOverride(r, master);
+    }
+  }
+
+  bool masterArmed = mb.Coil(CMD_ARMED);
+  if (masterArmed != lastArmedCoil) {
+    if (masterArmed) armLocal();
+    else disarmLocal();
+  }
+}
+
+// ---- Stateful coil read-back (actual state after relay/arm evaluation) ----
+void syncStatefulCoilReadback(const JSONVar &relayStateList) {
+  for (int r = 0; r < 3; r++) {
+    bool actual = (bool)relayStateList[r];
+    mb.Coil(CMD_RELAY_BASE + r, actual);
+    lastRelayCoil[r] = actual;
+  }
+
+  bool actualArmed = (armState == 1);
+  mb.Coil(CMD_ARMED, actualArmed);
+  lastArmedCoil = actualArmed;
 }
