@@ -1,21 +1,22 @@
-# ALM-173-R1 — ESPHome Modbus package (MAP v3, firmware 0.2.0)
+# ALM-173-R1 — ESPHome map (MAP v4: bit-packed Input Registers + stateful coils, uniform with DIO)
 ##
-## Input Registers (FC04, read) — contiguous @0..3 (one merged poll per cycle):
-##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay1-3/LED1-4/Armed/Entry/Exit/Tamper
+## Input Registers (FC04, read) — contiguous @0..3 (one poll per cycle):
+##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay/LED/Armed/Entry/Exit/Tamper
 ##   2 Zone1..16 latched · 3 Zone17 latched
+##   (Relay/Armed bits in @1 are read back via stateful coil switches, not duplicated here)
 ##
-## Coils (FC01/05) — contiguous @0..48:
-##   0..16 enable IN · 17..33 disable IN · 34..36 relay ON · 37..39 relay OFF
-##   40 Ack All · 41..43 Ack G1-G3 · 44..46 alarm pulse G1-G3 · 47 ARM · 48 DISARM
+## Coils (FC01/05) @0..10:
+##   0..2 Relay 1..3 (stateful) · 3 Armed (stateful)
+##   4 Ack All · 5..7 Ack G1-G3 · 8..10 group pulse G1-G3 (momentary, internal)
 ##
-## Identity (FC04) @200 — MODEL_ID, FW version, MAP_VERSION (read once; not in package).
+## Identity (FC04) @200 — read once at startup; not in this package.
 
 substitutions:
   alm_id: alm
   alm_address: "3"
   alm_prefix: "ALM"
   alm_update_interval: 500ms
-  alm_command_throttle: 0ms
+  alm_command_throttle: 50ms
 
 modbus_controller:
   - id: ${alm_id}
@@ -25,6 +26,7 @@ modbus_controller:
     update_interval: ${alm_update_interval}
 
 binary_sensor:
+  # IN1..IN16 @ IREG 0
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN1"
@@ -121,6 +123,8 @@ binary_sensor:
     register_type: read
     address: 0
     bitmask: 0x8000
+
+  # IN17, alarms, LEDs, arming status @ IREG 1 (no Relay/Armed — use switches @0..3)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN17"
@@ -157,24 +161,6 @@ binary_sensor:
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 1 State"
-    register_type: read
-    address: 1
-    bitmask: 0x0020
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 2 State"
-    register_type: read
-    address: 1
-    bitmask: 0x0040
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 3 State"
-    register_type: read
-    address: 1
-    bitmask: 0x0080
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 1"
     register_type: read
     address: 1
@@ -199,12 +185,6 @@ binary_sensor:
     bitmask: 0x0800
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Armed"
-    register_type: read
-    address: 1
-    bitmask: 0x1000
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Entry pending"
     register_type: read
     address: 1
@@ -222,6 +202,8 @@ binary_sensor:
     address: 1
     bitmask: 0x8000
     device_class: problem
+
+  # Zone latched @ IREG 2 (1..16) and 3 (17)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Zone 1 latched"
@@ -342,431 +324,102 @@ binary_sensor:
     bitmask: 0x0001
     device_class: problem
 
-output:
-  # Acknowledge (40..43)
+switch:
+  # Stateful coils (read-back from firmware)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 1"
+    id: ${alm_id}_relay1
     register_type: coil
-    id: alm_ack_all
-    address: 40
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_ack_g1
-    address: 41
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_ack_g2
-    address: 42
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_ack_g3
-    address: 43
-
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly1_on
-    address: 34
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly1_off
-    address: 37
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly2_on
-    address: 35
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly2_off
-    address: 38
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly3_on
-    address: 36
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_rly3_off
-    address: 39
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in1
     address: 0
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 2"
+    id: ${alm_id}_relay2
     register_type: coil
-    id: alm_en_in2
     address: 1
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Relay 3"
+    id: ${alm_id}_relay3
     register_type: coil
-    id: alm_en_in3
     address: 2
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
+    name: "${alm_prefix} Armed"
     register_type: coil
-    id: alm_en_in4
     address: 3
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in5
-    address: 4
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in6
-    address: 5
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in7
-    address: 6
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in8
-    address: 7
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in9
-    address: 8
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in10
-    address: 9
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in11
-    address: 10
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in12
-    address: 11
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in13
-    address: 12
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in14
-    address: 13
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in15
-    address: 14
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in16
-    address: 15
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_en_in17
-    address: 16
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in1
-    address: 17
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in2
-    address: 18
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in3
-    address: 19
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in4
-    address: 20
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in5
-    address: 21
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in6
-    address: 22
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in7
-    address: 23
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in8
-    address: 24
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in9
-    address: 25
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in10
-    address: 26
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in11
-    address: 27
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in12
-    address: 28
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in13
-    address: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in14
-    address: 30
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in15
-    address: 31
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in16
-    address: 32
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_dis_in17
-    address: 33
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_pulse_g1
-    address: 44
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_pulse_g2
-    address: 45
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    register_type: coil
-    id: alm_pulse_g3
-    address: 46
 
-switch:
+  # Momentary command coils (internal — driven by template buttons)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Arm"
+    id: alm_ack_all
     register_type: coil
-    address: 47
+    address: 4
+    internal: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Disarm"
+    id: alm_ack_g1
     register_type: coil
-    address: 48
+    address: 5
+    internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: alm_ack_g2
+    register_type: coil
+    address: 6
+    internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: alm_ack_g3
+    register_type: coil
+    address: 7
+    internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: alm_pulse_g1
+    register_type: coil
+    address: 8
+    internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: alm_pulse_g2
+    register_type: coil
+    address: 9
+    internal: true
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: alm_pulse_g3
+    register_type: coil
+    address: 10
+    internal: true
 
 button:
   - platform: template
     name: "${alm_prefix} Ack All"
     on_press:
-      - output.turn_on: alm_ack_all
+      - switch.turn_on: alm_ack_all
   - platform: template
     name: "${alm_prefix} Ack Group 1"
     on_press:
-      - output.turn_on: alm_ack_g1
+      - switch.turn_on: alm_ack_g1
   - platform: template
     name: "${alm_prefix} Ack Group 2"
     on_press:
-      - output.turn_on: alm_ack_g2
+      - switch.turn_on: alm_ack_g2
   - platform: template
     name: "${alm_prefix} Ack Group 3"
     on_press:
-      - output.turn_on: alm_ack_g3
+      - switch.turn_on: alm_ack_g3
   - platform: template
-    name: "${alm_prefix} Relay 1 ON"
+    name: "${alm_prefix} Pulse Group 1"
     on_press:
-      - output.turn_on: alm_rly1_on
+      - switch.turn_on: alm_pulse_g1
   - platform: template
-    name: "${alm_prefix} Relay 1 OFF"
+    name: "${alm_prefix} Pulse Group 2"
     on_press:
-      - output.turn_on: alm_rly1_off
+      - switch.turn_on: alm_pulse_g2
   - platform: template
-    name: "${alm_prefix} Relay 2 ON"
+    name: "${alm_prefix} Pulse Group 3"
     on_press:
-      - output.turn_on: alm_rly2_on
-  - platform: template
-    name: "${alm_prefix} Relay 2 OFF"
-    on_press:
-      - output.turn_on: alm_rly2_off
-  - platform: template
-    name: "${alm_prefix} Relay 3 ON"
-    on_press:
-      - output.turn_on: alm_rly3_on
-  - platform: template
-    name: "${alm_prefix} Relay 3 OFF"
-    on_press:
-      - output.turn_on: alm_rly3_off
-  - platform: template
-    name: "${alm_prefix} Enable IN1"
-    on_press:
-      - output.turn_on: alm_en_in1
-  - platform: template
-    name: "${alm_prefix} Disable IN1"
-    on_press:
-      - output.turn_on: alm_dis_in1
-  - platform: template
-    name: "${alm_prefix} Enable IN2"
-    on_press:
-      - output.turn_on: alm_en_in2
-  - platform: template
-    name: "${alm_prefix} Disable IN2"
-    on_press:
-      - output.turn_on: alm_dis_in2
-  - platform: template
-    name: "${alm_prefix} Enable IN3"
-    on_press:
-      - output.turn_on: alm_en_in3
-  - platform: template
-    name: "${alm_prefix} Disable IN3"
-    on_press:
-      - output.turn_on: alm_dis_in3
-  - platform: template
-    name: "${alm_prefix} Enable IN4"
-    on_press:
-      - output.turn_on: alm_en_in4
-  - platform: template
-    name: "${alm_prefix} Disable IN4"
-    on_press:
-      - output.turn_on: alm_dis_in4
-  - platform: template
-    name: "${alm_prefix} Enable IN5"
-    on_press:
-      - output.turn_on: alm_en_in5
-  - platform: template
-    name: "${alm_prefix} Disable IN5"
-    on_press:
-      - output.turn_on: alm_dis_in5
-  - platform: template
-    name: "${alm_prefix} Enable IN6"
-    on_press:
-      - output.turn_on: alm_en_in6
-  - platform: template
-    name: "${alm_prefix} Disable IN6"
-    on_press:
-      - output.turn_on: alm_dis_in6
-  - platform: template
-    name: "${alm_prefix} Enable IN7"
-    on_press:
-      - output.turn_on: alm_en_in7
-  - platform: template
-    name: "${alm_prefix} Disable IN7"
-    on_press:
-      - output.turn_on: alm_dis_in7
-  - platform: template
-    name: "${alm_prefix} Enable IN8"
-    on_press:
-      - output.turn_on: alm_en_in8
-  - platform: template
-    name: "${alm_prefix} Disable IN8"
-    on_press:
-      - output.turn_on: alm_dis_in8
-  - platform: template
-    name: "${alm_prefix} Enable IN9"
-    on_press:
-      - output.turn_on: alm_en_in9
-  - platform: template
-    name: "${alm_prefix} Disable IN9"
-    on_press:
-      - output.turn_on: alm_dis_in9
-  - platform: template
-    name: "${alm_prefix} Enable IN10"
-    on_press:
-      - output.turn_on: alm_en_in10
-  - platform: template
-    name: "${alm_prefix} Disable IN10"
-    on_press:
-      - output.turn_on: alm_dis_in10
-  - platform: template
-    name: "${alm_prefix} Enable IN11"
-    on_press:
-      - output.turn_on: alm_en_in11
-  - platform: template
-    name: "${alm_prefix} Disable IN11"
-    on_press:
-      - output.turn_on: alm_dis_in11
-  - platform: template
-    name: "${alm_prefix} Enable IN12"
-    on_press:
-      - output.turn_on: alm_en_in12
-  - platform: template
-    name: "${alm_prefix} Disable IN12"
-    on_press:
-      - output.turn_on: alm_dis_in12
-  - platform: template
-    name: "${alm_prefix} Enable IN13"
-    on_press:
-      - output.turn_on: alm_en_in13
-  - platform: template
-    name: "${alm_prefix} Disable IN13"
-    on_press:
-      - output.turn_on: alm_dis_in13
-  - platform: template
-    name: "${alm_prefix} Enable IN14"
-    on_press:
-      - output.turn_on: alm_en_in14
-  - platform: template
-    name: "${alm_prefix} Disable IN14"
-    on_press:
-      - output.turn_on: alm_dis_in14
-  - platform: template
-    name: "${alm_prefix} Enable IN15"
-    on_press:
-      - output.turn_on: alm_en_in15
-  - platform: template
-    name: "${alm_prefix} Disable IN15"
-    on_press:
-      - output.turn_on: alm_dis_in15
-  - platform: template
-    name: "${alm_prefix} Enable IN16"
-    on_press:
-      - output.turn_on: alm_en_in16
-  - platform: template
-    name: "${alm_prefix} Disable IN16"
-    on_press:
-      - output.turn_on: alm_dis_in16
-  - platform: template
-    name: "${alm_prefix} Enable IN17"
-    on_press:
-      - output.turn_on: alm_en_in17
-  - platform: template
-    name: "${alm_prefix} Disable IN17"
-    on_press:
-      - output.turn_on: alm_dis_in17
+      - switch.turn_on: alm_pulse_g3
