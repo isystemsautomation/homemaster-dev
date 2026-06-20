@@ -78,7 +78,8 @@ bool btnLongDone[4]      = {false,false,false,false};
 bool buttonOverrideMode[3]  = {false,false,false}; // true => relay is under button control
 bool buttonOverrideState[3] = {false,false,false}; // the ON/OFF state while in override
 
-// --- Modbus "manual override" pulses (coils) memory ---
+// --- Modbus relay command + manual override (DIO-style desiredRelay for group=0) ---
+bool desiredRelay[3]      = {false,false,false};
 bool relayManualActive[3] = {false,false,false};
 bool relayManualValue[3]  = {false,false,false};
 bool lastRelayCoil[3]     = {false,false,false};
@@ -261,6 +262,7 @@ void setDefaults() {
   for (int r=0;r<3;r++){
     buttonOverrideMode[r]  = false;
     buttonOverrideState[r] = false;
+    desiredRelay[r]        = false;
     relayManualActive[r]   = false;
     relayManualValue[r]    = false;
   }
@@ -300,12 +302,23 @@ void applyPowerOnOutputs() {
     buttonOverrideMode[r] = false;
     buttonOverrideState[r] = false;
     if (relayPowerOn[r] == HM_PWR_ON) {
-      relayManualActive[r] = true;
-      relayManualValue[r] = true;
+      desiredRelay[r] = true;
+      if (relayConfigs[r].group >= 1 && relayConfigs[r].group <= 3) {
+        relayManualActive[r] = true;
+        relayManualValue[r] = true;
+      } else {
+        relayManualActive[r] = false;
+      }
     } else if (relayPowerOn[r] == HM_PWR_RESTORE && haveSnap) {
-      relayManualActive[r] = true;
-      relayManualValue[r] = relayConfigs[r].enabled ? restored[r] : false;
+      desiredRelay[r] = relayConfigs[r].enabled ? restored[r] : false;
+      if (relayConfigs[r].group >= 1 && relayConfigs[r].group <= 3) {
+        relayManualActive[r] = true;
+        relayManualValue[r] = desiredRelay[r];
+      } else {
+        relayManualActive[r] = false;
+      }
     } else {
+      desiredRelay[r] = false;
       relayManualActive[r] = false;
       relayManualValue[r] = false;
     }
@@ -487,7 +500,6 @@ void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void performReset();
 void processCommandPulses();
-void applyManualRelayOverride(int r, bool on);
 void armLocal();
 void processStatefulCoilInputs();
 void syncStatefulCoilReadback(const JSONVar &relayStateList);
@@ -755,10 +767,33 @@ void armLocal() {
   }
 }
 
-void applyManualRelayOverride(int r, bool on) {
-  if (r < 0 || r > 2 || buttonOverrideMode[r]) return;
-  relayManualActive[r] = true;
-  relayManualValue[r]  = on;
+// ---- Stateful coil commands from master (before relay evaluation) ----
+void processStatefulCoilInputs() {
+  for (int r = 0; r < 3; r++) {
+    bool c = mb.Coil(CMD_RELAY_BASE + r);
+    if (!relayConfigs[r].enabled) {
+      desiredRelay[r] = false;
+      continue;
+    }
+    if (relayConfigs[r].group == 0) {
+      // Modbus-only relay (DIO-style)
+      if (c != desiredRelay[r]) {
+        desiredRelay[r] = c;
+        relayManualActive[r] = false;
+      }
+    } else if (c != lastRelayCoil[r]) {
+      // Alarm-group relay: coil edge = manual override
+      desiredRelay[r] = c;
+      relayManualActive[r] = true;
+      relayManualValue[r] = c;
+    }
+  }
+
+  bool masterArmed = mb.Coil(CMD_ARMED);
+  if (masterArmed != lastArmedCoil) {
+    if (masterArmed) armLocal();
+    else disarmLocal();
+  }
 }
 
 void ackAll() {
@@ -964,10 +999,13 @@ void loop() {
 
     if (buttonOverrideMode[r]) {
       desired = buttonOverrideState[r];
+    } else if (relayConfigs[r].group == 0) {
+      // No alarm group: Modbus coil owns relay (DIO-style)
+      desired = desiredRelay[r];
     } else if (relayManualActive[r]) {
       desired = relayManualValue[r];
     } else {
-      uint8_t g = relayConfigs[r].group; // 0..3
+      uint8_t g = relayConfigs[r].group;
       fromGroup = (g >= 1 && g <= 3);
       if (fromGroup) {
         desired = grpAlarmActive[g];
@@ -1170,22 +1208,6 @@ void processCommandPulses() {
   if (mb.Coil(CMD_ACK_G1 )) { ackGroup(1); mb.Coil(CMD_ACK_G1 , false); }
   if (mb.Coil(CMD_ACK_G2 )) { ackGroup(2); mb.Coil(CMD_ACK_G2 , false); }
   if (mb.Coil(CMD_ACK_G3 )) { ackGroup(3); mb.Coil(CMD_ACK_G3 , false); }
-}
-
-// ---- Stateful coil commands from master (before relay evaluation) ----
-void processStatefulCoilInputs() {
-  for (int r = 0; r < 3; r++) {
-    bool master = mb.Coil(CMD_RELAY_BASE + r);
-    if (master != lastRelayCoil[r]) {
-      applyManualRelayOverride(r, master);
-    }
-  }
-
-  bool masterArmed = mb.Coil(CMD_ARMED);
-  if (masterArmed != lastArmedCoil) {
-    if (masterArmed) armLocal();
-    else disarmLocal();
-  }
 }
 
 // ---- Stateful coil read-back (actual state after relay/arm evaluation) ----

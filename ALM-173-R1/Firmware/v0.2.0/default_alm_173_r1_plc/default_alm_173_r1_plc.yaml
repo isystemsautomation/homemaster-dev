@@ -3,7 +3,7 @@
 ## Input Registers (FC04, read) — contiguous @0..3 (one poll per cycle):
 ##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay/LED/Armed/Entry/Exit/Tamper
 ##   2 Zone1..16 latched · 3 Zone17 latched
-##   Relay/Armed: FC04 @1 read sensors drive HA state; coils @0..3 write-only (assumed_state)
+##   Relay/Armed: coils @0..3 (DIO-style); group=0 → Modbus only, group≠0 → alarm (+ Modbus override)
 ##
 ## Coils (FC01/05) @0..10:
 ##   0..2 Relay 1..3 (stateful) · 3 Armed (stateful)
@@ -124,7 +124,7 @@ binary_sensor:
     address: 0
     bitmask: 0x8000
 
-  # IN17, alarms, relay/armed state, LEDs, arming status @ IREG 1
+  # IN17, alarms, LEDs, arming status @ IREG 1
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} IN17"
@@ -161,30 +161,6 @@ binary_sensor:
     device_class: problem
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_relay1_state
-    internal: true
-    name: "${alm_prefix} Relay 1 state"
-    register_type: read
-    address: 1
-    bitmask: 0x0020
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    id: alm_relay2_state
-    internal: true
-    name: "${alm_prefix} Relay 2 state"
-    register_type: read
-    address: 1
-    bitmask: 0x0040
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    id: alm_relay3_state
-    internal: true
-    name: "${alm_prefix} Relay 3 state"
-    register_type: read
-    address: 1
-    bitmask: 0x0080
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
     name: "${alm_prefix} LED 1"
     register_type: read
     address: 1
@@ -207,14 +183,6 @@ binary_sensor:
     register_type: read
     address: 1
     bitmask: 0x0800
-  - platform: modbus_controller
-    modbus_controller_id: ${alm_id}
-    id: alm_armed_state
-    internal: true
-    name: "${alm_prefix} Armed state"
-    register_type: read
-    address: 1
-    bitmask: 0x1000
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     name: "${alm_prefix} Entry pending"
@@ -357,72 +325,30 @@ binary_sensor:
     device_class: problem
 
 switch:
-  # Write-only coil commands (no coil read poll — state from FC04 @1 sensors above)
+  # Stateful coils (DIO-style — coil read-back + write)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_relay1_coil
-    internal: true
-    assumed_state: true
+    name: "${alm_prefix} Relay 1"
+    id: ${alm_id}_relay1
     register_type: coil
     address: 0
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_relay2_coil
-    internal: true
-    assumed_state: true
+    name: "${alm_prefix} Relay 2"
+    id: ${alm_id}_relay2
     register_type: coil
     address: 1
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_relay3_coil
-    internal: true
-    assumed_state: true
+    name: "${alm_prefix} Relay 3"
+    id: ${alm_id}_relay3
     register_type: coil
     address: 2
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_armed_coil
-    internal: true
-    assumed_state: true
+    name: "${alm_prefix} Armed"
     register_type: coil
     address: 3
-
-  # HA-facing toggles: state = FC04 read, command = coil write
-  - platform: template
-    name: "${alm_prefix} Relay 1"
-    id: ${alm_id}_relay1
-    lambda: |-
-      return id(alm_relay1_state).state;
-    turn_on_action:
-      - switch.turn_on: alm_relay1_coil
-    turn_off_action:
-      - switch.turn_off: alm_relay1_coil
-  - platform: template
-    name: "${alm_prefix} Relay 2"
-    id: ${alm_id}_relay2
-    lambda: |-
-      return id(alm_relay2_state).state;
-    turn_on_action:
-      - switch.turn_on: alm_relay2_coil
-    turn_off_action:
-      - switch.turn_off: alm_relay2_coil
-  - platform: template
-    name: "${alm_prefix} Relay 3"
-    id: ${alm_id}_relay3
-    lambda: |-
-      return id(alm_relay3_state).state;
-    turn_on_action:
-      - switch.turn_on: alm_relay3_coil
-    turn_off_action:
-      - switch.turn_off: alm_relay3_coil
-  - platform: template
-    name: "${alm_prefix} Armed"
-    lambda: |-
-      return id(alm_armed_state).state;
-    turn_on_action:
-      - switch.turn_on: alm_armed_coil
-    turn_off_action:
-      - switch.turn_off: alm_armed_coil
 
   # Momentary command coils (internal — driven by template buttons)
   - platform: modbus_controller
