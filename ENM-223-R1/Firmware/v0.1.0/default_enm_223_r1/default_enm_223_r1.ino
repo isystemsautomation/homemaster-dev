@@ -1007,6 +1007,14 @@ void loop() {
       JSONVar relayStateList;
       for (int i = 0; i < NUM_RLY; i++) relayStateList[i] = relayLogical[i];
       WebSerial.send("relayStateList", relayStateList);
+
+      JSONVar buttonStateList;
+      for (int i = 0; i < NUM_BTN; i++) buttonStateList[i] = buttonState[i] ? 1 : 0;
+      WebSerial.send("ButtonStateList", buttonStateList);
+
+      JSONVar ledStateList;
+      for (int i = 0; i < NUM_LED; i++) ledStateList[i] = ledPhysState[i] ? 1 : 0;
+      WebSerial.send("LedStateList", ledStateList);
     }
 
     if (dirtyRelayCfg) {
