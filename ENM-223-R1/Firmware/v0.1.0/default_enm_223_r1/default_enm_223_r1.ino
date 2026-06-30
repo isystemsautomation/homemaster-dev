@@ -865,7 +865,7 @@ void setup() {
 
   for (uint8_t i=0;i<NUM_RLY;i++) { pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); }
   for (uint8_t i=0;i<NUM_LED;i++) { pinMode(LED_PINS[i],   OUTPUT); digitalWrite(LED_PINS[i],   LOW); }
-  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
+  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT); // HIGH=pressed (field board)
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
@@ -934,7 +934,7 @@ void loop() {
 
   bool relayLogical[NUM_RLY];
   for (int i = 0; i < NUM_BTN; i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i]  = buttonState[i];
     buttonState[i] = pressed;
     if (!buttonPrev[i] && buttonState[i]) {
