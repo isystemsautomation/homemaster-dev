@@ -956,6 +956,8 @@ void loop() {
     relayLogical[i] = logical;
     mb.setIsts(DI_RELAY_BASE + i, logical);
   }
+  if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
+  if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
 
   bool ledPhysState[NUM_LED];
   for (int i = 0; i < NUM_LED; i++) {

@@ -888,12 +888,23 @@
     }catch(e){}
   });
 
+  connection.on('ButtonGroupList',(list)=>{
+    try{
+      if(!list || typeof list.length==='undefined') return;
+      for(let j=0;j<4 && j<list.length;j++){
+        const v = list[j]|0;
+        const ui = (v===5)?1:(v===6)?2:0;
+        const el=$('action-button'+(j+1)); if(el) el.value=String(ui);
+      }
+    }catch(e){}
+  });
   connection.on('ButtonConfigList',(list)=>{
     try{
       if(!list || typeof list.length==='undefined') return;
       for(let j=0;j<4 && j<list.length;j++){
-        const v = list[j];
-        const el=$('action-button'+(j+1)); if(el && v!==undefined) el.value=String(v||0);
+        const v = list[j]|0;
+        const ui = (v===5)?1:(v===6)?2:0;
+        const el=$('action-button'+(j+1)); if(el) el.value=String(ui);
       }
     }catch(e){}
   });
