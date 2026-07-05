@@ -638,7 +638,8 @@ void finalizeClickGaps(uint32_t now) {
     ClickState* cs = (s < NUM_DI) ? &diClick[s] : &btnClick[s - NUM_DI];
     if (!cs->gapPending) continue;
     if ((uint32_t)(now - cs->lastReleaseMs) < g_multiClickGapMs) continue;
-    if (cs->pendingClicks >= 2) incEvt(s, EVT_DOUBLE);
+    if (cs->pendingClicks >= 3) incEvt(s, EVT_TRIPLE);
+    else if (cs->pendingClicks == 2) incEvt(s, EVT_DOUBLE);
     else if (cs->pendingClicks == 1) incEvt(s, EVT_SINGLE);
     cs->pendingClicks = 0;
     cs->gapPending = false;
