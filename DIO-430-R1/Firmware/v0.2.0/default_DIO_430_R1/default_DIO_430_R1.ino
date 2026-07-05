@@ -16,18 +16,7 @@
 
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
 struct PersistConfig;
-struct PersistConfigV10;
-struct PersistConfigV9;
-struct PersistConfigV7;
 struct OutputStateSnapshot;
-
-// Legacy config layouts (must be declared before any function — Arduino auto-prototypes run early).
-struct InCfgV9 { bool enabled; bool inverted; uint8_t action; uint8_t target; };
-struct InCfgV10 { bool enabled, inverted; uint8_t type; uint8_t followTarget; uint8_t shortAction, shortTarget; uint8_t longAction, longTarget; bool lockLocal; };
-struct LedCfgV9 { uint8_t mode; uint8_t source; };
-struct BtnCfgV9 { uint8_t action; };
-struct RlyCfgV9 { bool enabled; bool inverted; uint8_t powerOn; };
-struct RlyCfgV7 { bool enabled; bool inverted; };
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -156,52 +145,6 @@ struct PersistConfig {
   uint32_t       crc32;
 } __attribute__((packed));
 
-struct PersistConfigV10 {
-  uint32_t magic;
-  uint16_t version;
-  uint16_t size;
-  InCfgV10       diCfg[NUM_DI];
-  RlyCfg         rlyCfg[NUM_RLY];
-  LedCfg         ledCfg[NUM_LED];
-  BtnCfg         btnCfg[NUM_BTN];
-  InterlockCfg   interlock;
-  bool           localLogicEnabled;
-  uint16_t       longPressMs;
-  uint16_t       multiClickGapMs;
-  uint16_t       debounceMs;
-  uint16_t       linkTimeoutMs;
-  uint8_t        mb_address;
-  uint32_t       mb_baud;
-  uint32_t       crc32;
-} __attribute__((packed));
-
-struct PersistConfigV9 {
-  uint32_t magic;
-  uint16_t version;
-  uint16_t size;
-  InCfgV9   diCfg[NUM_DI];
-  RlyCfgV9  rlyCfg[NUM_RLY];
-  LedCfgV9  ledCfg[NUM_LED];
-  BtnCfgV9  btnCfg[NUM_BTN];
-  uint8_t   mb_address;
-  uint32_t  mb_baud;
-  uint32_t  crc32;
-} __attribute__((packed));
-
-struct PersistConfigV7 {
-  uint32_t magic;
-  uint16_t version;
-  uint16_t size;
-  InCfgV9    diCfg[NUM_DI];
-  RlyCfgV7   rlyCfg[NUM_RLY];
-  LedCfgV9   ledCfg[NUM_LED];
-  BtnCfgV9   btnCfg[NUM_BTN];
-  bool       desiredRelay[NUM_RLY];
-  uint8_t    mb_address;
-  uint32_t   mb_baud;
-  uint32_t   crc32;
-} __attribute__((packed));
-
 struct OutputStateSnapshot {
   uint32_t magic;
   uint16_t version;
@@ -211,10 +154,8 @@ struct OutputStateSnapshot {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC = 0x314D4C41UL;
-static const uint16_t CFG_VERSION = 0x000B;
-static const uint16_t CFG_VERSION_V10 = 0x000A;
-static const uint16_t CFG_VERSION_V9 = 0x0009;
-static const uint16_t CFG_VERSION_V7 = 0x0007;
+// Config version is tied to firmware version: any FW update invalidates stored config.
+static const uint16_t CFG_VERSION = (uint16_t)((HM_FW_MAJOR << 12) | (HM_FW_MINOR << 4) | HM_FW_PATCH);
 static const char*    CFG_PATH = "/cfg.bin";
 static const char*    OUT_STATE_PATH = "/cfg_out.bin";
 static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL;
@@ -348,72 +289,8 @@ void setDefaults() {
   g_mb_baud = 19200;
 }
 
-static void migrateLegacyDi(const InCfgV9& old, InCfg& neu) {
-  neu.enabled = old.enabled;
-  neu.inverted = old.inverted;
-  neu.lockLocal = false;
-  neu.longAction = ACT_NONE;
-  neu.longTarget = 0;
-  neu.maintMode = MAINT_TOGGLE;
-  if (old.action == 0) {
-    neu.type = IN_MAINTAINED;
-    neu.followTarget = old.target;
-    neu.shortAction = ACT_NONE;
-    neu.shortTarget = 0;
-  } else {
-    neu.type = IN_MOMENTARY;
-    neu.followTarget = 0;
-    neu.shortAction = ACT_TOGGLE;
-    neu.shortTarget = old.target;
-  }
-}
-
-static void migrateDiV10(const InCfgV10& old, InCfg& neu) {
-  neu.enabled = old.enabled;
-  neu.inverted = old.inverted;
-  neu.type = old.type;
-  neu.followTarget = old.followTarget;
-  neu.shortAction = old.shortAction;
-  neu.shortTarget = old.shortTarget;
-  neu.longAction = old.longAction;
-  neu.longTarget = old.longTarget;
-  neu.lockLocal = old.lockLocal;
-  neu.maintMode = (old.type == IN_MAINTAINED) ? MAINT_FOLLOW : MAINT_TOGGLE;
-}
-
 static void sanitizeLedCfg(LedCfg& lc) {
   if (lc.source == LED_LOCAL) lc.source = LED_OFF;
-}
-
-static void migrateLegacyLed(const LedCfgV9& old, LedCfg& neu) {
-  neu.mode = old.mode;
-  neu.inverted = false;
-  neu.arg = 0;
-  if (old.source >= 5 && old.source <= 7) {
-    neu.source = LED_RELAY;
-    neu.arg = (uint8_t)(old.source - 5);
-  } else {
-    neu.source = LED_OFF;
-  }
-}
-
-static void migrateLegacyBtn(const BtnCfgV9& old, BtnCfg& neu) {
-  if (old.action >= 5 && old.action <= 7) {
-    neu.shortAction = ACT_TOGGLE;
-    neu.shortTarget = (uint8_t)(old.action - 4);
-    neu.longAction = ACT_NONE;
-    neu.longTarget = 0;
-  } else {
-    neu.shortAction = ACT_NONE;
-    neu.shortTarget = 0;
-    neu.longAction = ACT_NONE;
-    neu.longTarget = 0;
-  }
-}
-
-void applyMigratedBasics(uint8_t mbAddr, uint32_t mbBaud) {
-  g_mb_address = mbAddr;
-  g_mb_baud = mbBaud;
 }
 
 bool readOutputStateSnapshot(bool out[NUM_RLY]) {
@@ -532,71 +409,6 @@ bool applyFromPersist(const PersistConfig& pc) {
   return true;
 }
 
-bool applyFromPersistV10(const PersistConfigV10& pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV10)) return false;
-  PersistConfigV10 tmp = pc;
-  uint32_t crc = tmp.crc32;
-  tmp.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV10)) != crc) return false;
-  if (pc.version != CFG_VERSION_V10) return false;
-
-  for (int i = 0; i < NUM_DI; i++) migrateDiV10(pc.diCfg[i], diCfg[i]);
-  memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
-  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
-  for (int i = 0; i < NUM_LED; i++) sanitizeLedCfg(ledCfg[i]);
-  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
-  g_interlock = pc.interlock;
-  g_longPressMs = pc.longPressMs ? pc.longPressMs : 700;
-  g_multiClickGapMs = pc.multiClickGapMs ? pc.multiClickGapMs : 300;
-  g_debounceMs = pc.debounceMs ? pc.debounceMs : 30;
-  g_linkTimeoutMs = pc.linkTimeoutMs ? pc.linkTimeoutMs : 5000;
-  g_mb_address = pc.mb_address;
-  g_mb_baud = pc.mb_baud;
-  return true;
-}
-
-bool applyFromPersistV9(const PersistConfigV9& pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV9)) return false;
-  PersistConfigV9 tmp = pc;
-  uint32_t crc = tmp.crc32;
-  tmp.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV9)) != crc) return false;
-  if (pc.version != CFG_VERSION_V9) return false;
-
-  setDefaults();
-  for (int i = 0; i < NUM_DI; i++) migrateLegacyDi(pc.diCfg[i], diCfg[i]);
-  for (int i = 0; i < NUM_RLY; i++) {
-    rlyCfg[i].enabled = pc.rlyCfg[i].enabled;
-    rlyCfg[i].inverted = pc.rlyCfg[i].inverted;
-    rlyCfg[i].powerOn = pc.rlyCfg[i].powerOn;
-  }
-  for (int i = 0; i < NUM_LED; i++) migrateLegacyLed(pc.ledCfg[i], ledCfg[i]);
-  for (int i = 0; i < NUM_BTN; i++) migrateLegacyBtn(pc.btnCfg[i], btnCfg[i]);
-  applyMigratedBasics(pc.mb_address, pc.mb_baud);
-  return true;
-}
-
-bool applyFromPersistV7(const PersistConfigV7& pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV7)) return false;
-  PersistConfigV7 tmp = pc;
-  uint32_t crc = tmp.crc32;
-  tmp.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV7)) != crc) return false;
-  if (pc.version != CFG_VERSION_V7) return false;
-
-  setDefaults();
-  for (int i = 0; i < NUM_DI; i++) migrateLegacyDi(pc.diCfg[i], diCfg[i]);
-  for (int i = 0; i < NUM_RLY; i++) {
-    rlyCfg[i].enabled = pc.rlyCfg[i].enabled;
-    rlyCfg[i].inverted = pc.rlyCfg[i].inverted;
-    rlyCfg[i].powerOn = HM_PWR_OFF;
-  }
-  for (int i = 0; i < NUM_LED; i++) migrateLegacyLed(pc.ledCfg[i], ledCfg[i]);
-  for (int i = 0; i < NUM_BTN; i++) migrateLegacyBtn(pc.btnCfg[i], btnCfg[i]);
-  applyMigratedBasics(pc.mb_address, pc.mb_baud);
-  return true;
-}
-
 bool saveConfigFS() {
   PersistConfig pc{};
   captureToPersist(pc);
@@ -624,37 +436,6 @@ bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r");
   if (!f) { wsLog("load: open failed"); return false; }
   size_t sz = f.size();
-
-  if (sz == sizeof(PersistConfigV7)) {
-    PersistConfigV7 pc{};
-    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
-    f.close();
-    if (n != sizeof(pc)) { wsLog("load: short read (v7)"); return false; }
-    if (!applyFromPersistV7(pc)) { wsLog("load: v7 magic/version/crc mismatch"); return false; }
-    touchCfgDirty();
-    wsLog("load: migrated from v7");
-    return true;
-  }
-  if (sz == sizeof(PersistConfigV10)) {
-    PersistConfigV10 pc{};
-    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
-    f.close();
-    if (n != sizeof(pc)) { wsLog("load: short read (v10)"); return false; }
-    if (!applyFromPersistV10(pc)) { wsLog("load: v10 magic/version/crc mismatch"); return false; }
-    touchCfgDirty();
-    wsLog("load: migrated from v10");
-    return true;
-  }
-  if (sz == sizeof(PersistConfigV9)) {
-    PersistConfigV9 pc{};
-    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
-    f.close();
-    if (n != sizeof(pc)) { wsLog("load: short read (v9)"); return false; }
-    if (!applyFromPersistV9(pc)) { wsLog("load: v9 magic/version/crc mismatch"); return false; }
-    touchCfgDirty();
-    wsLog("load: migrated from v9");
-    return true;
-  }
   if (sz != sizeof(PersistConfig)) { wsLog(String("load: size ") + sz + " unsupported"); f.close(); return false; }
   PersistConfig pc{};
   size_t n = f.read((uint8_t*)&pc, sizeof(pc));
@@ -900,6 +681,10 @@ bool anyChildLockActive(uint8_t arg) {
 
 bool computeLedActive(uint8_t ledIdx, uint32_t now) {
   if (ledIdx >= NUM_LED) return false;
+
+  // Identify overrides all sources: while the window is active, every LED blinks (5 s).
+  if (g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs)) return blinkPhase;
+
   const LedCfg& lc = ledCfg[ledIdx];
   bool linkOk = ((uint32_t)(now - g_lastLinkSeenMs) < g_linkTimeoutMs);
   bool active = false;
@@ -910,10 +695,6 @@ bool computeLedActive(uint8_t ledIdx, uint32_t now) {
     case LED_LINK: active = linkOk; break;
     case LED_CHILDLOCK: active = anyChildLockActive(lc.arg); break;
     case LED_SAFEMODE: active = g_inputsInSafeMode; break;
-    case LED_IDENTIFY: active = g_identifyUntilMs && !timeAfter32(now, g_identifyUntilMs); break;
-    case LED_RELAY:
-      if (lc.arg >= 1 && lc.arg <= NUM_RLY) active = desiredRelay[lc.arg - 1];
-      break;
     default: active = false; break;
   }
 

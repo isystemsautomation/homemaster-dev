@@ -79,7 +79,7 @@
   <div class="sectiontitle"><h3>Buttons (2)</h3><p class="hint">Short and long press actions (GPIO2, GPIO3).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-buttons"></div></div></section>
 
-  <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, HA, relay, …).</p></div>
+  <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, HA, Child lock).</p></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-leds"></div></div></section>
 
 <script>
@@ -88,7 +88,7 @@
   const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
   const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'}];
   const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
-  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'},{v:6,l:'Identify'},{v:7,l:'Relay'}];
+  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'}];
   const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
   const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
@@ -194,7 +194,7 @@
         <div><label for="source-led${i}">Source</label><select id="source-led${i}">${srcOpts}</select></div>
         <div style="margin-top:8px"><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${modeOpts}</select></div>
         <div class="checkRow" style="margin-top:8px"><label class="check"><input type="checkbox" id="invert-led${i}"> Inverted</label></div>
-        <div style="margin-top:8px"><label for="arg-led${i}">Arg (relay # or DI for child lock)</label><input type="number" id="arg-led${i}" min="0" max="15" value="0" style="width:100%"></div>`;
+        <div style="margin-top:8px"><label for="arg-led${i}">Arg (DI # for child lock)</label><input type="number" id="arg-led${i}" min="0" max="15" value="0" style="width:100%"></div>`;
       c.appendChild(d);
     }
   }
