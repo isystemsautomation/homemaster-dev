@@ -17,6 +17,7 @@
     5: 'DIO-430-R1',
     6: 'WLD-521-R1',
     7: 'RGB-621-R1',
+    8: 'STR-3221-R1',
   };
 
   const HMWebConfig = {

@@ -1,9 +1,25 @@
-# STR-3221-R1 — ESPHome Modbus package (PLACEHOLDER)
-# Firmware v0.1.0 is not published yet. Do not deploy to production.
-# Full register map will ship with default_str_3221_r1.ino.
-#
-# Expected package vars (when released):
-#   str_prefix, str_id, str_address
+##
+## STR-3221-R1 — ESPHome Modbus package (v0.1.0)
+##
+## Include from your ESPHome YAML (requires global modbus: id modbus_bus):
+##   packages:
+##     str1:
+##       url: https://github.com/isystemsautomation/homemaster-dev
+##       ref: main
+##       files:
+##         - path: STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+##           vars:
+##             str_prefix: "STR#1"
+##             str_id: str_1
+##             str_address: 21
+##
+## Modbus map (see default_str_3221_r1.ino):
+##   DI  1..3    IO1..IO3
+##   DI  20..23  BUTTON1..4
+##   DI  90..91  LED1..2
+##   HR  400..431 O1..O32 brightness 0..255
+##   HR  480/481 Modbus address / baud
+##   IR  200..204 firmware identity
 
 substitutions:
   str_id: str
@@ -12,4 +28,735 @@ substitutions:
   str_update_interval: 1s
   str_command_throttle: 0ms
 
-# modbus_controller and entity definitions — coming soon
+modbus_controller:
+  - id: ${str_id}
+    address: ${str_address}
+    modbus_id: modbus_bus
+    update_interval: ${str_update_interval}
+    command_throttle: ${str_command_throttle}
+
+binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} IO1"
+    address: 1
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} IO2"
+    address: 2
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} IO3"
+    address: 3
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button1"
+    address: 20
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button2"
+    address: 21
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button3"
+    address: 22
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button4"
+    address: 23
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Status LED1"
+    address: 90
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Status LED2"
+    address: 91
+    register_type: discrete_input
+
+number:
+  # -------- Output brightness O1..O32 (HR 400..431) --------
+  - platform: modbus_controller
+    name: "${str_prefix} O1"
+    id: str3221_o1
+    modbus_controller_id: ${str_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O2"
+    id: str3221_o2
+    modbus_controller_id: ${str_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O3"
+    id: str3221_o3
+    modbus_controller_id: ${str_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O4"
+    id: str3221_o4
+    modbus_controller_id: ${str_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O5"
+    id: str3221_o5
+    modbus_controller_id: ${str_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O6"
+    id: str3221_o6
+    modbus_controller_id: ${str_id}
+    address: 405
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O7"
+    id: str3221_o7
+    modbus_controller_id: ${str_id}
+    address: 406
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O8"
+    id: str3221_o8
+    modbus_controller_id: ${str_id}
+    address: 407
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O9"
+    id: str3221_o9
+    modbus_controller_id: ${str_id}
+    address: 408
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O10"
+    id: str3221_o10
+    modbus_controller_id: ${str_id}
+    address: 409
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O11"
+    id: str3221_o11
+    modbus_controller_id: ${str_id}
+    address: 410
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O12"
+    id: str3221_o12
+    modbus_controller_id: ${str_id}
+    address: 411
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O13"
+    id: str3221_o13
+    modbus_controller_id: ${str_id}
+    address: 412
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O14"
+    id: str3221_o14
+    modbus_controller_id: ${str_id}
+    address: 413
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O15"
+    id: str3221_o15
+    modbus_controller_id: ${str_id}
+    address: 414
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O16"
+    id: str3221_o16
+    modbus_controller_id: ${str_id}
+    address: 415
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O17"
+    id: str3221_o17
+    modbus_controller_id: ${str_id}
+    address: 416
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O18"
+    id: str3221_o18
+    modbus_controller_id: ${str_id}
+    address: 417
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O19"
+    id: str3221_o19
+    modbus_controller_id: ${str_id}
+    address: 418
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O20"
+    id: str3221_o20
+    modbus_controller_id: ${str_id}
+    address: 419
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O21"
+    id: str3221_o21
+    modbus_controller_id: ${str_id}
+    address: 420
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O22"
+    id: str3221_o22
+    modbus_controller_id: ${str_id}
+    address: 421
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O23"
+    id: str3221_o23
+    modbus_controller_id: ${str_id}
+    address: 422
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O24"
+    id: str3221_o24
+    modbus_controller_id: ${str_id}
+    address: 423
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O25"
+    id: str3221_o25
+    modbus_controller_id: ${str_id}
+    address: 424
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O26"
+    id: str3221_o26
+    modbus_controller_id: ${str_id}
+    address: 425
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O27"
+    id: str3221_o27
+    modbus_controller_id: ${str_id}
+    address: 426
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O28"
+    id: str3221_o28
+    modbus_controller_id: ${str_id}
+    address: 427
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O29"
+    id: str3221_o29
+    modbus_controller_id: ${str_id}
+    address: 428
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O30"
+    id: str3221_o30
+    modbus_controller_id: ${str_id}
+    address: 429
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O31"
+    id: str3221_o31
+    modbus_controller_id: ${str_id}
+    address: 430
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    name: "${str_prefix} O32"
+    id: str3221_o32
+    modbus_controller_id: ${str_id}
+    address: 431
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+output:
+  - platform: modbus_controller
+    id: str3221_out_o1
+    modbus_controller_id: ${str_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o2
+    modbus_controller_id: ${str_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o3
+    modbus_controller_id: ${str_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o4
+    modbus_controller_id: ${str_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o5
+    modbus_controller_id: ${str_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o6
+    modbus_controller_id: ${str_id}
+    address: 405
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o7
+    modbus_controller_id: ${str_id}
+    address: 406
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o8
+    modbus_controller_id: ${str_id}
+    address: 407
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o9
+    modbus_controller_id: ${str_id}
+    address: 408
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o10
+    modbus_controller_id: ${str_id}
+    address: 409
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o11
+    modbus_controller_id: ${str_id}
+    address: 410
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o12
+    modbus_controller_id: ${str_id}
+    address: 411
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o13
+    modbus_controller_id: ${str_id}
+    address: 412
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o14
+    modbus_controller_id: ${str_id}
+    address: 413
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o15
+    modbus_controller_id: ${str_id}
+    address: 414
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o16
+    modbus_controller_id: ${str_id}
+    address: 415
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o17
+    modbus_controller_id: ${str_id}
+    address: 416
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o18
+    modbus_controller_id: ${str_id}
+    address: 417
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o19
+    modbus_controller_id: ${str_id}
+    address: 418
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o20
+    modbus_controller_id: ${str_id}
+    address: 419
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o21
+    modbus_controller_id: ${str_id}
+    address: 420
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o22
+    modbus_controller_id: ${str_id}
+    address: 421
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o23
+    modbus_controller_id: ${str_id}
+    address: 422
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o24
+    modbus_controller_id: ${str_id}
+    address: 423
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o25
+    modbus_controller_id: ${str_id}
+    address: 424
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o26
+    modbus_controller_id: ${str_id}
+    address: 425
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o27
+    modbus_controller_id: ${str_id}
+    address: 426
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o28
+    modbus_controller_id: ${str_id}
+    address: 427
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o29
+    modbus_controller_id: ${str_id}
+    address: 428
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o30
+    modbus_controller_id: ${str_id}
+    address: 429
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o31
+    modbus_controller_id: ${str_id}
+    address: 430
+    register_type: holding
+    value_type: U_WORD
+  - platform: modbus_controller
+    id: str3221_out_o32
+    modbus_controller_id: ${str_id}
+    address: 431
+    register_type: holding
+    value_type: U_WORD
+
+light:
+  - platform: monochromatic
+    name: "${str_prefix} O1 Light"
+    output: str3221_out_o1
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O2 Light"
+    output: str3221_out_o2
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O3 Light"
+    output: str3221_out_o3
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O4 Light"
+    output: str3221_out_o4
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O5 Light"
+    output: str3221_out_o5
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O6 Light"
+    output: str3221_out_o6
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O7 Light"
+    output: str3221_out_o7
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O8 Light"
+    output: str3221_out_o8
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O9 Light"
+    output: str3221_out_o9
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O10 Light"
+    output: str3221_out_o10
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O11 Light"
+    output: str3221_out_o11
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O12 Light"
+    output: str3221_out_o12
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O13 Light"
+    output: str3221_out_o13
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O14 Light"
+    output: str3221_out_o14
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O15 Light"
+    output: str3221_out_o15
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O16 Light"
+    output: str3221_out_o16
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O17 Light"
+    output: str3221_out_o17
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O18 Light"
+    output: str3221_out_o18
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O19 Light"
+    output: str3221_out_o19
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O20 Light"
+    output: str3221_out_o20
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O21 Light"
+    output: str3221_out_o21
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O22 Light"
+    output: str3221_out_o22
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O23 Light"
+    output: str3221_out_o23
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O24 Light"
+    output: str3221_out_o24
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O25 Light"
+    output: str3221_out_o25
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O26 Light"
+    output: str3221_out_o26
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O27 Light"
+    output: str3221_out_o27
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O28 Light"
+    output: str3221_out_o28
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O29 Light"
+    output: str3221_out_o29
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O30 Light"
+    output: str3221_out_o30
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O31 Light"
+    output: str3221_out_o31
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O32 Light"
+    output: str3221_out_o32
+    gamma_correct: 0.0
+    default_transition_length: 0s

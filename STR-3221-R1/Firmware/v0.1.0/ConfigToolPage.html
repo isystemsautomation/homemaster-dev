@@ -1,25 +1,332 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>STR-3221-R1 WebConfig — Coming Soon</title>
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; line-height: 1.5; color: #1a1a1a; }
-    h1 { font-size: 1.5rem; }
-    .note { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
-    a { color: #2563eb; }
+    .ch-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer}
+    .ch-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#1f2937;border:2px solid #f9fafb}
+    .ch-slider::-webkit-slider-runnable-track{background:linear-gradient(90deg,#cbd5e1,#fbbf24)}
+    .pwm-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-top:12px}
+    .pwm-group{margin-top:18px}
+    .pwm-group h4{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--muted2)}
+    .pwm-ch label{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
+    .pwm-ch .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
+    .ch-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    @media(max-width:980px){.pwm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media(max-width:560px){.pwm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
-</head>
-<body>
-  <h1>STR-3221-R1 WebConfig</h1>
-  <div class="note">
-    <strong>Firmware v0.1.0 — coming soon.</strong>
-    The browser-based WebConfig tool for USB setup will be published in
-    <code>STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html</code> when the Arduino firmware is released.
+
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/photo1.png" alt="STR-3221-R1">
+      </div>
+      <div class="title">
+        <h1>STR-3221-R1 Module Configuration</h1>
+        <p>Configure Modbus, isolated inputs, and 32 stair-LED output channels via Web Serial.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
+        <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
+        <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+      </div>
+      <div id="hm-links" class="mini"></div>
+    </div>
+  </header>
+
+  <div id="hm-compat"></div>
+  <div id="hm-tools"></div>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Device Setup</h2>
+          <div class="sub">Serial connection and Modbus addressing.</div>
+        </div>
+        <span class="tag">Step 1</span>
+      </div>
+      <div class="cardbody">
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200">19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200" selected>115200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="cardheader">
+        <div>
+          <h2>Serial Log</h2>
+          <div class="sub">Communication messages and status updates.</div>
+        </div>
+      </div>
+      <div class="cardbody">
+        <div id="hm-log-box"><div id="hm-log"></div></div>
+      </div>
+    </section>
   </div>
-  <p>
-    Track progress:
-    <a href="https://github.com/isystemsautomation/homemaster-dev/tree/main/STR-3221-R1/Firmware/v0.1.0">STR-3221-R1 Firmware v0.1.0 on GitHub</a>
-  </p>
-</body>
-</html>
+
+  <div class="sectiontitle">
+    <h3>Output Channels O1–O32 (0–255)</h3>
+    <p class="hint">32 dimmable stair-LED channels via TLC59208F (8 per driver U9–U12).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="pwm-groups"></div>
+      <div class="ch-actions">
+        <button id="btn-all-off" type="button" class="btn">All OFF</button>
+        <button id="btn-ramp-test" type="button" class="btn">Ramp test (O1→O32)</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="sectiontitle"><h3>Digital Inputs (3)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-inputs"></div></div></section>
+
+  <div class="sectiontitle"><h3>Buttons (4)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
+
+  <div class="sectiontitle"><h3>Status LEDs (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
+
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    const NUM_DI = 3, NUM_BTN = 4, NUM_LED = 2, NUM_PWM = 32;
+    const PWM_GROUPS = [
+      { title: 'O1–O8 (U9, 0x40)', start: 1 },
+      { title: 'O9–O16 (U10, 0x41)', start: 9 },
+      { title: 'O17–O24 (U11, 0x42)', start: 17 },
+      { title: 'O25–O32 (U12, 0x43)', start: 25 },
+    ];
+    const pwmSliders = [];
+    const pwmVals = [];
+    let pwmSyncLock = false;
+    let pwmSendTimer = null;
+
+    function clamp255(v){ return Math.max(0, Math.min(255, Number(v)||0)); }
+
+    function readPwmLevels(){
+      const out = [];
+      for (let i = 0; i < NUM_PWM; i++) out.push(clamp255(pwmSliders[i]?.value));
+      return out;
+    }
+
+    function applyPwmFromDevice(pwm){
+      if (!pwm || pwmSyncLock) return;
+      pwmSyncLock = true;
+      const arr = HMWebConfig.toArray(pwm);
+      for (let i = 0; i < NUM_PWM; i++){
+        const v = clamp255(arr[i]);
+        if (pwmSliders[i] && pwmSliders[i] !== document.activeElement) pwmSliders[i].value = String(v);
+        if (pwmVals[i]) pwmVals[i].textContent = String(v);
+      }
+      pwmSyncLock = false;
+    }
+
+    function sendPwmLevels(){
+      if (HMWebConfig._compat.blocked) return;
+      const pwm = readPwmLevels();
+      for (let i = 0; i < NUM_PWM; i++) if (pwmVals[i]) pwmVals[i].textContent = String(pwm[i]);
+      HMWebConfig.conn.send('values', { pwm }).catch(() => {
+        HMWebConfig.appendLog('Failed to send PWM levels');
+      });
+    }
+
+    function debouncedSendPwm(){
+      clearTimeout(pwmSendTimer);
+      pwmSendTimer = setTimeout(sendPwmLevels, 40);
+    }
+
+    (function buildModbusAddress(){
+      const sel = $('modbus-address');
+      if (!sel) return;
+      for (let i = 1; i <= 255; i++){
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = i;
+        sel.appendChild(o);
+      }
+      sel.value = '21';
+    })();
+
+    (function buildPwmGrid(){
+      const root = $('pwm-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="pwm-grid" id="pwm-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.pwm-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const idx = ch - 1;
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch';
+          cell.innerHTML = `
+            <label for="pwm-o${ch}"><span>O${ch}</span><span class="val" id="val-o${ch}">0</span></label>
+            <input id="pwm-o${ch}" class="ch-slider" type="range" min="0" max="255" value="0">`;
+          grid.appendChild(cell);
+          const slider = cell.querySelector('input');
+          const valEl = cell.querySelector('.val');
+          pwmSliders[idx] = slider;
+          pwmVals[idx] = valEl;
+          slider.addEventListener('input', debouncedSendPwm);
+        }
+      });
+    })();
+
+    (function buildInputs(){
+      const c = $('io-inputs');
+      if (!c) return;
+      const ioNames = ['IO1', 'IO2', 'IO3'];
+      const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const targetOpts = [{v:4,l:'None'},{v:0,l:'All (reserved)'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      for (let i = 1; i <= NUM_DI; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-input';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">${ioNames[i-1]}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+          </div>
+          <div class="split">
+            <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
+            <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildButtons(){
+      const c = $('io-buttons');
+      if (!c) return;
+      const btnActOpts = [{v:0,l:'None (v0.1.0)'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      for (let i = 1; i <= NUM_BTN; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-button';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildLEDs(){
+      const c = $('io-leds');
+      if (!c) return;
+      const ledModeOpts = [{v:0,l:'Solid'},{v:1,l:'Blink'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const ledSrcOpts = [
+        {v:0,l:'(none)'},
+        {v:10,l:'Follow IO1'},
+        {v:11,l:'Follow IO2'},
+        {v:12,l:'Follow IO3'},
+      ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      for (let i = 1; i <= NUM_LED; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-led';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">Status LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${ledModeOpts}</select></div>
+          <div style="margin-top:10px;"><label for="source-led${i}">Source</label><select id="source-led${i}">${ledSrcOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    HMWebConfig.register({
+      model: 8,
+      modelName: 'STR-3221-R1',
+      fw: '0.1.0',
+      webconfigVersion: '0.1.0',
+      readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/STR-3221-R1/README.md',
+      channels: { in: NUM_DI, relay: 0, btn: NUM_BTN, led: NUM_LED },
+      onCfg: (ext) => applyPwmFromDevice(ext && ext.pwm),
+    });
+    HMWebConfig.connect({ requestElement: 'connect-button' });
+    HMWebConfig.mountTools('hm-tools', { identify: true });
+    HMWebConfig.conn.on('ext', ext => { if (ext && ext.pwm) applyPwmFromDevice(ext.pwm); });
+
+    $('modbus-address')?.addEventListener('input', () =>
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '21', 10), parseInt($('modbus-baud').value || '115200', 10)));
+    $('modbus-baud')?.addEventListener('input', () =>
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '21', 10), parseInt($('modbus-baud').value || '115200', 10)));
+
+    function sendInputEnable(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+    function sendInputInvert(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+    function sendInputAction(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
+    function sendInputTarget(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); HMWebConfig.sendConfig('in.target', l); }
+    for (let i=1;i<=NUM_DI;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('action-in'+i)?.addEventListener('change', sendInputAction);
+      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+    }
+
+    function sendBtnCfg(){
+      const l=[];
+      for (let i=1;i<=NUM_BTN;i++) l.push({ action: parseInt($('action-btn'+i).value||'0',10) });
+      HMWebConfig.sendConfig('btn', l);
+    }
+    for (let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+
+    function sendLedCfg(){
+      const l=[];
+      for (let i=1;i<=NUM_LED;i++) l.push({
+        mode: parseInt($('mode-led'+i)?.value||'0',10),
+        source: parseInt($('source-led'+i)?.value||'0',10),
+      });
+      HMWebConfig.sendConfig('led', l);
+    }
+    for (let i=1;i<=NUM_LED;i++){
+      $('mode-led'+i)?.addEventListener('change', sendLedCfg);
+      $('source-led'+i)?.addEventListener('change', sendLedCfg);
+    }
+
+    $('btn-all-off')?.addEventListener('click', async () => {
+      for (let i = 0; i < NUM_PWM; i++){
+        if (pwmSliders[i]) pwmSliders[i].value = '0';
+        if (pwmVals[i]) pwmVals[i].textContent = '0';
+      }
+      await HMWebConfig.sendCommand('off');
+    });
+
+    $('btn-ramp-test')?.addEventListener('click', async () => {
+      for (let i = 0; i < NUM_PWM; i++){
+        const v = Math.round((i / (NUM_PWM - 1)) * 255);
+        if (pwmSliders[i]) pwmSliders[i].value = String(v);
+        if (pwmVals[i]) pwmVals[i].textContent = String(v);
+      }
+      sendPwmLevels();
+    });
+  })();
+  </script>
+</section>
