@@ -25,6 +25,9 @@
 ## Coils (FC=05/15): 0..2 relays · 3 ALL_OFF · 4 reserved · 5 IDENTIFY
 ##   6 SAVE_CFG · 7 REBOOT · 8..10 LED_HA · 11..14 DI_LOCK
 ##
+## Relay/LED/lock state in HA: FC04 @1 / @3 / @5 (not coil read-back — ESPHome
+## deduplicates FC01 on coils 0..3+5+8..14 and read-back becomes unreliable).
+##
 ## Holding (FC=03) — config/identity; do not poll in the main loop.
 
 substitutions:
@@ -32,7 +35,7 @@ substitutions:
   dio_address: "3"
   dio_prefix: "DIO"
   dio_update_interval: 1s
-  dio_command_throttle: 50ms
+  dio_command_throttle: 0ms
 
 modbus_controller:
   - id: ${dio_id}
@@ -82,18 +85,21 @@ binary_sensor:
 
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_led1_state
     name: "${dio_prefix} LED1"
     register_type: read
     address: 3
     bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_led2_state
     name: "${dio_prefix} LED2"
     register_type: read
     address: 3
     bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_led3_state
     name: "${dio_prefix} LED3"
     register_type: read
     address: 3
@@ -114,28 +120,58 @@ binary_sensor:
 
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_di1_lock_state
     name: "${dio_prefix} DI1 lock"
     register_type: read
     address: 5
     bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_di2_lock_state
     name: "${dio_prefix} DI2 lock"
     register_type: read
     address: 5
     bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_di3_lock_state
     name: "${dio_prefix} DI3 lock"
     register_type: read
     address: 5
     bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
+    id: ${dio_id}_di4_lock_state
     name: "${dio_prefix} DI4 lock"
     register_type: read
     address: 5
     bitmask: 0x0008
+
+  # Relay state @ IREG 1 — same FC04 block as DI; used by template switches below
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    id: ${dio_id}_rly1_state
+    name: "${dio_prefix} Relay 1 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    id: ${dio_id}_rly2_state
+    name: "${dio_prefix} Relay 2 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    id: ${dio_id}_rly3_state
+    name: "${dio_prefix} Relay 3 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0004
 
 sensor:
   # Event counters: registers 6..29 (all sources × single/double/triple/long)
@@ -309,71 +345,149 @@ sensor:
     accuracy_decimals: 0
 
 switch:
+  # Write-only coils — no FC01 read-back (avoids duplicate coil poll blocks)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 1"
-    id: ${dio_id}_relay1
+    id: ${dio_id}_relay1_coil
     register_type: coil
     address: 0
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 2"
-    id: ${dio_id}_relay2
+    id: ${dio_id}_relay2_coil
     register_type: coil
     address: 1
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} Relay 3"
-    id: ${dio_id}_relay3
+    id: ${dio_id}_relay3_coil
     register_type: coil
     address: 2
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED1 HA"
-    register_type: coil
-    address: 8
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED2 HA"
-    register_type: coil
-    address: 9
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} LED3 HA"
-    register_type: coil
-    address: 10
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} DI1 child lock"
+    id: ${dio_id}_di1_lock_coil
     register_type: coil
     address: 11
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} DI2 child lock"
+    id: ${dio_id}_di2_lock_coil
     register_type: coil
     address: 12
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} DI3 child lock"
+    id: ${dio_id}_di3_lock_coil
     register_type: coil
     address: 13
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
-    name: "${dio_prefix} DI4 child lock"
+    id: ${dio_id}_di4_lock_coil
     register_type: coil
     address: 14
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     id: ${dio_id}_cmd_all_off
     register_type: coil
     address: 3
     internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     id: ${dio_id}_cmd_identify
     register_type: coil
     address: 5
     internal: true
+    assumed_state: true
+
+  # Public switches — state from FC04, command via write-only coils above
+  - platform: template
+    name: "${dio_prefix} Relay 1"
+    id: ${dio_id}_relay1
+    lambda: |-
+      return id(${dio_id}_rly1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_relay1_coil
+  - platform: template
+    name: "${dio_prefix} Relay 2"
+    id: ${dio_id}_relay2
+    lambda: |-
+      return id(${dio_id}_rly2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_relay2_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_relay2_coil
+  - platform: template
+    name: "${dio_prefix} Relay 3"
+    id: ${dio_id}_relay3
+    lambda: |-
+      return id(${dio_id}_rly3_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_relay3_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_relay3_coil
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED1 HA"
+    register_type: coil
+    address: 8
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED2 HA"
+    register_type: coil
+    address: 9
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} LED3 HA"
+    register_type: coil
+    address: 10
+    assumed_state: true
+  - platform: template
+    name: "${dio_prefix} DI1 child lock"
+    lambda: |-
+      return id(${dio_id}_di1_lock_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_di1_lock_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_di1_lock_coil
+  - platform: template
+    name: "${dio_prefix} DI2 child lock"
+    lambda: |-
+      return id(${dio_id}_di2_lock_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_di2_lock_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_di2_lock_coil
+  - platform: template
+    name: "${dio_prefix} DI3 child lock"
+    lambda: |-
+      return id(${dio_id}_di3_lock_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_di3_lock_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_di3_lock_coil
+  - platform: template
+    name: "${dio_prefix} DI4 child lock"
+    lambda: |-
+      return id(${dio_id}_di4_lock_state).state;
+    turn_on_action:
+      - switch.turn_on: ${dio_id}_di4_lock_coil
+    turn_off_action:
+      - switch.turn_off: ${dio_id}_di4_lock_coil
 
 button:
   - platform: template
