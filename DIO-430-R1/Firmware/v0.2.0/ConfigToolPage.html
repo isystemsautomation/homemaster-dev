@@ -86,11 +86,30 @@
 (function(){
   const $ = id => document.getElementById(id);
   const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
-  const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'}];
+  const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'}];
   const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
   const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'}];
   const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
   const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+  /** Legacy action 4 (All off) → Off + target All (KNX/Shelly model). */
+  function uiActTarget(action, target) {
+    if (action === 4) return { action: 3, target: 0 };
+    return { action: action ?? 0, target: target ?? 0 };
+  }
+
+  function syncActTargetVis(actId, tgtId) {
+    const act = $(actId), tgt = $(tgtId);
+    if (!act || !tgt) return;
+    tgt.style.display = act.value === '0' ? 'none' : '';
+  }
+
+  function wireActTarget(actId, tgtId) {
+    const act = $(actId);
+    if (!act) return;
+    act.addEventListener('change', () => syncActTargetVis(actId, tgtId));
+    syncActTargetVis(actId, tgtId);
+  }
 
   (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=247;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o);} sel.value='3'; })();
 
@@ -125,6 +144,8 @@
       const sync=()=>{ const m=typeEl.value==='0'; $('maint-in'+i).style.display=m?'':'none'; $('mom-in'+i).style.display=m?'none':''; };
       typeEl.addEventListener('change', ()=>{ sync(); sendInType(); });
       sync();
+      wireActTarget('short-act-in'+i, 'short-tgt-in'+i);
+      wireActTarget('long-act-in'+i, 'long-tgt-in'+i);
     }
   }
 
@@ -177,8 +198,10 @@
       d.innerHTML=`
         <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
         <div class="split"><div><label>Short</label>${actSel('btn'+i+'-short-act')}${tgtSel('btn'+i+'-short-tgt')}</div>
-        <div><label>Long</label>${actSel('btn'+i+'-long-act',4)}${tgtSel('btn'+i+'-long-tgt')}</div></div>`;
+        <div><label>Long</label>${actSel('btn'+i+'-long-act')}${tgtSel('btn'+i+'-long-tgt')}</div></div>`;
       c.appendChild(d);
+      wireActTarget('btn'+i+'-short-act', 'btn'+i+'-short-tgt');
+      wireActTarget('btn'+i+'-long-act', 'btn'+i+'-long-tgt');
     }
   }
 
@@ -227,10 +250,14 @@
         $('type-in'+n).value = o.type ?? 0;
         $('maint-mode-in'+n).value = o.maintMode ?? 0;
         $('follow-in'+n).value = o.followTarget ?? 0;
-        $('short-act-in'+n).value = o.shortAction ?? 0;
-        $('short-tgt-in'+n).value = o.shortTarget ?? 0;
-        $('long-act-in'+n).value = o.longAction ?? 0;
-        $('long-tgt-in'+n).value = o.longTarget ?? 0;
+        const short = uiActTarget(o.shortAction, o.shortTarget);
+        $('short-act-in'+n).value = short.action;
+        $('short-tgt-in'+n).value = short.target;
+        const long = uiActTarget(o.longAction, o.longTarget);
+        $('long-act-in'+n).value = long.action;
+        $('long-tgt-in'+n).value = long.target;
+        syncActTargetVis('short-act-in'+n, 'short-tgt-in'+n);
+        syncActTargetVis('long-act-in'+n, 'long-tgt-in'+n);
         $('lock-in'+n).checked = !!o.lockLocal;
         const m=(o.type??0)==0;
         $('maint-in'+n).style.display=m?'':'none';
@@ -242,10 +269,14 @@
       }
       for (let i=0;i<NUM_BTN;i++) {
         const n=i+1, o=cfg.btn?.[i]; if(!o) continue;
-        $('btn'+n+'-short-act').value = o.shortAction ?? 0;
-        $('btn'+n+'-short-tgt').value = o.shortTarget ?? 0;
-        $('btn'+n+'-long-act').value = o.longAction ?? 0;
-        $('btn'+n+'-long-tgt').value = o.longTarget ?? 0;
+        const st = uiActTarget(o.shortAction, o.shortTarget);
+        $('btn'+n+'-short-act').value = st.action;
+        $('btn'+n+'-short-tgt').value = st.target;
+        const lt = uiActTarget(o.longAction, o.longTarget);
+        $('btn'+n+'-long-act').value = lt.action;
+        $('btn'+n+'-long-tgt').value = lt.target;
+        syncActTargetVis('btn'+n+'-short-act', 'btn'+n+'-short-tgt');
+        syncActTargetVis('btn'+n+'-long-act', 'btn'+n+'-long-tgt');
       }
       for (let i=0;i<NUM_LED;i++) {
         const n=i+1, o=cfg.led?.[i]; if(!o) continue;
