@@ -271,11 +271,21 @@ static const uint32_t g_debounceMs = 25;
 
 static bool desiredRelay[NUM_RLY] = {false,false};
 
-static unsigned long lastSend = 0;
-static const unsigned long sendInterval = 1000;
+static unsigned long lastWebFrameMs = 0;
+static const unsigned long webFrameIntervalMs = 200;
+static uint8_t webFramePhase = 0;
+static unsigned long lastMeterWebMs = 0;
+static const unsigned long meterWebIntervalMs = 1000;
 static unsigned long lastBootstrap = 0;
-static const unsigned long bootstrapInterval = 4000;
+static const unsigned long bootstrapInterval = 10000;
 static bool webHostConnected = false;
+
+static void sendWebCfgCore();
+static void sendEnmSyncWeb();
+static void sendEnmMeterEcho();
+static void sendWebIo(const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
+static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
+static void serviceMeterWeb(unsigned long now);
 
 // Web Serial does not assert USB-CDC DTR. Do not gate sends on (bool)Serial or
 // availableForWrite thresholds — v0.1.0 sends unconditionally; blocking here
@@ -1531,6 +1541,12 @@ static JSONVar meterLiveToJson() {
   m["Ipeak_A"] = iPk;
   m["THD_pct"] = thd;
   m["IrmsN_A"] = g_irmsN;
+
+  // v0.1.0 ENM_Meter carried energies in the same frame; WebConfig reads them here.
+  JSONVar Ephase, Etot;
+  energiesToJson(Ephase, Etot);
+  m["E_phase"] = Ephase;
+  m["E_tot"]   = Etot;
   return m;
 }
 
@@ -1697,6 +1713,10 @@ void sendWebStatus() {
 }
 
 void sendWebCfg() {
+  sendWebCfgCore();
+}
+
+static void sendWebCfgCore() {
   JSONVar cfg;
   for (int i = 0; i < NUM_RLY; i++) {
     cfg["relay"][i]["enabled"]   = rlyCfg[i].enabled ? 1 : 0;
@@ -1721,37 +1741,75 @@ void sendWebCfg() {
   cfg["ext"]["atm"]["phaseMap"] = pmap;
   cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
   cfg["ext"]["atm"]["cal"]    = calPhasesArrayFromCfg();
-  // Energy counters: separate ext.energy (~1 Hz), not duplicated in cfg (v0.1 ENM_Sync pattern).
   cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
   yield();
-  WebSerial.send("AlarmsState", alarmsStateToJson());
+}
+
+static void sendEnmSyncWeb() {
+  WebSerial.send("ENM_Sync", energyToJsonObj());
+  yield();
+}
+
+static void sendEnmMeterEcho() {
+  WebSerial.send("ENM_Meter", meterLiveToJson());
+  yield();
+}
+
+static void sendWebIo(const bool* relayLogical, const bool* buttonState, const bool* ledPhysState) {
+  JSONVar io;
+  for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
+  for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
+  for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
+  WebSerial.send("io", io);
+  yield();
+}
+
+// Small frames only: status / io / alarms. Meter uses v0.1 ENM_Meter on its own 1 Hz tick.
+static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState) {
+  if (now - lastWebFrameMs < webFrameIntervalMs) return;
+  lastWebFrameMs = now;
+
+  switch (webFramePhase) {
+    case 0:
+      sendWebStatus();
+      break;
+    case 1:
+      sendWebIo(relayLogical, buttonState, ledPhysState);
+      break;
+    case 2:
+      WebSerial.send("AlarmsState", alarmsStateToJson());
+      yield();
+      break;
+    default:
+      break;
+  }
+  webFramePhase = (uint8_t)((webFramePhase + 1) % 3);
+}
+
+static void serviceMeterWeb(unsigned long now) {
+  if (!g_haveMeter || (now - lastMeterWebMs < meterWebIntervalMs)) return;
+  lastMeterWebMs = now;
+  sendEnmMeterEcho();
 }
 
 // v0.1.0 pushWebConfigPeriodic: status + cfg in small steps with yield between frames.
 static void pushWebConfigPeriodic() {
   sendWebStatus();
   yield();
-  sendWebCfg();
+  sendWebCfgCore();
 }
 
 void sendWebBootstrap() {
-  pushWebConfigPeriodic();
+  sendWebStatus();
   yield();
-  sendWebExt();
-}
-
-void sendWebExt() {
-  JSONVar e;
-  e["energy"] = energyToJsonObj();
-  WebSerial.send("ext", e);
+  sendEnmSyncWeb();
+  if (g_haveMeter) sendEnmMeterEcho();
   yield();
-  if (g_haveMeter && !meter_job && !atmBusy) {
-    JSONVar m;
-    m["meter"] = meterLiveToJson();
-    WebSerial.send("ext", m);
-    yield();
-  }
+  sendWebCfgCore();
+  yield();
+  WebSerial.send("AlarmsState", alarmsStateToJson());
+  yield();
 }
 
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
@@ -1966,23 +2024,8 @@ void loop() {
     mbPublishMeter();
   }
 
-  if (now - lastSend >= sendInterval) {
-    lastSend = now;
-
-    sendWebStatus();
-    yield();
-    sendWebExt();
-    yield();
-
-    JSONVar io;
-    for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
-    for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
-    for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
-    WebSerial.send("io", io);
-    yield();
-    WebSerial.send("AlarmsState", alarmsStateToJson());
-    yield();
-  }
+  serviceWebTelemetry(now, relayLogical, buttonState, ledPhysState);
+  serviceMeterWeb(now);
 
   if (now - lastBootstrap >= bootstrapInterval) {
     lastBootstrap = now;
