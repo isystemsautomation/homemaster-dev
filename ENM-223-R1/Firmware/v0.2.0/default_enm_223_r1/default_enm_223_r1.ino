@@ -17,7 +17,7 @@
 #include "atm90e32.h"
 
 // LittleFS blobs — must be before any function using them (Arduino inserts prototypes at top).
-struct EnmSettingsCfg {
+struct EnmSettingsCfgV20 {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -28,6 +28,41 @@ struct EnmSettingsCfg {
   struct { bool enabled; bool inverted; } rlyCfg[2];
   struct { uint8_t mode; uint8_t source; } ledCfg[4];
   struct { uint8_t action; } btnCfg[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct AlarmRuleCfg {
+  uint8_t enabled;
+  uint8_t metric;
+  int32_t minVal;
+  int32_t maxVal;
+} __attribute__((packed));
+
+struct AlarmChCfg {
+  uint8_t ackRequired;
+  uint8_t pad;
+  AlarmRuleCfg rules[3];
+} __attribute__((packed));
+
+struct EnmSettingsCfg {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t lineHz;
+  uint8_t  sumAbs;
+  struct {
+    bool    enabled;
+    bool    inverted;
+    uint8_t mode;
+    uint8_t alarmCh;
+    uint8_t alarmMask;
+    uint8_t pad;
+  } rlyCfg[2];
+  struct { uint8_t mode; uint8_t source; } ledCfg[4];
+  struct { uint8_t action; } btnCfg[4];
+  AlarmChCfg alarm[4];
   uint32_t crc32;
 } __attribute__((packed));
 
@@ -71,7 +106,8 @@ struct EnmPersistCfgLegacy {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
-static const uint16_t CFG_VERSION     = (uint16_t)((HM_FW_MAJOR << 12) | (HM_FW_MINOR << 4) | HM_FW_PATCH);
+static const uint16_t CFG_VERSION_V20 = 0x0020;
+static const uint16_t CFG_VERSION     = 0x0021;
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
 static const uint16_t METER_VERSION   = 0x0001;
@@ -147,7 +183,13 @@ static const uint8_t NUM_RLY = 2;
 static const uint8_t NUM_LED = 4;
 static const uint8_t NUM_BTN = 4;
 
-struct RlyCfg { bool enabled; bool inverted; };
+struct RlyCfg {
+  bool    enabled;
+  bool    inverted;
+  uint8_t mode;
+  uint8_t alarmCh;
+  uint8_t alarmMask;
+};
 struct LedCfg { uint8_t mode; uint8_t source; };
 struct BtnCfg { uint8_t action; };
 
@@ -214,9 +256,11 @@ static bool atmBusy = false;
 enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
+  COIL_ACK_BASE = 16,
   DI_LED_BASE   = 0,
   DI_BTN_BASE   = 4,
   DI_RELAY_BASE = 8,
+  DI_ALARM_BASE = 16,
   IR_URMS_BASE  = 0,
   IR_IRMS_BASE  = 3,
   IR_FREQ       = 6,
@@ -286,10 +330,11 @@ static void serviceDebounce(DebounceState& st, bool raw, uint32_t now) {
 }
 
 static void serviceModbusRelays() {
-  bool c0 = mb.Coil(COIL_RELAY1);
-  bool c1 = mb.Coil(COIL_RELAY2);
-  if (c0 != desiredRelay[0]) desiredRelay[0] = c0;
-  if (c1 != desiredRelay[1]) desiredRelay[1] = c1;
+  for (int i = 0; i < NUM_RLY; i++) {
+    if (rlyCfg[i].mode != RLY_MODE_MODBUS) continue;
+    const bool c = mb.Coil((uint16_t)i);
+    if (c != desiredRelay[i]) desiredRelay[i] = c;
+  }
   if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
   if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
 }
@@ -351,6 +396,47 @@ static double   g_irmsN = 0.0;
 static uint16_t g_thd_x100[3] = {0, 0, 0};
 static bool     g_haveMeter = false;
 
+enum : uint8_t {
+  ALARM_KIND_ALARM   = 0,
+  ALARM_KIND_WARNING = 1,
+  ALARM_KIND_EVENT   = 2,
+  ALARM_MET_URMS     = 0,
+  ALARM_MET_IRMS     = 1,
+  ALARM_MET_P        = 2,
+  ALARM_MET_Q        = 3,
+  ALARM_MET_S        = 4,
+  ALARM_MET_FREQ     = 5,
+  RLY_MODE_NONE      = 0,
+  RLY_MODE_MODBUS    = 1,
+  RLY_MODE_ALARM     = 2,
+  CHIP_EV_SAG        = 1,
+  CHIP_EV_OV         = 2,
+  CHIP_EV_PHASE_LOSS = 4,
+  CHIP_EV_OVER_I     = 8,
+  CHIP_EV_FREQ       = 16,
+  CHIP_EV_REV_PHASE  = 32
+};
+
+struct AlarmRuleRun {
+  bool active;
+  bool hiSide;
+};
+
+struct AlarmChRun {
+  AlarmRuleRun rules[3];
+  bool acked;
+  bool chipActive;
+};
+
+static AlarmChCfg  alarmCfg[4];
+static AlarmChRun  alarmRun[4];
+static M90ChipEv   g_chipEv = {};
+static uint8_t     g_chipEvMask[4] = {0, 0, 0, 0};
+static unsigned long lastDiagSample = 0;
+static const unsigned long diagSampleMs = 500;
+static unsigned long lastAlarmEval = 0;
+static const unsigned long alarmEvalMs = 200;
+
 static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
 static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
 static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
@@ -358,6 +444,10 @@ static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
 static uint32_t g_MC_imp_per_kWh = 3200;
 
 static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks);
+
+static inline uint16_t diAlarmAddr(uint8_t ch, uint8_t kind) {
+  return (uint16_t)(DI_ALARM_BASE + ch * 3 + kind);
+}
 
 static uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   crc = ~crc;
@@ -379,6 +469,311 @@ static void markMeterDirty() {
   lastMeterTouchMs = millis();
 }
 
+static void setAlarmDefaults() {
+  memset(alarmCfg, 0, sizeof(alarmCfg));
+  memset(alarmRun, 0, sizeof(alarmRun));
+  memset(g_chipEvMask, 0, sizeof(g_chipEvMask));
+  memset(&g_chipEv, 0, sizeof(g_chipEv));
+}
+
+static double alarmMetricScale(uint8_t metric) {
+  switch (metric) {
+    case ALARM_MET_URMS: return 100.0;
+    case ALARM_MET_IRMS: return 1000.0;
+    case ALARM_MET_FREQ: return 100.0;
+    default: return 1.0;
+  }
+}
+
+static double alarmRuleToDouble(int32_t raw, uint8_t metric) {
+  return (double)raw / alarmMetricScale(metric);
+}
+
+static int32_t alarmDoubleToRule(double v, uint8_t metric) {
+  const double scaled = v * alarmMetricScale(metric);
+  if (scaled > 2147483647.0) return 2147483647;
+  if (scaled < -2147483648.0) return -2147483648;
+  return (int32_t)lround(scaled);
+}
+
+static double alarmMetricValue(uint8_t ch, uint8_t metric) {
+  if (ch < 3) {
+    switch (metric) {
+      case ALARM_MET_URMS: return g_urms[ch];
+      case ALARM_MET_IRMS: return g_irms[ch];
+      case ALARM_MET_P:    return (double)g_p_W[ch];
+      case ALARM_MET_Q:    return (double)g_q_var[ch];
+      case ALARM_MET_S:    return (double)g_s_VA[ch];
+      case ALARM_MET_FREQ: return ((double)g_f_x100) / 100.0;
+      default: return 0.0;
+    }
+  }
+  switch (metric) {
+    case ALARM_MET_URMS:
+      return fmax(fmax(g_urms[0], g_urms[1]), g_urms[2]);
+    case ALARM_MET_IRMS:
+      return g_irms[0] + g_irms[1] + g_irms[2];
+    case ALARM_MET_P:    return (double)g_p_W[3];
+    case ALARM_MET_Q:    return (double)g_q_var[3];
+    case ALARM_MET_S:    return (double)g_s_VA[3];
+    case ALARM_MET_FREQ: return ((double)g_f_x100) / 100.0;
+    default: return 0.0;
+  }
+}
+
+static double alarmHystBand(const AlarmRuleCfg& rule) {
+  const double mn = alarmRuleToDouble(rule.minVal, rule.metric);
+  const double mx = alarmRuleToDouble(rule.maxVal, rule.metric);
+  double span = mx - mn;
+  if (span <= 0.0) span = fmax(fabs(mn), fabs(mx));
+  if (span <= 0.0) span = 1.0;
+  double h = span * 0.02;
+  if (rule.metric == ALARM_MET_FREQ) h = fmax(h, 0.10);
+  if (rule.metric == ALARM_MET_URMS) h = fmax(h, 2.0);
+  if (rule.metric == ALARM_MET_IRMS) h = fmax(h, 0.05);
+  return h;
+}
+
+static void alarmEvalRule(const AlarmRuleCfg& cfg, AlarmRuleRun& run, double value) {
+  if (!cfg.enabled) {
+    run.active = false;
+    run.hiSide = false;
+    return;
+  }
+  const double mn = alarmRuleToDouble(cfg.minVal, cfg.metric);
+  const double mx = alarmRuleToDouble(cfg.maxVal, cfg.metric);
+  const bool hasMin = cfg.minVal != 0;
+  const bool hasMax = cfg.maxVal != 0;
+  const double h = alarmHystBand(cfg);
+
+  if (!run.active) {
+    if (hasMin && value < mn) {
+      run.active = true;
+      run.hiSide = false;
+    } else if (hasMax && value > mx) {
+      run.active = true;
+      run.hiSide = true;
+    }
+    return;
+  }
+
+  bool clear = false;
+  if (!run.hiSide) {
+    clear = !hasMin || value >= (mn + h);
+  } else {
+    clear = !hasMax || value <= (mx - h);
+  }
+  if (clear) {
+    run.active = false;
+    run.hiSide = false;
+  }
+}
+
+static void alarmUpdateChipMasks() {
+  for (int i = 0; i < 4; i++) g_chipEvMask[i] = 0;
+  for (int ph = 0; ph < 3; ph++) {
+    uint8_t m = 0;
+    if (g_chipEv.sag[ph])        m |= CHIP_EV_SAG;
+    if (g_chipEv.ov[ph])         m |= CHIP_EV_OV;
+    if (g_chipEv.phaseLoss[ph])  m |= CHIP_EV_PHASE_LOSS;
+    if (g_chipEv.overI[ph])      m |= CHIP_EV_OVER_I;
+    g_chipEvMask[ph] = m;
+    g_chipEvMask[3] |= m;
+  }
+  if (g_chipEv.freqHi || g_chipEv.freqLo) g_chipEvMask[3] |= CHIP_EV_FREQ;
+  if (g_chipEv.revPhase) g_chipEvMask[3] |= CHIP_EV_REV_PHASE;
+}
+
+static void alarmSampleChipDiag() {
+  if (atmBusy || meter_job) return;
+  const M90DiagRegs d = g_atm.readDiag();
+  decodeM90ChipEv(d, g_chipEv);
+  alarmUpdateChipMasks();
+  for (int ch = 0; ch < 4; ch++)
+    alarmRun[ch].chipActive = g_chipEvMask[ch] != 0;
+}
+
+static bool alarmRulePublished(uint8_t ch, uint8_t kind) {
+  if (ch > 3 || kind > 2) return false;
+  bool active = alarmRun[ch].rules[kind].active;
+  if (kind == ALARM_KIND_EVENT && alarmRun[ch].chipActive) active = true;
+  if (!active) return false;
+  if (alarmCfg[ch].ackRequired && alarmRun[ch].acked) return false;
+  return true;
+}
+
+static bool alarmChannelActive(uint8_t ch, uint8_t mask) {
+  if (ch > 3) return false;
+  for (uint8_t k = 0; k < 3; k++) {
+    if ((mask & (1u << k)) && alarmRulePublished(ch, k)) return true;
+  }
+  return false;
+}
+
+static bool relayAlarmDemand(uint8_t rly) {
+  if (rly >= NUM_RLY || rlyCfg[rly].mode != RLY_MODE_ALARM) return false;
+  const uint8_t ch = (uint8_t)constrain((int)rlyCfg[rly].alarmCh, 0, 3);
+  const uint8_t mask = rlyCfg[rly].alarmMask ? rlyCfg[rly].alarmMask : 1;
+  return alarmChannelActive(ch, mask);
+}
+
+static void alarmEvalThresholds() {
+  if (!g_haveMeter) return;
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
+      if (!cfg.enabled) {
+        alarmRun[ch].rules[kind].active = false;
+        alarmRun[ch].rules[kind].hiSide = false;
+        continue;
+      }
+      const double v = alarmMetricValue(ch, cfg.metric);
+      alarmEvalRule(cfg, alarmRun[ch].rules[kind], v);
+    }
+    bool any = false;
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      if (alarmRun[ch].rules[kind].active) any = true;
+    }
+    if (alarmRun[ch].chipActive) any = true;
+    if (!any) alarmRun[ch].acked = false;
+  }
+}
+
+static void alarmPublishModbus() {
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      mb.setIsts(diAlarmAddr(ch, kind), alarmRulePublished(ch, kind));
+    }
+  }
+}
+
+static void alarmAckChannel(uint8_t ch) {
+  if (ch > 3) return;
+  alarmRun[ch].acked = true;
+}
+
+static void alarmAckAll() {
+  for (uint8_t ch = 0; ch < 4; ch++) alarmAckChannel(ch);
+}
+
+static void alarmServiceTick(unsigned long now) {
+  if (!atmBusy && !meter_job && (now - lastDiagSample >= diagSampleMs)) {
+    lastDiagSample = now;
+    alarmSampleChipDiag();
+  }
+  if (now - lastAlarmEval >= alarmEvalMs) {
+    lastAlarmEval = now;
+    alarmEvalThresholds();
+    alarmPublishModbus();
+  }
+}
+
+static void serviceModbusAck() {
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    if (mb.Coil(COIL_ACK_BASE + ch)) {
+      alarmAckChannel(ch);
+      mb.Coil(COIL_ACK_BASE + ch, false);
+    }
+  }
+}
+
+static JSONVar alarmsStateToJson() {
+  JSONVar st;
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    JSONVar kinds;
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      JSONVar e;
+      e["active"] = alarmRulePublished(ch, kind) ? 1 : 0;
+      kinds[kind] = e;
+    }
+    st[ch] = kinds;
+  }
+  return st;
+}
+
+static JSONVar alarmCfgToJson() {
+  JSONVar arr;
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    JSONVar chO;
+    chO["ack"] = alarmCfg[ch].ackRequired ? 1 : 0;
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      JSONVar r;
+      const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
+      r["enabled"] = cfg.enabled ? 1 : 0;
+      r["metric"]  = (int)cfg.metric;
+      r["min"]     = alarmRuleToDouble(cfg.minVal, cfg.metric);
+      r["max"]     = alarmRuleToDouble(cfg.maxVal, cfg.metric);
+      chO[kind] = r;
+    }
+    arr[ch] = chO;
+  }
+  return arr;
+}
+
+static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
+  if (ch > 3 || JSON.typeof(obj) == "undefined") return;
+  if (JSON.typeof(obj["ack"]) != "undefined") alarmCfg[ch].ackRequired = jvGetInt(obj, "ack", 0) ? 1 : 0;
+  for (uint8_t kind = 0; kind < 3; kind++) {
+    JSONVar r = obj[kind];
+    if (JSON.typeof(r) == "undefined") continue;
+    AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
+    if (JSON.typeof(r["enabled"]) != "undefined") cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
+    if (JSON.typeof(r["metric"]) != "undefined")  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
+    if (JSON.typeof(r["min"]) != "undefined") {
+      const int32_t raw = (int32_t)jvGetInt(r, "min", 0);
+      cfg.minVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+    }
+    if (JSON.typeof(r["max"]) != "undefined") {
+      const int32_t raw = (int32_t)jvGetInt(r, "max", 0);
+      cfg.maxVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+    }
+  }
+}
+
+static void alarmApplyFromJson(const JSONVar& list) {
+  if (JSON.typeof(list) == "array") {
+    for (uint8_t ch = 0; ch < 4 && ch < list.length(); ch++) alarmApplyChannelFromJson(ch, list[ch]);
+    return;
+  }
+  if (list.hasOwnProperty("ch")) {
+    const int ch = jvGetInt(list, "ch", -1);
+    if (ch >= 0 && ch < 4) alarmApplyChannelFromJson((uint8_t)ch, list["cfg"]);
+    return;
+  }
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    if (list.hasOwnProperty(String(ch).c_str())) alarmApplyChannelFromJson(ch, list[ch]);
+  }
+}
+
+static void handleAlarmsCfg(JSONVar obj) {
+  if (obj.hasOwnProperty("ch")) {
+    const int ch = jvGetInt(obj, "ch", -1);
+    if (ch >= 0 && ch < 4) alarmApplyChannelFromJson((uint8_t)ch, obj["cfg"]);
+  } else {
+    alarmApplyFromJson(obj);
+  }
+  markCfgDirty();
+  sendWebCfg();
+  WebSerial.send("AlarmsState", alarmsStateToJson());
+  wsLog("Alarm configuration updated");
+}
+
+static void handleAlarmsAck(JSONVar obj) {
+  if (obj.hasOwnProperty("list")) {
+    JSONVar list = obj["list"];
+    for (uint8_t ch = 0; ch < 4; ch++) {
+      if (list[ch] || list[(int)ch]) alarmAckChannel(ch);
+    }
+  } else if (obj.hasOwnProperty("ch")) {
+    alarmAckChannel((uint8_t)constrain(jvGetInt(obj, "ch", 0), 0, 3));
+  } else {
+    alarmAckAll();
+  }
+  alarmPublishModbus();
+  WebSerial.send("AlarmsState", alarmsStateToJson());
+  wsLog("Alarms acknowledged");
+}
+
 static void captureSettings(EnmSettingsCfg& pc) {
   memset(&pc, 0, sizeof(pc));
   pc.magic      = CFG_MAGIC;
@@ -389,8 +784,12 @@ static void captureSettings(EnmSettingsCfg& pc) {
   pc.lineHz     = g_atm_cfg.lineHz;
   pc.sumAbs     = g_atm_cfg.sumAbs;
   for (int i = 0; i < NUM_RLY; i++) {
-    pc.rlyCfg[i].enabled  = rlyCfg[i].enabled;
-    pc.rlyCfg[i].inverted = rlyCfg[i].inverted;
+    pc.rlyCfg[i].enabled   = rlyCfg[i].enabled;
+    pc.rlyCfg[i].inverted  = rlyCfg[i].inverted;
+    pc.rlyCfg[i].mode      = rlyCfg[i].mode;
+    pc.rlyCfg[i].alarmCh   = rlyCfg[i].alarmCh;
+    pc.rlyCfg[i].alarmMask = rlyCfg[i].alarmMask;
+    pc.rlyCfg[i].pad       = 0;
   }
   for (int i = 0; i < NUM_LED; i++) {
     pc.ledCfg[i].mode   = ledCfg[i].mode;
@@ -398,6 +797,9 @@ static void captureSettings(EnmSettingsCfg& pc) {
   }
   for (int i = 0; i < NUM_BTN; i++) {
     pc.btnCfg[i].action = btnCfg[i].action;
+  }
+  for (int i = 0; i < 4; i++) {
+    pc.alarm[i] = alarmCfg[i];
   }
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmSettingsCfg));
@@ -422,8 +824,11 @@ static bool applySettings(const EnmSettingsCfg& pc) {
   g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
 
   for (int i = 0; i < NUM_RLY; i++) {
-    rlyCfg[i].enabled  = pc.rlyCfg[i].enabled;
-    rlyCfg[i].inverted = pc.rlyCfg[i].inverted;
+    rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
+    rlyCfg[i].inverted  = pc.rlyCfg[i].inverted;
+    rlyCfg[i].mode      = pc.rlyCfg[i].mode;
+    rlyCfg[i].alarmCh   = (uint8_t)constrain((int)pc.rlyCfg[i].alarmCh, 0, 3);
+    rlyCfg[i].alarmMask = pc.rlyCfg[i].alarmMask ? pc.rlyCfg[i].alarmMask : 1;
   }
   for (int i = 0; i < NUM_LED; i++) {
     ledCfg[i].mode   = pc.ledCfg[i].mode;
@@ -432,6 +837,45 @@ static bool applySettings(const EnmSettingsCfg& pc) {
   for (int i = 0; i < NUM_BTN; i++) {
     btnCfg[i].action = pc.btnCfg[i].action;
   }
+  for (int i = 0; i < 4; i++) {
+    alarmCfg[i] = pc.alarm[i];
+  }
+  return true;
+}
+
+static bool applySettingsV20(const EnmSettingsCfgV20& pc) {
+  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION_V20 || pc.size != sizeof(EnmSettingsCfgV20))
+    return false;
+  EnmSettingsCfgV20 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmSettingsCfgV20)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
+    rlyCfg[i].inverted  = pc.rlyCfg[i].inverted;
+    rlyCfg[i].mode      = RLY_MODE_MODBUS;
+    rlyCfg[i].alarmCh   = 3;
+    rlyCfg[i].alarmMask = 1;
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    ledCfg[i].mode   = pc.ledCfg[i].mode;
+    ledCfg[i].source = pc.ledCfg[i].source;
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    btnCfg[i].action = pc.btnCfg[i].action;
+  }
+  setAlarmDefaults();
   return true;
 }
 
@@ -524,6 +968,14 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
   }
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = true;
+    rlyCfg[i].inverted  = false;
+    rlyCfg[i].mode      = RLY_MODE_MODBUS;
+    rlyCfg[i].alarmCh   = 3;
+    rlyCfg[i].alarmMask = 1;
+  }
+  setAlarmDefaults();
   return true;
 }
 
@@ -554,15 +1006,25 @@ static bool saveConfigFS() {
 static bool loadSettingsFS() {
   File f = LittleFS.open(CFG_PATH, "r");
   if (!f) return false;
-  if (f.size() != sizeof(EnmSettingsCfg)) {
+  const size_t sz = f.size();
+  if (sz == sizeof(EnmSettingsCfg)) {
+    EnmSettingsCfg pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
     f.close();
-    return false;
+    if (n != sizeof(pc)) return false;
+    return applySettings(pc);
   }
-  EnmSettingsCfg pc;
-  const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+  if (sz == sizeof(EnmSettingsCfgV20)) {
+    EnmSettingsCfgV20 pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applySettingsV20(pc)) return false;
+    markCfgDirty();
+    return true;
+  }
   f.close();
-  if (n != sizeof(pc)) return false;
-  return applySettings(pc);
+  return false;
 }
 
 static bool loadMeterFS() {
@@ -795,10 +1257,17 @@ static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
 }
 
 static void setDefaults() {
-  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { true, false };
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = true;
+    rlyCfg[i].inverted  = false;
+    rlyCfg[i].mode      = RLY_MODE_MODBUS;
+    rlyCfg[i].alarmCh   = 3;
+    rlyCfg[i].alarmMask = 1;
+  }
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0, 0 };
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
   for (int i = 0; i < NUM_RLY; i++) desiredRelay[i] = false;
+  setAlarmDefaults();
   g_mb_address = 30;
   g_mb_baud    = 19200;
   SlaveId      = (int)g_mb_address;
@@ -1021,11 +1490,20 @@ void handleUnifiedConfig(JSONVar obj) {
       }
     } else {
       for (int i = 0; i < NUM_RLY && i < list.length(); i++) {
-        rlyCfg[i].enabled  = (bool)list[i]["enabled"];
-        rlyCfg[i].inverted = (bool)list[i]["inverted"];
+        JSONVar item = list[i];
+        rlyCfg[i].enabled  = (bool)item["enabled"];
+        rlyCfg[i].inverted = (bool)(item.hasOwnProperty("inverted") ? item["inverted"] : item["invert"]);
+        if (JSON.typeof(item["mode"]) != "undefined") rlyCfg[i].mode = (uint8_t)constrain(jvGetInt(item, "mode", rlyCfg[i].mode), 0, 2);
+        if (JSON.typeof(item["alarmCh"]) != "undefined") rlyCfg[i].alarmCh = (uint8_t)constrain(jvGetInt(item, "alarmCh", rlyCfg[i].alarmCh), 0, 3);
+        if (JSON.typeof(item["alarmMask"]) != "undefined") rlyCfg[i].alarmMask = (uint8_t)jvGetInt(item, "alarmMask", rlyCfg[i].alarmMask);
       }
     }
     wsLog("Relay Configuration updated");
+    changed = true;
+
+  } else if (type == "alarm" || type == "alarms" || type == "AlarmsCfg") {
+    alarmApplyFromJson(list);
+    wsLog("Alarm configuration updated");
     changed = true;
 
   } else if (type == "btn" || type == "buttons" || type == "btnCfg") {
@@ -1073,6 +1551,8 @@ void handleUnifiedConfig(JSONVar obj) {
   if (changed) {
     markCfgDirty();
     sendWebCfg();
+    if (type == "alarm" || type == "alarms" || type == "AlarmsCfg")
+      WebSerial.send("AlarmsState", alarmsStateToJson());
   }
 }
 
@@ -1089,9 +1569,12 @@ void sendWebStatus() {
 void sendWebCfg() {
   JSONVar cfg;
   for (int i = 0; i < NUM_RLY; i++) {
-    cfg["relay"][i]["enabled"]  = rlyCfg[i].enabled ? 1 : 0;
-    cfg["relay"][i]["invert"]   = rlyCfg[i].inverted ? 1 : 0;
-    cfg["relay"][i]["inverted"] = rlyCfg[i].inverted ? 1 : 0;
+    cfg["relay"][i]["enabled"]   = rlyCfg[i].enabled ? 1 : 0;
+    cfg["relay"][i]["invert"]    = rlyCfg[i].inverted ? 1 : 0;
+    cfg["relay"][i]["inverted"]  = rlyCfg[i].inverted ? 1 : 0;
+    cfg["relay"][i]["mode"]      = (int)rlyCfg[i].mode;
+    cfg["relay"][i]["alarmCh"]   = (int)rlyCfg[i].alarmCh;
+    cfg["relay"][i]["alarmMask"] = (int)rlyCfg[i].alarmMask;
   }
   for (int i = 0; i < NUM_BTN; i++) {
     cfg["btn"][i]["action"] = btnCfg[i].action;
@@ -1108,7 +1591,9 @@ void sendWebCfg() {
   cfg["ext"]["energy"]["E_phase"] = energy["E_phase"];
   cfg["ext"]["energy"]["E_tot"]   = energy["E_tot"];
   cfg["ext"]["energy"]["MC_imp_per_kWh"] = energy["MC_imp_per_kWh"];
+  cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
+  WebSerial.send("AlarmsState", alarmsStateToJson());
 }
 
 void sendWebBootstrap() {
@@ -1192,6 +1677,8 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
+  WebSerial.on("AlarmsCfg", handleAlarmsCfg);
+  WebSerial.on("AlarmsAck", handleAlarmsAck);
 
   SPI1.setSCK(ATM_SCK);
   SPI1.setTX(ATM_MOSI);
@@ -1219,7 +1706,9 @@ void loop() {
   WebSerial.check();
   yield();
 
+  serviceModbusAck();
   serviceModbusRelays();
+  alarmServiceTick(now);
   applyHoldingFromModbus();
 
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
@@ -1267,16 +1756,24 @@ void loop() {
   }
 
   for (int i = 0; i < NUM_RLY; i++) {
-    bool logical = desiredRelay[i];
-    if (!rlyCfg[i].enabled) logical = false;
+    bool logical = false;
+    if (!rlyCfg[i].enabled) {
+      logical = false;
+    } else if (rlyCfg[i].mode == RLY_MODE_NONE) {
+      logical = false;
+    } else if (rlyCfg[i].mode == RLY_MODE_ALARM) {
+      logical = relayAlarmDemand((uint8_t)i);
+    } else {
+      logical = desiredRelay[i];
+    }
     bool phys = logical;
     if (rlyCfg[i].inverted) phys = !phys;
     digitalWrite(RELAY_PINS[i], phys ? HIGH : LOW);
     relayLogical[i] = logical;
     mb.setIsts(DI_RELAY_BASE + i, logical);
   }
-  if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
-  if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
+  if (rlyCfg[0].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
+  if (rlyCfg[1].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
 
   bool ledPhysState[NUM_LED];
   for (int i = 0; i < NUM_LED; i++) {
@@ -1328,6 +1825,7 @@ void loop() {
       for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
       WebSerial.send("io", io);
+      WebSerial.send("AlarmsState", alarmsStateToJson());
       sendWebExt();
     }
   }

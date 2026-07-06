@@ -23,6 +23,18 @@ struct M90DiagRegs {
   uint16_t LastSPIData;
 };
 
+struct M90ChipEv {
+  bool sag[3];
+  bool ov[3];
+  bool phaseLoss[3];
+  bool overI[3];
+  bool freqHi;
+  bool freqLo;
+  bool revPhase;
+};
+
+void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out);
+
 class ATM90E32 {
 public:
   ATM90E32(SPIClass &spi, uint8_t pinCS, uint8_t pinPM0, uint8_t pinPM1,

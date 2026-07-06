@@ -365,3 +365,23 @@ M90DiagRegs ATM90E32::readDiag() {
   d.LastSPIData  = read16(LastSPIData);
   return d;
 }
+
+void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out) {
+  const uint16_t s0 = d.EMMState0;
+  const uint16_t s1 = d.EMMState1;
+  out.ov[0]        = (s0 & 0x1000) != 0;
+  out.ov[1]        = (s0 & 0x0800) != 0;
+  out.ov[2]        = (s0 & 0x0400) != 0;
+  out.overI[0]     = (s0 & 0x8000) != 0;
+  out.overI[1]     = (s0 & 0x4000) != 0;
+  out.overI[2]     = (s0 & 0x2000) != 0;
+  out.revPhase     = (s0 & 0x0200) != 0;
+  out.sag[0]       = (s1 & 0x4000) != 0;
+  out.sag[1]       = (s1 & 0x2000) != 0;
+  out.sag[2]       = (s1 & 0x1000) != 0;
+  out.phaseLoss[0] = (s1 & 0x0400) != 0;
+  out.phaseLoss[1] = (s1 & 0x0200) != 0;
+  out.phaseLoss[2] = (s1 & 0x0100) != 0;
+  out.freqHi       = (s1 & 0x8000) != 0;
+  out.freqLo       = (s1 & 0x0800) != 0;
+}

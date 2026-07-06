@@ -138,7 +138,7 @@
 
   <div class="sectiontitle">
     <h3>Alarms (L1, L2, L3, Totals)</h3>
-    <p class="hint">UI preview — alarm engine not implemented on ENM-223-R1 v0.2.0 firmware.</p>
+    <p class="hint">Threshold rules per channel; chip power-quality events appear as Event.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -151,7 +151,7 @@
 
   <div class="sectiontitle">
     <h3>Relays (2)</h3>
-    <p class="hint">Enable, invert, and optional alarm-mode UI (alarm follow is UI-only).</p>
+    <p class="hint">Enable, invert, Modbus or Alarm Controlled relay follow.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -339,6 +339,86 @@
       if(cal) for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
       const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
       if(energy) applyEnergies(energy);
+      const alarms=cfg.alarm;
+      if(alarms) applyAlarmCfg(alarms);
+      if(rlyArr) applyRelayModes(rlyArr);
+    }
+
+    function applyRelayModes(rlyArr){
+      for(let i=0;i<NUM_RLY;i++){
+        const o=rlyArr[i]??rlyArr[String(i)]??{};
+        const card=document.querySelectorAll('.iocard.tint-relay')[i];
+        if(!card) continue;
+        const modeSel=card.querySelector('.rly-mode');
+        const alarmBox=card.querySelector('.rly-alarm-box');
+        if(o.mode!==undefined&&modeSel&&modeSel!==document.activeElement){
+          modeSel.value=String(o.mode);
+          if(alarmBox) alarmBox.style.display=String(o.mode)==='2'?'block':'none';
+        }
+        const chSel=card.querySelector('.rly-ch');
+        if(o.alarmCh!==undefined&&chSel) chSel.value=String(o.alarmCh);
+        const mask=(o.alarmMask??1)|0;
+        const setKind=(cls,bit)=>{ const el=card.querySelector(cls); if(el) el.checked=!!(mask&bit); };
+        setKind('.rly-kind-al',1);
+        setKind('.rly-kind-wa',2);
+        setKind('.rly-kind-ev',4);
+      }
+    }
+
+    function applyAlarmCfg(alarms){
+      const applyCh=(ch,obj)=>{
+        if(!obj||typeof obj!=='object') return;
+        const ackEl=$('al-ackreq-'+ch);
+        if(ackEl&&obj.ack!==undefined) ackEl.checked=!!obj.ack;
+        for(let ak=0;ak<3;ak++){
+          const r=obj[ak]??obj[String(ak)]??{};
+          const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
+          if(en&&r.enabled!==undefined) en.checked=!!r.enabled;
+          if(mn&&r.min!==undefined&&canApply('al-min-'+ch+'-'+ak)) mn.value=String(r.min);
+          if(mx&&r.max!==undefined&&canApply('al-max-'+ch+'-'+ak)) mx.value=String(r.max);
+          if(met&&r.metric!==undefined) met.value=String(r.metric);
+        }
+      };
+      if(Array.isArray(alarms)){
+        for(let ch=0;ch<4;ch++) applyCh(ch, alarms[ch]);
+      } else if(typeof alarms==='object'){
+        for(let ch=0;ch<4;ch++) if(alarms[ch]!==undefined||alarms[String(ch)]!==undefined) applyCh(ch, alarms[ch]??alarms[String(ch)]);
+      }
+    }
+
+    function updateAlarmsState(state){
+      for(let ch=0;ch<4;ch++){
+        for(let ak=0;ak<3;ak++){
+          const dot=$('al-led-'+ch+'-'+ak);
+          const e=state&&state[ch]&&state[ch][ak];
+          const on=e&&(e.active===1||e.active===true);
+          if(dot) dot.style.background=on?(ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0'):'#ccc';
+        }
+      }
+    }
+
+    function collectChannelCfg(ch){
+      const chO={ ack:!!$('al-ackreq-'+ch)?.checked };
+      for(let ak=0;ak<3;ak++){
+        chO[ak]={
+          enabled:!!$('al-en-'+ch+'-'+ak)?.checked,
+          min:+( $('al-min-'+ch+'-'+ak)?.value||0),
+          max:+( $('al-max-'+ch+'-'+ak)?.value||0),
+          metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
+        };
+      }
+      return chO;
+    }
+
+    function sendChannelCfg(ch){
+      const cfg=collectChannelCfg(ch);
+      HMWebConfig.sendConfig('alarm', { ch, cfg });
+      HMWebConfig.appendLog('AlarmsCfg ch='+ch);
+    }
+
+    function sendAlarmAck(ch){
+      if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
+      HMWebConfig.appendLog('AlarmsAck ch='+ch);
     }
 
     HMWebConfig.register({
@@ -355,6 +435,10 @@
       if(!ext) return;
       if(ext.meter) applyMeterLive(ext.meter);
       if(ext.energy) applyEnergies(ext.energy);
+    });
+    HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
+    HMWebConfig.conn.on('AlarmsCfg', function(payload){
+      if(payload&&payload.cfg&&payload.ch!==undefined) applyAlarmCfg({ [payload.ch]: payload.cfg });
     });
 
     function pushModbus(){
@@ -483,8 +567,20 @@
           <div style="text-align:right;margin-top:.5rem;"><button type="button" class="btn" id="al-ack-${ch}">Ack ${CH[ch]}</button></div>`;
         grid.appendChild(card);
       }
-      $('ack-all')?.addEventListener('click', ()=>HMWebConfig.appendLog('AlarmsAck: UI-only'));
-      for(let ch=0;ch<4;ch++) $('al-ack-'+ch)?.addEventListener('click', ()=>HMWebConfig.appendLog('AlarmsAck ch='+ch+' (UI-only)'));
+      $('ack-all')?.addEventListener('click', ()=>{
+        if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[true,true,true,true] });
+        HMWebConfig.appendLog('AlarmsAck all');
+      });
+      for(let ch=0;ch<4;ch++){
+        $('al-ack-'+ch)?.addEventListener('click', ()=>sendAlarmAck(ch));
+        for(let ak=0;ak<3;ak++){
+          $('al-en-'+ch+'-'+ak)?.addEventListener('change', ()=>sendChannelCfg(ch));
+          $('al-met-'+ch+'-'+ak)?.addEventListener('change', ()=>sendChannelCfg(ch));
+          attachLockHandlers($('al-min-'+ch+'-'+ak), 'al-min-'+ch+'-'+ak, ()=>sendChannelCfg(ch));
+          attachLockHandlers($('al-max-'+ch+'-'+ak), 'al-max-'+ch+'-'+ak, ()=>sendChannelCfg(ch));
+        }
+        $('al-ackreq-'+ch)?.addEventListener('change', ()=>sendChannelCfg(ch));
+      }
     })();
 
     (function buildRelays(){
@@ -502,21 +598,39 @@
           <div><label>Mode</label><select class="rly-mode">${MODE.map(o=>`<option value="${o.v}"${o.v===1?' selected':''}>${o.l}</option>`).join('')}</select></div>
           <div class="rly-alarm rly-alarm-box" style="display:none">
             <label>Channel</label><select class="rly-ch">${CHAN.map(o=>`<option value="${o.v}"${o.v===3?' selected':''}>${o.l}</option>`).join('')}</select>
+            <div class="checkRow" style="margin-top:.5rem;">
+              <label class="check"><input type="checkbox" class="rly-kind-al" checked> Alarm</label>
+              <label class="check"><input type="checkbox" class="rly-kind-wa"> Warning</label>
+              <label class="check"><input type="checkbox" class="rly-kind-ev"> Event</label>
+            </div>
           </div>
           <div style="margin-top:.5rem;text-align:right;"><button type="button" class="btn rly-toggle">Toggle</button></div>`;
         c.appendChild(d);
         const root=d;
         const modeSel=root.querySelector('.rly-mode');
         const alarmBox=root.querySelector('.rly-alarm-box');
-        modeSel?.addEventListener('change', ()=>{ alarmBox.style.display=modeSel.value==='2'?'block':'none'; });
-        root.querySelector('.rly-toggle')?.addEventListener('click', ()=>HMWebConfig.appendLog('Relay toggle: UI-only (use Modbus coil)'));
+        modeSel?.addEventListener('change', ()=>{ alarmBox.style.display=modeSel.value==='2'?'block':'none'; sendRelayCfg(); });
+        root.querySelector('.rly-toggle')?.addEventListener('click', ()=>HMWebConfig.appendLog('Relay toggle: use Modbus coil or button'));
+        ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{
+          root.querySelector(sel)?.addEventListener('change', sendRelayCfg);
+        });
       }
     })();
 
     function sendRelayCfg(){
       const l=[];
       for(let i=1;i<=NUM_RLY;i++){
-        l.push({ enabled:!!$('enable-relay'+i)?.checked, inverted:!!$('invert-relay'+i)?.checked });
+        const card=document.querySelectorAll('.iocard.tint-relay')[i-1];
+        const mode=+(card?.querySelector('.rly-mode')?.value||'1');
+        const ch=+(card?.querySelector('.rly-ch')?.value||'3');
+        const mask=((card?.querySelector('.rly-kind-al')?.checked?1:0)
+          |(card?.querySelector('.rly-kind-wa')?.checked?2:0)
+          |(card?.querySelector('.rly-kind-ev')?.checked?4:0))||1;
+        l.push({
+          enabled:!!$('enable-relay'+i)?.checked,
+          inverted:!!$('invert-relay'+i)?.checked,
+          mode, alarmCh:ch, alarmMask:mask
+        });
       }
       HMWebConfig.sendConfig('relay', l);
     }
