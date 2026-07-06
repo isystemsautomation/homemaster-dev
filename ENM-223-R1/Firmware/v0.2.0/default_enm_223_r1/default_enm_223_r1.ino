@@ -273,7 +273,18 @@ static bool desiredRelay[NUM_RLY] = {false,false};
 
 static unsigned long lastSend = 0;
 static const unsigned long sendInterval = 1000;
-static bool webHostWasConnected = false;
+static bool webHostConnected = false;
+
+// Web Serial does not assert USB-CDC DTR — do not gate telemetry on Serial.dtr() or (bool)Serial.
+static inline bool webSerialWriteReady(size_t need = 64) {
+  return Serial.availableForWrite() >= (int)need;
+}
+void sendWebBootstrap();
+static void markWebHostRx() {
+  const bool fresh = !webHostConnected;
+  webHostConnected = true;
+  if (fresh) sendWebBootstrap();
+}
 
 static unsigned long lastBlinkToggle = 0;
 static const unsigned long blinkPeriodMs = 400;
@@ -799,6 +810,7 @@ static void alarmApplyFromJson(const JSONVar& list) {
 }
 
 static void handleAlarmsCfg(JSONVar obj) {
+  markWebHostRx();
   if (obj.hasOwnProperty("ch")) {
     const int ch = jvGetInt(obj, "ch", -1);
     if (ch >= 0 && ch < 4) alarmApplyChannelFromJson((uint8_t)ch, obj["cfg"]);
@@ -812,6 +824,7 @@ static void handleAlarmsCfg(JSONVar obj) {
 }
 
 static void handleAlarmsAck(JSONVar obj) {
+  markWebHostRx();
   if (obj.hasOwnProperty("list")) {
     JSONVar list = obj["list"];
     for (uint8_t ch = 0; ch < 4; ch++) {
@@ -1554,6 +1567,7 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 }
 
 void handleValues(JSONVar values) {
+  markWebHostRx();
   const int addr = jvGetInt(values, "mb_address", (int)g_mb_address);
   const int baud = jvGetInt(values, "mb_baud",    (int)g_mb_baud);
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
@@ -1562,6 +1576,7 @@ void handleValues(JSONVar values) {
 }
 
 void handleCommand(JSONVar obj) {
+  markWebHostRx();
   const char* actC = (const char*)obj["action"];
   if (!actC) { wsLog("command: missing 'action'"); return; }
   String act = String(actC); act.toLowerCase();
@@ -1590,6 +1605,7 @@ void handleCommand(JSONVar obj) {
 
 // Contract t: relay, btn, led, ext.atm (+ legacy relayCfg/btnCfg/ledCfg/atm)
 void handleUnifiedConfig(JSONVar obj) {
+  markWebHostRx();
   const char* t = (const char*)obj["t"];
   JSONVar list = obj["list"];
   if (!t) { wsLog("Config: missing 't'"); return; }
@@ -1933,14 +1949,6 @@ void loop() {
     mb.setIsts(DI_LED_BASE + i, physLed);
   }
 
-  const bool hostUp = Serial && Serial.dtr();
-  if (hostUp && !webHostWasConnected) {
-    webHostWasConnected = true;
-    sendWebBootstrap();
-  } else if (!hostUp) {
-    webHostWasConnected = false;
-  }
-
   if (!meter_job && !atmBusy && (now - lastMeterSample >= meterSampleMs)) {
     lastMeterSample = now;
     meter_job_begin();
@@ -1955,10 +1963,16 @@ void loop() {
 
   if (now - lastSend >= sendInterval) {
     lastSend = now;
+    if (!webSerialWriteReady(64)) return;
 
+    // status unlocks browser hello (WebConfig sends command on first RX); no DTR gate.
     sendWebStatus();
-    sendWebExt();
-    if (hmUsbCanSend()) {
+
+    if (!webHostConnected) return;
+
+    if (webSerialWriteReady(256)) sendWebExt();
+
+    if (webSerialWriteReady(64)) {
       JSONVar io;
       for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
       for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
