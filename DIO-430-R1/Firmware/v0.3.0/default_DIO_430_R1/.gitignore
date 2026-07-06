@@ -1,0 +1,9 @@
+# Arduino build artifacts — see ../../README.md
+*.bin
+*.elf
+*.map
+
+# In build/: commit only the UF2 (Arduino export path); ignore bin/elf/map
+build/**/*
+!build/**/
+!build/**/*.uf2

@@ -1,0 +1,396 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<script src="simple-web-serial.min.js"></script>
+<script src="../../../_shared/hm-webconfig.js"></script>
+
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
+
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="../../Images/photo1.png" alt="DIO-430-R1">
+      </div>
+      <div class="title">
+        <h1>DIO-430-R1 Module Configuration</h1>
+        <p>Digital I/O module — 4 opto inputs, 3 relays, interlock, pulse counters; Modbus RTU over RS-485, setup via USB-C.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
+        <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
+        <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+      </div>
+      <div id="hm-links" class="mini"></div>
+    </div>
+  </header>
+
+  <div id="hm-compat"></div>
+
+  <div id="hm-tools"></div>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader"><div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div><span class="tag">Step 1</span></div>
+      <div class="cardbody">
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="cardheader"><div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div></div>
+      <div class="cardbody"><div id="hm-log-box"><div id="hm-log"></div></div></div>
+    </section>
+  </div>
+
+  <div class="sectiontitle"><h3>Digital Inputs (4)</h3><p class="hint">Maintained = toggle relay on edge (default) or follow level; Momentary = short/long actions + event counters.</p></div>
+  <section class="card"><div class="cardbody"><div id="io-inputs"></div></div></section>
+
+  <div class="sectiontitle"><h3>Relays (3)</h3><p class="hint">Enable, invert, power-on policy, auto-off timeout.</p></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-relays"></div></div></section>
+
+  <div class="sectiontitle"><h3>Interlock</h3><p class="hint">Mutual exclusion between two relays with dead-time.</p></div>
+  <section class="card"><div class="cardbody" id="io-interlock"></div></section>
+
+  <div class="sectiontitle"><h3>Timing</h3><p class="hint">Press timing, debounce and bus watchdog.</p></div>
+  <section class="card"><div class="cardbody" id="io-timing"></div></section>
+
+  <div class="sectiontitle"><h3>Buttons (2)</h3><p class="hint">Short and long press actions (GPIO2, GPIO3).</p></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-buttons"></div></div></section>
+
+  <div class="sectiontitle"><h3>User LEDs (3)</h3><p class="hint">Source-driven indicators (Link, HA, Child lock).</p></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-leds"></div></div></section>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const NUM_DI = 4, NUM_RLY = 3, NUM_BTN = 2, NUM_LED = 3;
+  const ACT_OPTS = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'}];
+  const TGT_OPTS = [{v:0,l:'All'},{v:1,l:'R1'},{v:2,l:'R2'},{v:3,l:'R3'},{v:4,l:'None'}];
+  const LED_SRC = [{v:0,l:'Off'},{v:1,l:'HA'},{v:2,l:'Link'},{v:4,l:'Child lock'}];
+  const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
+  const pwrOpts = [{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+  /** Legacy action 4 (All off) → Off + target All (KNX/Shelly model). */
+  function uiActTarget(action, target) {
+    if (action === 4) return { action: 3, target: 0 };
+    return { action: action ?? 0, target: target ?? 0 };
+  }
+
+  function syncActTargetVis(actId, tgtId) {
+    const act = $(actId), tgt = $(tgtId);
+    if (!act || !tgt) return;
+    tgt.style.display = act.value === '0' ? 'none' : '';
+  }
+
+  function wireActTarget(actId, tgtId) {
+    const act = $(actId);
+    if (!act) return;
+    act.addEventListener('change', () => syncActTargetVis(actId, tgtId));
+    syncActTargetVis(actId, tgtId);
+  }
+
+  (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=247;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o);} sel.value='3'; })();
+
+  function actSel(id, val){ return `<select id="${id}">${optHtml(ACT_OPTS, val||0)}</select>`; }
+  function tgtSel(id, val){ return `<select id="${id}">${optHtml(TGT_OPTS, val||0)}</select>`; }
+
+  function buildInputs(){
+    const c=$('io-inputs'); if(!c) return;
+    for(let i=1;i<=NUM_DI;i++){
+      const d=document.createElement('div');
+      d.className='iocard tint-input';
+      d.innerHTML=`
+        <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+        <div class="checkRow">
+          <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+          <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+          <label class="check"><input type="checkbox" id="lock-in${i}"> Child lock</label>
+        </div>
+        <div><label for="type-in${i}">Type</label>
+          <select id="type-in${i}"><option value="0">Maintained</option><option value="1">Momentary</option></select></div>
+        <div class="maint-fields" id="maint-in${i}">
+          <div><label for="maint-mode-in${i}">Maintained mode</label>
+            <select id="maint-mode-in${i}"><option value="0">Toggle</option><option value="1">Follow</option></select></div>
+          <label for="follow-in${i}">Target</label>${tgtSel('follow-in'+i, i<=3?i:0)}
+        </div>
+        <div class="mom-fields" id="mom-in${i}" style="display:none">
+          <div class="split"><div><label>Short</label>${actSel('short-act-in'+i)}${tgtSel('short-tgt-in'+i)}</div>
+          <div><label>Long</label>${actSel('long-act-in'+i)}${tgtSel('long-tgt-in'+i)}</div></div>
+          <p class="sub" style="margin-top:8px">Gesture counters single/double/triple/long are sent to Home Assistant for scenes (Momentary only). For HA-only inputs, leave Short and Long set to None.</p>
+        </div>`;
+      c.appendChild(d);
+      const typeEl=$('type-in'+i);
+      const sync=()=>{ const m=typeEl.value==='0'; $('maint-in'+i).style.display=m?'':'none'; $('mom-in'+i).style.display=m?'none':''; };
+      typeEl.addEventListener('change', ()=>{ sync(); sendInType(); });
+      sync();
+      wireActTarget('short-act-in'+i, 'short-tgt-in'+i);
+      wireActTarget('long-act-in'+i, 'long-tgt-in'+i);
+    }
+  }
+
+  function buildRelays(){
+    const c=$('io-relays'); if(!c) return;
+    for(let i=1;i<=NUM_RLY;i++){
+      const d=document.createElement('div');
+      d.className='iocard tint-relay';
+      d.innerHTML=`
+        <div class="iotop"><span class="ioid">Relay ${i}</span><span class="ioBadge badgeState"><span id="state-relay${i}" class="state-dot dot-off"></span></span></div>
+        <div class="checkRow">
+          <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
+          <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+        </div>
+        <div><label for="powerOn-relay${i}">Power-on</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>
+        <div style="margin-top:8px"><label for="autoOff-relay${i}">Auto-off, s (0=off)</label><input type="number" id="autoOff-relay${i}" min="0" max="65535" value="0" style="width:100%"></div>`;
+      c.appendChild(d);
+    }
+  }
+
+  function buildInterlock(){
+    const c=$('io-interlock'); if(!c) return;
+    c.innerHTML=`
+      <label class="check"><input type="checkbox" id="ilk-enabled"> Enabled</label>
+      <div class="row" style="margin-top:10px">
+        <div><label for="ilk-a">Relay A</label><select id="ilk-a"><option value="0">R1</option><option value="1">R2</option><option value="2">R3</option></select></div>
+        <div><label for="ilk-b">Relay B</label><select id="ilk-b"><option value="0">R1</option><option value="1" selected>R2</option><option value="2">R3</option></select></div>
+        <div><label for="ilk-pause">Pause, ms</label><input type="number" id="ilk-pause" min="0" max="65535" value="500" style="width:100%"></div>
+      </div>`;
+  }
+
+  function buildTiming(){
+    const c=$('io-timing'); if(!c) return;
+    c.innerHTML=`
+      <div class="row">
+        <div><label for="glob-longpress">Long-press, ms</label><input type="number" id="glob-longpress" min="50" max="5000" value="700" style="width:100%"><div class="sub">How long to hold for a “long press”.</div></div>
+        <div><label for="glob-multiclick">Multi-click gap, ms</label><input type="number" id="glob-multiclick" min="50" max="2000" value="300" style="width:100%"><div class="sub">Max pause between clicks to count as double/triple.</div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label for="glob-debounce">Debounce, ms</label><input type="number" id="glob-debounce" min="1" max="500" value="30" style="width:100%"><div class="sub">Input/button must stay stable this long.</div></div>
+        <div><label for="glob-linktimeout">Link timeout, ms</label><input type="number" id="glob-linktimeout" min="500" max="60000" value="5000" style="width:100%"><div class="sub">No Modbus traffic for this long → bus link lost.</div></div>
+      </div>`;
+  }
+
+  function buildButtons(){
+    const c=$('io-buttons'); if(!c) return;
+    for(let i=1;i<=NUM_BTN;i++){
+      const d=document.createElement('div');
+      d.className='iocard tint-button';
+      d.innerHTML=`
+        <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+        <div class="split"><div><label>Short</label>${actSel('btn'+i+'-short-act')}${tgtSel('btn'+i+'-short-tgt')}</div>
+        <div><label>Long</label>${actSel('btn'+i+'-long-act')}${tgtSel('btn'+i+'-long-tgt')}</div></div>`;
+      c.appendChild(d);
+      wireActTarget('btn'+i+'-short-act', 'btn'+i+'-short-tgt');
+      wireActTarget('btn'+i+'-long-act', 'btn'+i+'-long-tgt');
+    }
+  }
+
+  function buildLeds(){
+    const c=$('io-leds'); if(!c) return;
+    const modeOpts=[{v:0,l:'Steady'},{v:1,l:'Blink'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+    const srcOpts=LED_SRC.map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+    for(let i=1;i<=NUM_LED;i++){
+      const d=document.createElement('div');
+      d.className='iocard tint-led';
+      d.innerHTML=`
+        <div class="iotop"><span class="ioid">LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+        <div><label for="source-led${i}">Source</label><select id="source-led${i}">${srcOpts}</select></div>
+        <div style="margin-top:8px"><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${modeOpts}</select></div>
+        <div class="checkRow" style="margin-top:8px"><label class="check"><input type="checkbox" id="invert-led${i}"> Inverted</label></div>
+        <div style="margin-top:8px"><label for="arg-led${i}">Arg (DI # for child lock)</label><input type="number" id="arg-led${i}" min="0" max="15" value="0" style="width:100%"></div>`;
+      c.appendChild(d);
+    }
+  }
+
+  buildInputs(); buildRelays(); buildInterlock(); buildTiming(); buildButtons(); buildLeds();
+
+  HMWebConfig.register({
+    model: 5,
+    modelName: 'DIO-430-R1',
+    fw: '0.3.0-beta',
+    webconfigVersion: '0.3.0-beta',
+    readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/README.md',
+    firmwareUrl: 'https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.3.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2',
+    channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
+    onCfg: function(ext, cfg) {
+      if (cfg.interlock) {
+        $('ilk-enabled').checked = !!cfg.interlock.enabled;
+        $('ilk-a').value = cfg.interlock.relayA ?? 0;
+        $('ilk-b').value = cfg.interlock.relayB ?? 1;
+        $('ilk-pause').value = cfg.interlock.pauseMs ?? 500;
+      }
+      if (cfg.global) {
+        $('glob-longpress').value   = cfg.global.longPressMs;
+        $('glob-multiclick').value  = cfg.global.multiClickGapMs;
+        $('glob-debounce').value    = cfg.global.debounceMs;
+        $('glob-linktimeout').value = cfg.global.linkTimeoutMs;
+      }
+      for (let i=0;i<NUM_DI;i++) {
+        const n=i+1, o=cfg.in?.[i]; if(!o) continue;
+        $('type-in'+n).value = o.type ?? 0;
+        $('maint-mode-in'+n).value = o.maintMode ?? 0;
+        $('follow-in'+n).value = o.followTarget ?? 0;
+        const short = uiActTarget(o.shortAction, o.shortTarget);
+        $('short-act-in'+n).value = short.action;
+        $('short-tgt-in'+n).value = short.target;
+        const long = uiActTarget(o.longAction, o.longTarget);
+        $('long-act-in'+n).value = long.action;
+        $('long-tgt-in'+n).value = long.target;
+        syncActTargetVis('short-act-in'+n, 'short-tgt-in'+n);
+        syncActTargetVis('long-act-in'+n, 'long-tgt-in'+n);
+        $('lock-in'+n).checked = !!o.lockLocal;
+        const m=(o.type??0)==0;
+        $('maint-in'+n).style.display=m?'':'none';
+        $('mom-in'+n).style.display=m?'none':'';
+      }
+      for (let i=0;i<NUM_RLY;i++) {
+        const n=i+1, o=cfg.relay?.[i]; if(!o) continue;
+        $('autoOff-relay'+n).value = o.autoOffSec ?? 0;
+      }
+      for (let i=0;i<NUM_BTN;i++) {
+        const n=i+1, o=cfg.btn?.[i]; if(!o) continue;
+        const st = uiActTarget(o.shortAction, o.shortTarget);
+        $('btn'+n+'-short-act').value = st.action;
+        $('btn'+n+'-short-tgt').value = st.target;
+        const lt = uiActTarget(o.longAction, o.longTarget);
+        $('btn'+n+'-long-act').value = lt.action;
+        $('btn'+n+'-long-tgt').value = lt.target;
+        syncActTargetVis('btn'+n+'-short-act', 'btn'+n+'-short-tgt');
+        syncActTargetVis('btn'+n+'-long-act', 'btn'+n+'-long-tgt');
+      }
+      for (let i=0;i<NUM_LED;i++) {
+        const n=i+1, o=cfg.led?.[i]; if(!o) continue;
+        $('invert-led'+n).checked = !!o.invert;
+        $('arg-led'+n).value = o.arg ?? 0;
+      }
+    }
+  });
+
+  HMWebConfig.connect({ requestElement: 'connect-button' });
+  HMWebConfig.mountTools('hm-tools', { identify: true });
+
+  function sendInType(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('type-in'+i).value,10)); HMWebConfig.sendConfig('in.type', l); }
+  function sendInMaint(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('maint-mode-in'+i).value,10)); HMWebConfig.sendConfig('in.maint', l); }
+  function sendInFollow(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('follow-in'+i).value,10)); HMWebConfig.sendConfig('in.follow', l); }
+  function sendInShort(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push({action:parseInt($('short-act-in'+i).value,10),target:parseInt($('short-tgt-in'+i).value,10)}); HMWebConfig.sendConfig('in.short', l); }
+  function sendInLong(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push({action:parseInt($('long-act-in'+i).value,10),target:parseInt($('long-tgt-in'+i).value,10)}); HMWebConfig.sendConfig('in.long', l); }
+  function sendInLock(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('lock-in'+i).checked); HMWebConfig.sendConfig('in.lock', l); }
+  function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+  function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+
+  function sendRelayCfg(){
+    const l=[];
+    for(let i=1;i<=NUM_RLY;i++) l.push({
+      enabled: $('enable-relay'+i).checked,
+      inverted: $('invert-relay'+i).checked,
+      powerOn: parseInt($('powerOn-relay'+i).value,10),
+      autoOffSec: parseInt($('autoOff-relay'+i).value,10)||0
+    });
+    HMWebConfig.sendConfig('relay', l);
+  }
+
+  function sendBtnCfg(){
+    const l=[];
+    for(let i=1;i<=NUM_BTN;i++) l.push({
+      shortAction: parseInt($('btn'+i+'-short-act').value,10),
+      shortTarget: parseInt($('btn'+i+'-short-tgt').value,10),
+      longAction: parseInt($('btn'+i+'-long-act').value,10),
+      longTarget: parseInt($('btn'+i+'-long-tgt').value,10)
+    });
+    HMWebConfig.sendConfig('btn', l);
+  }
+
+  function sendLedCfg(){
+    const l=[];
+    for(let i=1;i<=NUM_LED;i++) l.push({
+      source: parseInt($('source-led'+i).value,10),
+      mode: parseInt($('mode-led'+i).value,10),
+      invert: $('invert-led'+i).checked,
+      arg: parseInt($('arg-led'+i).value,10)||0
+    });
+    HMWebConfig.sendConfig('led', l);
+  }
+
+  function sendInterlock(){
+    HMWebConfig.sendConfig('interlock', {
+      enabled: $('ilk-enabled').checked,
+      relayA: parseInt($('ilk-a').value,10),
+      relayB: parseInt($('ilk-b').value,10),
+      pauseMs: parseInt($('ilk-pause').value,10)||0
+    });
+  }
+
+  function pushGlobal(){
+    HMWebConfig.sendConfig('global', {
+      longPressMs:     parseInt($('glob-longpress').value,10),
+      multiClickGapMs: parseInt($('glob-multiclick').value,10),
+      debounceMs:      parseInt($('glob-debounce').value,10),
+      linkTimeoutMs:   parseInt($('glob-linktimeout').value,10)
+    });
+  }
+
+  for(let i=1;i<=NUM_DI;i++){
+    $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+    $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+    $('lock-in'+i)?.addEventListener('change', sendInLock);
+    $('maint-mode-in'+i)?.addEventListener('change', sendInMaint);
+    $('follow-in'+i)?.addEventListener('change', sendInFollow);
+    $('short-act-in'+i)?.addEventListener('change', sendInShort);
+    $('short-tgt-in'+i)?.addEventListener('change', sendInShort);
+    $('long-act-in'+i)?.addEventListener('change', sendInLong);
+    $('long-tgt-in'+i)?.addEventListener('change', sendInLong);
+  }
+  for(let i=1;i<=NUM_RLY;i++){
+    $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
+    $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
+    $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
+    $('autoOff-relay'+i)?.addEventListener('change', sendRelayCfg);
+  }
+  for(let i=1;i<=NUM_BTN;i++){
+    $('btn'+i+'-short-act')?.addEventListener('change', sendBtnCfg);
+    $('btn'+i+'-short-tgt')?.addEventListener('change', sendBtnCfg);
+    $('btn'+i+'-long-act')?.addEventListener('change', sendBtnCfg);
+    $('btn'+i+'-long-tgt')?.addEventListener('change', sendBtnCfg);
+  }
+  for(let i=1;i<=NUM_LED;i++){
+    $('source-led'+i)?.addEventListener('change', sendLedCfg);
+    $('mode-led'+i)?.addEventListener('change', sendLedCfg);
+    $('invert-led'+i)?.addEventListener('change', sendLedCfg);
+    $('arg-led'+i)?.addEventListener('change', sendLedCfg);
+  }
+  ['ilk-enabled','ilk-a','ilk-b','ilk-pause'].forEach(id=>$(id)?.addEventListener('change', sendInterlock));
+  ['glob-longpress','glob-multiclick','glob-debounce','glob-linktimeout'].forEach(id=>{
+    $(id)?.addEventListener('input', pushGlobal);
+    $(id)?.addEventListener('change', pushGlobal);
+  });
+
+  function pushModbus(){
+    HMWebConfig.sendValues(parseInt($('modbus-address').value,10), parseInt($('modbus-baud').value,10));
+  }
+  $('modbus-address')?.addEventListener('input', pushModbus);
+  $('modbus-baud')?.addEventListener('input', pushModbus);
+
+})();
+</script>
+</section>
