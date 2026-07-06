@@ -73,6 +73,14 @@ static constexpr uint16_t IrmsA     = 0xDD, IrmsB     = 0xDE, IrmsC     = 0xDF;
 static constexpr uint16_t UrmsALSB  = 0xE9, UrmsBLSB  = 0xEA, UrmsCLSB  = 0xEB;
 static constexpr uint16_t IrmsALSB  = 0xED, IrmsBLSB  = 0xEE, IrmsCLSB  = 0xEF;
 
+static constexpr uint16_t PmeanT    = 0xB0, PmeanA    = 0xB1, PmeanB    = 0xB2, PmeanC    = 0xB3;
+static constexpr uint16_t QmeanT    = 0xB4, QmeanA    = 0xB5, QmeanB    = 0xB6, QmeanC    = 0xB7;
+static constexpr uint16_t SmeanT    = 0xB8, SmeanA    = 0xB9, SmeanB    = 0xBA, SmeanC    = 0xBB;
+static constexpr uint16_t PmeanTLSB = 0xC0, PmeanALSB = 0xC1, PmeanBLSB = 0xC2, PmeanCLSB = 0xC3;
+static constexpr uint16_t QmeanTLSB = 0xC4, QmeanALSB = 0xC5, QmeanBLSB = 0xC6, QmeanCLSB = 0xC7;
+static constexpr uint16_t SAmeanTLSB= 0xC8, SmeanALSB = 0xC9, SmeanBLSB = 0xCA, SmeanCLSB = 0xCB;
+static constexpr double   POWER_LSB = 0.00032;
+
 // ---- Low-level SPI ----
 uint16_t ATM90E32::xfer(uint8_t rw, uint16_t reg, uint16_t val) {
   const uint16_t data_swapped = (uint16_t)((val >> 8) | (val << 8));
@@ -113,6 +121,37 @@ double ATM90E32::readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double s
   const uint16_t h = read16(regH);
   const uint16_t l = read16(regLSB);
   return (h * sH) + (((l >> 8) & 0xFF) * sLb);
+}
+
+int32_t ATM90E32::read32Signed(uint16_t regH, uint16_t regL) {
+  const int16_t  h = (int16_t)read16(regH);
+  const uint16_t l = read16(regL);
+  return (int32_t)(((uint32_t)(uint16_t)h << 16) | l);
+}
+
+int32_t ATM90E32::readMeanPowerW(uint16_t regH, uint16_t regL) {
+  return (int32_t)lround((double)read32Signed(regH, regL) * POWER_LSB);
+}
+
+int32_t ATM90E32::readPmeanW(uint8_t phase) {
+  static const uint16_t regH[] = {PmeanA, PmeanB, PmeanC, PmeanT};
+  static const uint16_t regL[] = {PmeanALSB, PmeanBLSB, PmeanCLSB, PmeanTLSB};
+  if (phase > 3) return 0;
+  return readMeanPowerW(regH[phase], regL[phase]);
+}
+
+int32_t ATM90E32::readQmean_var(uint8_t phase) {
+  static const uint16_t regH[] = {QmeanA, QmeanB, QmeanC, QmeanT};
+  static const uint16_t regL[] = {QmeanALSB, QmeanBLSB, QmeanCLSB, QmeanTLSB};
+  if (phase > 3) return 0;
+  return readMeanPowerW(regH[phase], regL[phase]);
+}
+
+int32_t ATM90E32::readSmean_VA(uint8_t phase) {
+  static const uint16_t regH[] = {SmeanA, SmeanB, SmeanC, SmeanT};
+  static const uint16_t regL[] = {SmeanALSB, SmeanBLSB, SmeanCLSB, SAmeanTLSB};
+  if (phase > 3) return 0;
+  return readMeanPowerW(regH[phase], regL[phase]);
 }
 
 // ---- Public API ----

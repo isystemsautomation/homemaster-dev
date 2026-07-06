@@ -16,8 +16,40 @@
 
 #include "atm90e32.h"
 
-// LittleFS blob — must be before any function using EnmPersistCfg (Arduino inserts prototypes at top).
-struct EnmPersistCfg {
+// LittleFS blobs — must be before any function using them (Arduino inserts prototypes at top).
+struct EnmSettingsCfg {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t lineHz;
+  uint8_t  sumAbs;
+  struct { bool enabled; bool inverted; } rlyCfg[2];
+  struct { uint8_t mode; uint8_t source; } ledCfg[4];
+  struct { uint8_t action; } btnCfg[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct EnmMeterCfg {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint16_t ucal;
+  uint16_t Ugain[3];
+  uint16_t Igain[3];
+  int16_t  Uoffset[3];
+  int16_t  Ioffset[3];
+  uint64_t ap_cnt[4];
+  uint64_t an_cnt[4];
+  uint64_t rp_cnt[4];
+  uint64_t rn_cnt[4];
+  uint64_t s_cnt[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+// Legacy monolithic blob (v0.2.0 beta / v0.1.0) — migrated on first boot.
+struct EnmPersistCfgLegacy {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -39,10 +71,16 @@ struct EnmPersistCfg {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
-static const uint16_t CFG_VERSION     = 0x0001;
+static const uint16_t CFG_VERSION     = (uint16_t)((HM_FW_MAJOR << 12) | (HM_FW_MINOR << 4) | HM_FW_PATCH);
 static const char*    CFG_PATH        = "/enm_cfg.bin";
+static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
+static const uint16_t METER_VERSION   = 0x0001;
+static const char*    METER_PATH      = "/enm_meter.bin";
+static const uint16_t LEGACY_CFG_VER  = 0x0001;
 static volatile bool  cfgDirty        = false;
+static volatile bool  meterDirty      = false;
 static unsigned long  lastCfgTouchMs  = 0;
+static unsigned long  lastMeterTouchMs = 0;
 static const uint32_t CFG_AUTOSAVE_MS = 1500;
 
 // SimpleWebSerial: MaximumNumberOfEvents = 8 (library default). Never register more than 8 handlers.
@@ -118,7 +156,16 @@ static LedCfg ledCfg[NUM_LED];
 static BtnCfg btnCfg[NUM_BTN];
 
 static bool buttonState[NUM_BTN]  = {false,false,false,false};
-static bool buttonPrev[NUM_BTN]   = {false,false,false,false};
+
+struct DebounceState {
+  bool     raw = false;
+  bool     stable = false;
+  bool     prevStable = false;
+  uint32_t lastChangeMs = 0;
+};
+static DebounceState btnDeb[NUM_BTN];
+static const uint32_t g_debounceMs = 25;
+
 static bool desiredRelay[NUM_RLY] = {false,false};
 
 static unsigned long lastSend = 0;
@@ -180,7 +227,11 @@ enum : uint16_t {
   IR_ANG_BASE   = 44,
   IR_E_BASE     = 60,
   HR_MB_ADDR    = 0,
-  HR_MB_BAUD_L  = 1
+  HR_MB_BAUD_L  = 1,
+  HR_LINE_HZ    = 4,
+  HR_SUM_ABS    = 5,
+  HR_RLY_EN_BASE = 7
+  // HR 2,3,6 reserved — read-only, not applied from Modbus
 };
 
 static bool mbMapBuilt = false;
@@ -212,10 +263,21 @@ static inline void mbPutU32Hr(uint16_t reg, uint32_t v) {
 static void mbSyncHolding() {
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mbPutU32Hr(HR_MB_BAUD_L, g_mb_baud);
-  mb.Hreg(4, g_atm_cfg.lineHz);
-  mb.Hreg(5, g_atm_cfg.sumAbs);
-  mb.Hreg(7, rlyCfg[0].enabled ? 1 : 0);
-  mb.Hreg(8, rlyCfg[1].enabled ? 1 : 0);
+  mb.Hreg(HR_LINE_HZ, g_atm_cfg.lineHz);
+  mb.Hreg(HR_SUM_ABS, g_atm_cfg.sumAbs);
+  mb.Hreg(HR_RLY_EN_BASE + 0, rlyCfg[0].enabled ? 1 : 0);
+  mb.Hreg(HR_RLY_EN_BASE + 1, rlyCfg[1].enabled ? 1 : 0);
+}
+
+static void serviceDebounce(DebounceState& st, bool raw, uint32_t now) {
+  if (raw != st.raw) {
+    st.raw = raw;
+    st.lastChangeMs = now;
+  }
+  if ((uint32_t)(now - st.lastChangeMs) >= g_debounceMs) {
+    st.prevStable = st.stable;
+    st.stable = st.raw;
+  }
 }
 
 static void serviceModbusRelays() {
@@ -247,6 +309,24 @@ static void setAtmDefaults() {
     g_atm_cfg.cal[i].Igain   = 49000;  // ZEMCTK05 + PGA=2×, 50A full-scale
     g_atm_cfg.cal[i].Uoffset = 0;
     g_atm_cfg.cal[i].Ioffset = 0;
+  }
+}
+
+static void setMeterDefaults() {
+  g_atm_cfg.ucal = 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = 39500;
+    g_atm_cfg.cal[i].Igain   = 49000;
+    g_atm_cfg.cal[i].Uoffset = 0;
+    g_atm_cfg.cal[i].Ioffset = 0;
+  }
+  memset(g_ap_cnt, 0, sizeof(g_ap_cnt));
+  memset(g_an_cnt, 0, sizeof(g_an_cnt));
+  memset(g_rp_cnt, 0, sizeof(g_rp_cnt));
+  memset(g_rn_cnt, 0, sizeof(g_rn_cnt));
+  memset(g_s_cnt,  0, sizeof(g_s_cnt));
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i] = g_e_an_Wh[i] = g_e_rp_varh[i] = g_e_rn_varh[i] = g_e_s_VAh[i] = 0;
   }
 }
 
@@ -285,16 +365,73 @@ static void markCfgDirty() {
   lastCfgTouchMs = millis();
 }
 
-static void captureToPersist(EnmPersistCfg& pc) {
+static void markMeterDirty() {
+  meterDirty = true;
+  lastMeterTouchMs = millis();
+}
+
+static void captureSettings(EnmSettingsCfg& pc) {
   memset(&pc, 0, sizeof(pc));
   pc.magic      = CFG_MAGIC;
   pc.version    = CFG_VERSION;
-  pc.size       = sizeof(EnmPersistCfg);
+  pc.size       = sizeof(EnmSettingsCfg);
   pc.mb_address = g_mb_address;
   pc.mb_baud    = g_mb_baud;
   pc.lineHz     = g_atm_cfg.lineHz;
   pc.sumAbs     = g_atm_cfg.sumAbs;
-  pc.ucal       = g_atm_cfg.ucal;
+  for (int i = 0; i < NUM_RLY; i++) {
+    pc.rlyCfg[i].enabled  = rlyCfg[i].enabled;
+    pc.rlyCfg[i].inverted = rlyCfg[i].inverted;
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    pc.ledCfg[i].mode   = ledCfg[i].mode;
+    pc.ledCfg[i].source = ledCfg[i].source;
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    pc.btnCfg[i].action = btnCfg[i].action;
+  }
+  pc.crc32 = 0;
+  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmSettingsCfg));
+}
+
+static bool applySettings(const EnmSettingsCfg& pc) {
+  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(EnmSettingsCfg))
+    return false;
+  EnmSettingsCfg tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmSettingsCfg)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled  = pc.rlyCfg[i].enabled;
+    rlyCfg[i].inverted = pc.rlyCfg[i].inverted;
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    ledCfg[i].mode   = pc.ledCfg[i].mode;
+    ledCfg[i].source = pc.ledCfg[i].source;
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    btnCfg[i].action = pc.btnCfg[i].action;
+  }
+  return true;
+}
+
+static void captureMeter(EnmMeterCfg& pc) {
+  memset(&pc, 0, sizeof(pc));
+  pc.magic   = METER_MAGIC;
+  pc.version = METER_VERSION;
+  pc.size    = sizeof(EnmMeterCfg);
+  pc.ucal    = g_atm_cfg.ucal;
   for (int i = 0; i < 3; i++) {
     pc.Ugain[i]   = g_atm_cfg.cal[i].Ugain;
     pc.Igain[i]   = g_atm_cfg.cal[i].Igain;
@@ -307,27 +444,19 @@ static void captureToPersist(EnmPersistCfg& pc) {
   memcpy(pc.rn_cnt, g_rn_cnt, sizeof(g_rn_cnt));
   memcpy(pc.s_cnt,  g_s_cnt,  sizeof(g_s_cnt));
   pc.crc32 = 0;
-  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmPersistCfg));
+  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmMeterCfg));
 }
 
-static bool applyFromPersist(const EnmPersistCfg& pc) {
-  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(EnmPersistCfg))
+static bool applyMeter(const EnmMeterCfg& pc) {
+  if (pc.magic != METER_MAGIC || pc.version != METER_VERSION || pc.size != sizeof(EnmMeterCfg))
     return false;
-  EnmPersistCfg tmp = pc;
+  EnmMeterCfg tmp = pc;
   const uint32_t crc = tmp.crc32;
   tmp.crc32 = 0;
-  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmPersistCfg)) != crc)
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmMeterCfg)) != crc)
     return false;
 
-  g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
-  g_mb_baud = pc.mb_baud;
-  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
-  SlaveId = (int)g_mb_address;
-
-  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
-  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
-  g_atm_cfg.ucal   = pc.ucal ? pc.ucal : 36000;
+  g_atm_cfg.ucal = pc.ucal ? pc.ucal : 36000;
   for (int i = 0; i < 3; i++) {
     g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
     g_atm_cfg.cal[i].Igain   = pc.Igain[i];
@@ -351,9 +480,47 @@ static bool applyFromPersist(const EnmPersistCfg& pc) {
   return true;
 }
 
-static bool saveConfigFS() {
-  EnmPersistCfg pc;
-  captureToPersist(pc);
+static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
+  if (pc.magic != CFG_MAGIC || pc.version != LEGACY_CFG_VER || pc.size != sizeof(EnmPersistCfgLegacy))
+    return false;
+  EnmPersistCfgLegacy tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmPersistCfgLegacy)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.ucal   = pc.ucal ? pc.ucal : 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
+    g_atm_cfg.cal[i].Igain   = pc.Igain[i];
+    g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
+    g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
+  }
+  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
+  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
+  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
+  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
+  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
+    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
+    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
+    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
+    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+  }
+  return true;
+}
+
+static bool saveSettingsFS() {
+  EnmSettingsCfg pc;
+  captureSettings(pc);
   File f = LittleFS.open(CFG_PATH, "w");
   if (!f) return false;
   const size_t n = f.write(reinterpret_cast<const uint8_t*>(&pc), sizeof(pc));
@@ -361,18 +528,75 @@ static bool saveConfigFS() {
   return n == sizeof(pc);
 }
 
-static bool loadConfigFS() {
+static bool saveMeterFS() {
+  EnmMeterCfg pc;
+  captureMeter(pc);
+  File f = LittleFS.open(METER_PATH, "w");
+  if (!f) return false;
+  const size_t n = f.write(reinterpret_cast<const uint8_t*>(&pc), sizeof(pc));
+  f.close();
+  return n == sizeof(pc);
+}
+
+static bool saveConfigFS() {
+  return saveSettingsFS() && saveMeterFS();
+}
+
+static bool loadSettingsFS() {
   File f = LittleFS.open(CFG_PATH, "r");
   if (!f) return false;
-  if (f.size() != sizeof(EnmPersistCfg)) {
+  if (f.size() != sizeof(EnmSettingsCfg)) {
     f.close();
     return false;
   }
-  EnmPersistCfg pc;
+  EnmSettingsCfg pc;
   const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
   f.close();
   if (n != sizeof(pc)) return false;
-  return applyFromPersist(pc);
+  return applySettings(pc);
+}
+
+static bool loadMeterFS() {
+  File f = LittleFS.open(METER_PATH, "r");
+  if (!f) return false;
+  if (f.size() != sizeof(EnmMeterCfg)) {
+    f.close();
+    return false;
+  }
+  EnmMeterCfg pc;
+  const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+  f.close();
+  if (n != sizeof(pc)) return false;
+  return applyMeter(pc);
+}
+
+static bool tryMigrateLegacyCfg() {
+  File f = LittleFS.open(CFG_PATH, "r");
+  if (!f) return false;
+  if (f.size() != sizeof(EnmPersistCfgLegacy)) {
+    f.close();
+    return false;
+  }
+  EnmPersistCfgLegacy pc;
+  const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+  f.close();
+  if (n != sizeof(pc) || !applyLegacyPersist(pc)) return false;
+  saveSettingsFS();
+  saveMeterFS();
+  return true;
+}
+
+static bool loadConfigFS() {
+  const bool settingsOk = loadSettingsFS();
+  const bool meterOk = loadMeterFS();
+  if (settingsOk && meterOk) return true;
+  if (!settingsOk && !meterOk && tryMigrateLegacyCfg()) return true;
+  if (!settingsOk) return false;
+  if (!meterOk) {
+    setMeterDefaults();
+    markMeterDirty();
+  }
+  return true;
 }
 
 static bool     meter_job = false;
@@ -476,22 +700,11 @@ static void meter_job_step() {
       g_f_x100 = g_atm.readFreq_x100();
       g_tempC  = g_atm.readTempC();
 
-      for (int i = 0; i < 3; i++) {
-        double pf = ((double)g_pf_raw[i]) / 1000.0;
-        if (pf > 1.0) pf = 1.0;
-        if (pf < -1.0) pf = -1.0;
-        double S = g_urms[i] * g_irms[i];
-        double P = S * pf;
-        double q2 = (S * S) - (P * P);
-        if (q2 < 0) q2 = 0;
-        double Q = sqrt(q2);
-        g_s_VA[i]  = (int32_t)lround(S);
-        g_p_W[i]   = (int32_t)lround(P);
-        g_q_var[i] = (int32_t)lround(Q);
+      for (int i = 0; i < 4; i++) {
+        g_p_W[i]    = g_atm.readPmeanW((uint8_t)i);
+        g_q_var[i]  = g_atm.readQmean_var((uint8_t)i);
+        g_s_VA[i]   = g_atm.readSmean_VA((uint8_t)i);
       }
-      g_s_VA[3]  = g_s_VA[0] + g_s_VA[1] + g_s_VA[2];
-      g_p_W[3]   = g_p_W[0] + g_p_W[1] + g_p_W[2];
-      g_q_var[3] = g_q_var[0] + g_q_var[1] + g_q_var[2];
       meter_job = false;
       g_haveMeter = true;
       mbPublishMeter();
@@ -522,7 +735,7 @@ static void sampleEnergyCounters() {
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
   }
-  markCfgDirty();
+  markMeterDirty();
 }
 
 static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
@@ -552,6 +765,7 @@ static void setDefaults() {
   g_mb_baud    = 19200;
   SlaveId      = (int)g_mb_address;
   setAtmDefaults();
+  setMeterDefaults();
 }
 
 static void atmApplyFromCfg_NOW() {
@@ -562,6 +776,61 @@ static void atmApplyFromCfg_NOW() {
 
 static void queueAtmApply() {
   atmApplyPending = true;
+}
+
+static void applyHoldingFromModbus() {
+  bool changed = false;
+
+  const uint16_t addr = mb.Hreg(HR_MB_ADDR);
+  if (addr >= 1 && addr <= 247 && addr != g_mb_address) {
+    g_mb_address = (uint8_t)addr;
+    changed = true;
+  }
+
+  const uint32_t baud = ((uint32_t)mb.Hreg(HR_MB_BAUD_L) << 16) | (uint32_t)mb.Hreg(HR_MB_BAUD_L + 1);
+  const uint32_t vBaud = hmValidBaud(baud);
+  if (vBaud != g_mb_baud) {
+    g_mb_baud = vBaud;
+    changed = true;
+  }
+
+  static uint8_t  lastAddr = 0;
+  static uint32_t lastBaud = 0;
+  if (g_mb_address != lastAddr || g_mb_baud != lastBaud) {
+    applyModbusSettings(g_mb_address, g_mb_baud);
+    lastAddr = g_mb_address;
+    lastBaud = g_mb_baud;
+  }
+
+  const uint16_t hz = mb.Hreg(HR_LINE_HZ);
+  if (hz == 50 || hz == 60) {
+    const uint16_t newHz = (uint16_t)hz;
+    if (g_atm_cfg.lineHz != newHz) {
+      g_atm_cfg.lineHz = newHz;
+      changed = true;
+      queueAtmApply();
+    }
+  }
+
+  const uint8_t sumAbs = mb.Hreg(HR_SUM_ABS) ? 1 : 0;
+  if (g_atm_cfg.sumAbs != sumAbs) {
+    g_atm_cfg.sumAbs = sumAbs;
+    changed = true;
+    queueAtmApply();
+  }
+
+  for (int i = 0; i < NUM_RLY; i++) {
+    const bool en = mb.Hreg(HR_RLY_EN_BASE + i) != 0;
+    if (rlyCfg[i].enabled != en) {
+      rlyCfg[i].enabled = en;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    markCfgDirty();
+    mbSyncHolding();
+  }
 }
 
 static JSONVar calPhasesArrayFromCfg() {
@@ -746,6 +1015,7 @@ void handleUnifiedConfig(JSONVar obj) {
     queueAtmApply();
     wsLog("OK: ATM queued");
     changed = true;
+    markMeterDirty();
 
   } else {
     wsLog(String("Unknown Config type: ") + t);
@@ -770,8 +1040,8 @@ void sendWebStatus() {
 void sendWebCfg() {
   JSONVar cfg;
   for (int i = 0; i < NUM_RLY; i++) {
-    cfg["relay"][i]["enabled"] = rlyCfg[i].enabled ? 1 : 0;
-    cfg["relay"][i]["invert"]  = rlyCfg[i].inverted ? 1 : 0;
+    cfg["relay"][i]["enabled"]  = rlyCfg[i].enabled ? 1 : 0;
+    cfg["relay"][i]["inverted"] = rlyCfg[i].inverted ? 1 : 0;
   }
   for (int i = 0; i < NUM_BTN; i++) {
     cfg["btn"][i]["action"] = btnCfg[i].action;
@@ -899,6 +1169,7 @@ void loop() {
   yield();
 
   serviceModbusRelays();
+  applyHoldingFromModbus();
 
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
     atmApplyPending = false;
@@ -907,13 +1178,19 @@ void loop() {
     atmBusy = false;
     atmLastApplyMs = now;
     markCfgDirty();
+    markMeterDirty();
     wsLog("OK: ATM applied");
     sendWebCfg();
   }
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     cfgDirty = false;
-    saveConfigFS();
+    saveSettingsFS();
+  }
+
+  if (meterDirty && (now - lastMeterTouchMs >= CFG_AUTOSAVE_MS)) {
+    meterDirty = false;
+    saveMeterFS();
   }
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
@@ -923,10 +1200,12 @@ void loop() {
 
   bool relayLogical[NUM_RLY];
   for (int i = 0; i < NUM_BTN; i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
-    buttonPrev[i]  = buttonState[i];
+    const bool rawPressed = (digitalRead(BTN_PINS[i]) == LOW);
+    serviceDebounce(btnDeb[i], rawPressed, now);
+    const bool pressed = btnDeb[i].stable;
     buttonState[i] = pressed;
-    if (!buttonPrev[i] && buttonState[i]) {
+    const bool rising = (!btnDeb[i].prevStable && btnDeb[i].stable);
+    if (rising) {
       uint8_t act = btnCfg[i].action;
       if (act == 5 || act == 6) {
         int r = act - 5;
@@ -945,6 +1224,8 @@ void loop() {
     relayLogical[i] = logical;
     mb.setIsts(DI_RELAY_BASE + i, logical);
   }
+  if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
+  if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
 
   bool ledPhysState[NUM_LED];
   for (int i = 0; i < NUM_LED; i++) {

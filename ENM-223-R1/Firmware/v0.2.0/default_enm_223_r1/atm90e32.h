@@ -40,6 +40,9 @@ public:
   double readIrmsA_A(); double readIrmsB_A(); double readIrmsC_A();
 
   int16_t  readPFmeanA(); int16_t readPFmeanB(); int16_t readPFmeanC(); int16_t readPFmeanT();
+  int32_t  readPmeanW(uint8_t phase);   // 0=A,1=B,2=C,3=Total
+  int32_t  readQmean_var(uint8_t phase);
+  int32_t  readSmean_VA(uint8_t phase);
   int16_t  readPAngleA(); int16_t readPAngleB(); int16_t readPAngleC();
   uint16_t readFreq_x100();
   int16_t  readTempC();
@@ -66,6 +69,8 @@ private:
   inline void     write16(uint16_t reg, uint16_t val) { (void)xfer(0, reg, val); }
 
   double readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double sLb);
+  int32_t  read32Signed(uint16_t regH, uint16_t regL);
+  int32_t  readMeanPowerW(uint16_t regH, uint16_t regL);
 
   uint16_t lineHz_ = 50;
   uint8_t  sumAbs_ = 1;

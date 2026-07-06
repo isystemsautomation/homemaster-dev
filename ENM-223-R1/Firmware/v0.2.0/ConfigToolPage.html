@@ -291,6 +291,16 @@
     }
 
     function applyEnmCfg(ext, cfg){
+      const rlyArr = cfg && cfg.relay;
+      if (rlyArr) {
+        for (let i = 0; i < NUM_RLY; i++) {
+          const o = rlyArr[i] ?? rlyArr[String(i)] ?? {};
+          if (o.inverted !== undefined) {
+            const el = $('invert-relay' + (i + 1));
+            if (el && el !== document.activeElement) el.checked = !!o.inverted;
+          }
+        }
+      }
       const atm=(ext&&ext.atm)||(cfg.ext&&cfg.ext.atm)||{};
       if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
       if(atm.sumAbs!==undefined){ const el=$('opt-sumAbs'); if(el&&el!==document.activeElement) el.value=String(atm.sumAbs); }
