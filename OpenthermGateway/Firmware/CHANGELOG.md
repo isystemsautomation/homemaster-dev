@@ -21,4 +21,4 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
 ### v1.0.6 — current
 
-- Initial public firmware release for OpenTherm Gateway-R1 hardware V1.0.
+- Initial public firmware release for OTGW-R1 hardware V1.0.

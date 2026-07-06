@@ -2,7 +2,7 @@
 
 ![Device](./Images/opentherm.png)
 
-**Part No.:** OpenTherm Gateway-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
+**Part No.:** OTGW-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
 ## Description
 

@@ -42,7 +42,7 @@ For complete product documentation (connections, compliance/certifications, wiri
 
 - **MCU:** ESP32-WROOM-32U-N16 (16 MB flash, external antenna connector)
 - **Architecture:** Modular — MCU Board + Relay Board
-- **Part number:** OpenTherm Gateway-R1
+- **Part number:** OTGW-R1
 - **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
 ## Power Input
