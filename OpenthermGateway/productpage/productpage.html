@@ -139,7 +139,7 @@
           <tbody>
             <tr><th scope="row">Architecture</th><td>Modular — MCU Board + Relay Board</td></tr>
             <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core, 16 MB flash)</td></tr>
-            <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N) OR 120-370 V DC (L / N + / -)</td></tr>
+            <tr><th scope="row">Power Input</th><td>24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N)</td></tr>
             <tr>
               <th scope="row">Relay Output*</th>
               <td>
@@ -427,7 +427,7 @@
 
       <h3 id="power-supply"><strong>Power Supply</strong></h3>
       <p>
-        The OpenTherm Gateway supports three input options: <strong>24 V DC (V+ / 0V)</strong>, <strong>85-265 V AC (L / N)</strong>, or <strong>120-370 V DC (L / N + / -)</strong>. Use only one power input method at a time.
+        The OpenTherm Gateway supports two input options: <strong>24 V DC (V+ / 0V)</strong> or <strong>85-265 V AC (L / N)</strong>. Use only one power input method at a time.
       </p>
 
       <div class="plc-grid">
@@ -577,7 +577,7 @@
       <h2 id="safety-installation-notes"><strong>Safety and Installation Notes</strong></h2>
       <ul class="plc-list">
         <li>Disconnect all power before installation or wiring changes.</li>
-        <li>Use only one power input method at a time (24 V DC or AC/DC L/N input).</li>
+        <li>Use only one power input method at a time (24 V DC or AC L/N input).</li>
         <li>Install only inside a closed control cabinet; protect all terminals from accidental contact.</li>
         <li>Use external overcurrent protection (fuse/breaker) for relay circuits and mains inputs.</li>
         <li>Relay outputs are not internally fused; use external contactors for loads above 3 A and for high inrush/inductive loads.</li>

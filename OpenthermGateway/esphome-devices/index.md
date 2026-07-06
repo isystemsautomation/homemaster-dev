@@ -53,7 +53,6 @@ Use **only one** power input method at a time:
 |---|---|---|
 | 24V DC | +V / 0V | 24 V DC nominal |
 | AC mains | L / N | 85–265 V AC |
-| Wide DC | L / N | 120–370 V DC |
 
 ## Terminal Connections
 
@@ -110,7 +109,7 @@ EN 301 489-1, EN 301 489-17, EN IEC 63000
 - OpenTherm interface (OT+ / OT-)
 - Relay channels: 1 x SPDT dry-contact, system limit 3 A @ 250 VAC (resistive), 90 W @ 30 VDC
 - Two 1-Wire buses
-- Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
+- Power input options: 24 V DC or 85-265 V AC
 - USB Type-C
 - Wi-Fi and Bluetooth
 - ESPHome pre-installed

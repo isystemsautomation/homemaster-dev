@@ -17,7 +17,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Quick Start
 
 1. Mount the device on 35 mm DIN rail inside a closed control cabinet.
-2. Connect ONE power input (24 V DC at +V/0V, OR 85–265 V AC / 120–370 V DC at L/N).
+2. Connect ONE power input (24 V DC at +V/0V, OR 85–265 V AC at L/N).
 3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
 4. Power on, open https://improv-wifi.com, and provision Wi-Fi via Bluetooth.
 5. Open ESPHome Dashboard → click **Take Control** to import the configuration. The device appears in Home Assistant under Settings → Devices & Services → ESPHome.
@@ -65,7 +65,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - OpenTherm interface (OT+ / OT-)
 - Relay output: 1 × SPDT relay (component), only **C and NC** terminals exposed externally — functionally **SPST-NC**. System limit: 3 A @ 250 VAC (resistive), 750 VA @ 250 VAC max, 90 W @ 30 VDC max. *Relay output insulation from mains primary on the PCB is rated Basic; see use restriction in the Relay Output Wiring section.*
 - Two 1-Wire buses
-- Power input options: 24 V DC, 85-265 V AC, or 120-370 V DC
+- Power input options: 24 V DC or 85-265 V AC
 - USB Type-C
 - Wi-Fi 2.4 GHz (pre-certified radio module) and Bluetooth
 - Typical power consumption: **3 W**
@@ -93,7 +93,7 @@ The table below lists boilers users have successfully run with this hardware (or
 > ⚠️ **Safety — read before installation:**
 > - **L / N terminals carry hazardous mains voltage.** Installation
 >   by qualified personnel only.
-> - **Use only ONE power input at a time** (24 V DC or AC/DC L/N).
+> - **Use only ONE power input at a time** (24 V DC or AC L/N).
 >   Never connect multiple power inputs simultaneously.
 > - **Disconnect all power before wiring changes.**
 > - Relay output is **not internally fused** — always add an
@@ -168,7 +168,6 @@ The table below lists boilers users have successfully run with this hardware (or
 |---|---|---|
 | 24 V DC | +V / 0V | 24 V DC nominal |
 | AC Mains | L / N | 85–265 V AC |
-| Wide DC | L / N | 120–370 V DC |
 
 | 24 V DC Input | 230 V AC Input |
 |:---:|:---:|
@@ -244,8 +243,8 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 |---|---|---|
 | 0V | DC Ground | 24 V DC negative / ground |
 | +V | DC Power + | 24 V DC positive input |
-| L | AC Line / Wide DC + | AC mains live (85–265 V AC) or DC+ (120–370 V DC) |
-| N | AC Neutral / Wide DC − | AC mains neutral or DC− |
+| L | AC Line | AC mains live (85–265 V AC) |
+| N | AC Neutral | AC mains neutral |
 | C | Relay Common | Dry-contact relay common |
 | NC | Relay NC | Normally closed contact |
 
