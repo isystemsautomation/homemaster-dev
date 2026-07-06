@@ -1041,6 +1041,7 @@ void sendWebCfg() {
   JSONVar cfg;
   for (int i = 0; i < NUM_RLY; i++) {
     cfg["relay"][i]["enabled"]  = rlyCfg[i].enabled ? 1 : 0;
+    cfg["relay"][i]["invert"]   = rlyCfg[i].inverted ? 1 : 0;
     cfg["relay"][i]["inverted"] = rlyCfg[i].inverted ? 1 : 0;
   }
   for (int i = 0; i < NUM_BTN; i++) {
@@ -1064,6 +1065,7 @@ void sendWebCfg() {
 void sendWebBootstrap() {
   sendWebStatus();
   sendWebCfg();
+  sendWebExt();
 }
 
 void sendWebExt() {
@@ -1270,15 +1272,13 @@ void loop() {
   if (now - lastSend >= sendInterval) {
     lastSend = now;
 
+    sendWebStatus();
     if (hmUsbCanSend()) {
-      sendWebStatus();
-
       JSONVar io;
       for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
       for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
       WebSerial.send("io", io);
-
       sendWebExt();
     }
   }

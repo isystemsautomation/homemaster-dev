@@ -199,7 +199,7 @@
     </div>
   </section>
 
-  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script src="simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
@@ -295,10 +295,11 @@
       if (rlyArr) {
         for (let i = 0; i < NUM_RLY; i++) {
           const o = rlyArr[i] ?? rlyArr[String(i)] ?? {};
-          if (o.inverted !== undefined) {
-            const el = $('invert-relay' + (i + 1));
-            if (el && el !== document.activeElement) el.checked = !!o.inverted;
-          }
+          const enEl = $('enable-relay' + (i + 1));
+          const invEl = $('invert-relay' + (i + 1));
+          if (o.enabled !== undefined && enEl && enEl !== document.activeElement) enEl.checked = !!o.enabled;
+          const inv = (o.inverted !== undefined) ? o.inverted : o.invert;
+          if (inv !== undefined && invEl && invEl !== document.activeElement) invEl.checked = !!inv;
         }
       }
       const atm=(ext&&ext.atm)||(cfg.ext&&cfg.ext.atm)||{};
@@ -477,7 +478,7 @@
       for(let i=1;i<=NUM_BTN;i++){
         const d=document.createElement('div'); d.className='iocard tint-button';
         d.innerHTML=`<div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
-          <div><label for="action-btn${i}">Action</label><select id="action-btn${i}">${ACTIONS.map(a=>`<option value="${a.v}">${a.label}</option>`).join('')}</select></div>`;
+          <div><label for="action-btn${i}">Action</label><select id="action-btn${i}">${ACTIONS.map(a=>`<option value="${a.v}">${a.l}</option>`).join('')}</select></div>`;
         c.appendChild(d);
       }
     })();
