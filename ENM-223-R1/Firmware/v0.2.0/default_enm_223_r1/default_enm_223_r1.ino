@@ -273,6 +273,8 @@ static bool desiredRelay[NUM_RLY] = {false,false};
 
 static unsigned long lastSend = 0;
 static const unsigned long sendInterval = 1000;
+static unsigned long lastBootstrap = 0;
+static const unsigned long bootstrapInterval = 4000;
 static bool webHostConnected = false;
 
 // Web Serial does not assert USB-CDC DTR — do not gate telemetry on Serial.dtr() or (bool)Serial.
@@ -1963,15 +1965,12 @@ void loop() {
 
   if (now - lastSend >= sendInterval) {
     lastSend = now;
-    if (!webSerialWriteReady(64)) return;
-
-    // status unlocks browser hello (WebConfig sends command on first RX); no DTR gate.
-    sendWebStatus();
-
-    if (!webHostConnected) return;
-
-    if (webSerialWriteReady(256)) sendWebExt();
-
+    if (webSerialWriteReady(64)) {
+      sendWebStatus();
+    }
+    if (webSerialWriteReady(256)) {
+      sendWebExt();
+    }
     if (webSerialWriteReady(64)) {
       JSONVar io;
       for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
@@ -1979,6 +1978,13 @@ void loop() {
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
       WebSerial.send("io", io);
       WebSerial.send("AlarmsState", alarmsStateToJson());
+    }
+  }
+
+  if (now - lastBootstrap >= bootstrapInterval) {
+    lastBootstrap = now;
+    if (webSerialWriteReady(256)) {
+      sendWebBootstrap();
     }
   }
 }
