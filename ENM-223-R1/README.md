@@ -3,7 +3,7 @@
 
 ## 🚀 Quick Start (current version)
 
-**Firmware shipped on new modules: `v0.1.0`**
+**Current firmware line: `v0.2.0`** — see [Firmware/README.md](Firmware/README.md) for build, persistence, and publish notes.
 
 ```yaml
 packages:
@@ -11,24 +11,29 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
-          enm_address: 4
+          enm_address: 30
           enm_prefix: "ENM #1"
 ```
+
+Set `enm_address` to the Modbus ID configured in WebConfig.
 
 ## 📦 Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.1.0** | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | First versioned release |
+| **v0.2.0** | `ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-07 | Signed P/Q, peaks/neutral/THD, import/export energy labels, alarm engine + relay Alarm Controlled, phase mapping, 3P4W/3P3W, split LittleFS persistence |
+| **v0.1.0** | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | First versioned release (legacy; do not extend) |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_enm_223_r1/sketch.yaml)
 
 # ENM-223-R1 — 3-Phase Power Metering & I/O Module
 
 **HOMEMASTER – Modular control. Custom logic.**
+
+**Document map:** [§1 Introduction](#1-introduction) · [§4 Installation & WebConfig](#4-installation--quick-start) · [§5 Technical Specification](#5-module-code--technical-specification) · [§6 Modbus map](#6-modbus-rtu-communication) · [§7 ESPHome](#7-esphome-integration-guide) · [§8 Programming](#8-programming--customization) · [Firmware folder](Firmware/README.md)
 
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
@@ -68,10 +73,10 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 The **ENM‑223‑R1** is a modular **3‑phase energy metering + I/O** device for power monitoring, automation, and local control. It features **3 voltage channels (L1/L2/L3‑N)**, **3 current channels (external CTs)**, **2 SPDT relays**, **4 user LEDs**, and **4 buttons**—all driven by an **RP2350** MCU with QSPI flash and a dedicated **ATM90E32AS** metering IC.
 
-It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master over **RS‑485**, and it’s configured in‑browser via **USB‑C Web Serial** (no drivers). Typical uses include **energy dashboards, demand response, alarm‑driven relay control, and building automation**. Defaults ship as **Modbus address 3 @ 19200 8N1** (changeable in WebConfig).
+It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master over **RS‑485**, and it’s configured in‑browser via **USB‑C Web Serial** (no drivers). Typical uses include **energy dashboards, demand response, alarm‑driven relay control, and building automation**. First‑boot firmware default is **Modbus address 30 @ 19200 8N1** (changeable in WebConfig; assign a unique plant ID on each RS‑485 segment).
 
 > Quick device flow:  
-> **Wire Lx/N/PE + CTs → set address/baud in WebConfig → calibrate gains/offsets → define alarms per L1/L2/L3/Totals → map relays/LEDs/buttons → connect RS‑485 A/B (and GND if separate PSUs) → poll via Modbus.**
+> **Wire Lx/N/PE + CTs → set address/baud, line Hz, 3P4W/3P3W, phase mapping in WebConfig → calibrate → alarms (L1/L2/L3/Totals) → relay Alarm Controlled or Modbus → RS‑485 → poll Modbus.**
 
 ---
 
@@ -84,11 +89,14 @@ It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master
 | Voltage Inputs  | 3   | L1/L2/L3‑N measurement (divider network on FieldBoard) feeding ATM90E32AS |
 | Current Inputs  | 3   | Differential CT inputs (IAP/IAN, IBP/IBN, ICP/ICN) with filtering/burdens |
 | Relays          | 2   | **SPDT** dry contacts (NO/NC); opto‑driven; alarm‑ or Modbus‑controlled |
-| LEDs            | 4   | User LEDs; sources: overrides/alarms/warnings/events; steady or blink |
-| Buttons         | 4   | User actions (toggle relays/LEDs, overrides, acks) with live state feedback |
-| Metering & Energy | — | ATM90E32AS: Urms/Irms, **P/Q/S**, PF, angle, freq; energy kWh/kvarh/kVAh (phase & totals) |
+| LEDs            | 4   | User LEDs; steady or blink; follow relay logical state |
+| Buttons         | 4   | Toggle relay 1/2 when in Modbus mode; state on Modbus DI |
+| Metering & Energy | — | ATM90E32AS: Urms/Irms, **signed P/Q**, S, PF, angle, freq; **U/I peaks**, **Irms neutral**, **THD**; import/export energy (AP/AN, RP/RN, VAh) per phase & totals |
+| Alarms & PQ | — | Threshold rules (Alarm/Warning/Event) with **hysteresis**; chip events (sag, OV, phase loss, over-I, frequency, phase sequence) as **Event**; Modbus DI 16–27 + ACK coils 16–19 |
+| Meter wiring | WebConfig | **Phase mapping** (L1–L3 → phases A/B/C at ATM init); **3P4W / 3P3W** wiring mode |
+| Persistence | LittleFS | **Settings** `/enm_cfg.bin` (migrated on `CFG_VERSION` bump); **calibration + energy** `/enm_meter.bin` (kept across firmware updates) |
 | Config UI       | Web Serial | In‑browser **WebConfig** over **USB‑C** (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); live meter, calibration, alarms, relays, LEDs, buttons |
-| Modbus RTU      | RS‑485 | Multi‑drop slave; address 1…255; baud 9600–115200 (default **19200 8N1**) |
+| Modbus RTU      | RS‑485 | Multi‑drop slave; address 1…247; baud 9600–115200 (default **19200 8N1**) |
 | MCU             | RP2350 + QSPI | Dual‑core MCU, native USB, external W25Q32 flash; RS‑485 via MAX485 transceiver |
 | Power           | 24 VDC | Buck to 5 V → 3.3 V LDO; **isolated analog domain** via B0505S DC‑DC + ISO7761 |
 | Protection      | TVS, PTC, fuses | Surge/ESD on USB & RS‑485; resettable fuses on field I/O; reverse‑polarity protection |
@@ -103,13 +111,13 @@ The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm 
 |----------------------|-------------|
 | System Position      | Expansion meter+I/O on the **RS‑485** trunk (A/B/GND) |
 | Master Controller    | MiniPLC / MicroPLC or any third‑party Modbus RTU **master** (polling) |
-| Address / Baud       | Configurable 1…255 / **9600–115200**; **factory default: ID 3 @ 19200 8N1** |
+| Address / Baud       | Configurable 1…247 / **9600–115200**; **first-boot default: ID 30 @ 19200 8N1** |
 | Bus Type             | RS‑485 half‑duplex; termination/bias per bus rules; share **GND** if separate PSUs |
 | USB‑C Port           | Setup/diagnostics via Chromium browser (Web Serial); native USB D+/D− to MCU |
-| Default Modbus ID    | **3** (change in WebConfig) |
+| Default Modbus ID    | **30** on fresh flash (set per site in WebConfig) |
 | Daisy‑Chaining       | Multi‑drop on shared A/B; ensure unique IDs and end‑of‑line termination |
 
-> **Note:** The UI exposes per‑channel **Alarm / Warning / Event** with min/max thresholds and **Ack required** option; relays can follow selected alarm kinds or be **Modbus‑controlled**. Buttons can toggle/override relays; LEDs reflect overrides or alarm states.
+> **Note:** Per-channel **Alarm / Warning / Event** rules, **Ack required**, **Alarm Controlled** relays, **phase mapping**, and **3P4W/3P3W** are configured in WebConfig. Modbus exposes live alarm bits (DI 16–27) and ACK coils 16–19.
 
 
 <a id="2-use-cases"></a>
@@ -136,25 +144,25 @@ These templates are applicable in energy management, automation, industrial cont
   - Mode: `Alarm Controlled`  
   - Channel: `Totals`, Kinds: `Alarm`
 - **LEDs** → LED 1  
-  - Source: `Alarm Totals`, Mode: `Steady`
+  - Source: `Relay 1` (shows trip), Mode: `Steady`
 - **Acknowledge**: via Web UI, Modbus coils `16–19` (L1/L2/L3/Total), or front panel button (if assigned)
 
 ---
 
-## 2.2 Manual Override for Load Control
+## 2.2 Manual Relay Toggle via Button
 
-**Purpose:** Allow field operators to override **Relay 2** using a button, regardless of Modbus or automation control.
+**Purpose:** Allow field operators to toggle **Relay 2** with a front-panel button when the relay is **Modbus Controlled**.
 
 ### Configuration:
 - **Relays** → Relay 2  
   - Mode: `Modbus Controlled`  
   - Enabled at power-on
 - **Buttons** → Button 2  
-  - Action: `Override Relay 2 (hold 3s)`
+  - Action: `Toggle Relay 2`
 - **LEDs** → LED 2  
-  - Source: `Override R2`, Mode: `Blink` or `Steady`
+  - Source: `Relay 2`, Mode: `Steady` or `Blink`
 
-> Holding the button for 3 seconds enters override mode. A short press toggles the relay. Holding again exits override mode.
+> Button actions apply only in **Modbus Controlled** mode. Use **Alarm Controlled** when the relay must follow meter alarms (local load shed).
 
 ---
 
@@ -171,7 +179,7 @@ These templates are applicable in energy management, automation, industrial cont
 - **Relays** → Relay 1  
   - Mode: `Alarm Controlled`, Channel: `L1`, Kinds: `Alarm`
 - **LEDs** → LED 1  
-  - Source: `Alarm L1`
+  - Source: `Relay 1`, Mode: `Steady` (or poll Modbus DI **16** for Alarm L1 in PLC/HA)
 
 ---
 
@@ -197,7 +205,7 @@ These templates are applicable in energy management, automation, industrial cont
 | Use Case                               | Feature Used                | Reset Method         | Relay Mode         |
 |----------------------------------------|-----------------------------|----------------------|--------------------|
 | Overcurrent Alarm + Ack                | Alarms, Ack, Relay 1        | Manual (Ack)         | Alarm Controlled   |
-| Manual Override via Button             | Button override, LED        | Button toggle        | Modbus Controlled  |
+| Manual relay toggle via button       | Button → relay              | Button toggle        | Modbus Controlled  |
 | Voltage/Frequency Fault Auto-Reset     | Alarm (no ack), Relay       | Auto (value returns) | Alarm Controlled   |
 | Load Shedding (Staged Scenes)          | PLC Modbus, Relay 1 & 2     | PLC-controlled       | Modbus Controlled  |
 
@@ -268,7 +276,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 | Area               | Warning |
 |--------------------|---------|
-| **Buttons & LEDs** | Can override relays or trigger alarms. Use firmware settings or lockout for safety-critical installs. |
+| **Buttons & LEDs** | Buttons toggle relays in Modbus mode only. Use **Alarm Controlled** relays for safety interlocks. |
 
 ### 🛡 Shielding & EMC
 
@@ -374,7 +382,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 | Setting       | Value        |
 |---------------|--------------|
-| Modbus Address | `3` |
+| Modbus Address | `30` (first boot; set per site in WebConfig) |
 | Baud Rate      | `19200` |
 | Format         | `8N1` |
 | Address Range  | 1–247 |
@@ -396,7 +404,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 #### Steps
 
 1. Connect USB‑C to PC (Chromium-based browser)
-2. Open `Firmware/v0.1.0/ConfigToolPage.html`  
+2. Open `Firmware/v0.2.0/ConfigToolPage.html`  
 3. Click **Connect**, select ENM serial port  
 4. Configure settings: address, relays, LEDs, alarms, calibration  
 5. Click **Save & Disconnect** when finished
@@ -420,7 +428,7 @@ Use diagrams and explain:
 ## 4.5 Software & UI Configuration
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
-(`Firmware/v0.1.0/ConfigToolPage.html`) over **USB‑C**.  
+(`Firmware/v0.2.0/ConfigToolPage.html`) over **USB‑C**.  
 No drivers or software installation is required — configuration happens directly via **Web Serial API** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
 
 > Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
@@ -439,7 +447,7 @@ No drivers or software installation is required — configuration happens direct
 - Click **Connect** and select the USB serial port.
 - The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
 - You can configure:
-  - **Modbus Address**: `1–255` (default = `3`)
+  - **Modbus Address**: `1–247` (first-boot default = `30`)
   - **Baud Rate**: `9600 / 19200 / 38400 / 57600 / 115200` (default = `19200`)
 - Changes are live and applied on selection.
 - If you change baud or address, remember to reconnect the controller with updated settings.
@@ -451,14 +459,15 @@ No drivers or software installation is required — configuration happens direct
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig2.png" width="440" alt="Meter options and calibration" width="100%"/>
 
 #### Meter Options
-- **Line Frequency**: 50 / 60 Hz (affects metering IC behavior)
+- **Line Frequency**: 50 / 60 Hz (ATM90E32 `MMode0` + sag thresholds)
 - **Sum Mode**:  
-  - `0 = algorithmic` (P = P1 + P2 + P3)  
-  - `1 = absolute` (P = |P1| + |P2| + |P3|)
-- **Ucal (gain)**: global voltage scaling multiplier
-- **Sample Interval (ms)**: rate at which readings update (10–5000 ms)
+  - `0 = algorithmic` (vector sum)  
+  - `1 = absolute` (|P1| + |P2| + |P3|)
+- **Wiring scheme**: **3P4W** (star, four-wire) or **3P3W** (three-wire) — sets ATM90E32 `MMode0` on apply
+- **Phase mapping**: assign each logical channel **L1 / L2 / L3** to incoming meter **phase A / B / C** (written to ATM90E32 `ChannelMapU` / `ChannelMapI` on apply; use when field wiring does not match labels)
+- **Sample Interval (ms)**: UI refresh hint only on v0.2.0 (meter poll ~1 s on device)
 
-#### Calibration (per phase A/B/C)
+#### Calibration (per phase A/B/C — maps to L1/L2/L3 after phase mapping)
 - **Ugain / Igain**: scaling gains (16-bit, 0–65535)
 - **Uoffset / Ioffset**: calibration offsets (signed)
 - Press **Enter** after editing to write the value to the module.
@@ -487,10 +496,24 @@ You can configure:
 - **Ack required** — latches the Alarm state until acknowledged
 
 Acknowledgment:
-- Press **Ack L1–L3 / Totals** in UI
-- Or write to Modbus coil (`16–19` for L1/L2/L3/Total ACK)
+- **Ack L1–L3 / Totals** in WebConfig
+- Modbus coils **16–19** (write `1`; device auto-clears)
+- Front-panel button mapped to toggle relay (optional local ack workflow via PLC)
 
-> 💡 ENM has no digital inputs (DIs). These rules are “virtual inputs” based on real-time metering data.
+**Chip power-quality events** (always published as **Event**, kind = 2 on Modbus DI):
+
+| Event source (ATM90E32) | Channels |
+|-------------------------|----------|
+| Voltage **sag** | L1, L2, L3 (+ rolled into Total) |
+| **Over-voltage** | L1, L2, L3 (+ Total) |
+| **Phase loss** | L1, L2, L3 (+ Total) |
+| **Over-current** | L1, L2, L3 (+ Total) |
+| **Frequency** high/low | Total only |
+| **Phase sequence** error | Total only |
+
+Threshold **Alarm** and **Warning** rules use **2 % hysteresis** on the configured min/max band (with metric-specific minimum deadband for voltage, current, and frequency).
+
+> 💡 ENM has no digital inputs (DIs). Alarm rules are virtual inputs driven by live metering and the metering IC status registers.
 
 ---
 
@@ -506,11 +529,11 @@ Options:
 |-----------------------|-------------|
 | **Enabled at Power-On** | Relay state after boot (on/off) |
 | **Inverted (active-low)** | Affects **both** relays; sets low = ON |
-| **Mode**              | `None`, `Modbus Controlled`, or `Alarm Controlled` |
-| **Toggle**            | Manually toggle the relay from the UI |
-| **Alarm Control Options** | Select Channel: `L1–L3` or `Totals` and which kinds to follow: Alarm / Warning / Event |
+| **Mode**              | `None`, `Modbus Controlled`, or **`Alarm Controlled`** |
+| **Toggle**            | Manually toggle the relay from the UI (Modbus mode only) |
+| **Alarm Control Options** | Channel: `L1–L3` or `Totals`; kinds: **Alarm** / **Warning** / **Event** (bitmask) |
 
-> In **Alarm Controlled** mode, direct Modbus writes may be blocked when an alarm is active.
+In **`Alarm Controlled`** mode the relay **energizes while the selected alarm condition is active** — typical use: **local load shed / trip** on overcurrent or PQ fault. The relay releases when the rule clears (with hysteresis) or after **Ack** when **Ack required** is set. Modbus coils **0/1** do not drive the relay in this mode.
 
 ---
 
@@ -521,23 +544,13 @@ Options:
 #### Buttons (1–4)
 Each button can be mapped to:
 - `None`
-- `Toggle Relay 1/2`
-- `Toggle LED 1–4`
-- `Override Relay 1/2 (hold 3s)`  
-  - Hold 3 s to enter override  
-  - Short press toggles the relay  
-  - Hold again to exit override
+- `Toggle Relay 1` / `Toggle Relay 2` (only when relay is **Modbus Controlled**)
 
 #### User LEDs (1–4)
 
 Each LED has:
-- **Mode**: `Steady (when active)` or `Blink (when active)`
-- **Source**:
-  - `Override R1/R2`
-  - Alarm, Warning, Event — for any channel
-  - `Any (A|W|E)` — a combined indicator per channel
-
-> 💡 Use `Override R1` as LED 1 source to give a clear local override status.
+- **Mode**: `Steady` or `Blink`
+- **Source**: `None`, or logical state of **Relay 1 / Relay 2** (useful to show Alarm Controlled trip)
 
 ---
 
@@ -546,16 +559,15 @@ Each LED has:
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig4.png" width="440" alt="Live meter values" width="100%"/>
 
 **Live Meter View**:
-- U (V), I (A), P (W), Q (var), S (VA)
+- U (V), I (A), **signed P (W)**, **signed Q (var)**, S (VA)
 - PF, angle, frequency, temperature
-- Totals and per-channel tiles
-- Phase validation and wiring checks
+- **Upeak / Ipeak**, **Irms neutral**, **THD** (per phase)
+- Per-channel tiles L1–L3 + Totals
 
-**Energies**:
-- **Per phase + totals**:
-  - Active (+ / –) in kWh
-  - Reactive (+ / –) in kvarh
-  - Apparent in kVAh
+**Energies** (import / export labels in WebConfig):
+- **Active**: import (AP) / export (AN) / net kWh
+- **Reactive**: import (RP) / export (RN) / net kvarh
+- **Apparent**: kVAh (S)
 
 > Use this screen to verify CT orientation, load phase mapping, and live alarm behavior during commissioning.
 
@@ -582,14 +594,14 @@ Each LED has:
 
 ### Phase 2 — Configure (WebConfig)
 
-- Open `Firmware/v0.1.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
+- Open `Firmware/v0.2.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
 - Connect via **USB‑C** → **Select port → Connect**
 - Set:
   - **Modbus Address / Baud**  
-  - **Line Frequency, Sample Interval**
+  - **Line frequency, sum mode, 3P4W/3P3W, phase mapping**
   - **Alarm thresholds** per L1/L2/L3/Totals
   - **Relay modes**: Alarm or Modbus Controlled
-  - Map **Buttons & LEDs** (override, Ack, follow alarms)
+  - Map **Buttons & LEDs** (relay toggle / status)
   - (Optional) Adjust **U/I gains**, save calibration
 
 👉 See: [WebConfig UI](#45-software--ui-configuration)
@@ -669,7 +681,7 @@ Each LED has:
 | **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
 | **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
 | **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 5 A @ 250 VAC / 30 VDC (module limit) |
-| **User LEDs** | 4 | Assignable status / override indicators (GPIO18–21) |
+| **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
 | **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
 | **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
 | **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
@@ -721,19 +733,21 @@ Each LED has:
 - **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
 - **RS-485:** TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  
 - **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
-- **Memory Retention:** FM24CL16B FRAM for energy counters (>10¹⁴ writes); W25Q32JV QSPI flash for firmware/config  
+- **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
 
 ---
 
-## 5.6 Firmware / Functional Overview
+## 5.6 Firmware / Functional Overview (v0.2.0)
 
-- **Alarm Engine:** Four channels (L1–L3 + Totals); each has Alarm/Warning/Event rules  
-  - Modes: Active-while / Latched-until-ack  
-  - Metrics: Urms, Irms, P, Q, S, Frequency  
-- **Relay Control:** Per relay Enable / Invert / Group mode; Manual override (hold 3 s) via buttons  
-- **LED Feedback:** User-assignable LEDs for Alarms / Overrides / Events (Steady or Blink)  
-- **Setup & Telemetry:** WebConfig over USB-C; configure Modbus addr/baud, relay groups, thresholds, and live readings  
-- **Data Retention:** Energy and configuration stored in FRAM (non-volatile, instant writes)  
+- **Metering:** ATM90E32AS via SPI — Urms/Irms, **signed** P/Q, S, PF, angle, frequency; hardware **U/I peaks**, **neutral Irms**, **active-power THD**; energies accumulated from chip CF counters (import AP/RP, export AN/RN, apparent SA).
+- **Wiring:** WebConfig **phase mapping** (`ChannelMapU/I`) and **3P4W / 3P3W** (`MMode0`) applied on ATM re-init.
+- **Alarm engine:** Four channels (L1–L3 + Totals); slots **Alarm / Warning / Event** with min/max metrics and **hysteresis**; **Ack required** latches published Alarm bits until acknowledged.
+- **Chip PQ events:** Sag, over-voltage, phase loss, over-current (per phase), frequency and phase-sequence faults surfaced as **Event** on DI 16–27.
+- **Relay control:** `None` / `Modbus Controlled` / **`Alarm Controlled`** (local shed while alarm active); invert + enable per relay.
+- **Setup:** WebConfig over USB-C; Modbus addr/baud, meter options, calibration, alarms, relays, buttons, LEDs.
+- **Data retention (split blobs):**
+  - **`/enm_cfg.bin`** — operational settings (`CFG_VERSION` **0x0022**); migrated across compatible firmware bumps; otherwise settings defaults on boot.
+  - **`/enm_meter.bin`** — `ucal`, gains/offsets, energy ticks — **preserved** across firmware updates when `METER_VERSION` is unchanged.
 
 ---
 
@@ -789,7 +803,7 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 | Setting          | Value                   |
 |------------------|-------------------------|
-| Default Address  | `3` (configurable: 1–255) |
+| Default Address  | `30` first boot (configurable **1–247** via WebConfig or HR0) |
 | Baud Rate        | `19200 8N1` (configurable) |
 | Physical Layer   | RS‑485 (half-duplex, A/B/COM) |
 | Function Codes   | `0x01`, `0x02`, `0x03`, `0x04`, `0x05`, `0x06`, `0x10` |
@@ -802,33 +816,43 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 ## 6.2 Input Registers — Real-Time Telemetry (FC04)
 
-| Address | Type | Metric | Unit | Scaling |
-|---------|------|--------|------|---------|
+Legacy addresses **0–11** and **20–46** are unchanged. **v0.2.0** adds peaks, neutral current, and THD in previously free slots.
+
+| Address | Type | Metric | Unit | Scaling / notes |
+|---------|------|--------|------|-----------------|
 | 0–2 | U16 | Urms L1 / L2 / L3 | V | ×0.01 |
 | 3–5 | U16 | Irms L1 / L2 / L3 | A | ×0.001 |
 | 6 | U16 | Line frequency | Hz | ×0.01 |
 | 7 | S16 | Temperature (internal) | °C | 1 |
 | 8–11 | S16 | Power factor L1 / L2 / L3 / Total | – | ×0.001 |
-| 20, 22, 24, 26 | S32 | Active power L1 / L2 / L3 / Total | W | 1 |
-| 28, 30, 32, 34 | S32 | Reactive power L1 / L2 / L3 / Total | var | 1 |
-| 36, 38, 40, 42 | S32 | Apparent power L1 / L2 / L3 / Total | VA | 1 |
+| 12–14 | U16 | **Upeak** L1 / L2 / L3 | V | ×0.01 (ATM peak detector) |
+| 15–17 | U16 | **Ipeak** L1 / L2 / L3 | A | ×0.001 |
+| 18 | U16 | **Irms neutral** | A | ×0.001 |
+| 19 | — | *reserved / free* | — | — |
+| 20, 22, 24, 26 | **S32** | **Active power** L1 / L2 / L3 / Total | W | signed; import (+) / export (−) |
+| 28, 30, 32, 34 | **S32** | **Reactive power** L1 / L2 / L3 / Total | var | signed |
+| 36, 38, 40, 42 | S32 | Apparent power L1 / L2 / L3 / Total | VA | unsigned magnitude |
 | 44–46 | S16 | Phase angle L1 / L2 / L3 | ° | ×0.1 |
+| 47–49 | U16 | **THD** (active-power harmonic ratio) L1 / L2 / L3 | % | ×0.01 |
+| 50–59 | — | *free* | — | — |
 
-> 32-bit power values use **two consecutive input registers** (low word at base address).
+> 32-bit values use **two consecutive input registers** (high word first at base address).
 
 ---
 
 ## 6.3 Energy Registers (Wh / varh / VAh, FC04)
 
-| Address (base) | Type | Energy | Phase / Total | Unit |
-|----------------|------|--------|---------------|------|
-| 60, 62, 64, 66 | U32 | Active import (AP) | L1 / L2 / L3 / Total | Wh |
-| 68, 70, 72, 74 | U32 | Active export (AN) | L1 / L2 / L3 / Total | Wh |
-| 76, 78, 80, 82 | U32 | Reactive import (RP) | L1 / L2 / L3 / Total | varh |
-| 84, 86, 88, 90 | U32 | Reactive export (RN) | L1 / L2 / L3 / Total | varh |
-| 92, 94, 96, 98 | U32 | Apparent energy (VAh) | L1 / L2 / L3 / Total | VAh |
+Import/export naming matches ATM90E32 forward/reverse energy accumulators:
 
-> Energy values are **32-bit unsigned integers** (two 16-bit registers per value).
+| Address (base) | Type | Energy | Phase / Total | Unit | Meaning |
+|----------------|------|--------|---------------|------|---------|
+| 60, 62, 64, 66 | U32 | **Active import (AP)** | L1 / L2 / L3 / Total | Wh | Import kWh |
+| 68, 70, 72, 74 | U32 | **Active export (AN)** | L1 / L2 / L3 / Total | Wh | Export kWh |
+| 76, 78, 80, 82 | U32 | **Reactive import (RP)** | L1 / L2 / L3 / Total | varh | Import kvarh |
+| 84, 86, 88, 90 | U32 | **Reactive export (RN)** | L1 / L2 / L3 / Total | varh | Export kvarh |
+| 92, 94, 96, 98 | U32 | Apparent energy (SA) | L1 / L2 / L3 / Total | VAh | kVAh |
+
+> Energy values are **32-bit unsigned integers** (two 16-bit registers per value). Net active energy ≈ AP − AN (compute in master).
 
 ---
 
@@ -846,46 +870,76 @@ The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome
 
 | Address | Description |
 |---------|-------------|
-| 0–3 | LED 1–4 state |
+| 0–3 | LED 1–4 physical state |
 | 4–7 | Button 1–4 pressed |
-| 8–9 | Relay 1–2 state mirrors |
-| 16–27 | Alarm / Warning / Event flags per channel (L1 @16–18, L2 @19–21, L3 @22–24, Total @25–27) |
+| 8–9 | Relay 1–2 **logical** state (after mode/invert) |
+| 16–27 | **Alarm flags** — `addr = 16 + channel×3 + kind` |
 
-> Meter calibration, alarm thresholds, and relay/LED mapping are configured via **WebConfig** (not exposed in the ESPHome YAML reference map).
+| Channel | Alarm (kind 0) | Warning (kind 1) | Event (kind 2) |
+|---------|----------------|------------------|----------------|
+| L1 | 16 | 17 | 18 |
+| L2 | 19 | 20 | 21 |
+| L3 | 22 | 23 | 24 |
+| Total | 25 | 26 | 27 |
+
+**Event** bits include ATM90E32 power-quality faults (sag, OV, phase loss, over-I, frequency, phase sequence) in addition to user **Event** threshold rules.
+
+Meter calibration, alarm thresholds, phase mapping, wiring mode, and relay/LED mapping are configured via **WebConfig** (not exposed as Modbus holding registers in v0.2.0).
 
 ---
 
-## 6.6 Scaling Summary
+## 6.6 Holding Registers — Bus & Meter Options (FC03/06/16)
+
+Writable registers (changes auto-saved to `/enm_cfg.bin`):
+
+| Address | Type | Description |
+|---------|------|-------------|
+| 0 | U16 | Modbus slave address (1–247) |
+| 1–2 | U32 | Baud rate (9600 / 19200 / 38400 / 57600 / 115200) |
+| 4 | U16 | Line frequency `50` or `60` (queues ATM re-init) |
+| 5 | U16 | Sum mode `0` = algebraic, `1` = absolute (queues ATM re-init) |
+| 6 | — | *reserved* |
+| 7–8 | U16 | Relay 1 / 2 **enable** at boot |
+
+Phase mapping and 3P4W/3P3W are **WebConfig-only** in v0.2.0.
+
+---
+
+## 6.7 Scaling Summary
 
 | Metric         | Register Type | Scale Factor |
 |----------------|----------------|--------------|
 | Voltage (V)    | Input Register  | ÷100         |
 | Current (A)    | Input Register  | ÷1000        |
+| Upeak / Ipeak  | Input Register  | ÷100 / ÷1000 |
+| Irms neutral   | Input Register  | ÷1000        |
+| THD (%)        | Input Register  | ÷100         |
 | Power Factor   | Input Register  | ÷1000        |
 | Frequency (Hz) | Input Register  | ÷100         |
 | Angle (°)      | Input Register  | ÷10          |
-| Energy (Wh)    | 32-bit Input    | 1            |
+| P / Q (W, var) | S32 Input       | 1 (signed)   |
+| Energy (Wh)    | U32 Input       | 1            |
 
 ---
 
-## 6.7 Polling Best Practices
+## 6.8 Polling Best Practices
 
 - **Typical polling rate:** 1 s for live data (powers, voltages, current)  
 - **Energy:** poll less often (e.g. every 5–10 s)  
 - **Batch reads:** Use FC04 and FC03 with multi-register reads for speed  
-- **Avoid writing frequently** to EEPROM-backed registers (e.g., Ucal or gains)  
-- **Coils:** Fast updates (e.g. overrides) okay; no debounce needed  
+- **Avoid writing frequently** to holding registers during normal operation (settings auto-save to flash)
+- **Coils:** Relay and ACK writes are edge-triggered; ACK coils auto-clear
 
 > 🛠 To reduce bus collisions, stagger multiple ENMs on a shared RS‑485 bus using different **poll intervals** and address spacing.
 
 ---
 
-## 6.8 Modbus Integration Example (MiniPLC)
+## 6.9 Modbus Integration Example (MiniPLC)
 
 ```yaml
 modbus_controller:
   - id: enm223
-    address: 3
+    address: 30
     modbus_id: rtu_bus
     update_interval: 1s
 
@@ -927,7 +981,7 @@ No Home Assistant add-ons are required — all logic runs on the ESPHome control
   - **ESPHome**: Modbus polling, sensor/relay control, entity publishing
   - **HA**: dashboards, energy view, automations
 
-> LED mappings, alarm logic, and override behavior are configured on the ENM module (via WebConfig). Home Assistant only reacts to exposed states.
+> LED mappings, alarm logic, and relay modes are configured on the ENM module (via WebConfig). Home Assistant reads telemetry and alarm bits over Modbus.
 
 ---
 
@@ -967,7 +1021,7 @@ modbus:
 
 modbus_controller:
   - id: enm223_1
-    address: 4
+    address: 30
     modbus_id: rtu_bus
     update_interval: 1s
 
@@ -976,10 +1030,10 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
-          enm_address: 4
+          enm_address: 30
           enm_prefix: "ENM #1"
 ```
 
@@ -994,19 +1048,14 @@ packages:
 - Alarm conditions (Alarm / Warning / Event)
 
 ### Sensors
-- **Urms, Irms** L1/L2/L3
-- **Power (P, Q, S)** totals
-- **Frequency**, **PF**, **Angle**
-- **Energies**: kWh, kvarh, kVAh (active/reactive/apparent)
+- **Urms, Irms** L1/L2/L3; **Upeak, Ipeak**; **Irms neutral**; **THD**
+- **Signed P, Q** and **S** per phase + totals
+- **Frequency**, **PF**, **Angle**, **temperature**
+- **Energies**: import/export AP/AN, RP/RN, SA (Wh / varh / VAh)
 
 ### Switches
-- **Relay 1/2** (Modbus coils 0/1)
-- **Acknowledge** coils 16–19
-- **Override** controls (force override toggle, hold-style)
-
-### Numbers (Optional)
-- Sample interval
-- Calibration gains (Ugain / Igain)
+- **Relay 1/2** (Modbus coils 0/1 — effective only in Modbus Controlled mode)
+- **Acknowledge** coils 16–19 (L1, L2, L3, Total)
 
 ---
 
@@ -1015,7 +1064,7 @@ packages:
 1. Keep existing `uart:` and `modbus:` blocks  
 2. Add the `packages:` block (as shown) and set `enm_address` from WebConfig  
 3. Flash the controller — ESPHome discovers all sensors/entities automatically  
-4. Add HA dashboard cards and `switches` for relay, override, and ack actions  
+4. Add HA dashboard cards and `switches` for relay control and alarm acknowledge  
 
 ---
 
@@ -1092,11 +1141,18 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 ## 8.4 Firmware Updates
 
-- **Upload via USB-C** using Arduino IDE or PlatformIO
+- **Upload via USB-C** using Arduino IDE (see [Firmware/README.md](Firmware/README.md))
 - Enter **boot mode** (Buttons 1 + 2)
-- Upload `default_enm_223_r1.ino` from `/firmware/`
-- Configuration is preserved (stored in LittleFS)
-- Energy counters are safe (stored in FRAM)
+- Open sketch `Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino`
+
+**What is preserved:**
+
+| Data | File | Typical firmware update |
+|------|------|-------------------------|
+| Calibration (U/I gains & offsets), energy counters | `/enm_meter.bin` | **Kept** while `METER_VERSION` unchanged |
+| Modbus address, alarms, relays, phase map, wiring mode | `/enm_cfg.bin` | **Migrated** when `CFG_VERSION` migration exists; otherwise **settings defaults** on boot |
+
+Recommission alarms, relay modes, bus address, and phase mapping in WebConfig after major firmware upgrades if the module boots with factory settings.
 
 
 ---
@@ -1107,12 +1163,12 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 | Symptom               | Fix or Explanation                            |
 |------------------------|-----------------------------------------------|
-| Relay won’t activate   | May be in override; check relay logic mode    |
+| Relay won’t activate   | Check mode: **Alarm Controlled** follows alarms; **Modbus** only via coils 0/1 |
 | RS-485 not working     | A/B reversed or un-terminated bus             |
-| LED doesn’t light up   | Reassign in WebConfig or check GPIO18–21      |
-| Button unresponsive    | Test using WebConfig > Button state live      |
+| LED doesn’t light up   | Reassign source in WebConfig or check GPIO18–21 |
+| Button unresponsive    | Test DI 4–7; buttons only toggle relays in Modbus mode |
 | CRC Errors             | Confirm baud, address, and wiring (A/B swap)  |
-| Negative Power Reading | Flip CT or check phase/CT alignment           |
+| Negative P/Q reading   | Expected for export; flip CT or adjust **phase mapping** in WebConfig |
 
 ---
 
@@ -1145,29 +1201,29 @@ See LICENSE files in each directory for full terms.
 
 The following key project resources are included in this repository:
 
-- 🧠 **Firmware (Arduino/PlatformIO)**  
-  [`Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino`](Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino)  
-  Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.
+- 🧠 **Firmware (v0.2.0)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino)  
+  Modbus RTU, signed P/Q, peaks/neutral/THD, alarm engine, Alarm Controlled relays, phase mapping, 3P4W/3P3W, split LittleFS persistence.
 
 - 🧰 **WebConfig Tool**  
-  [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)  
-  HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.
+  [`Firmware/v0.2.0/ConfigToolPage.html`](Firmware/v0.2.0/ConfigToolPage.html)  
+  USB Web Serial: meter options, calibration, alarms, relays, live import/export energy.
+
+- 📦 **ESPHome YAML (v0.2.0)**  
+  [`default_enm_223_r1_plc.yaml`](Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
+  Sensors (incl. peaks, THD, signed P/Q), alarm DI, relay/ACK switches.
+
+- 🧠 **Legacy firmware (v0.1.0)** — [`Firmware/v0.1.0/`](Firmware/v0.1.0/) (frozen line)
 
 - 🖼 **Images & UI Diagrams**  
   [`Images/`](Images/)  
-  Contains front-panel photos, system diagrams, wiring illustrations, and screenshots from WebConfig UI.
+  Front-panel photos, system diagrams, wiring illustrations, WebConfig screenshots.
 
 - 📐 **Hardware Schematics**  
   [`Schematics/`](Schematics/)  
-  Includes PDF schematics for Field Board and MCU Board — ideal for developers, reviewers, or third-party modders.
+  PDF schematics for Field Board and MCU Board.
 
 - 📄 **Datasheets & Manuals**  
-  [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)  
-  Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.
-
-- 📦 **ESPHome YAML Templates**  
-  [`default_enm_223_r1_plc.yaml`](Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
-  Ready-to-use `packages:` block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.
+  [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)
 
 > 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
 
@@ -1179,7 +1235,7 @@ If you need help using or configuring the ENM‑223‑R1 module, the following s
 
 ### 🛠 Official Resources
 
-- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html)  
+- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)  
   Configure the module directly from your browser — no drivers or software required.
 
 - 📘 [Official Support Portal](https://www.home-master.eu/support)  
