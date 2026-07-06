@@ -506,7 +506,7 @@
     function sendPhaseMapFromUI(){
       const map=readPhaseMapFromUI();
       if(!phaseMapIsValid(map)){
-        HMWebConfig.log('Phase mapping must assign A/B/C uniquely to L1/L2/L3');
+        HMWebConfig.appendLog('Phase mapping must assign A/B/C uniquely to L1/L2/L3');
         return;
       }
       sendAtmPartial({ phaseMap: map });

@@ -1726,7 +1726,8 @@ void sendWebBootstrap() {
 void sendWebExt() {
   JSONVar ext;
   ext["energy"] = energyToJsonObj();
-  if (g_haveMeter && !meter_job && !atmBusy) {
+  // Always publish last cached sample — meter_job/atmBusy only gate SPI reads, not UI refresh.
+  if (g_haveMeter) {
     ext["meter"] = meterLiveToJson();
   }
   WebSerial.send("ext", ext);
@@ -1956,6 +1957,7 @@ void loop() {
     lastSend = now;
 
     sendWebStatus();
+    sendWebExt();
     if (hmUsbCanSend()) {
       JSONVar io;
       for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
@@ -1963,7 +1965,6 @@ void loop() {
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
       WebSerial.send("io", io);
       WebSerial.send("AlarmsState", alarmsStateToJson());
-      sendWebExt();
     }
   }
 }
