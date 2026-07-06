@@ -250,6 +250,29 @@
     const NUM_RLY = 2, NUM_BTN = 4, NUM_LED = 4;
     const locked = new Set();
     const canApply = key => !locked.has(key);
+    let lastExtPayload = null;
+
+    function toArr(x) {
+      return (window.HMWebConfig && HMWebConfig.toArray) ? HMWebConfig.toArray(x) : (Array.isArray(x) ? x : []);
+    }
+    function asNum(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    }
+    function fmtNum(v, dec) {
+      const n = asNum(v);
+      return Number.isFinite(n) ? n.toFixed(dec) : '--';
+    }
+    function setElNum(id, v, dec) {
+      const el = $(id);
+      if (el) el.textContent = fmtNum(v, dec);
+    }
+    function setElText(id, v) {
+      const el = $(id);
+      if (!el) return;
+      const n = asNum(v);
+      el.textContent = Number.isFinite(n) ? String(v) : (v !== undefined && v !== null && v !== '' ? String(v) : '--');
+    }
 
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='30'; })();
 
@@ -285,61 +308,74 @@
     }
 
     function applyEnergies(src){
+      if(!src) return;
       const setE=(idx, e)=>{
-        const set=(id,val,dec=3)=>{ const el=$(id); if(el) el.textContent=(typeof val==='number'&&isFinite(val))?val.toFixed(dec):'--'; };
         if(!e||typeof e!=='object'){
-          ['ap','an','net-a','rp','rn','net-r','s'].forEach(p=>set(`e-${p}-${idx}`,NaN));
+          ['ap','an','net-a','rp','rn','net-r','s'].forEach(p=>setElNum(`e-${p}-${idx}`, NaN, 3));
           return;
         }
-        const imp = Number(e.import_kWh ?? e.AP_kWh);
-        const exp = Number(e.export_kWh ?? e.AN_kWh);
-        const netA = Number(e.net_kWh ?? (imp - exp));
-        const impR = Number(e.import_kvarh ?? e.RP_kvarh);
-        const expR = Number(e.export_kvarh ?? e.RN_kvarh);
-        const netR = Number(e.net_kvarh ?? (impR - expR));
-        set(`e-ap-${idx}`, imp, 3);
-        set(`e-an-${idx}`, exp, 3);
-        set(`e-net-a-${idx}`, netA, 3);
-        set(`e-rp-${idx}`, impR, 3);
-        set(`e-rn-${idx}`, expR, 3);
-        set(`e-net-r-${idx}`, netR, 3);
-        set(`e-s-${idx}`, Number(e.S_kVAh), 3);
+        const imp = asNum(e.import_kWh ?? e.AP_kWh);
+        const exp = asNum(e.export_kWh ?? e.AN_kWh);
+        const netA = asNum(e.net_kWh ?? (imp - exp));
+        const impR = asNum(e.import_kvarh ?? e.RP_kvarh);
+        const expR = asNum(e.export_kvarh ?? e.RN_kvarh);
+        const netR = asNum(e.net_kvarh ?? (impR - expR));
+        setElNum(`e-ap-${idx}`, imp, 3);
+        setElNum(`e-an-${idx}`, exp, 3);
+        setElNum(`e-net-a-${idx}`, netA, 3);
+        setElNum(`e-rp-${idx}`, impR, 3);
+        setElNum(`e-rn-${idx}`, expR, 3);
+        setElNum(`e-net-r-${idx}`, netR, 3);
+        setElNum(`e-s-${idx}`, e.S_kVAh, 3);
       };
-      const Ep=Array.isArray(src?.E_phase)?src.E_phase:[];
-      const Et=(src?.E_tot&&typeof src.E_tot==='object')?src.E_tot:null;
-      for(let i=0;i<3;i++) setE(i, Ep[i]);
+      // Firmware JSONVar arrays arrive as {"0":…,"1":…} objects, not JS arrays.
+      const Ep = toArr(src.E_phase);
+      const Et = (src.E_tot && typeof src.E_tot === 'object') ? src.E_tot : null;
+      for (let i = 0; i < 3; i++) setE(i, Ep[i]);
       setE(3, Et);
     }
 
     function applyMeterLive(m){
       if(!m) return;
-      const Urms=m.Urms||[], Irms=m.Irms||[];
-      const PW=m.P_W||[], QV=m.Q_var||[], SV=m.S_VA||[];
-      const PF=m.PF||[], Ang=m.Angle_deg||[];
+      const Urms = toArr(m.Urms);
+      const Irms = toArr(m.Irms);
+      const PW = toArr(m.P_W);
+      const QV = toArr(m.Q_var);
+      const SV = toArr(m.S_VA);
+      const PF = toArr(m.PF);
+      const Ang = toArr(m.Angle_deg);
       for(let i=0;i<3;i++){
-        const set=(id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
-        set(`u${i}`, Urms[i], 2); set(`i${i}`, Irms[i], 3);
-        $('p'+i)&&($('p'+i).textContent=PW[i]!==undefined?String(PW[i]):'--');
-        $('q'+i)&&($('q'+i).textContent=QV[i]!==undefined?String(QV[i]):'--');
-        $('s'+i)&&($('s'+i).textContent=SV[i]!==undefined?String(SV[i]):'--');
-        set(`pf${i}`, PF[i], 3); set(`ang${i}`, Ang[i], 1);
+        setElNum(`u${i}`, Urms[i], 2);
+        setElNum(`i${i}`, Irms[i], 3);
+        setElText(`p${i}`, PW[i]);
+        setElText(`q${i}`, QV[i]);
+        setElText(`s${i}`, SV[i]);
+        setElNum(`pf${i}`, PF[i], 3);
+        setElNum(`ang${i}`, Ang[i], 1);
       }
-      $('p3')&&($('p3').textContent=PW[3]!==undefined?String(PW[3]):'--');
-      $('q3')&&($('q3').textContent=QV[3]!==undefined?String(QV[3]):'--');
-      $('s3')&&($('s3').textContent=SV[3]!==undefined?String(SV[3]):'--');
-      $('pft')&&($('pft').textContent=(typeof PF[3]==='number')?PF[3].toFixed(3):'--');
-      $('f')&&($('f').textContent=(typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):'--');
-      $('t')&&($('t').textContent=(m.TempC!==undefined)?String(m.TempC):'--');
-      const Upeak=m.Upeak_V||[], Ipeak=m.Ipeak_A||[], THD=m.THD_pct||[];
+      setElText('p3', PW[3]);
+      setElText('q3', QV[3]);
+      setElText('s3', SV[3]);
+      setElNum('pft', PF[3], 3);
+      setElNum('f', m.FreqHz, 2);
+      setElText('t', m.TempC);
+      const Upeak = toArr(m.Upeak_V);
+      const Ipeak = toArr(m.Ipeak_A);
+      const THD = toArr(m.THD_pct);
       for(let i=0;i<3;i++){
-        const set=(id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
-        set(`upk${i}`, Upeak[i], 2);
-        set(`ipk${i}`, Ipeak[i], 3);
-        set(`thd${i}`, THD[i], 2);
+        setElNum(`upk${i}`, Upeak[i], 2);
+        setElNum(`ipk${i}`, Ipeak[i], 3);
+        setElNum(`thd${i}`, THD[i], 2);
       }
-      const inEl=$('irmsn');
-      if(inEl) inEl.textContent=(typeof m.IrmsN_A==='number'&&isFinite(m.IrmsN_A))?m.IrmsN_A.toFixed(3):'--';
-      applyEnergies(m);
+      setElNum('irmsn', m.IrmsN_A, 3);
+      if (m.E_phase || m.E_tot) applyEnergies(m);
+    }
+
+    function applyExtPayload(ext){
+      if(!ext) return;
+      lastExtPayload = ext;
+      if(ext.meter) applyMeterLive(ext.meter);
+      else if(ext.energy) applyEnergies(ext.energy);
     }
 
     function applyCalibCh(ch, obj, fromDevice){
@@ -472,11 +508,7 @@
     HMWebConfig.connect({ requestElement:'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
 
-    HMWebConfig.conn.on('ext', function(ext){
-      if(!ext) return;
-      if(ext.meter) applyMeterLive(ext.meter);
-      if(ext.energy) applyEnergies(ext.energy);
-    });
+    HMWebConfig.conn.on('ext', applyExtPayload);
     HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
     HMWebConfig.conn.on('AlarmsCfg', function(payload){
       if(payload&&payload.cfg&&payload.ch!==undefined) applyAlarmCfg({ [payload.ch]: payload.cfg });
@@ -746,6 +778,8 @@
       $('mode-led'+i)?.addEventListener('change', sendLedCfg);
       $('source-led'+i)?.addEventListener('change', sendLedCfg);
     }
+
+    if (lastExtPayload) applyExtPayload(lastExtPayload);
   })();
   </script>
 </section>
