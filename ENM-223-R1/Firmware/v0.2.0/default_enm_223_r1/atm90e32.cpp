@@ -72,6 +72,15 @@ static constexpr uint16_t UrmsA     = 0xD9, UrmsB     = 0xDA, UrmsC     = 0xDB;
 static constexpr uint16_t IrmsA     = 0xDD, IrmsB     = 0xDE, IrmsC     = 0xDF;
 static constexpr uint16_t UrmsALSB  = 0xE9, UrmsBLSB  = 0xEA, UrmsCLSB  = 0xEB;
 static constexpr uint16_t IrmsALSB  = 0xED, IrmsBLSB  = 0xEE, IrmsCLSB  = 0xEF;
+static constexpr uint16_t IrmsN     = 0xDC;
+
+static constexpr uint16_t PmeanAF   = 0xD1, PmeanBF   = 0xD2, PmeanCF   = 0xD3;
+static constexpr uint16_t PmeanAH   = 0xD5, PmeanBH   = 0xD6, PmeanCH   = 0xD7;
+static constexpr uint16_t PmeanAFLSB= 0xE1, PmeanBFLSB= 0xE2, PmeanCFLSB= 0xE3;
+static constexpr uint16_t PmeanAHLSB= 0xE5, PmeanBHLSB= 0xE6, PmeanCHLSB= 0xE7;
+
+static constexpr uint16_t UPeakA    = 0xF1, UPeakB    = 0xF2, UPeakC    = 0xF3;
+static constexpr uint16_t IPeakA    = 0xF5, IPeakB    = 0xF6, IPeakC    = 0xF7;
 
 static constexpr uint16_t PmeanT    = 0xB0, PmeanA    = 0xB1, PmeanB    = 0xB2, PmeanC    = 0xB3;
 static constexpr uint16_t QmeanT    = 0xB4, QmeanA    = 0xB5, QmeanB    = 0xB6, QmeanC    = 0xB7;
@@ -152,6 +161,48 @@ int32_t ATM90E32::readSmean_VA(uint8_t phase) {
   static const uint16_t regL[] = {SmeanALSB, SmeanBLSB, SmeanCLSB, SAmeanTLSB};
   if (phase > 3) return 0;
   return readMeanPowerW(regH[phase], regL[phase]);
+}
+
+double ATM90E32::readUPeak_V(uint8_t phase) {
+  static const uint16_t reg[] = {UPeakA, UPeakB, UPeakC};
+  if (phase > 2) return 0.0;
+  return (double)read16(reg[phase]) * 0.01;
+}
+
+double ATM90E32::readIPeak_A(uint8_t phase) {
+  static const uint16_t reg[] = {IPeakA, IPeakB, IPeakC};
+  if (phase > 2) return 0.0;
+  return (double)read16(reg[phase]) * 0.001;
+}
+
+double ATM90E32::readIrmsN_A() {
+  return (double)read16(IrmsN) * 0.001;
+}
+
+int32_t ATM90E32::readPmeanFundW(uint8_t phase) {
+  static const uint16_t regH[] = {PmeanAF, PmeanBF, PmeanCF};
+  static const uint16_t regL[] = {PmeanAFLSB, PmeanBFLSB, PmeanCFLSB};
+  if (phase > 2) return 0;
+  return readMeanPowerW(regH[phase], regL[phase]);
+}
+
+int32_t ATM90E32::readPmeanHarmW(uint8_t phase) {
+  static const uint16_t regH[] = {PmeanAH, PmeanBH, PmeanCH};
+  static const uint16_t regL[] = {PmeanAHLSB, PmeanBHLSB, PmeanCHLSB};
+  if (phase > 2) return 0;
+  return readMeanPowerW(regH[phase], regL[phase]);
+}
+
+uint16_t ATM90E32::readThdPct_x100(uint8_t phase) {
+  if (phase > 2) return 0;
+  const int32_t pf = readPmeanFundW(phase);
+  const int32_t ph = readPmeanHarmW(phase);
+  const double denom = fmax(fabs((double)pf), 1.0);
+  const double pct = 100.0 * fabs((double)ph) / denom;
+  long x = lround(pct * 100.0);
+  if (x < 0) x = 0;
+  if (x > 65535) x = 65535;
+  return (uint16_t)x;
 }
 
 // ---- Public API ----

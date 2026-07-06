@@ -170,6 +170,16 @@
   </section>
 
   <div class="sectiontitle">
+    <h3>Peaks &amp; Quality</h3>
+    <p class="hint">Hardware peak detect (SagPeakDetCfg), neutral current, active-power THD.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="quality-grid" class="live-grid"></div>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
     <h3>Energies</h3>
     <p class="hint">Chip counters from ext.energy (saved in flash).</p>
   </div>
@@ -244,12 +254,23 @@
     function applyEnergies(src){
       const setE=(idx, e)=>{
         const set=(id,val,dec=3)=>{ const el=$(id); if(el) el.textContent=(typeof val==='number'&&isFinite(val))?val.toFixed(dec):'--'; };
-        if(!e||typeof e!=='object'){ ['ap','an','rp','rn','s'].forEach(p=>set(`e-${p}-${idx}`,NaN)); return; }
-        set(`e-ap-${idx}`, Number(e.AP_kWh), 3);
-        set(`e-an-${idx}`, Number(e.AN_kWh), 3);
-        set(`e-rp-${idx}`, Number(e.RP_kvarh), 3);
-        set(`e-rn-${idx}`, Number(e.RN_kvarh), 3);
-        set(`e-s-${idx}`,  Number(e.S_kVAh), 3);
+        if(!e||typeof e!=='object'){
+          ['ap','an','net-a','rp','rn','net-r','s'].forEach(p=>set(`e-${p}-${idx}`,NaN));
+          return;
+        }
+        const imp = Number(e.import_kWh ?? e.AP_kWh);
+        const exp = Number(e.export_kWh ?? e.AN_kWh);
+        const netA = Number(e.net_kWh ?? (imp - exp));
+        const impR = Number(e.import_kvarh ?? e.RP_kvarh);
+        const expR = Number(e.export_kvarh ?? e.RN_kvarh);
+        const netR = Number(e.net_kvarh ?? (impR - expR));
+        set(`e-ap-${idx}`, imp, 3);
+        set(`e-an-${idx}`, exp, 3);
+        set(`e-net-a-${idx}`, netA, 3);
+        set(`e-rp-${idx}`, impR, 3);
+        set(`e-rn-${idx}`, expR, 3);
+        set(`e-net-r-${idx}`, netR, 3);
+        set(`e-s-${idx}`, Number(e.S_kVAh), 3);
       };
       const Ep=Array.isArray(src?.E_phase)?src.E_phase:[];
       const Et=(src?.E_tot&&typeof src.E_tot==='object')?src.E_tot:null;
@@ -276,6 +297,15 @@
       $('pft')&&($('pft').textContent=(typeof PF[3]==='number')?PF[3].toFixed(3):'--');
       $('f')&&($('f').textContent=(typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):'--');
       $('t')&&($('t').textContent=(m.TempC!==undefined)?String(m.TempC):'--');
+      const Upeak=m.Upeak_V||[], Ipeak=m.Ipeak_A||[], THD=m.THD_pct||[];
+      for(let i=0;i<3;i++){
+        const set=(id,v,dec)=>{ const el=$(id); if(el) el.textContent=(typeof v==='number'&&isFinite(v))?v.toFixed(dec):'--'; };
+        set(`upk${i}`, Upeak[i], 2);
+        set(`ipk${i}`, Ipeak[i], 3);
+        set(`thd${i}`, THD[i], 2);
+      }
+      const inEl=$('irmsn');
+      if(inEl) inEl.textContent=(typeof m.IrmsN_A==='number'&&isFinite(m.IrmsN_A))?m.IrmsN_A.toFixed(3):'--';
       applyEnergies(m);
     }
 
@@ -393,6 +423,27 @@
       }
     })();
 
+    (function buildQualityCards(){
+      const grid=$('quality-grid'); if(!grid) return;
+      const labels=['L1','L2','L3'];
+      for(let i=0;i<3;i++){
+        const card=document.createElement('div'); card.className='live-card';
+        card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[i]}</strong></div>
+          <div class="kv">
+            <div>U peak (V)</div><div id="upk${i}" style="text-align:right">--</div>
+            <div>I peak (A)</div><div id="ipk${i}" style="text-align:right">--</div>
+            <div>THD (%)</div><div id="thd${i}" style="text-align:right">--</div>
+          </div>`;
+        grid.appendChild(card);
+      }
+      const nCard=document.createElement('div'); nCard.className='live-card';
+      nCard.innerHTML=`<div style="margin-bottom:.5rem;"><strong>Neutral</strong></div>
+        <div class="kv">
+          <div>I<sub>N</sub> (A)</div><div id="irmsn" style="text-align:right">--</div>
+        </div>`;
+      grid.appendChild(nCard);
+    })();
+
     (function buildEnergyCards(){
       const grid=$('energy-grid'); if(!grid) return;
       const labels=['Phase A','Phase B','Phase C','Totals'];
@@ -400,10 +451,12 @@
         const card=document.createElement('div'); card.className='live-card';
         card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[i]}</strong></div>
           <div class="kv">
-            <div>Active + (kWh)</div><div id="e-ap-${i}" style="text-align:right">--</div>
-            <div>Active − (kWh)</div><div id="e-an-${i}" style="text-align:right">--</div>
-            <div>Reactive + (kvarh)</div><div id="e-rp-${i}" style="text-align:right">--</div>
-            <div>Reactive − (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
+            <div>Active import (kWh)</div><div id="e-ap-${i}" style="text-align:right">--</div>
+            <div>Active export (kWh)</div><div id="e-an-${i}" style="text-align:right">--</div>
+            <div>Active net (kWh)</div><div id="e-net-a-${i}" style="text-align:right">--</div>
+            <div>Reactive import (kvarh)</div><div id="e-rp-${i}" style="text-align:right">--</div>
+            <div>Reactive export (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
+            <div>Reactive net (kvarh)</div><div id="e-net-r-${i}" style="text-align:right">--</div>
             <div>Apparent (kVAh)</div><div id="e-s-${i}" style="text-align:right">--</div>
           </div>`;
         grid.appendChild(card);

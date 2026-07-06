@@ -43,6 +43,12 @@ public:
   int32_t  readPmeanW(uint8_t phase);   // 0=A,1=B,2=C,3=Total
   int32_t  readQmean_var(uint8_t phase);
   int32_t  readSmean_VA(uint8_t phase);
+  double   readUPeak_V(uint8_t phase);  // 0=A,1=B,2=C
+  double   readIPeak_A(uint8_t phase);
+  double   readIrmsN_A();
+  int32_t  readPmeanFundW(uint8_t phase);
+  int32_t  readPmeanHarmW(uint8_t phase);
+  uint16_t readThdPct_x100(uint8_t phase); // active-power THD, 0.01 % units
   int16_t  readPAngleA(); int16_t readPAngleB(); int16_t readPAngleC();
   uint16_t readFreq_x100();
   int16_t  readTempC();

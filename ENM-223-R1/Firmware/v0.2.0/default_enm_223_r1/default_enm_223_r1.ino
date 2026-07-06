@@ -209,7 +209,8 @@ static const unsigned long atmApplyMinIntervalMs = 300;
 static bool atmBusy = false;
 
 
-// Modbus V2 map (matches default_enm_223_r1_plc_full.yaml / old firmware)
+// Modbus V2 map (matches default_enm_223_r1_plc.yaml)
+// IR free slots used: 12-18 (peaks, IrmsN), 47-49 (THD); legacy 12-19, 47-59 still free aside from these
 enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
@@ -221,10 +222,14 @@ enum : uint16_t {
   IR_FREQ       = 6,
   IR_TEMP       = 7,
   IR_PF_BASE    = 8,
+  IR_UPEAK_BASE = 12,  // U16 ×0.01 V, L1..L3
+  IR_IPEAK_BASE = 15,  // U16 ×0.001 A, L1..L3
+  IR_IRMSN      = 18,  // U16 ×0.001 A
   IR_P_BASE     = 20,
   IR_Q_BASE     = 28,
   IR_S_BASE     = 36,
   IR_ANG_BASE   = 44,
+  IR_THD_BASE   = 47,  // U16 ×0.01 %, L1..L3 (active-power THD)
   IR_E_BASE     = 60,
   HR_MB_ADDR    = 0,
   HR_MB_BAUD_L  = 1,
@@ -340,6 +345,10 @@ static int16_t  g_pf_raw[4] = {0, 0, 0, 0};
 static int16_t  g_ang_raw[3]= {0, 0, 0};
 static uint16_t g_f_x100 = 0;
 static int16_t  g_tempC = 0;
+static double   g_upeak[3] = {0, 0, 0};
+static double   g_ipeak[3] = {0, 0, 0};
+static double   g_irmsN = 0.0;
+static uint16_t g_thd_x100[3] = {0, 0, 0};
 static bool     g_haveMeter = false;
 
 static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
@@ -642,6 +651,13 @@ static void mbPublishMeter() {
     mbPutS32Ir(IR_S_BASE + i * 2, g_s_VA[i]);
   }
 
+  for (int i = 0; i < 3; i++) {
+    mb.Ireg(IR_UPEAK_BASE + i, clampU(g_upeak[i]));
+    mb.Ireg(IR_IPEAK_BASE + i, clampI(g_ipeak[i]));
+    mb.Ireg(IR_THD_BASE + i, g_thd_x100[i]);
+  }
+  mb.Ireg(IR_IRMSN, clampI(g_irmsN));
+
   uint16_t o = IR_E_BASE;
   for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_ap_Wh[i]);
   o += 8;
@@ -705,11 +721,24 @@ static void meter_job_step() {
         g_q_var[i]  = g_atm.readQmean_var((uint8_t)i);
         g_s_VA[i]   = g_atm.readSmean_VA((uint8_t)i);
       }
+      meter_step++;
+      break;
+    }
+    case 6:
+      for (int i = 0; i < 3; i++) {
+        g_upeak[i] = g_atm.readUPeak_V(i);
+        g_ipeak[i] = g_atm.readIPeak_A(i);
+      }
+      g_irmsN = g_atm.readIrmsN_A();
+      meter_step++;
+      break;
+    case 7:
+      for (int i = 0; i < 3; i++)
+        g_thd_x100[i] = g_atm.readThdPct_x100((uint8_t)i);
       meter_job = false;
       g_haveMeter = true;
       mbPublishMeter();
       break;
-    }
     default:
       meter_job = false;
       break;
@@ -740,20 +769,29 @@ static void sampleEnergyCounters() {
 
 static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
   auto to_k = [](uint32_t Wh) -> double { return Wh / 1000.0; };
+  auto fill = [&](JSONVar& ph, int i) {
+    const double ap = to_k(g_e_ap_Wh[i]);
+    const double an = to_k(g_e_an_Wh[i]);
+    const double rp = to_k(g_e_rp_varh[i]);
+    const double rn = to_k(g_e_rn_varh[i]);
+    ph["AP_kWh"]   = ap;
+    ph["AN_kWh"]   = an;
+    ph["RP_kvarh"] = rp;
+    ph["RN_kvarh"] = rn;
+    ph["S_kVAh"]   = to_k(g_e_s_VAh[i]);
+    ph["import_kWh"]    = ap;
+    ph["export_kWh"]    = an;
+    ph["net_kWh"]       = ap - an;
+    ph["import_kvarh"]  = rp;
+    ph["export_kvarh"]  = rn;
+    ph["net_kvarh"]     = rp - rn;
+  };
   for (int i = 0; i < 3; i++) {
     JSONVar ph;
-    ph["AP_kWh"]   = to_k(g_e_ap_Wh[i]);
-    ph["AN_kWh"]   = to_k(g_e_an_Wh[i]);
-    ph["RP_kvarh"] = to_k(g_e_rp_varh[i]);
-    ph["RN_kvarh"] = to_k(g_e_rn_varh[i]);
-    ph["S_kVAh"]   = to_k(g_e_s_VAh[i]);
+    fill(ph, i);
     Ephase[i] = ph;
   }
-  Etot["AP_kWh"]   = to_k(g_e_ap_Wh[3]);
-  Etot["AN_kWh"]   = to_k(g_e_an_Wh[3]);
-  Etot["RP_kvarh"] = to_k(g_e_rp_varh[3]);
-  Etot["RN_kvarh"] = to_k(g_e_rn_varh[3]);
-  Etot["S_kVAh"]   = to_k(g_e_s_VAh[3]);
+  fill(Etot, 3);
 }
 
 static void setDefaults() {
@@ -882,6 +920,17 @@ static JSONVar meterLiveToJson() {
   m["FreqHz"] = ((double)g_f_x100) / 100.0;
   m["TempC"] = (int)g_tempC;
   m["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
+
+  JSONVar uPk, iPk, thd;
+  for (int i = 0; i < 3; i++) {
+    uPk[i] = g_upeak[i];
+    iPk[i] = g_ipeak[i];
+    thd[i] = ((double)g_thd_x100[i]) / 100.0;
+  }
+  m["Upeak_V"] = uPk;
+  m["Ipeak_A"] = iPk;
+  m["THD_pct"] = thd;
+  m["IrmsN_A"] = g_irmsN;
 
   JSONVar Ephase, Etot;
   energiesToJson(Ephase, Etot);
