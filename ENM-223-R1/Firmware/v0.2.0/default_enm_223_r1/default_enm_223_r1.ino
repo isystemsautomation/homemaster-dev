@@ -144,6 +144,48 @@ static unsigned long  lastCfgTouchMs  = 0;
 static unsigned long  lastMeterTouchMs = 0;
 static const uint32_t CFG_AUTOSAVE_MS = 1500;
 
+// Types/globals used in function signatures — must be before any function (Arduino auto-prototypes).
+struct DebounceState {
+  bool     raw = false;
+  bool     stable = false;
+  bool     prevStable = false;
+  uint32_t lastChangeMs = 0;
+};
+
+enum : uint8_t {
+  ALARM_KIND_ALARM   = 0,
+  ALARM_KIND_WARNING = 1,
+  ALARM_KIND_EVENT   = 2,
+  ALARM_MET_URMS     = 0,
+  ALARM_MET_IRMS     = 1,
+  ALARM_MET_P        = 2,
+  ALARM_MET_Q        = 3,
+  ALARM_MET_S        = 4,
+  ALARM_MET_FREQ     = 5,
+  RLY_MODE_NONE      = 0,
+  RLY_MODE_MODBUS    = 1,
+  RLY_MODE_ALARM     = 2,
+  CHIP_EV_SAG        = 1,
+  CHIP_EV_OV         = 2,
+  CHIP_EV_PHASE_LOSS = 4,
+  CHIP_EV_OVER_I     = 8,
+  CHIP_EV_FREQ       = 16,
+  CHIP_EV_REV_PHASE  = 32
+};
+
+struct AlarmRuleRun {
+  bool active;
+  bool hiSide;
+};
+
+struct AlarmChRun {
+  AlarmRuleRun rules[3];
+  bool acked;
+  bool chipActive;
+};
+
+static bool meter_job = false;
+
 // SimpleWebSerial: MaximumNumberOfEvents = 8 (library default). Never register more than 8 handlers.
 static SimpleWebSerial WebSerial;
 static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
@@ -224,12 +266,6 @@ static BtnCfg btnCfg[NUM_BTN];
 
 static bool buttonState[NUM_BTN]  = {false,false,false,false};
 
-struct DebounceState {
-  bool     raw = false;
-  bool     stable = false;
-  bool     prevStable = false;
-  uint32_t lastChangeMs = 0;
-};
 static DebounceState btnDeb[NUM_BTN];
 static const uint32_t g_debounceMs = 25;
 
@@ -324,9 +360,15 @@ enum : uint16_t {
   HR_MB_BAUD_L  = 1,
   HR_LINE_HZ    = 4,
   HR_SUM_ABS    = 5,
-  HR_RLY_EN_BASE = 7
+  HR_RLY_EN_BASE = 7,
   // HR 2,3,6 reserved — read-only, not applied from Modbus
 };
+
+static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
+static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
+static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
+static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
+static uint32_t g_MC_imp_per_kWh = 3200;
 
 static bool mbMapBuilt = false;
 
@@ -445,38 +487,6 @@ static double   g_irmsN = 0.0;
 static uint16_t g_thd_x100[3] = {0, 0, 0};
 static bool     g_haveMeter = false;
 
-enum : uint8_t {
-  ALARM_KIND_ALARM   = 0,
-  ALARM_KIND_WARNING = 1,
-  ALARM_KIND_EVENT   = 2,
-  ALARM_MET_URMS     = 0,
-  ALARM_MET_IRMS     = 1,
-  ALARM_MET_P        = 2,
-  ALARM_MET_Q        = 3,
-  ALARM_MET_S        = 4,
-  ALARM_MET_FREQ     = 5,
-  RLY_MODE_NONE      = 0,
-  RLY_MODE_MODBUS    = 1,
-  RLY_MODE_ALARM     = 2,
-  CHIP_EV_SAG        = 1,
-  CHIP_EV_OV         = 2,
-  CHIP_EV_PHASE_LOSS = 4,
-  CHIP_EV_OVER_I     = 8,
-  CHIP_EV_FREQ       = 16,
-  CHIP_EV_REV_PHASE  = 32
-};
-
-struct AlarmRuleRun {
-  bool active;
-  bool hiSide;
-};
-
-struct AlarmChRun {
-  AlarmRuleRun rules[3];
-  bool acked;
-  bool chipActive;
-};
-
 static AlarmChCfg  alarmCfg[4];
 static AlarmChRun  alarmRun[4];
 static M90ChipEv   g_chipEv = {};
@@ -485,12 +495,6 @@ static unsigned long lastDiagSample = 0;
 static const unsigned long diagSampleMs = 500;
 static unsigned long lastAlarmEval = 0;
 static const unsigned long alarmEvalMs = 200;
-
-static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
-static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
-static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
-static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
-static uint32_t g_MC_imp_per_kWh = 3200;
 
 static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks);
 
@@ -1183,7 +1187,6 @@ static bool loadConfigFS() {
   return true;
 }
 
-static bool     meter_job = false;
 static uint8_t  meter_step = 0;
 static double   urms_tmp[3], irms_tmp[3];
 
