@@ -36,7 +36,7 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 | Area | Detail |
 |------|--------|
 | **Isolation** | Galvanically isolated DI front-end (ISO1212 class); opto-isolated relay drivers |
-| **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions from {None, Toggle, On, Off, All off} + target (R1–R3 or All). |
+| **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions {None, Toggle, On, Off} + target (R1–R3 / All / None). |
 | **Buttons** | 3 buttons (2 user-configurable): Button 1 / Button 2 assignable to relay actions (toggle, on, off, all off) |
 | **LEDs** | Configurable Steady/Blink; 8 firmware sources (Off, HA, Link, Local, Child lock, Safe mode, Identify, Relay) |
 | **WebConfig** | USB-C → Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi); set comms and I/O mapping live; auto-save to flash |
@@ -387,12 +387,27 @@ Status pills (read-only, not settings): **Connection** (USB), **Bus** (RS-485), 
 | Type | Maintained / Momentary | Wall switch vs push-button. |
 | Maintained mode | Toggle / Follow | **Toggle**: flip relay on each change. **Follow**: relay mirrors switch. |
 | Target *(Maintained)* | All / R1 / R2 / R3 / None | Controlled relay(s). |
-| Short → action *(Momentary)* | None / Toggle / On / Off / All off | Short-press action. |
+| Short → action *(Momentary)* | None / Toggle / On / Off | Short-press action. |
 | Short → target | All / R1 / R2 / R3 / None | Short-press target relay(s). |
-| Long → action *(Momentary)* | None / Toggle / On / Off / All off | Long-press action. |
+| Long → action *(Momentary)* | None / Toggle / On / Off | Long-press action. |
 | Long → target | All / R1 / R2 / R3 / None | Long-press target relay(s). |
 
-Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = All off.
+Defaults: IN1–IN3 = Maintained / Toggle → R1/R2/R3; IN4 = Momentary, Short = Off → All.
+
+### Gesture event counters (Momentary)
+
+In **Momentary** mode each digital input and each user button (Button 1–2) recognizes press gestures and maintains **four monotonic counters**: **single**, **double**, **triple**, and **long**.
+
+| Topic | Detail |
+|-------|--------|
+| **Modbus / HA** | Counters are exposed as **Input Registers** (FC04, event block IR 6…29) and imported into Home Assistant via the ESPHome package. |
+| **How HA uses them** | Automations should react to a **counter increase** (e.g. a double-click adds 1 to the `double` sensor). The gesture is not lost even if the RS-485 bus is polled slowly. |
+| **Purpose** | Run Home Assistant scenes and automations on single, double, triple clicks and long holds without missing short pulses on a shared bus. |
+| **Maintained inputs** | Counters apply **only** when **Type = Momentary**. Maintained inputs have no gesture counters. |
+| **HA-only input** | To use an input **only** for HA scenes (no local relay action): **Type = Momentary**, **Short = None**, **Long = None**. Gestures are still counted; relays are not switched locally. |
+| **Timing** | **Long-press ms** and **Multi-click gap ms** in the [Timing](#timing) section set long-hold threshold and the double/triple click window. |
+
+To turn off all relays from Momentary logic, use action **Off** with target **All** (not a separate “All off” action in WebConfig).
 
 ### Relays & Interlock
 
@@ -436,10 +451,10 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 
 | Field | Values | Meaning |
 |-------|--------|---------|
-| Short/Long → action | None / Toggle / On / Off / All off | Press action. |
+| Short/Long → action | None / Toggle / On / Off | Press action. |
 | Short/Long → target | All / R1 / R2 / R3 / None | Target relay(s). |
 
-Defaults: Button 1 → Short = Toggle R1, Long = All off; Button 2 → Short = Toggle R2, Long = None. (Third button: no software function — boot/reset combo only.)
+Defaults: Button 1 → Short = Toggle R1, Long = Off → All; Button 2 → Short = Toggle R2, Long = None. (Third button: no software function — boot/reset combo only.)
 
 **User LEDs (LED 1–3)**
 
@@ -456,8 +471,8 @@ Defaults: LED1 = Link; LED2 = Off; LED3 = HA.
 
 | Action | Meaning |
 |--------|---------|
-| None | Report only (no local relay action). |
-| Toggle / On / Off / All off | Flip, energize, de-energize, or all-off. |
+| None | Report only (no local relay action); gestures still counted in Momentary mode. |
+| Toggle / On / Off | Flip, energize, or de-energize the target relay(s). Use **Off** + target **All** to de-energize every relay. |
 
 | Target | Meaning |
 |--------|---------|

@@ -64,3 +64,18 @@ Public download URL (on `main`, current board folder):
 - **Libraries:** ModbusSerial, Arduino_JSON, LittleFS, SimpleWebSerial (see module README §8.3)
 
 UF2 flashing (module front panel): hold **Buttons 1 + 2 + 3**, release **1**, then release **2 + 3** together → **RPI-RP2** USB drive. See [DIO-430-R1 README §8.2](../README.md#82-flashing-usbc-hardware-buttons-only).
+
+---
+
+## Gesture event counters (Momentary)
+
+Digital inputs and user buttons (Button 1–2) in **Momentary** mode recognize press gestures and expose **four counters** each: **single**, **double**, **triple**, and **long**.
+
+- Counters are published as **Modbus Input Registers** (FC04, IR 6…29) and appear in Home Assistant through `default_dio_430_r1_plc.yaml`.
+- Home Assistant automations should trigger on a **counter increase** (e.g. double-click → `double` +1), so gestures are not lost when the bus is polled infrequently.
+- Use this for HA scenes on single/double/triple clicks and long holds without dropping short pulses on RS-485.
+- Counters run **only** for **Type = Momentary**; **Maintained** inputs have no gesture counters.
+- **HA-only input** (no local relay control): **Type = Momentary**, **Short = None**, **Long = None** — gestures are still counted.
+- Tune **Long-press ms** and **Multi-click gap ms** in WebConfig **Timing**.
+
+Short/Long actions in WebConfig: **None / Toggle / On / Off**; target **R1–R3 / All / None**. To switch all relays off, set action **Off** and target **All** (legacy stored action value 4 is still accepted by firmware).

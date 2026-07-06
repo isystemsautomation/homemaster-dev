@@ -138,6 +138,7 @@
         <div class="mom-fields" id="mom-in${i}" style="display:none">
           <div class="split"><div><label>Short</label>${actSel('short-act-in'+i)}${tgtSel('short-tgt-in'+i)}</div>
           <div><label>Long</label>${actSel('long-act-in'+i)}${tgtSel('long-tgt-in'+i)}</div></div>
+          <p class="sub" style="margin-top:8px">Gesture counters single/double/triple/long are sent to Home Assistant for scenes (Momentary only). For HA-only inputs, leave Short and Long set to None.</p>
         </div>`;
       c.appendChild(d);
       const typeEl=$('type-in'+i);
