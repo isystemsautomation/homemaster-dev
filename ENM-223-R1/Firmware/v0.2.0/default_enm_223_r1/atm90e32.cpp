@@ -2,6 +2,8 @@
 #include <math.h>
 
 // ---- Register map (subset) ----
+static constexpr uint16_t ChannelMapI   = 0x01;
+static constexpr uint16_t ChannelMapU   = 0x02;
 static constexpr uint16_t MeterEn       = 0x00;
 static constexpr uint16_t SagPeakDetCfg = 0x05;
 static constexpr uint16_t ZXConfig      = 0x07;
@@ -205,10 +207,17 @@ uint16_t ATM90E32::readThdPct_x100(uint8_t phase) {
   return (uint16_t)x;
 }
 
+static uint16_t buildChannelMapReg(const uint8_t phaseMap[3]) {
+  return (uint16_t)(phaseMap[0] | (uint16_t(phaseMap[1]) << 3) | (uint16_t(phaseMap[2]) << 6));
+}
+
 // ---- Public API ----
-void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90PhaseCal cal[3]) {
+void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const uint8_t phaseMap[3],
+                     uint16_t ucal, const M90PhaseCal cal[3]) {
   lineHz_ = (lineHz == 60) ? 60 : 50;
   sumAbs_ = sumAbs ? 1 : 0;
+  wireMode_ = wireMode ? 1 : 0;
+  for (int i = 0; i < 3; i++) phaseMap_[i] = phaseMap[i];
   ucal_   = ucal;
 
   // PM pins are MCU->ATM control pins in your schematic
@@ -248,12 +257,19 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
 
   write16(ZXConfig, 0xD654);
 
-  // Modes
-  uint16_t m0 = 0x019D;
-  if (lineHz_ == 60) m0 |= (1u<<12); else m0 &= ~(1u<<12);
-  m0 &= ~(0b11u<<3);
-  m0 |= ((sumAbs_ ? 0b11u : 0b00u) << 3);
-  m0 &= ~0b111u; m0 |= 0b101u;
+  const uint16_t chMap = buildChannelMapReg(phaseMap_);
+  write16(ChannelMapU, chMap);
+  write16(ChannelMapI, chMap);
+
+  // Modes: 0x0087 = 3P4W (EnPA/B/C); 3P3W sets bit8 and clears EnPB (bit1)
+  uint16_t m0 = 0x0087;
+  if (lineHz_ == 60) m0 |= (1u << 12);
+  if (wireMode_) {
+    m0 |= (1u << 8);
+    m0 &= static_cast<uint16_t>(~(1u << 1));
+  }
+  m0 &= static_cast<uint16_t>(~(0b11u << 3));
+  m0 |= static_cast<uint16_t>((sumAbs_ ? 0b11u : 0b00u) << 3);
 
   auto gainCode = [](uint8_t g)->uint8_t{ if(g==1)return 0; if(g==2)return 1; if(g==4)return 2; return 1; };
   const uint8_t gIA=2,gIB=2,gIC=2;  // PGA=2× for ZEMCTK05 (167 mV @ 50A)

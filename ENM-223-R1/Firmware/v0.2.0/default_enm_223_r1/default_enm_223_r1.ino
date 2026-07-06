@@ -44,6 +44,28 @@ struct AlarmChCfg {
   AlarmRuleCfg rules[3];
 } __attribute__((packed));
 
+struct EnmSettingsCfgV21 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t lineHz;
+  uint8_t  sumAbs;
+  struct {
+    bool    enabled;
+    bool    inverted;
+    uint8_t mode;
+    uint8_t alarmCh;
+    uint8_t alarmMask;
+    uint8_t pad;
+  } rlyCfg[2];
+  struct { uint8_t mode; uint8_t source; } ledCfg[4];
+  struct { uint8_t action; } btnCfg[4];
+  AlarmChCfg alarm[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
 struct EnmSettingsCfg {
   uint32_t magic;
   uint16_t version;
@@ -52,6 +74,8 @@ struct EnmSettingsCfg {
   uint32_t mb_baud;
   uint16_t lineHz;
   uint8_t  sumAbs;
+  uint8_t  wireMode;     // 0=3P4W, 1=3P3W
+  uint8_t  phaseMap[3];  // logical L1..L3 -> physical phase 0..2 (A/B/C)
   struct {
     bool    enabled;
     bool    inverted;
@@ -107,7 +131,8 @@ struct EnmPersistCfgLegacy {
 
 static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
 static const uint16_t CFG_VERSION_V20 = 0x0020;
-static const uint16_t CFG_VERSION     = 0x0021;
+static const uint16_t CFG_VERSION_V21 = 0x0021;
+static const uint16_t CFG_VERSION     = 0x0022;
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
 static const uint16_t METER_VERSION   = 0x0001;
@@ -240,10 +265,30 @@ static ATM90E32 g_atm(SPI1, ATM_CS, ATM_PM0, ATM_PM1, 200000, SPI_MODE0, false);
 struct AtmCfg {
   uint16_t lineHz;
   uint8_t  sumAbs;
+  uint8_t  wireMode;
+  uint8_t  phaseMap[3];
   uint16_t ucal;
   M90PhaseCal cal[3];
 };
 static AtmCfg g_atm_cfg;
+
+static bool validatePhaseMap(const uint8_t map[3]) {
+  bool used[3] = {false, false, false};
+  for (int i = 0; i < 3; i++) {
+    if (map[i] > 2) return false;
+    if (used[map[i]]) return false;
+    used[map[i]] = true;
+  }
+  return true;
+}
+
+static void normalizePhaseMap(uint8_t map[3]) {
+  if (!validatePhaseMap(map)) {
+    map[0] = 0;
+    map[1] = 1;
+    map[2] = 2;
+  }
+}
 
 static volatile bool atmApplyPending = false;
 static unsigned long atmLastApplyMs = 0;
@@ -353,6 +398,10 @@ static inline int16_t clamp_i16(int v) {
 static void setAtmDefaults() {
   g_atm_cfg.lineHz = 50;
   g_atm_cfg.sumAbs = 1;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
   g_atm_cfg.ucal   = 36000;  // sag detector reference
   for (int i = 0; i < 3; i++) {
     g_atm_cfg.cal[i].Ugain   = 39500;  // divider 6×220k+1k, calibrated @ 230V
@@ -783,6 +832,8 @@ static void captureSettings(EnmSettingsCfg& pc) {
   pc.mb_baud    = g_mb_baud;
   pc.lineHz     = g_atm_cfg.lineHz;
   pc.sumAbs     = g_atm_cfg.sumAbs;
+  pc.wireMode   = g_atm_cfg.wireMode;
+  for (int i = 0; i < 3; i++) pc.phaseMap[i] = g_atm_cfg.phaseMap[i];
   for (int i = 0; i < NUM_RLY; i++) {
     pc.rlyCfg[i].enabled   = rlyCfg[i].enabled;
     pc.rlyCfg[i].inverted  = rlyCfg[i].inverted;
@@ -822,6 +873,51 @@ static bool applySettings(const EnmSettingsCfg& pc) {
 
   g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
   g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.wireMode = pc.wireMode ? 1 : 0;
+  for (int i = 0; i < 3; i++) g_atm_cfg.phaseMap[i] = pc.phaseMap[i];
+  normalizePhaseMap(g_atm_cfg.phaseMap);
+
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
+    rlyCfg[i].inverted  = pc.rlyCfg[i].inverted;
+    rlyCfg[i].mode      = pc.rlyCfg[i].mode;
+    rlyCfg[i].alarmCh   = (uint8_t)constrain((int)pc.rlyCfg[i].alarmCh, 0, 3);
+    rlyCfg[i].alarmMask = pc.rlyCfg[i].alarmMask ? pc.rlyCfg[i].alarmMask : 1;
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    ledCfg[i].mode   = pc.ledCfg[i].mode;
+    ledCfg[i].source = pc.ledCfg[i].source;
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    btnCfg[i].action = pc.btnCfg[i].action;
+  }
+  for (int i = 0; i < 4; i++) {
+    alarmCfg[i] = pc.alarm[i];
+  }
+  return true;
+}
+
+static bool applySettingsV21(const EnmSettingsCfgV21& pc) {
+  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION_V21 || pc.size != sizeof(EnmSettingsCfgV21))
+    return false;
+  EnmSettingsCfgV21 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmSettingsCfgV21)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
 
   for (int i = 0; i < NUM_RLY; i++) {
     rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
@@ -860,6 +956,10 @@ static bool applySettingsV20(const EnmSettingsCfgV20& pc) {
 
   g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
   g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
 
   for (int i = 0; i < NUM_RLY; i++) {
     rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
@@ -949,6 +1049,10 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
   SlaveId = (int)g_mb_address;
   g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
   g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
   g_atm_cfg.ucal   = pc.ucal ? pc.ucal : 36000;
   for (int i = 0; i < 3; i++) {
     g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
@@ -1013,6 +1117,15 @@ static bool loadSettingsFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     return applySettings(pc);
+  }
+  if (sz == sizeof(EnmSettingsCfgV21)) {
+    EnmSettingsCfgV21 pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applySettingsV21(pc)) return false;
+    markCfgDirty();
+    return true;
   }
   if (sz == sizeof(EnmSettingsCfgV20)) {
     EnmSettingsCfgV20 pc;
@@ -1278,7 +1391,8 @@ static void setDefaults() {
 static void atmApplyFromCfg_NOW() {
   M90PhaseCal tmp[3];
   for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
-  g_atm.begin(g_atm_cfg.lineHz, g_atm_cfg.sumAbs, g_atm_cfg.ucal, tmp);
+  g_atm.begin(g_atm_cfg.lineHz, g_atm_cfg.sumAbs, g_atm_cfg.wireMode, g_atm_cfg.phaseMap,
+              g_atm_cfg.ucal, tmp);
 }
 
 static void queueAtmApply() {
@@ -1585,6 +1699,10 @@ void sendWebCfg() {
   }
   cfg["ext"]["atm"]["lineHz"] = (int)g_atm_cfg.lineHz;
   cfg["ext"]["atm"]["sumAbs"] = (int)g_atm_cfg.sumAbs;
+  cfg["ext"]["atm"]["wireMode"] = (int)g_atm_cfg.wireMode;
+  JSONVar pmap;
+  for (int i = 0; i < 3; i++) pmap[i] = (int)g_atm_cfg.phaseMap[i];
+  cfg["ext"]["atm"]["phaseMap"] = pmap;
   cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
   cfg["ext"]["atm"]["cal"]    = calPhasesArrayFromCfg();
   JSONVar energy = energyToJsonObj();
@@ -1619,6 +1737,21 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
   if (obj.hasOwnProperty("sumAbs")) {
     g_atm_cfg.sumAbs = jvGetInt(obj, "sumAbs", (int)g_atm_cfg.sumAbs) ? 1 : 0;
   }
+  if (obj.hasOwnProperty("wireMode")) {
+    g_atm_cfg.wireMode = jvGetInt(obj, "wireMode", (int)g_atm_cfg.wireMode) ? 1 : 0;
+  }
+  if (obj.hasOwnProperty("phaseMap")) {
+    JSONVar pmap = obj["phaseMap"];
+    uint8_t tmp[3];
+    for (int i = 0; i < 3; i++) {
+      JSONVar v = pmap[i];
+      if (JSON.typeof(v) == "undefined") v = pmap[(int)i];
+      tmp[i] = (uint8_t)constrain(jsonVarToInt(v, (int)g_atm_cfg.phaseMap[i]), 0, 2);
+    }
+    if (validatePhaseMap(tmp)) {
+      for (int i = 0; i < 3; i++) g_atm_cfg.phaseMap[i] = tmp[i];
+    }
+  }
   if (obj.hasOwnProperty("ucal")) {
     int u = jvGetInt(obj, "ucal", (int)g_atm_cfg.ucal);
     if (u < 1) u = 1;
@@ -1635,7 +1768,8 @@ static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
 }
 
 static void atmApplyFromJson(const JSONVar& obj) {
-  if (obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs") || obj.hasOwnProperty("ucal")) {
+  if (obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs") || obj.hasOwnProperty("ucal")
+      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")) {
     atmUpdateBaseFromJson(obj);
   }
   if (obj.hasOwnProperty("ph")) {

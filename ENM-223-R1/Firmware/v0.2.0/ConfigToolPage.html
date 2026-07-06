@@ -97,7 +97,7 @@
 
   <div class="sectiontitle">
     <h3>Meter Options</h3>
-    <p class="hint">Line frequency and sum mode (applied via ext.atm).</p>
+    <p class="hint">Line frequency, wiring scheme, phase mapping, and sum mode (applied via ext.atm).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -117,12 +117,45 @@
           </select>
         </div>
         <div>
+          <label for="opt-wireMode">Wiring Scheme</label>
+          <select id="opt-wireMode">
+            <option value="0" selected>3P4W (star, 4-wire)</option>
+            <option value="1">3P3W (3-wire)</option>
+          </select>
+        </div>
+        <div>
           <label for="opt-samplems">Sample Interval (ms)</label>
           <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200">
           <small class="lock-badge">editing… press Enter to send</small>
         </div>
       </div>
-      <div class="hint" style="margin-top:.4rem">Sag reference uses Phase-A Ugain. Sample interval is UI-only on this firmware.</div>
+      <div class="row" style="margin-top:.6rem">
+        <div>
+          <label for="opt-phaseMap-0">L1 channel → meter phase</label>
+          <select id="opt-phaseMap-0">
+            <option value="0" selected>Phase A</option>
+            <option value="1">Phase B</option>
+            <option value="2">Phase C</option>
+          </select>
+        </div>
+        <div>
+          <label for="opt-phaseMap-1">L2 channel → meter phase</label>
+          <select id="opt-phaseMap-1">
+            <option value="0">Phase A</option>
+            <option value="1" selected>Phase B</option>
+            <option value="2">Phase C</option>
+          </select>
+        </div>
+        <div>
+          <label for="opt-phaseMap-2">L3 channel → meter phase</label>
+          <select id="opt-phaseMap-2">
+            <option value="0">Phase A</option>
+            <option value="1">Phase B</option>
+            <option value="2" selected>Phase C</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:.4rem">Sag reference uses Phase-A Ugain. Sample interval is UI-only on this firmware. Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
     </div>
   </section>
 
@@ -335,6 +368,14 @@
       const atm=(ext&&ext.atm)||(cfg.ext&&cfg.ext.atm)||{};
       if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
       if(atm.sumAbs!==undefined){ const el=$('opt-sumAbs'); if(el&&el!==document.activeElement) el.value=String(atm.sumAbs); }
+      if(atm.wireMode!==undefined){ const el=$('opt-wireMode'); if(el&&el!==document.activeElement) el.value=String(atm.wireMode); }
+      if(atm.phaseMap){
+        for(let ch=0;ch<3;ch++){
+          const v=atm.phaseMap[ch]??atm.phaseMap[String(ch)];
+          const el=$('opt-phaseMap-'+ch);
+          if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
+        }
+      }
       const cal=normalizeCalArray(atm.cal);
       if(cal) for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
       const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
@@ -450,8 +491,32 @@
     function sendAtmPartial(partial){
       HMWebConfig.sendConfig('ext.atm', partial);
     }
+    function readPhaseMapFromUI(){
+      const map=[];
+      for(let ch=0;ch<3;ch++){
+        const el=$('opt-phaseMap-'+ch);
+        map.push(el?+el.value:ch);
+      }
+      return map;
+    }
+    function phaseMapIsValid(map){
+      const used=new Set(map);
+      return map.length===3 && used.size===3 && map.every(v=>v>=0&&v<=2);
+    }
+    function sendPhaseMapFromUI(){
+      const map=readPhaseMapFromUI();
+      if(!phaseMapIsValid(map)){
+        HMWebConfig.log('Phase mapping must assign A/B/C uniquely to L1/L2/L3');
+        return;
+      }
+      sendAtmPartial({ phaseMap: map });
+    }
     $('opt-lineHz')?.addEventListener('change', ()=>sendAtmPartial({ lineHz:+$('opt-lineHz').value }));
     $('opt-sumAbs')?.addEventListener('change', ()=>sendAtmPartial({ sumAbs:+$('opt-sumAbs').value }));
+    $('opt-wireMode')?.addEventListener('change', ()=>sendAtmPartial({ wireMode:+$('opt-wireMode').value }));
+    for(let ch=0;ch<3;ch++){
+      $('opt-phaseMap-'+ch)?.addEventListener('change', sendPhaseMapFromUI);
+    }
     attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>{ /* UI-only on ENM v0.2.0 */ }, true);
 
     (function buildCalibrationUI(){
