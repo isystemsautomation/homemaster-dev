@@ -106,7 +106,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 
 > ⚠️ **Safety — read before installation:**
 > - **L / N terminals carry hazardous mains voltage.** Installation by qualified personnel only.
-> - **Use only ONE power input at a time** (24 V DC at V+/0V, OR AC/DC at L/N). Never connect multiple power inputs simultaneously.
+> - **Use only ONE power input at a time** (24 V DC at V+/0V, OR 85–265 V AC at L/N). Never connect multiple power inputs simultaneously.
 > - **Disconnect all power before wiring changes.**
 > - Relay outputs are **not internally fused** — always add an external fuse or circuit breaker per channel (max 3 A).
 > - Loads above 3 A or inductive/high-inrush loads MUST be switched using an external contactor; the MiniPLC relay acts as a control signal.
@@ -210,7 +210,7 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 - Typical current at 24 V DC: **~150 mA** (≈ 3.6 W).
 - Internal service fuse: **1.0 A** (soldered).
 - Recommended upstream protection: external **T0.5 A** slow-blow fuse or **0.5 A** breaker on the input.
-- AC/DC input passes through an isolated AC/DC power module that generates the internal 24 V rail.
+- AC input passes through an isolated AC/DC power module that generates the internal 24 V rail.
 
 ### Digital Input Wiring
 

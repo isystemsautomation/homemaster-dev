@@ -112,7 +112,7 @@
           </p>
 
           <p>
-            Engineered for reliability and flexibility, the MiniPLC supports multiple power input options (24V DC or wide-range AC/DC) and features RS-485 Modbus interface for expansion with a wide range of compatible I/O modules. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
+            Engineered for reliability and flexibility, the MiniPLC supports multiple power input options (24 V DC or 85–265 V AC) and features RS-485 Modbus interface for expansion with a wide range of compatible I/O modules. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
           </p>
 
           <p>
@@ -189,7 +189,7 @@
             <tr>
               <th scope="row">Power Input</th>
               <td>
-                24 V DC nominal (V+ / 0V) <strong>OR</strong> 85–265 V AC (L / N) <strong>OR</strong> 120–370 V DC (L / N + / −)
+                24 V DC nominal (V+ / 0V) <strong>OR</strong> 85–265 V AC (L / N)
               </td>
             </tr>
             <tr><th scope="row">Digital Inputs</th><td>4 × isolated, 24 V DC compatible</td></tr>
@@ -596,13 +596,13 @@
       <p>
         MiniPLC supports <strong>one</strong> power input method at a time:
         <strong>24&nbsp;V DC nominal</strong> on <strong>V+ / 0V</strong> (recommended) <em>or</em>
-        <strong>Mains AC / High-Voltage DC</strong> on <strong>L / N</strong> via the onboard isolated power module.
+        <strong>Mains AC</strong> on <strong>L / N</strong> via the onboard isolated power module.
       </p>
 
       <p>
         <strong>When to use which:</strong>
         <strong>24&nbsp;V DC</strong> is recommended when available, as it is safer and simpler to install.
-        <strong>Mains AC / High-Voltage DC</strong> on <strong>L / N</strong> is for installations where 24&nbsp;V DC is not available
+        <strong>Mains AC</strong> on <strong>L / N</strong> is for installations where 24&nbsp;V DC is not available
         and must be installed by qualified personnel in accordance with local electrical codes.
       </p>
 
@@ -635,12 +635,6 @@
               <th scope="row">Mains AC</th>
               <td>L / N</td>
               <td>85–265&nbsp;V AC, 47–63&nbsp;Hz</td>
-              <td>Uses onboard isolated module to generate the internal 24&nbsp;V rail. External protection required.</td>
-            </tr>
-            <tr>
-              <th scope="row">High-Voltage DC</th>
-              <td>L / N (+ / −)</td>
-              <td>120–370&nbsp;V DC</td>
               <td>Uses onboard isolated module to generate the internal 24&nbsp;V rail. External protection required.</td>
             </tr>
           </tbody>
@@ -696,11 +690,11 @@
       <hr class="plc-hr">
 
       <!-- ===================== MAINS / HVDC SECTION ===================== -->
-      <h3 id="mains-ac-high-voltage-dc-input"><strong>Mains AC / High-Voltage DC Input (L / N)</strong></h3>
+      <h3 id="mains-ac-high-voltage-dc-input"><strong>Mains AC Input (L / N)</strong></h3>
 
       <p class="plc-caption" style="margin-top:8px;">
         The onboard isolated power module generates the internal <strong>24&nbsp;V</strong> rail from
-        <strong>85–265&nbsp;V AC</strong> or <strong>120–370&nbsp;V DC</strong> on <strong>L / N</strong>.
+        <strong>85–265&nbsp;V AC</strong> on <strong>L / N</strong>.
       </p>
 
         <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
@@ -734,30 +728,6 @@
             </ul>
           </div>
         </div>
-
-        <div class="plc-col">
-          <div class="plc-wirecard">
-            <div class="plc-caption" style="margin-top:0;">
-              <strong>120–370&nbsp;V DC (L / N + / −)</strong>
-            </div>
-
-            <img
-              src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/MiniPLC/Images/wiring_ps_ac2.png"
-              alt="Wiring example: 120–370 V DC on L/N terminals with polarity as marked and external fuse/breaker"
-              loading="lazy"
-              style="margin-top:8px;"
-              width="600"
-              height="400"
-              decoding="async"
-            >
-
-            <ul class="plc-list" style="margin-top:10px;">
-              <li><strong>Input:</strong> 120–370&nbsp;V DC</li>
-              <li>Observe polarity where marked on <strong>L / N</strong></li>
-              <li><strong>External fuse/breaker required</strong></li>
-            </ul>
-          </div>
-        </div>
       </div>
 
       <div class="plc-tablewrap" style="margin-top:14px;">
@@ -775,7 +745,7 @@
             </tr>
             <tr>
               <th scope="row">Input</th>
-              <td>85–265&nbsp;V AC (47–63&nbsp;Hz) or 120–370&nbsp;V DC</td>
+              <td>85–265&nbsp;V AC (47–63&nbsp;Hz)</td>
             </tr>
             <tr>
               <th scope="row">Output</th>
