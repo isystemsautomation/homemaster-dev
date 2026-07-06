@@ -277,10 +277,9 @@ static unsigned long lastBootstrap = 0;
 static const unsigned long bootstrapInterval = 4000;
 static bool webHostConnected = false;
 
-// Web Serial does not assert USB-CDC DTR — do not gate telemetry on Serial.dtr() or (bool)Serial.
-static inline bool webSerialWriteReady(size_t need = 64) {
-  return Serial.availableForWrite() >= (int)need;
-}
+// Web Serial does not assert USB-CDC DTR. Do not gate sends on (bool)Serial or
+// availableForWrite thresholds — v0.1.0 sends unconditionally; blocking here
+// prevented all telemetry with passive WebConfig hosts.
 void sendWebBootstrap();
 static void markWebHostRx() {
   const bool fresh = !webHostConnected;
@@ -1737,15 +1736,16 @@ void sendWebCfg() {
 
 void sendWebBootstrap() {
   sendWebStatus();
+  yield();
   sendWebCfg();
+  yield();
   sendWebExt();
 }
 
 void sendWebExt() {
   JSONVar ext;
   ext["energy"] = energyToJsonObj();
-  // Always publish last cached sample — meter_job/atmBusy only gate SPI reads, not UI refresh.
-  if (g_haveMeter) {
+  if (g_haveMeter && !meter_job && !atmBusy) {
     ext["meter"] = meterLiveToJson();
   }
   WebSerial.send("ext", ext);
@@ -1965,26 +1965,22 @@ void loop() {
 
   if (now - lastSend >= sendInterval) {
     lastSend = now;
-    if (webSerialWriteReady(64)) {
-      sendWebStatus();
-    }
-    if (webSerialWriteReady(256)) {
-      sendWebExt();
-    }
-    if (webSerialWriteReady(64)) {
-      JSONVar io;
-      for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
-      for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
-      for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
-      WebSerial.send("io", io);
-      WebSerial.send("AlarmsState", alarmsStateToJson());
-    }
+
+    sendWebStatus();
+    yield();
+    sendWebExt();
+    yield();
+
+    JSONVar io;
+    for (int i = 0; i < NUM_RLY; i++) io["relay"][i] = relayLogical[i] ? 1 : 0;
+    for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
+    for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
+    WebSerial.send("io", io);
+    WebSerial.send("AlarmsState", alarmsStateToJson());
   }
 
   if (now - lastBootstrap >= bootstrapInterval) {
     lastBootstrap = now;
-    if (webSerialWriteReady(256)) {
-      sendWebBootstrap();
-    }
+    sendWebBootstrap();
   }
 }
