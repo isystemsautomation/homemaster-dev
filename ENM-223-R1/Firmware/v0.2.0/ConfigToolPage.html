@@ -373,9 +373,9 @@
 
     function applyExtPayload(ext){
       if(!ext) return;
-      lastExtPayload = ext;
+      lastExtPayload = lastExtPayload ? Object.assign({}, lastExtPayload, ext) : ext;
       if(ext.meter) applyMeterLive(ext.meter);
-      else if(ext.energy) applyEnergies(ext.energy);
+      if(ext.energy) applyEnergies(ext.energy);
     }
 
     function applyCalibCh(ch, obj, fromDevice){

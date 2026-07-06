@@ -1531,11 +1531,6 @@ static JSONVar meterLiveToJson() {
   m["Ipeak_A"] = iPk;
   m["THD_pct"] = thd;
   m["IrmsN_A"] = g_irmsN;
-
-  JSONVar Ephase, Etot;
-  energiesToJson(Ephase, Etot);
-  m["E_phase"] = Ephase;
-  m["E_tot"] = Etot;
   return m;
 }
 
@@ -1698,6 +1693,7 @@ void sendWebStatus() {
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   WebSerial.send("status", st);
+  yield();
 }
 
 void sendWebCfg() {
@@ -1725,30 +1721,37 @@ void sendWebCfg() {
   cfg["ext"]["atm"]["phaseMap"] = pmap;
   cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
   cfg["ext"]["atm"]["cal"]    = calPhasesArrayFromCfg();
-  JSONVar energy = energyToJsonObj();
-  cfg["ext"]["energy"]["E_phase"] = energy["E_phase"];
-  cfg["ext"]["energy"]["E_tot"]   = energy["E_tot"];
-  cfg["ext"]["energy"]["MC_imp_per_kWh"] = energy["MC_imp_per_kWh"];
+  // Energy counters: separate ext.energy (~1 Hz), not duplicated in cfg (v0.1 ENM_Sync pattern).
   cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
+  yield();
   WebSerial.send("AlarmsState", alarmsStateToJson());
 }
 
-void sendWebBootstrap() {
+// v0.1.0 pushWebConfigPeriodic: status + cfg in small steps with yield between frames.
+static void pushWebConfigPeriodic() {
   sendWebStatus();
   yield();
   sendWebCfg();
+}
+
+void sendWebBootstrap() {
+  pushWebConfigPeriodic();
   yield();
   sendWebExt();
 }
 
 void sendWebExt() {
-  JSONVar ext;
-  ext["energy"] = energyToJsonObj();
+  JSONVar e;
+  e["energy"] = energyToJsonObj();
+  WebSerial.send("ext", e);
+  yield();
   if (g_haveMeter && !meter_job && !atmBusy) {
-    ext["meter"] = meterLiveToJson();
+    JSONVar m;
+    m["meter"] = meterLiveToJson();
+    WebSerial.send("ext", m);
+    yield();
   }
-  WebSerial.send("ext", ext);
 }
 
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
@@ -1976,11 +1979,13 @@ void loop() {
     for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
     for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhysState[i] ? 1 : 0;
     WebSerial.send("io", io);
+    yield();
     WebSerial.send("AlarmsState", alarmsStateToJson());
+    yield();
   }
 
   if (now - lastBootstrap >= bootstrapInterval) {
     lastBootstrap = now;
-    sendWebBootstrap();
+    pushWebConfigPeriodic();
   }
 }
