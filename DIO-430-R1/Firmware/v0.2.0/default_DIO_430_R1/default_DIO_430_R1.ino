@@ -606,9 +606,9 @@ void serviceMomentaryChannel(uint8_t src, bool lockLocal, uint8_t shortAction, u
     }
   }
 
-  if (cs.pressed && db.stable && longAction != ACT_NONE && !cs.longFired) {
+  if (cs.pressed && db.stable && !cs.longFired) {
     if ((uint32_t)(now - cs.pressStartMs) >= g_longPressMs) {
-      if (localOk) applyAction(longTarget, longAction, now);
+      if (localOk && longAction != ACT_NONE) applyAction(longTarget, longAction, now);
       incEvt(src, EVT_LONG);
       cs.longFired = true;
     }
@@ -616,16 +616,10 @@ void serviceMomentaryChannel(uint8_t src, bool lockLocal, uint8_t shortAction, u
 
   if (falling && cs.pressed) {
     cs.pressed = false;
-    if (longAction != ACT_NONE) {
-      if (!cs.longFired && localOk) {
+    if (!cs.longFired) {
+      if (longAction != ACT_NONE && localOk) {
         applyAction(shortTarget, shortAction, now);
       }
-      if (!cs.longFired) {
-        cs.pendingClicks++;
-        cs.lastReleaseMs = now;
-        cs.gapPending = true;
-      }
-    } else {
       cs.pendingClicks++;
       cs.lastReleaseMs = now;
       cs.gapPending = true;
