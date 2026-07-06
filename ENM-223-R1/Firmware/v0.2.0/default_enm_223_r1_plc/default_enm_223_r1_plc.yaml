@@ -6,10 +6,27 @@ modbus_controller:
     command_throttle: 50ms
     allow_duplicate_commands: false
 
+# ===================== Input Registers (FC04) =====================
+# NEW MAP (additions only; existing addresses unchanged):
+# STATUS_FLAGS @100 (bit1=linkOk, bit3=cfgDirty)
+
 # ===================== Discrete Inputs (FC02) =====================
 # NEW MAP:
 # LEDs: 0..3 | Buttons: 4..7 | Relays: 8..9 | Alarms: 16..27 (addr = 16 + ch*3 + kind, ch=0..3)
 binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Link OK"
+    register_type: read
+    address: 100
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Config dirty"
+    register_type: read
+    address: 100
+    bitmask: 0x0008
+
   # --- LED physical states ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -139,6 +156,7 @@ binary_sensor:
 # ===================== Coils (FC01/05) =====================
 # NEW MAP:
 # Relay coils: 0..1
+# Service coils: 5 Identify, 6 Save config, 7 Reboot
 # Ack coils: 16..19 (write 1 to ACK; device auto-clears to 0)
 switch:
   - platform: modbus_controller
@@ -192,6 +210,42 @@ switch:
     on_turn_on:
       - delay: 200ms
       - switch.turn_off: ${enm_id}_ack_total
+
+  - platform: modbus_controller
+    id: ${enm_id}_cmd_identify
+    modbus_controller_id: ${enm_id}
+    register_type: coil
+    address: 5
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    id: ${enm_id}_cmd_save_cfg
+    modbus_controller_id: ${enm_id}
+    register_type: coil
+    address: 6
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    id: ${enm_id}_cmd_reboot
+    modbus_controller_id: ${enm_id}
+    register_type: coil
+    address: 7
+    internal: true
+    assumed_state: true
+
+button:
+  - platform: template
+    name: "${enm_prefix} Identify"
+    on_press:
+      - switch.turn_on: ${enm_id}_cmd_identify
+  - platform: template
+    name: "${enm_prefix} Save config"
+    on_press:
+      - switch.turn_on: ${enm_id}_cmd_save_cfg
+  - platform: template
+    name: "${enm_prefix} Reboot"
+    on_press:
+      - switch.turn_on: ${enm_id}_cmd_reboot
 
 
 # ===================== Sensors (FC04 Input Registers RO) =====================

@@ -191,6 +191,11 @@ static SimpleWebSerial WebSerial;
 static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
 static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 
+// ================== Modbus linkOk detector (DIO-compatible) ==================
+static uint32_t g_lastLinkSeenMs = 0;
+static const uint16_t g_linkTimeoutMs = 5000;
+static bool coilSnapBefore[32] = {false};
+
 // Arduino_JSON: (int)obj["key"] returns ASCII of first key char, not the numeric value.
 static inline String jsonBlob(const JSONVar& v) {
   return JSON.stringify((JSONVar&)v);
@@ -359,6 +364,10 @@ static bool atmBusy = false;
 enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
+  // Service coils (DIO-style)
+  COIL_IDENTIFY = 5,
+  COIL_SAVE_CFG = 6,
+  COIL_REBOOT   = 7,
   COIL_ACK_BASE = 16,
   DI_LED_BASE   = 0,
   DI_BTN_BASE   = 4,
@@ -378,6 +387,8 @@ enum : uint16_t {
   IR_ANG_BASE   = 44,
   IR_THD_BASE   = 47,  // U16 ×0.01 %, L1..L3 (active-power THD)
   IR_E_BASE     = 60,
+  // New: status flags (bit1=linkOk, bit3=cfgDirty) — placed after energy block, does not shift existing IR map.
+  IR_STATUS_FLAGS = 100,
   HR_MB_ADDR    = 0,
   HR_MB_BAUD_L  = 1,
   HR_LINE_HZ    = 4,
@@ -446,6 +457,52 @@ static void serviceModbusRelays() {
   }
   if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
   if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
+}
+
+static void serviceModbusServiceCoils(uint32_t now) {
+  if (mb.Coil(COIL_IDENTIFY)) {
+    mb.Coil(COIL_IDENTIFY, false);
+    g_identifyUntilMs = now + IDENTIFY_MS;
+    wsLog("Identify: LEDs active for 5 s");
+  }
+  if (mb.Coil(COIL_SAVE_CFG)) {
+    mb.Coil(COIL_SAVE_CFG, false);
+    if (saveConfigFS()) {
+      cfgDirty = false;
+      meterDirty = false;
+      wsLog("Configuration saved");
+    } else {
+      wsLog("ERROR: Save failed");
+    }
+  }
+  if (mb.Coil(COIL_REBOOT)) {
+    mb.Coil(COIL_REBOOT, false);
+    wsLog("Rebooting…");
+    delay(50);
+    rp2040.reboot();
+  }
+}
+
+static void updateLinkOkDetector(uint32_t now) {
+  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
+  for (int i = 0; i < 32; i++) {
+    const bool c = mb.Coil((uint16_t)i);
+    if (c != coilSnapBefore[i]) {
+      coilSnapBefore[i] = c;
+      g_lastLinkSeenMs = now;
+    }
+  }
+}
+
+static inline bool linkOkNow(uint32_t now) {
+  return ((uint32_t)(now - g_lastLinkSeenMs) < (uint32_t)g_linkTimeoutMs);
+}
+
+static void mbUpdateStatusFlags(uint32_t now) {
+  uint16_t status = 0;
+  if (linkOkNow(now)) status |= (1 << 1);
+  if (cfgDirty)       status |= (1 << 3);
+  mb.Ireg(IR_STATUS_FLAGS, status);
 }
 
 static inline uint16_t clamp_u16(int v) {
@@ -1702,12 +1759,14 @@ void handleUnifiedConfig(JSONVar obj) {
 }
 
 void sendWebStatus() {
+  const bool linkOk = linkOkNow((uint32_t)millis());
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
   st["map"]   = HM_MAP;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
+  st["linkOk"] = linkOk ? 1 : 0;
   WebSerial.send("status", st);
   yield();
 }
@@ -1889,6 +1948,7 @@ void setup() {
   mbBuildRegisterMap();
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
   mbSyncHolding();
+  g_lastLinkSeenMs = millis();
 
   // SimpleWebSerial allows max 8 events — do not add more without changing the library.
   WebSerial.on("values",  handleValues);
@@ -1923,8 +1983,12 @@ void loop() {
   WebSerial.check();
   yield();
 
+  updateLinkOkDetector((uint32_t)now);
+  mbUpdateStatusFlags((uint32_t)now);
+
   serviceModbusAck();
   serviceModbusRelays();
+  serviceModbusServiceCoils((uint32_t)now);
   alarmServiceTick(now);
   applyHoldingFromModbus();
 
