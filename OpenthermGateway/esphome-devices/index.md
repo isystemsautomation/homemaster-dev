@@ -681,3 +681,9 @@ MIT License
 This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
 
 See LICENSE files in each directory for full terms.
+
+---
+
+OpenTherm® is a registered trademark of The OpenTherm Association. ISYSTEMS
+AUTOMATION S.R.L. (HomeMaster®) is not affiliated with or certified by the
+Association; the name is used for compatibility reference only.

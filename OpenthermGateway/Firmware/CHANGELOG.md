@@ -2,6 +2,10 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
+### v1.0.7 — documentation update
+
+- **Documentation:** trademark attribution added; version sync.
+
 ## v1.0.7 — 2026-06-08
 
 - Added `id:` to all named entities to satisfy the "Made for ESPHome"

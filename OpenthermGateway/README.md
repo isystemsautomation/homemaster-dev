@@ -6,7 +6,7 @@
 
 ## Description
 
-The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm-compatible boilers.
+The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm®-compatible boilers.
 
 The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
 
@@ -893,10 +893,22 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 | EU Declaration of Conformity (DoC) | [OpenTherm_Gateway_DoC.pdf](./Manuals/OpenTherm_Gateway_DoC.pdf) |
 | Datasheet | [OpenTherm_Datasheet.pdf](./Manuals/OpenTherm_Datasheet.pdf) |
 
-### Trademark
+### Trademarks
 
 **HomeMaster®** is a registered European Union trademark of ISYSTEMS AUTOMATION S.R.L.,
 EUTM No. 019082911, registered with EUIPO on 15 January 2025.
+
+**OpenTherm®**, OpenTherm/Plus® and OpenTherm/Lite® are registered trademarks of
+The OpenTherm Association. ISYSTEMS AUTOMATION S.R.L. is not affiliated with, endorsed
+by, sponsored by, or certified by The OpenTherm Association. All references to
+OpenTherm® in this document are used for descriptive purposes only, to indicate
+interoperability of this product with third-party equipment that implements the
+OpenTherm® protocol.
+
+All other product and company names (e.g. Viessmann, Intergas, Atag, Bosch, Buderus,
+Remeha, Worcester, Vaillant, Home Assistant, ESPHome) are trademarks or registered
+trademarks of their respective owners and are used here for identification and
+compatibility reference only.
 
 ## License
 
