@@ -187,7 +187,7 @@
 
   <div class="sectiontitle">
     <h3>Live Meter</h3>
-    <p class="hint">Updated from ext.meter (~1 s).</p>
+    <p class="hint">Updated from ENM_Meter / ext.meter (~1 s).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -207,7 +207,7 @@
 
   <div class="sectiontitle">
     <h3>Energies</h3>
-    <p class="hint">Chip counters from ext.energy (saved in flash).</p>
+    <p class="hint">Chip counters from ENM_Sync / ext.energy (saved in flash).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -244,7 +244,12 @@
     let lastExtPayload = null;
 
     function toArr(x) {
-      return (window.HMWebConfig && HMWebConfig.toArray) ? HMWebConfig.toArray(x) : (Array.isArray(x) ? x : []);
+      if (window.HMWebConfig && HMWebConfig.toArray) return HMWebConfig.toArray(x);
+      if (Array.isArray(x)) return x;
+      if (x && typeof x === 'object') {
+        return Object.keys(x).sort((a, b) => (+a) - (+b)).map(k => x[k]);
+      }
+      return [];
     }
     function asNum(v) {
       const n = Number(v);
@@ -501,21 +506,6 @@
       if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
       HMWebConfig.appendLog('AlarmsAck ch='+ch);
     }
-
-    HMWebConfig.register({
-      model: 2,
-      modelName: 'ENM-223-R1',
-      fw: '0.2.0',
-      webconfigVersion: '0.2.0',
-      readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md',
-      channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
-    HMWebConfig.connect({ requestElement:'connect-button' });
-    HMWebConfig.mountTools('hm-tools', { identify: true });
-
-    HMWebConfig.conn.on('ext', applyExtPayload);
-    HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
-    HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
-    HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
 
     function pushModbus(){
       HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'30',10), parseInt($('modbus-baud')?.value||'19200',10));
@@ -781,6 +771,24 @@
       $('mode-led'+i)?.addEventListener('change', sendLedCfg);
       $('source-led'+i)?.addEventListener('change', sendLedCfg);
     }
+
+    HMWebConfig.register({
+      model: 2,
+      modelName: 'ENM-223-R1',
+      fw: '0.2.0',
+      webconfigVersion: '0.2.0',
+      readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md',
+      channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
+    HMWebConfig.connect({ requestElement:'connect-button' });
+    HMWebConfig.mountTools('hm-tools', { identify: true });
+
+    HMWebConfig.conn.on('ext', applyExtPayload);
+    HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
+    HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
+    HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
+    HMWebConfig.conn.on('open', function(){
+      if (lastExtPayload) applyExtPayload(lastExtPayload);
+    });
 
     if (lastExtPayload) applyExtPayload(lastExtPayload);
   })();

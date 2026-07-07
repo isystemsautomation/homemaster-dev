@@ -1818,9 +1818,14 @@ static void sendWebCfgCore() {
 }
 
 static void sendWebExt() {
+  // Separate frames: one fat "ext" JSON often fails over USB WebSerial; ENM_Meter/ENM_Sync are proven.
+  WebSerial.send("ENM_Sync", energyToJsonObj());
+  yield();
+  if (g_haveMeter) {
+    WebSerial.send("ENM_Meter", meterLiveToJson());
+    yield();
+  }
   JSONVar ext;
-  if (g_haveMeter) ext["meter"] = meterLiveToJson();
-  ext["energy"] = energyToJsonObj();
   ext["alarms"] = alarmsStateToJson();
   WebSerial.send("ext", ext);
   yield();
@@ -1835,7 +1840,7 @@ static void sendWebIo(const bool* relayLogical, const bool* buttonState, const b
   yield();
 }
 
-// Small frames: status / io rotate; meter+energy+alarms via ext on 1 Hz tick.
+// Small frames: status / io rotate; meter+energy via ENM_* on 1 Hz tick; alarms via ext.
 static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState) {
   if (now - lastWebFrameMs < webFrameIntervalMs) return;
   lastWebFrameMs = now;
