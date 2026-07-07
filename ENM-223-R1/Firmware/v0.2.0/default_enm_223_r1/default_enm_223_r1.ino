@@ -594,6 +594,8 @@ static M90ChipEv   g_chipEv = {};
 static uint8_t     g_chipEvMask[4] = {0, 0, 0, 0};
 static unsigned long lastDiagSample = 0;
 static const unsigned long diagSampleMs = 500;
+static unsigned long lastWsDiagPrint = 0;
+static const unsigned long wsDiagPrintMs = 2000;
 static unsigned long lastAlarmEval = 0;
 static const unsigned long alarmEvalMs = 200;
 
@@ -2008,6 +2010,42 @@ static void atmApplyFromJson(const JSONVar& obj) {
   }
 }
 
+static void wsDiagPrintRawAtm(uint32_t now) {
+  if (now - lastWsDiagPrint < wsDiagPrintMs) return;
+  lastWsDiagPrint = now;
+  if (atmBusy || meter_job) return;
+
+  // Raw diagnostics: read directly from chip registers to confirm detector state.
+  const uint16_t emm0 = g_atm.debugRead16(0x71);
+  const uint16_t emm1 = g_atm.debugRead16(0x72);
+  const uint16_t int0 = g_atm.debugRead16(0x73);
+  const uint16_t int1 = g_atm.debugRead16(0x74);
+
+  const uint16_t uPkA = g_atm.debugRead16(0xF1);
+  const uint16_t uPkB = g_atm.debugRead16(0xF2);
+  const uint16_t uPkC = g_atm.debugRead16(0xF3);
+  const uint16_t iPkA = g_atm.debugRead16(0xF5);
+  const uint16_t iPkB = g_atm.debugRead16(0xF6);
+  const uint16_t iPkC = g_atm.debugRead16(0xF7);
+
+  const uint16_t sagTh = g_atm.debugRead16(0x08);
+  const uint16_t ovTh  = g_atm.debugRead16(0x06);
+  const uint16_t plTh  = g_atm.debugRead16(0x09);
+  const uint16_t oiTh  = g_atm.debugRead16(0x0B);
+  const uint16_t fHiTh = g_atm.debugRead16(0x0D);
+  const uint16_t fLoTh = g_atm.debugRead16(0x0C);
+
+  char buf[220];
+  snprintf(buf, sizeof(buf),
+           "DIAG EMM0=%04X EMM1=%04X INT0=%04X INT1=%04X | "
+           "UPk=%04X/%04X/%04X IPk=%04X/%04X/%04X | "
+           "SagTh=%04X OVth=%04X PLth=%04X OIth=%04X FHi=%04X FLo=%04X",
+           emm0, emm1, int0, int1,
+           uPkA, uPkB, uPkC, iPkA, iPkB, iPkC,
+           sagTh, ovTh, plTh, oiTh, fHiTh, fLoTh);
+  wsLog(buf);
+}
+
 void setup() {
   Serial.begin(57600);
 
@@ -2070,6 +2108,7 @@ void loop() {
   serviceModbusRelays();
   serviceModbusServiceCoils((uint32_t)now);
   alarmServiceTick(now);
+  wsDiagPrintRawAtm((uint32_t)now);
   applyHoldingFromModbus();
 
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {

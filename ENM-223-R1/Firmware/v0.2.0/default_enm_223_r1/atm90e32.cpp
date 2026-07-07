@@ -425,6 +425,10 @@ M90DiagRegs ATM90E32::readDiag() {
   return d;
 }
 
+uint16_t ATM90E32::debugRead16(uint16_t reg) {
+  return read16(reg);
+}
+
 void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out) {
   const uint16_t s0 = d.EMMState0;
   const uint16_t s1 = d.EMMState1;

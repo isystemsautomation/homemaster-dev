@@ -74,6 +74,8 @@ public:
   uint16_t rdSA_A(); uint16_t rdSA_B(); uint16_t rdSA_C(); uint16_t rdSA_T();
 
   M90DiagRegs readDiag();
+  // Debug helper (raw 16-bit register read)
+  uint16_t debugRead16(uint16_t reg);
 
   // Config currently applied
   uint16_t lineHz() const { return lineHz_; }
