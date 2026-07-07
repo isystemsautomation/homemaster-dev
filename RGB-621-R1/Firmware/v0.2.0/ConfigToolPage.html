@@ -166,49 +166,81 @@
     const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
     const EVT_NAMES = ['Single','Double','Triple','Long','Hold'];
     const SRC_NAMES = ['DI1','DI2','SW2'];
-    const ACT_DI_OPTS = [
+    let dimSingleButton = false;
+    const ACT_DI_CORE = [
       {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},
-      {v:5,l:'Dim up'},{v:6,l:'Dim down'},{v:7,l:'Dim toggle dir'},{v:8,l:'Set 100%'},
-      {v:9,l:'Relay pulse'},
+      {v:5,l:'Dim up'},{v:6,l:'Dim down'},
       {v:10,l:'Scene 1'},{v:12,l:'Scene 2'},{v:13,l:'Scene 3'},{v:14,l:'Scene 4'}
     ];
-    const ACT_BTN_OPTS = ACT_DI_OPTS.concat([{v:11,l:'Identify'}]);
-    const TGT_OPTS = [
-      {v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:10,l:'RGB+CCT'},
-      {v:1,l:'Relay1'},{v:9,l:'All'}
+    const TGT_PWM_OPTS = [
+      {v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:10,l:'RGB+CCT'},{v:1,l:'Relay1'},{v:9,l:'All'}
     ];
+    const TGT_RELAY_OPTS = [{v:1,l:'Relay1'}];
+    const GESTURE_LABELS = {single:'Single',double:'Double',long:'Long',hold:'Hold'};
     const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
     const actSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val||0)}</select>`;
-    const tgtSel = (id, val) => `<select id="${id}">${optHtml(TGT_OPTS, val??7)}</select>`;
+    const tgtSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val??opts[0]?.v??7)}</select>`;
+    function getActDiOpts(target, singleBtn){
+      const opts = ACT_DI_CORE.slice();
+      if (singleBtn) {
+        const i = opts.findIndex(o => o.v === 6);
+        opts.splice(i + 1, 0, {v:7,l:'Dim toggle dir'});
+      }
+      if (parseInt(target, 10) === 1) opts.push({v:9,l:'Relay pulse'});
+      return opts;
+    }
+    function getActBtnOpts(target){
+      return getActDiOpts(target, false).concat([{v:11,l:'Identify'}]);
+    }
     function normGesture(obj){
       if(!obj) return {action:0,target:0};
       let a=obj.action??0, t=obj.target??0;
       if(a===4){ a=3; t=9; }
+      if(a===8){ a=0; t=0; }
       if(a===10&&t>0&&t<4){ a=[10,12,13,14][t]; t=0; }
       if(a===9) t=1;
-      if(a>=10&&a<=14) t=0;
       if(a===11) t=0;
+      if(a>=10&&a<=14) t=0;
       if(a===0) t=0;
       return {action:a,target:t};
     }
     function gestureNeedsTarget(act){
       const a=parseInt(act,10);
-      if(!a||a===9||a===11) return false;
-      if(a>=10&&a<=14) return false;
-      return true;
+      return a===1||a===2||a===3||a===5||a===6||a===7;
     }
-    function syncActTargetVis(actId, tgtId){
-      const act=$(actId), tgt=$(tgtId);
-      if(!act||!tgt) return;
-      const show=gestureNeedsTarget(act.value);
-      tgt.style.display=show?'':'none';
-      tgt.disabled=!show;
+    function getTgtOpts(act){
+      const a=parseInt(act,10);
+      if(!gestureNeedsTarget(a)) return [];
+      if(a===9) return TGT_RELAY_OPTS;
+      return TGT_PWM_OPTS;
     }
-    function wireActTarget(actId, tgtId){
-      const act=$(actId);
-      if(!act) return;
-      act.addEventListener('change', ()=>syncActTargetVis(actId, tgtId));
-      syncActTargetVis(actId, tgtId);
+    function gestureControlsHtml(idpfx, gname, bind, isBtn){
+      const pre=gname+'-'+idpfx;
+      const n=normGesture(bind||{});
+      const actOpts=isBtn?getActBtnOpts(n.target):getActDiOpts(n.target,dimSingleButton);
+      const tgtOpts=getTgtOpts(n.action);
+      let html=actSel(pre+'-act',n.action,actOpts);
+      if(tgtOpts.length) html+=tgtSel(pre+'-tgt',n.target,tgtOpts);
+      return html;
+    }
+    function rerenderGesture(idpfx, gname, isBtn){
+      const pre=gname+'-'+idpfx;
+      const cell=$(pre+'-act')?.parentElement;
+      if(!cell) return;
+      const cur=normGesture({
+        action:parseInt($(pre+'-act')?.value||'0',10),
+        target:parseInt($(pre+'-tgt')?.value||'7',10)
+      });
+      cell.innerHTML=`<label>${GESTURE_LABELS[gname]||gname}</label>${gestureControlsHtml(idpfx,gname,cur,isBtn)}`;
+      wireGesture(idpfx,gname,isBtn);
+    }
+    function wireGesture(idpfx, gname, isBtn){
+      const pre=gname+'-'+idpfx;
+      const inNum=parseInt(idpfx.replace(/\D/g,''),10)||1;
+      const cfgKey=(isBtn?'btn':'in')+'.'+gname;
+      const send=()=>HMWebConfig.sendConfig(cfgKey, isBtn?gestList(gname+'-btn',1):gestList(gname+'-in',inNum));
+      $(pre+'-act')?.addEventListener('change', ()=>{ rerenderGesture(idpfx,gname,isBtn); send(); });
+      $(pre+'-tgt')?.addEventListener('change', ()=>{ rerenderGesture(idpfx,gname,isBtn); send(); });
     }
     function gestPayload(actId, tgtId){
       const g=normGesture({action:parseInt($(actId)?.value||'0',10),target:parseInt($(tgtId)?.value||'0',10)});
@@ -303,8 +335,9 @@
         if($('fade-'+i)) $('fade-'+i).value=p.fadeMs??p.transitionMs??400;
       }
       if(cfg.dim){
-        if($('grp-dim-step')) $('grp-dim-step').value=cfg.dim.dimStepPct??8;
-        if($('grp-dim-speed')) $('grp-dim-speed').value=cfg.dim.holdRampMs??60;
+        if($('grp-dim-full')) $('grp-dim-full').value=cfg.dim.dimFullRangeMs??3000;
+        dimSingleButton=!!cfg.dim.singleButtonDim;
+        if($('grp-dim-scheme')) $('grp-dim-scheme').value=dimSingleButton?'1':'0';
       }
       if(cfg.scenes){
         for(let s=0;s<NUM_SCENES;s++){
@@ -320,11 +353,17 @@
         if($('invert-'+pfx+n)) $('invert-'+pfx+n).checked=!!o.invert;
         if($('mode-'+pfx+n)) $('mode-'+pfx+n).value=normInMode(o.mode??0);
         if($('lock-'+pfx+n)) $('lock-'+pfx+n).checked=!!o.lockLocal;
-        const g=(pre,obj)=>{ if(!obj) return; const n=normGesture(obj);
-          const a=$(pre+pfx+n+'-act'), t=$(pre+pfx+n+'-tgt');
-          if(a) a.value=n.action; if(t) t.value=n.target;
-          syncActTargetVis(pre+pfx+n+'-act', pre+pfx+n+'-tgt'); };
-        g('single-', o.single); g('double-', o.double); g('long-', o.long); g('hold-', o.hold);
+        const idpfx=pfx+n;
+        const isBtn=pfx==='btn';
+        const applyGest=(gname,obj)=>{
+          if(!obj) return;
+          const pre=gname+'-'+idpfx;
+          const cell=$(pre+'-act')?.parentElement;
+          if(!cell) return;
+          cell.innerHTML=`<label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj,isBtn)}`;
+          wireGesture(idpfx,gname,isBtn);
+        };
+        applyGest('single', o.single); applyGest('double', o.double); applyGest('long', o.long); applyGest('hold', o.hold);
         if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=normGesture(o.single).target;
         syncInputModeUi(pfx+n);
       };
@@ -388,11 +427,26 @@
       c.innerHTML=`<p class="sub">Safe levels applied when Modbus link is lost.</p><label class="check"><input type="checkbox" id="safe-offline" checked> Allow wall switches when offline</label><div class="pwm-pwr-grid" style="margin-top:10px">${rows}</div>`;
     })();
 
+    function defaultInDefs(i){
+      const rgb=7, cct=8;
+      if(i===1){
+        return {
+          single:{action:1,target:rgb}, double:{action:0,target:0}, long:{action:0,target:0},
+          hold:dimSingleButton?{action:7,target:rgb}:{action:5,target:rgb}
+        };
+      }
+      return {
+        single:{action:1,target:cct}, double:{action:0,target:0}, long:{action:0,target:0},
+        hold:dimSingleButton?{action:0,target:0}:{action:6,target:cct}
+      };
+    }
+    function refreshAllInputGestures(){
+      for(let i=1;i<=NUM_IN_CH;i++) ['single','double','long','hold'].forEach(g=>rerenderGesture('in'+i,g,false));
+    }
     function buildGestureCard(idpfx, label, defaults, isBtn){
-      const actOpts=isBtn?ACT_BTN_OPTS:ACT_DI_OPTS;
       const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       const d=defaults||{};
-      const gs=(pre,obj)=>{ const n=normGesture(obj||{}); return `${actSel(pre+'-act',n.action,actOpts)}${tgtSel(pre+'-tgt',n.target)}`; };
+      const gs=(gname,obj)=>`<div><label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj||{},isBtn)}</div>`;
       return `<div class="iocard tint-input input-mode-card">
         <div class="iotop"><span class="ioid">${label}</span><span class="ioBadge badgeState"><span id="state-${idpfx}" class="state-dot dot-off"></span></span></div>
         <div class="checkRow">
@@ -402,31 +456,28 @@
         </div>
         <div class="mode-row"><label for="mode-${idpfx}">Mode</label><select id="mode-${idpfx}">${modeOpts}</select></div>
         <div id="maintained-${idpfx}" class="maintained-row" hidden>
-          <label for="maint-${idpfx}-tgt">Output target</label>${tgtSel('maint-'+idpfx+'-tgt',normGesture(d.single).target)}
+          <label for="maint-${idpfx}-tgt">Output target</label>${tgtSel('maint-'+idpfx+'-tgt',normGesture(d.single).target,TGT_PWM_OPTS)}
           <p class="sub maintained-hint">Contact closed = ON, open = OFF</p>
         </div>
         <div id="gestures-${idpfx}" class="gesture-rows">
-          <div class="split split-gest"><div><label>Single</label>${gs('single-'+idpfx,d.single)}</div>
-          <div><label>Double</label>${gs('double-'+idpfx,d.double)}</div></div>
-          <div class="split split-gest" style="margin-top:8px"><div><label>Long</label>${gs('long-'+idpfx,d.long)}</div>
-          <div><label>Hold</label>${gs('hold-'+idpfx,d.hold||{action:7,target:d.single?.target??7})}</div></div>
+          <div class="split split-gest">${gs('single',d.single)}${gs('double',d.double)}</div>
+          <div class="split split-gest" style="margin-top:8px">${gs('long',d.long)}${gs('hold',d.hold)}</div>
         </div></div>`;
     }
 
     (function buildInputs(){
       const c=$('io-inputs'); if(!c) return;
       for(let i=1;i<=NUM_IN_CH;i++){
-        const defs=i===1?{single:{action:1,target:7},double:{action:8,target:7},hold:{action:7,target:7}}:{single:{action:1,target:8},double:{action:8,target:8},hold:{action:7,target:8}};
-        c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defs, false);
-        ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-in'+i+'-act', g+'-in'+i+'-tgt'));
+        c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defaultInDefs(i), false);
+        ['single','double','long','hold'].forEach(g=>wireGesture('in'+i,g,false));
         syncInputModeUi('in'+i);
       }
     })();
 
     (function buildBtn(){
       const c=$('io-btn'); if(!c) return;
-      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},long:{action:11,target:0}}, true);
-      ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-btn1-act', g+'-btn1-tgt'));
+      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},double:{action:0,target:0},long:{action:11,target:0},hold:{action:0,target:0}}, true);
+      ['single','double','long','hold'].forEach(g=>wireGesture('btn1',g,true));
       syncInputModeUi('btn1');
     })();
 
@@ -449,9 +500,15 @@
       const c=$('io-groups'); if(!c) return;
       c.innerHTML=`<div class="iocard">
         <div class="row">
-          <div><label for="grp-dim-step">Dimming step (%)</label><input type="number" id="grp-dim-step" min="1" max="25" value="8" style="width:100%"></div>
-          <div><label for="grp-dim-speed">Dimming speed (ms/step)</label><input type="number" id="grp-dim-speed" min="20" max="500" value="60" style="width:100%"></div>
+          <div><label for="grp-dim-scheme">Dim button scheme</label>
+            <select id="grp-dim-scheme" style="width:100%">
+              <option value="0">Two buttons (DI1 dim up, DI2 dim down)</option>
+              <option value="1">Single button (DI1 hold dim toggle direction)</option>
+            </select>
+          </div>
+          <div><label for="grp-dim-full">Dimming time (ms, full range)</label><input type="number" id="grp-dim-full" min="800" max="8000" value="3000" style="width:100%"></div>
         </div>
+        <p class="sub" style="margin-top:8px">Hold-to-dim traverses 0..100% over this time while the button is held. On/off and scene recalls still use per-channel transition ms.</p>
       </div>`;
     })();
 
@@ -566,10 +623,12 @@
       HMWebConfig.sendConfig('pwm', l);
     }
     function sendDim(){
+      dimSingleButton=$('grp-dim-scheme')?.value==='1';
       HMWebConfig.sendConfig('dim', {
-        dimStepPct:parseInt($('grp-dim-step').value,10),
-        holdRampMs:parseInt($('grp-dim-speed').value,10)
+        dimFullRangeMs:parseInt($('grp-dim-full').value,10),
+        singleButtonDim:dimSingleButton
       });
+      refreshAllInputGestures();
     }
     function sendScenes(){
       const l=[]; for(let s=0;s<NUM_SCENES;s++){ const row=[]; for(let c=0;c<NUM_PWM;c++) row.push(parseInt($('scene-'+s+'-'+c).value,10)); l.push(row); }
@@ -581,15 +640,7 @@
       $('mode-in'+i)?.addEventListener('change', ()=>onModeChange('in'+i, false));
       $('maint-in'+i+'-tgt')?.addEventListener('change', ()=>sendMaintTarget('in'+i, false));
       $('lock-in'+i)?.addEventListener('change', sendInputLock);
-      ['single','double','long','hold'].forEach(g=>{
-        $(g+'-in'+i+'-act')?.addEventListener('change', ()=>HMWebConfig.sendConfig('in.'+g, gestList(g+'-in', i)));
-        $(g+'-in'+i+'-tgt')?.addEventListener('change', ()=>HMWebConfig.sendConfig('in.'+g, gestList(g+'-in', i)));
-      });
     }
-    ['single','double','long','hold'].forEach(g=>{
-      $(g+'-btn1-act')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.'+g, gestList(g+'-btn', 1)));
-      $(g+'-btn1-tgt')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.'+g, gestList(g+'-btn', 1)));
-    });
     $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
     $('invert-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.invert', [!!$('invert-btn1').checked]));
     $('mode-btn1')?.addEventListener('change', ()=>onModeChange('btn1', true));
@@ -600,7 +651,7 @@
     for(let i=0;i<NUM_PWM;i++){
       ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));
     }
-    ['grp-dim-step','grp-dim-speed'].forEach(id=>$(id)?.addEventListener('change', sendDim));
+    ['grp-dim-full','grp-dim-scheme'].forEach(id=>$(id)?.addEventListener('change', sendDim));
     for(let s=0;s<NUM_SCENES;s++) for(let c=0;c<NUM_PWM;c++) $('scene-'+s+'-'+c)?.addEventListener('change', sendScenes);
 
     function sendRelayCfg(){

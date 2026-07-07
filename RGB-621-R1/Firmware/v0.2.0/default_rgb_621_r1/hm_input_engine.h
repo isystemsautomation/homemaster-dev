@@ -78,6 +78,10 @@ static inline void hmNormalizeGestureBind(HmGestureBind& g) {
     g.action = HM_ACT_OFF;
     g.target = HM_TGT_ALL;
   }
+  if (g.action == HM_ACT_SET_100) {
+    g.action = HM_ACT_NONE;
+    g.target = HM_TGT_NONE;
+  }
   if (g.action == HM_ACT_SCENE1 && g.target > 0 && g.target < 4) {
     static const uint8_t sceneActs[] = { HM_ACT_SCENE1, HM_ACT_SCENE2, HM_ACT_SCENE3, HM_ACT_SCENE4 };
     g.action = sceneActs[g.target];
@@ -128,7 +132,6 @@ struct HmHoldRampState {
   bool active;
   bool dimDown;
   uint8_t target;
-  uint32_t lastTickMs;
 };
 
 struct HmInputRuntime {
@@ -139,6 +142,8 @@ struct HmInputRuntime {
 
 void hmApplyGesture(uint8_t physIdx, HmEvt evt, uint8_t action, uint8_t target, uint32_t now);
 void hmApplyMaintainedEdge(uint8_t physIdx, bool level, uint32_t now);
+void hmHoldDimBegin(uint8_t physIdx, uint8_t target, bool dimDown, uint32_t now);
+void hmHoldDimEnd(uint8_t physIdx, uint32_t now);
 bool hmLocalInputAllowed(bool lockLocal, bool allowOffline);
 
 static inline bool hmIsDimHoldAction(uint8_t act) {
@@ -161,20 +166,24 @@ static inline bool hmMultiClickConfigured(const HmInputChannelCfg& cfg) {
   return cfg.dbl.action != HM_ACT_NONE || cfg.tpl.action != HM_ACT_NONE;
 }
 
-static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n) {
+static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n, bool singleButtonDim) {
   for (uint8_t i = 0; i < n; i++) {
     hmGestureClear(di[i]);
     di[i].inverted = false; // INPUT_PULLDOWN: idle LOW, switch close = HIGH
   }
   if (n >= 1) {
     di[0].single = { HM_ACT_TOGGLE, HM_TGT_GRP_RGB };
-    di[0].dbl    = { HM_ACT_SET_100, HM_TGT_GRP_RGB };
-    di[0].hold   = { HM_ACT_DIM_TOGGLE_DIR, HM_TGT_GRP_RGB };
+    di[0].dbl    = { HM_ACT_NONE, HM_TGT_NONE };
+    di[0].hold   = singleButtonDim
+      ? HmGestureBind{ HM_ACT_DIM_TOGGLE_DIR, HM_TGT_GRP_RGB }
+      : HmGestureBind{ HM_ACT_DIM_UP, HM_TGT_GRP_RGB };
   }
   if (n >= 2) {
     di[1].single = { HM_ACT_TOGGLE, HM_TGT_GRP_CCT };
-    di[1].dbl    = { HM_ACT_SET_100, HM_TGT_GRP_CCT };
-    di[1].hold   = { HM_ACT_DIM_TOGGLE_DIR, HM_TGT_GRP_CCT };
+    di[1].dbl    = { HM_ACT_NONE, HM_TGT_NONE };
+    di[1].hold   = singleButtonDim
+      ? HmGestureBind{ HM_ACT_NONE, HM_TGT_NONE }
+      : HmGestureBind{ HM_ACT_DIM_DOWN, HM_TGT_GRP_CCT };
   }
 }
 
@@ -247,24 +256,18 @@ static inline void hmServiceMomentaryPhys(uint8_t physIdx, const HmInputChannelC
     if (!ramp.active && hmIsDimHoldAction(cfg.hold.action) && held >= timings.holdDelayMs) {
       ramp.active = true;
       ramp.target = cfg.hold.target;
-      ramp.lastTickMs = now;
       ramp.dimDown = (cfg.hold.action == HM_ACT_DIM_DOWN) ||
         (cfg.hold.action == HM_ACT_DIM_TOGGLE_DIR && dimToggleDir[physIdx]);
-    }
-    if (ramp.active && (uint32_t)(now - ramp.lastTickMs) >= timings.holdRepeatMs) {
-      if (!cs.holdFired) {
-        cs.holdFired = true;
-        hmIncEvt(evtCount, physIdx, numPhys, HM_EVT_HOLD);
-      }
-      ramp.lastTickMs = now;
-      uint8_t act = ramp.dimDown ? HM_ACT_DIM_DOWN : HM_ACT_DIM_UP;
-      hmApplyGesture(physIdx, HM_EVT_HOLD, act, ramp.target, now);
+      cs.holdFired = true;
+      hmIncEvt(evtCount, physIdx, numPhys, HM_EVT_HOLD);
+      hmHoldDimBegin(physIdx, ramp.target, ramp.dimDown, now);
     }
   }
 
   if (falling && cs.pressed) {
     cs.pressed = false;
     uint32_t held = now - cs.pressStartMs;
+    if (ramp.active) hmHoldDimEnd(physIdx, now);
     ramp.active = false;
     if (!cs.longFired && !cs.holdFired && held < timings.holdDelayMs) {
       if (!hmMultiClickConfigured(cfg)) {
@@ -314,8 +317,8 @@ static inline void hmFinalizeClickGaps(HmInputRuntime* rt, uint8_t numPhys,
   }
 }
 
-static inline void hmInputEngineSetDefaults(HmInputChannelCfg* di, uint8_t n) {
-  hmInputEngineSetDiDefaults(di, n);
+static inline void hmInputEngineSetDefaults(HmInputChannelCfg* di, uint8_t n, bool singleButtonDim) {
+  hmInputEngineSetDiDefaults(di, n, singleButtonDim);
 }
 
 static inline void hmServiceMaintainedPhys(uint8_t physIdx, uint8_t chIdx, const HmInputChannelCfg& cfg,

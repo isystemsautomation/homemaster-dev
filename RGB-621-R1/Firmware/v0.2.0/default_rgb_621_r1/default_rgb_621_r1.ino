@@ -70,8 +70,7 @@ static const uint8_t NUM_EVT_SRC = 3;
 
 enum RlyMode : uint8_t { RLY_MANUAL = 0, RLY_FOLLOW = 1 };
 
-static inline uint8_t clampDimStep(int v) { return (uint8_t)constrain(v, 1, 25); }
-static inline uint16_t clampDimSpeed(int v) { return (uint16_t)constrain(v, 20, 500); }
+static inline uint16_t clampDimFullRange(int v) { return (uint16_t)constrain(v, 800, 8000); }
 
 struct RlyCfg {
   bool enabled;
@@ -96,10 +95,9 @@ PwmChCfg pwmChCfg[NUM_PWM];
 DimCfg dimCfg;
 uint8_t scenes[NUM_SCENES][NUM_PWM];
 
-static inline void applyDimParams(uint8_t stepPct, uint16_t speedMs) {
-  dimCfg.dimStepPct = clampDimStep(stepPct);
-  dimCfg.holdRampMs = clampDimSpeed(speedMs);
-  inpTimings.holdRepeatMs = dimCfg.holdRampMs;
+static inline void applyDimParams(uint16_t fullRangeMs, uint8_t singleButtonDim = 0) {
+  dimCfg.dimFullRangeMs = clampDimFullRange(fullRangeMs);
+  dimCfg.singleButtonDim = singleButtonDim ? 1 : 0;
 }
 
 SafeModeCfg safeCfg;
@@ -128,6 +126,8 @@ uint16_t pwmCurrent[NUM_PWM] = {0,0,0,0,0};
 uint16_t pwmLevel[NUM_PWM] = {0,0,0,0,0}; // alias: internal hi level (= pwmTarget)
 uint16_t pwmLastNonZero[NUM_PWM] = {2048,2048,2048,2048,2048};
 uint32_t slewLastMs[NUM_PWM] = {0};
+uint16_t pwmHoldTraverseMs[NUM_PWM] = {0};
+uint8_t  holdDimChMask = 0;
 uint16_t g_gammaLut[PWM_HI + 1];
 OutputQualityCfg outQuality = { true, 22 };
 bool     rgbGroupStored = false;
@@ -215,13 +215,13 @@ inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; 
 
 // ================== Defaults / persist ==================
 void setDefaults() {
-  hmInputEngineSetDiDefaults(inChCfg, NUM_IN_CH);
+  dimCfg = { 3000, 0 };
+  applyDimParams(3000, 0);
+  hmInputEngineSetDiDefaults(inChCfg, NUM_IN_CH, dimCfg.singleButtonDim != 0);
   hmInputEngineSetBtnDefaults(btnChCfg[0]);
   hmInputEngineSetTimingDefaults(inpTimings);
   for (int i = 0; i < NUM_PWM; i++) pwmChCfg[i] = { 1, 255, 400, HM_PWR_OFF };
   outQuality = { true, 22 };
-  dimCfg = { 8, 60 };
-  applyDimParams(8, 60);
   for (int s = 0; s < NUM_SCENES; s++)
     for (int c = 0; c < NUM_PWM; c++) scenes[s][c] = 0;
   scenes[0][0] = 255; scenes[0][1] = 128; scenes[0][2] = 64;
@@ -347,7 +347,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   inpTimings = pc.inpTimings;
   memcpy(pwmChCfg, pc.pwmCh, sizeof(pwmChCfg));
   dimCfg = pc.dimCfg;
-  applyDimParams(dimCfg.dimStepPct, dimCfg.holdRampMs);
+  applyDimParams(dimCfg.dimFullRangeMs, dimCfg.singleButtonDim);
   for (int i = 0; i < NUM_IN_CH; i++) {
     hmNormalizeGestureBind(inChCfg[i].single);
     hmNormalizeGestureBind(inChCfg[i].dbl);
@@ -413,15 +413,19 @@ inline void setSlaveIdIfAvailable(...) {}
 // Input Registers (FC=04) — contiguous 0..4 + event counters
 // IREG 6..20: 3 sources (DI1, DI2, SW2) × 5 gestures (single/double/triple/long/hold)
 //
-// Holding Registers (FC=03/06/16) — engine config block @500+ (new; existing HR unchanged)
+// Holding Registers (FC=03/06/16)
+// 400-404 pwm 8-bit API (0..255), 410-414 pwm 12-bit (0..4095, same targets)
+// 480 MB_ADDR, 481 MB_BAUD
 // 500 debounceMs, 501 longPressMs, 502 multiClickGapMs, 503 holdDelayMs, 504 holdRepeatMs
 // 505 safe flags (bit0 allowLocalWhenOffline)
 // 506-510 chSafe[0..4] (0=OFF,1=ON,2=RESTORE_LAST)
 // 511-515 pwm minTrim[0..4], 516-520 maxTrim, 521-525 fadeMs, 526-530 powerOn
-// 531 reserved (was grpRgb memberMask)
-// 532 dimStepPct, 533 holdRampMs (hold-to-dim; applies to RGB + CCT groups)
+// 531 singleButtonDim (0=two-button, 1=DI1 hold toggle-dir)
+// 532 dimFullRangeMs (hold-to-dim full 0..100% traverse, ms)
+// 533 reserved (was holdRampMs)
 // 534 reserved (was grpCct memberMask)
-// 535 dimStepPct mirror, 536 holdRampMs mirror (legacy CCT offsets; same values as 532–533)
+// 535 dimFullRangeMs mirror (legacy CCT offset; same as 532)
+// 536 reserved (was holdRampMs mirror)
 // 537 rly mode (0=manual,1=follow), 538 watchMask, 539-540 offDelayMs (lo/hi)
 // 541-545 in1 (541 flags, 542-545 gestures act<<8|tgt; target 7=RGB 8=CCT 9=All 10=RGB+CCT 1=Relay1)
 // 546-550 in2, 551-555 btn (SW2)
@@ -459,6 +463,7 @@ enum : uint16_t {
 
 enum : uint16_t {
   HR_PWM_BASE = 400,
+  HR_PWM_HI_BASE = 410, // 12-bit level 0..4095 per channel (alongside 8-bit HR 400–404)
   HR_MB_ADDR  = 480,
   HR_MB_BAUD  = 481,
   HR_ENG_BASE = 500,
@@ -494,11 +499,10 @@ void syncEngineToHregs() {
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 16 + i, pwmChCfg[i].maxTrim);
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 21 + i, pwmChCfg[i].fadeMs);
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 26 + i, pwmChCfg[i].powerOn);
-  // HR 531, 534 reserved (former memberMask)
-  mb.Hreg(HR_ENG_BASE + 32, dimCfg.dimStepPct);
-  mb.Hreg(HR_ENG_BASE + 33, dimCfg.holdRampMs);
-  mb.Hreg(HR_ENG_BASE + 35, dimCfg.dimStepPct);
-  mb.Hreg(HR_ENG_BASE + 36, dimCfg.holdRampMs);
+  // HR 534 reserved (former memberMask)
+  mb.Hreg(HR_ENG_BASE + 31, dimCfg.singleButtonDim ? 1 : 0);
+  mb.Hreg(HR_ENG_BASE + 32, dimCfg.dimFullRangeMs);
+  mb.Hreg(HR_ENG_BASE + 35, dimCfg.dimFullRangeMs);
   mb.Hreg(HR_ENG_BASE + 37, rlyCfg[0].mode);
   mb.Hreg(HR_ENG_BASE + 38, rlyCfg[0].watchMask);
   mb.Hreg(HR_ENG_BASE + 39, (uint16_t)(rlyCfg[0].offDelayMs & 0xFFFF));
@@ -547,12 +551,12 @@ bool applyEngineFromHregs(bool markDirty) {
     v = (uint16_t)mb.Hreg(HR_ENG_BASE + 26 + i);
     if (v != pwmChCfg[i].powerOn) { pwmChCfg[i].powerOn = (uint8_t)v; changed = true; }
   }
-  uint16_t v = (uint16_t)mb.Hreg(HR_ENG_BASE + 32);
-  uint8_t step = clampDimStep((int)v);
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 33);
-  uint16_t speed = clampDimSpeed((int)v);
-  if (dimCfg.dimStepPct != step || dimCfg.holdRampMs != speed) {
-    applyDimParams(step, speed);
+  uint16_t v = (uint16_t)mb.Hreg(HR_ENG_BASE + 31);
+  uint8_t singleBtn = (v & 1) ? 1 : 0;
+  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 32);
+  uint16_t fullRange = clampDimFullRange((int)v);
+  if (dimCfg.dimFullRangeMs != fullRange || dimCfg.singleButtonDim != singleBtn) {
+    applyDimParams(fullRange, singleBtn);
     changed = true;
   }
   v = (uint16_t)mb.Hreg(HR_ENG_BASE + 37); if (v != rlyCfg[0].mode) { rlyCfg[0].mode = (uint8_t)v; changed = true; }
@@ -668,6 +672,8 @@ void setup() {
   for (uint16_t i=0;i<NUM_PWM;i++) {
     mb.addHreg(HR_PWM_BASE + i);
     mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
+    mb.addHreg(HR_PWM_HI_BASE + i);
+    mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
   }
   mb.addHreg(HR_MB_ADDR); mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD); mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
@@ -819,6 +825,7 @@ void handleValues(JSONVar values) {
         pwmSetTargetApi((uint8_t)i, api);
         pwmLevel[i] = pwmTarget[i];
         mb.Hreg(HR_PWM_BASE + i, api);
+        mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
       }
     }
   }
@@ -830,6 +837,7 @@ void handleValues(JSONVar values) {
         pwmSetTargetApi((uint8_t)(3 + j), api);
         pwmLevel[3 + j] = pwmTarget[3 + j];
         mb.Hreg(HR_PWM_BASE + 3 + j, api);
+        mb.Hreg(HR_PWM_HI_BASE + 3 + j, pwmTarget[3 + j]);
       }
     }
   }
@@ -926,11 +934,11 @@ void handleUnifiedConfig(JSONVar obj) {
     changed = true;
   } else if (type == "dim") {
     JSONVar g = list;
-    uint8_t step = dimCfg.dimStepPct;
-    uint16_t speed = dimCfg.holdRampMs;
-    if (g.hasOwnProperty("dimStepPct")) step = clampDimStep((int)g["dimStepPct"]);
-    if (g.hasOwnProperty("holdRampMs")) speed = clampDimSpeed((int)g["holdRampMs"]);
-    applyDimParams(step, speed);
+    uint16_t fullRange = dimCfg.dimFullRangeMs;
+    uint8_t singleBtn = dimCfg.singleButtonDim;
+    if (g.hasOwnProperty("dimFullRangeMs")) fullRange = clampDimFullRange((int)g["dimFullRangeMs"]);
+    if (g.hasOwnProperty("singleButtonDim")) singleBtn = (bool)g["singleButtonDim"] ? 1 : 0;
+    applyDimParams(fullRange, singleBtn);
     changed = true;
   } else if (type == "scenes") {
     for (int s = 0; s < NUM_SCENES && s < list.length(); s++) {
@@ -1054,7 +1062,10 @@ void syncCoilsFromState() {
 }
 
 void syncPwmHregsFromTargets() {
-  for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
+  for (int i = 0; i < NUM_PWM; i++) {
+    mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
+    mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
+  }
 }
 
 void writePwmCh(uint8_t ch, uint16_t lvlHi) {
@@ -1062,6 +1073,7 @@ void writePwmCh(uint8_t ch, uint16_t lvlHi) {
   pwmSetTargetHi(ch, lvlHi);
   pwmLevel[ch] = pwmTarget[ch];
   mb.Hreg(HR_PWM_BASE + ch, pwmHiToApi(pwmTarget[ch]));
+  mb.Hreg(HR_PWM_HI_BASE + ch, pwmTarget[ch]);
 }
 
 static bool groupRgbAnyOn() {
@@ -1098,57 +1110,91 @@ void toggleGroupCct() {
   }
 }
 
-void stepGroupRgb(int deltaHi) {
-  const uint8_t ch0 = HM_GRP_RGB_CH_FIRST;
-  const uint8_t chN = HM_GRP_RGB_CH_FIRST + HM_GRP_RGB_CH_COUNT;
+static void holdDimArmChannel(uint8_t ch, uint16_t targetHi) {
+  if (ch >= NUM_PWM) return;
+  holdDimChMask |= (uint8_t)(1u << ch);
+  pwmHoldTraverseMs[ch] = dimCfg.dimFullRangeMs;
+  pwmSetTargetHi(ch, targetHi);
+  pwmLevel[ch] = pwmTarget[ch];
+}
+
+static void beginGroupHoldDim(uint8_t ch0, uint8_t count, bool dimDown) {
   uint16_t mx = 0;
-  for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
-  if (mx == 0 && deltaHi > 0) {
-    const uint16_t def = pwmLastNonZero[ch0] ? pwmLastNonZero[ch0] : pwmApiToHi(128);
-    for (int i = ch0; i < chN; i++) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
-    for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
+  for (uint8_t i = 0; i < count; i++) {
+    uint8_t ch = (uint8_t)(ch0 + i);
+    if (pwmTarget[ch] > mx) mx = pwmTarget[ch];
   }
-  if (mx == 0) return;
-  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(ch0), (int)pwmTrimMaxHi(ch0));
-  for (int i = ch0; i < chN; i++) {
-    int v = (pwmTarget[i] == 0) ? 0 : (int)((uint32_t)pwmTarget[i] * (uint32_t)newMx / (uint32_t)mx);
-    writePwmCh((uint8_t)i, (uint16_t)v);
+  if (mx == 0 && !dimDown) {
+    uint16_t defMx = 0;
+    for (uint8_t i = 0; i < count; i++) {
+      uint8_t ch = (uint8_t)(ch0 + i);
+      if (pwmLastNonZero[ch] > defMx) defMx = pwmLastNonZero[ch];
+    }
+    if (defMx == 0) defMx = pwmApiToHi(128);
+    for (uint8_t i = 0; i < count; i++) {
+      uint8_t ch = (uint8_t)(ch0 + i);
+      uint16_t v = pwmLastNonZero[ch] ? pwmLastNonZero[ch] : defMx;
+      holdDimArmChannel(ch, v);
+    }
+    mx = 0;
+    for (uint8_t i = 0; i < count; i++) {
+      uint8_t ch = (uint8_t)(ch0 + i);
+      if (pwmTarget[ch] > mx) mx = pwmTarget[ch];
+    }
+  }
+  if (mx == 0 && dimDown) return;
+  if (dimDown) {
+    for (uint8_t i = 0; i < count; i++) holdDimArmChannel((uint8_t)(ch0 + i), 0);
+    return;
+  }
+  const uint16_t goalMx = pwmTrimMaxHi(ch0);
+  for (uint8_t i = 0; i < count; i++) {
+    uint8_t ch = (uint8_t)(ch0 + i);
+    uint16_t tgt = 0;
+    if (pwmTarget[ch] > 0 && mx > 0)
+      tgt = (uint16_t)((uint32_t)pwmTarget[ch] * (uint32_t)goalMx / (uint32_t)mx);
+    holdDimArmChannel(ch, tgt);
   }
 }
 
-void stepGroupCct(int deltaHi) {
-  const uint8_t ch0 = HM_GRP_CCT_CH_FIRST;
-  const uint8_t chN = HM_GRP_CCT_CH_FIRST + HM_GRP_CCT_CH_COUNT;
-  uint16_t mx = 0;
-  for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
-  if (mx == 0 && deltaHi > 0) {
-    const uint16_t def = pwmLastNonZero[ch0] ? pwmLastNonZero[ch0] : pwmApiToHi(128);
-    for (int i = ch0; i < chN; i++) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
-    for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
+void hmHoldDimBegin(uint8_t physIdx, uint8_t target, bool dimDown, uint32_t now) {
+  (void)physIdx;
+  if (target == HM_TGT_GRP_RGB) {
+    beginGroupHoldDim(HM_GRP_RGB_CH_FIRST, HM_GRP_RGB_CH_COUNT, dimDown);
+  } else if (target == HM_TGT_GRP_CCT) {
+    beginGroupHoldDim(HM_GRP_CCT_CH_FIRST, HM_GRP_CCT_CH_COUNT, dimDown);
+  } else if (target == HM_TGT_GRP_RGBCCT) {
+    beginGroupHoldDim(HM_GRP_RGB_CH_FIRST, HM_GRP_RGB_CH_COUNT, dimDown);
+    beginGroupHoldDim(HM_GRP_CCT_CH_FIRST, HM_GRP_CCT_CH_COUNT, dimDown);
+  } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
+    uint8_t ch = (uint8_t)(target - HM_TGT_PWM_R);
+    uint16_t tgt = dimDown ? 0 : pwmTrimMaxHi(ch);
+    if (!dimDown && pwmTarget[ch] == 0) tgt = pwmLastNonZero[ch] ? pwmLastNonZero[ch] : pwmApiToHi(128);
+    holdDimArmChannel(ch, tgt);
   }
-  if (mx == 0) return;
-  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(ch0), (int)pwmTrimMaxHi(ch0));
-  for (int i = ch0; i < chN; i++) {
-    int v = (pwmTarget[i] == 0) ? 0 : (int)((uint32_t)pwmTarget[i] * (uint32_t)newMx / (uint32_t)mx);
-    writePwmCh((uint8_t)i, (uint16_t)v);
+  syncPwmHregsFromTargets();
+  lastOutChangeMs = now;
+  serviceRelayFollow(now);
+}
+
+void hmHoldDimEnd(uint8_t physIdx, uint32_t now) {
+  (void)physIdx;
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (!(holdDimChMask & (1u << ch))) continue;
+    pwmTarget[ch] = pwmCurrent[ch];
+    pwmLevel[ch] = pwmTarget[ch];
+    if (pwmTarget[ch] > 0) pwmLastNonZero[ch] = pwmTarget[ch];
+    pwmHoldTraverseMs[ch] = 0;
   }
+  holdDimChMask = 0;
+  syncPwmHregsFromTargets();
+  lastOutChangeMs = now;
+  serviceRelayFollow(now);
 }
 
 void applyScene(uint8_t sceneIdx) {
   if (sceneIdx >= NUM_SCENES) return;
   for (int i = 0; i < NUM_PWM; i++) writePwmCh((uint8_t)i, pwmApiToHi(scenes[sceneIdx][i]));
-}
-
-void goMaxTarget(uint8_t target) {
-  if (target == HM_TGT_GRP_RGB) {
-    writePwmCh(0, PWM_HI); writePwmCh(1, PWM_HI); writePwmCh(2, PWM_HI);
-  } else if (target == HM_TGT_GRP_CCT) {
-    writePwmCh(3, PWM_HI); writePwmCh(4, PWM_HI);
-  } else if (target == HM_TGT_GRP_RGBCCT) {
-    for (int i = 0; i < NUM_PWM; i++) writePwmCh((uint8_t)i, PWM_HI);
-  } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
-    writePwmCh((uint8_t)(target - HM_TGT_PWM_R), PWM_HI);
-  }
 }
 
 void applyRelayTarget(uint8_t target, uint8_t action, uint32_t now) {
@@ -1193,25 +1239,16 @@ void toggleGroupRgbcct() {
 }
 
 void applyPwmTargetAction(uint8_t target, uint8_t action) {
-  const int deltaHi = (int)pwmDimStepHi(dimCfg.dimStepPct);
-  int d = deltaHi;
-  if (action == HM_ACT_DIM_DOWN) d = -d;
   if (target == HM_TGT_GRP_RGB) {
     if (action == HM_ACT_TOGGLE) toggleGroupRgb();
-    else if (action == HM_ACT_SET_100) goMaxTarget(target);
-    else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) stepGroupRgb(d);
     else if (action == HM_ACT_ON) { if (!groupRgbAnyOn()) toggleGroupRgb(); }
     else if (action == HM_ACT_OFF) { if (groupRgbAnyOn()) toggleGroupRgb(); }
   } else if (target == HM_TGT_GRP_CCT) {
     if (action == HM_ACT_TOGGLE) toggleGroupCct();
-    else if (action == HM_ACT_SET_100) goMaxTarget(target);
-    else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) stepGroupCct(d);
     else if (action == HM_ACT_ON) { if (!groupCctAnyOn()) toggleGroupCct(); }
     else if (action == HM_ACT_OFF) { if (groupCctAnyOn()) toggleGroupCct(); }
   } else if (target == HM_TGT_GRP_RGBCCT) {
     if (action == HM_ACT_TOGGLE) toggleGroupRgbcct();
-    else if (action == HM_ACT_SET_100) goMaxTarget(target);
-    else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) { stepGroupRgb(d); stepGroupCct(d); }
     else if (action == HM_ACT_ON) { if (!groupRgbcctAnyOn()) toggleGroupRgbcct(); }
     else if (action == HM_ACT_OFF) { if (groupRgbcctAnyOn()) toggleGroupRgbcct(); }
   } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
@@ -1219,11 +1256,6 @@ void applyPwmTargetAction(uint8_t target, uint8_t action) {
     if (action == HM_ACT_TOGGLE) writePwmCh(ch, pwmTarget[ch] ? 0 : pwmLastNonZero[ch]);
     else if (action == HM_ACT_ON) writePwmCh(ch, pwmLastNonZero[ch]);
     else if (action == HM_ACT_OFF) writePwmCh(ch, 0);
-    else if (action == HM_ACT_SET_100) writePwmCh(ch, PWM_HI);
-    else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) {
-      int v = constrain((int)pwmTarget[ch] + d, (int)pwmTrimMinHi(ch), (int)pwmTrimMaxHi(ch));
-      writePwmCh(ch, (uint16_t)v);
-    }
   }
 }
 
@@ -1368,11 +1400,31 @@ void processModbusCoils(uint32_t now) {
 // ================== PWM helpers ==================
 void applyPwmFromHoldingRegs() {
   for (int i = 0; i < NUM_PWM; i++) {
+    uint16_t hi = (uint16_t)mb.Hreg(HR_PWM_HI_BASE + i);
+    if (hi > PWM_HI) hi = PWM_HI;
     uint16_t api = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
     if (api > 255) api = 255;
-    pwmSetTargetApi((uint8_t)i, api);
+    pwmSetTargetHi((uint8_t)i, hi);
     pwmLevel[i] = pwmTarget[i];
+    mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
+    mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
   }
+}
+
+static void applyPwmModbusChange(uint8_t ch, bool apiChanged, bool hiChanged) {
+  if (ch >= NUM_PWM) return;
+  if (hiChanged) {
+    uint16_t hi = (uint16_t)mb.Hreg(HR_PWM_HI_BASE + ch);
+    if (hi > PWM_HI) hi = PWM_HI;
+    pwmSetTargetHi(ch, hi);
+  } else if (apiChanged) {
+    uint16_t api = (uint16_t)mb.Hreg(HR_PWM_BASE + ch);
+    if (api > 255) api = 255;
+    pwmSetTargetApi(ch, api);
+  }
+  pwmLevel[ch] = pwmTarget[ch];
+  mb.Hreg(HR_PWM_BASE + ch, pwmHiToApi(pwmTarget[ch]));
+  mb.Hreg(HR_PWM_HI_BASE + ch, pwmTarget[ch]);
 }
 
 static inline const HmInputChannelCfg& physCfg(uint8_t p) {
@@ -1403,10 +1455,19 @@ void loop() {
 
   // Monitor for external Modbus writes to PWM registers
   static uint16_t prevPwm[NUM_PWM] = {0,0,0,0,0};
+  static uint16_t prevPwmHi[NUM_PWM] = {0,0,0,0,0};
   bool pwmChanged = false;
   for (int i=0;i<NUM_PWM;i++) {
     uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE+i);
-    if (v != prevPwm[i]) { prevPwm[i] = v; pwmChanged = true; }
+    uint16_t vhi = (uint16_t)mb.Hreg(HR_PWM_HI_BASE+i);
+    bool apiChg = (v != prevPwm[i]);
+    bool hiChg = (vhi != prevPwmHi[i]);
+    if (apiChg || hiChg) {
+      prevPwm[i] = v;
+      prevPwmHi[i] = vhi;
+      applyPwmModbusChange((uint8_t)i, apiChg, hiChg);
+      pwmChanged = true;
+    }
   }
   if (pwmChanged) { applyPwmFromHoldingRegs(); serviceRelayFollow(now); }
 
@@ -1588,8 +1649,8 @@ void sendWebCfg() {
   cfg["global"]["holdDelayMs"] = inpTimings.holdDelayMs;
   cfg["global"]["holdRepeatMs"] = inpTimings.holdRepeatMs;
   cfg["global"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
-  cfg["dim"]["dimStepPct"] = dimCfg.dimStepPct;
-  cfg["dim"]["holdRampMs"] = dimCfg.holdRampMs;
+  cfg["dim"]["dimFullRangeMs"] = dimCfg.dimFullRangeMs;
+  cfg["dim"]["singleButtonDim"] = dimCfg.singleButtonDim != 0;
   cfg["safe"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
   for (int i = 0; i < NUM_PWM; i++) cfg["safe"]["chSafe"][i] = safeCfg.chSafe[i];
   for (int i = 0; i < NUM_RLY; i++) {

@@ -21,8 +21,8 @@ static const uint8_t HM_GRP_CCT_CH_FIRST = 3;
 static const uint8_t HM_GRP_CCT_CH_COUNT = 2;  // WW, CW
 
 struct DimCfg {
-  uint8_t dimStepPct;   // hold-to-dim step % (1..25)
-  uint16_t holdRampMs;  // dimming speed ms/step (20..500)
+  uint16_t dimFullRangeMs; // hold-to-dim: full 0..100% traverse while held (800..8000)
+  uint8_t singleButtonDim; // 0=two-button (DI1 up, DI2 down), 1=DI1 hold toggle-dir
 };
 
 extern DimCfg dimCfg;
@@ -45,6 +45,7 @@ extern uint16_t pwmTarget[NUM_PWM];
 extern uint16_t pwmCurrent[NUM_PWM];
 extern uint16_t pwmLastNonZero[NUM_PWM];
 extern uint32_t slewLastMs[NUM_PWM];
+extern uint16_t pwmHoldTraverseMs[NUM_PWM]; // >0: use instead of fadeMs (hold-to-dim)
 extern uint16_t g_gammaLut[PWM_HI + 1];
 extern OutputQualityCfg outQuality;
 extern volatile uint32_t lastOutChangeMs;
@@ -110,7 +111,7 @@ inline void pwmSnapCurrentToTarget(uint8_t ch) {
 inline void pwmServiceSlew(uint32_t now) {
   for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
     if (pwmCurrent[ch] == pwmTarget[ch]) continue;
-    const uint16_t fadeMs = pwmChCfg[ch].fadeMs;
+    const uint16_t fadeMs = (pwmHoldTraverseMs[ch] > 0) ? pwmHoldTraverseMs[ch] : pwmChCfg[ch].fadeMs;
     if (fadeMs == 0) {
       pwmCurrent[ch] = pwmTarget[ch];
       pwmWriteHardware(ch, pwmCurrent[ch]);
@@ -131,8 +132,4 @@ inline void pwmServiceSlew(uint32_t now) {
     }
     pwmWriteHardware(ch, pwmCurrent[ch]);
   }
-}
-
-inline uint16_t pwmDimStepHi(uint8_t dimStepPct) {
-  return (uint16_t)((uint32_t)PWM_HI * (uint32_t)dimStepPct / 100u);
 }

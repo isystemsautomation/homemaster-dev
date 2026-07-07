@@ -572,7 +572,8 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 | Address | Name | Range | Description |
 |---------|------|-------|-------------|
-| 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (scaled to 12-bit internally; slew-smoothed) |
+| 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (8-bit API; scaled to 12-bit internally; slew-smoothed) |
+| 410–414 | **R, G, B, WW, CW (12-bit)** | 0–4095 | Fine-grained PWM setpoints (same targets as HR 400–404) |
 | 480 | **MB_ADDR** | 1–255 | Modbus address |
 | 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
 | **500–579** | **ENGINE_CFG** | — | Local input engine (see below) |
@@ -585,14 +586,14 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | 505 | Safe flags | bit0 = allowLocalWhenOffline |
 | 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
 | 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
-| 531 | *(reserved)* | Former RGB memberMask — do not use |
-| 532 | **dimStepPct** | Hold-to-dim step % (1–25, default 8); RGB + CCT groups |
-| 533 | **holdRampMs** | Dimming speed ms/step (20–500, default 60) |
+| 531 | **singleButtonDim** | 0 = two-button dim (DI1 up, DI2 down); 1 = DI1 hold toggle-dir |
+| 532 | **dimFullRangeMs** | Hold-to-dim full 0..100% traverse while held (800–8000 ms, default 3000) |
+| 533 | *(reserved)* | Former holdRampMs — do not use |
 | 534 | *(reserved)* | Former CCT memberMask — do not use |
-| 535 | **dimStepPct** | Mirror of HR 532 (legacy CCT offset) |
-| 536 | **holdRampMs** | Mirror of HR 533 (legacy CCT offset) |
+| 535 | **dimFullRangeMs** | Mirror of HR 532 (legacy CCT offset) |
+| 536 | *(reserved)* | Former holdRampMs mirror — do not use |
 
-Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware and is not configurable. Only **dimStepPct** (HR 532) and **holdRampMs** (HR 533) tune hold-to-dim for both groups.
+Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **dimFullRangeMs** (HR 532) sets how long a full hold-to-dim sweep takes for both groups.
 
 | 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
 | 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/long/hold (`action<<8|target`) |
@@ -604,10 +605,10 @@ Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware and
 ## 6.4 Output quality (12-bit + gamma + slew)
 
 - **Internal resolution:** 12-bit (0–4095) on all five PWM channels (`analogWriteResolution(12)`).
-- **API:** Modbus HR **400–404** and WebConfig accept **0–255**; firmware scales to 12-bit setpoints.
+- **API:** Modbus HR **400–404** and WebConfig accept **0–255**; HR **410–414** accept **0–4095** for finer control. Firmware scales 8-bit writes to 12-bit setpoints.
 - **Gamma:** configurable (default γ 2.2) via HR **580–581** / WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
 - **Trim:** per-channel min/max (HR 511–520) applied in perceived space before gamma.
-- **Slew:** each channel has `current` and `target`; all writers (Modbus, gestures, scenes, hold-to-dim) update **target** only. A non-blocking slew engine ramps `current → target` over `transitionMs` (default **400 ms**, HR 521–525). `transitionMs = 0` = instant.
+- **Slew:** each channel has `current` and `target`; Modbus, gestures, and scenes update **target** and ramp over per-channel `fadeMs` (default **400 ms**, HR 521–525). **Hold-to-dim** uses a separate `dimFullRangeMs` traverse (HR 532, default **3000 ms**) — continuous, not stepped. `fadeMs = 0` = instant.
 - **Diagnostics:** FC04 IREG **21–25** expose raw 12-bit current.
 
 ---
@@ -618,15 +619,17 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 
 | Input | Default single | Default double | Default hold |
 |-------|----------------|----------------|--------------|
-| **DI1** | Toggle Group RGB | Set 100% Group RGB | Dim Group RGB (direction toggles each hold) |
-| **DI2** | Toggle Group CCT | Set 100% Group CCT | Dim Group CCT |
+| **DI1** | Toggle Group RGB | — | Dim up → Group RGB *(or Dim toggle dir in single-button scheme)* |
+| **DI2** | Toggle Group CCT | — | Dim down → Group CCT |
 | **SW2** | Toggle All | — | — (long = Identify blink) |
 
-**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps every `holdRampMs` / `holdRepeatMs` (default **60 ms** per step, HR 533) until release.
+**Dim button scheme** (HR **531** / WebConfig): *two-button* (default) — DI1 hold dims up, DI2 hold dims down; *single-button* — DI1 hold uses **Dim toggle dir** (direction reverses each hold).
+
+**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps **continuously** toward min (0) or max trim over `dimFullRangeMs` (default **3000 ms**, HR 532). Release freezes at the current level (saved for RESTORE_LAST). Group dimming preserves channel ratios within RGB / CCT / RGB+CCT.
 
 **Gesture targets** (WebConfig / `action<<8|target`): **7** = Group RGB (R,G,B), **8** = Group CCT (WW,CW), **10** = RGB+CCT (both groups in lockstep), **1** = Relay1, **9** = All. Per-channel PWM targets remain internal-only.
 
-**Gesture actions:** Toggle, On, Off, Dim up/down/toggle-dir, Set 100%, Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target ignored), Identify (**11**, onboard SW2 only). Legacy action **4** (All off) maps to Off+All.
+**Gesture actions:** None, Toggle, On, Off, Dim up, Dim down, Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target hidden/unused), **Dim toggle dir** (action **7**, single-button scheme only), Identify (**11**, onboard SW2 only). Legacy **Set 100%** (action **8**) maps to None. Legacy action **4** (All off) maps to Off+All. **Relay pulse** is offered only when target is Relay1.
 
 **Scenes:** four presets (HR **560–579**); Scene *n* recalls `applyScene(n−1)`.
 
