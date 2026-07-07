@@ -242,6 +242,7 @@
     const locked = new Set();
     const canApply = key => !locked.has(key);
     let lastExtPayload = null;
+    let lastEnmCfg = null;
 
     function toArr(x) {
       if (window.HMWebConfig && HMWebConfig.toArray) return HMWebConfig.toArray(x);
@@ -387,6 +388,13 @@
       try { if (o) applyEnergies(o); } catch (e) { HMWebConfig.appendLog('ENM_Sync parse: ' + (e?.message || e)); }
     }
 
+    function applyCalibFromPayload(payload){
+      if(!payload) return;
+      const cal = normalizeCalArray(payload.cal ?? payload.phases ?? payload);
+      if(!cal) return;
+      for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
+    }
+
     function applyCalibCh(ch, obj, fromDevice){
       if(!obj||typeof obj!=='object') return;
       const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
@@ -399,6 +407,7 @@
     }
 
     function applyEnmCfg(ext, cfg){
+      lastEnmCfg = { ext, cfg };
       const rlyArr = cfg && cfg.relay;
       if (rlyArr) {
         for (let i = 0; i < NUM_RLY; i++) {
@@ -423,6 +432,7 @@
       }
       const cal=normalizeCalArray(atm.cal);
       if(cal) for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
+      else applyCalibFromPayload(atm);
       const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
       if(energy) applyEnergies(energy);
       const alarms=cfg.alarm;
@@ -786,8 +796,13 @@
     HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
     HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
     HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
+    HMWebConfig.conn.on('CalibCfg', function(payload){
+      try { applyCalibFromPayload(payload); }
+      catch (e) { HMWebConfig.appendLog('CalibCfg parse: ' + (e?.message || e)); }
+    });
     HMWebConfig.conn.on('open', function(){
       if (lastExtPayload) applyExtPayload(lastExtPayload);
+      if (lastEnmCfg) applyEnmCfg(lastEnmCfg.ext, lastEnmCfg.cfg);
     });
 
     if (lastExtPayload) applyExtPayload(lastExtPayload);

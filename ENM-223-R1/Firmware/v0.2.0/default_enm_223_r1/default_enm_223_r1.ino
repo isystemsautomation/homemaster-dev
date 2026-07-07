@@ -1565,6 +1565,13 @@ static JSONVar calPhasesArrayFromCfg() {
   return cal;
 }
 
+static void sendWebCalib() {
+  JSONVar root;
+  root["cal"] = calPhasesArrayFromCfg();
+  WebSerial.send("CalibCfg", root);
+  yield();
+}
+
 static JSONVar energyToJsonObj() {
   JSONVar o;
   JSONVar Ephase, Etot;
@@ -1785,6 +1792,7 @@ void sendWebStatus() {
 
 void sendWebCfg() {
   sendWebCfgCore();
+  sendWebCalib();
 }
 
 static void sendWebCfgCore() {
@@ -1868,8 +1876,7 @@ void sendWebBootstrap() {
   yield();
   sendWebExt();
   yield();
-  sendWebCfgCore();
-  yield();
+  sendWebCfg();
 }
 
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
