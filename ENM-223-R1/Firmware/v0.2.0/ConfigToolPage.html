@@ -368,6 +368,21 @@
       if (m.E_phase || m.E_tot) applyEnergies(m);
     }
 
+    function applyAtmFromDevice(atm){
+      if(!atm||typeof atm!=='object') return;
+      if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
+      if(atm.sumAbs!==undefined){ const el=$('opt-sumAbs'); if(el&&el!==document.activeElement) el.value=String(atm.sumAbs); }
+      if(atm.wireMode!==undefined){ const el=$('opt-wireMode'); if(el&&el!==document.activeElement) el.value=String(atm.wireMode); }
+      if(atm.phaseMap){
+        for(let ch=0;ch<3;ch++){
+          const v=atm.phaseMap[ch]??atm.phaseMap[String(ch)];
+          const el=$('opt-phaseMap-'+ch);
+          if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
+        }
+      }
+      if(atm.cal) applyCalibFromPayload({ cal: atm.cal });
+    }
+
     function applyExtPayload(ext){
       if(!ext) return;
       lastExtPayload = lastExtPayload ? Object.assign({}, lastExtPayload, ext) : ext;
@@ -376,6 +391,8 @@
       try { if(ext.energy) applyEnergies(ext.energy); }
       catch (e) { HMWebConfig.appendLog('ext.energy parse: ' + (e?.message || e)); }
       try { if(ext.alarms) updateAlarmsState(ext.alarms); } catch (e) {}
+      try { if(ext.atm) applyAtmFromDevice(ext.atm); }
+      catch (e) { HMWebConfig.appendLog('ext.atm parse: ' + (e?.message || e)); }
       if(ext.alarmsCfg && ext.alarmsCfg.ch!==undefined && ext.alarmsCfg.cfg)
         applyAlarmCfg({ [ext.alarmsCfg.ch]: ext.alarmsCfg.cfg });
     }
@@ -420,19 +437,7 @@
         }
       }
       const atm=(ext&&ext.atm)||(cfg.ext&&cfg.ext.atm)||{};
-      if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
-      if(atm.sumAbs!==undefined){ const el=$('opt-sumAbs'); if(el&&el!==document.activeElement) el.value=String(atm.sumAbs); }
-      if(atm.wireMode!==undefined){ const el=$('opt-wireMode'); if(el&&el!==document.activeElement) el.value=String(atm.wireMode); }
-      if(atm.phaseMap){
-        for(let ch=0;ch<3;ch++){
-          const v=atm.phaseMap[ch]??atm.phaseMap[String(ch)];
-          const el=$('opt-phaseMap-'+ch);
-          if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
-        }
-      }
-      const cal=normalizeCalArray(atm.cal);
-      if(cal) for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
-      else applyCalibFromPayload(atm);
+      applyAtmFromDevice(atm);
       const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
       if(energy) applyEnergies(energy);
       const alarms=cfg.alarm;
@@ -801,6 +806,9 @@
       catch (e) { HMWebConfig.appendLog('CalibCfg parse: ' + (e?.message || e)); }
     });
     HMWebConfig.conn.on('open', function(){
+      if (HMWebConfig.conn?.send) {
+        HMWebConfig.conn.send('command', { action: 'hello' }).catch(() => {});
+      }
       if (lastExtPayload) applyExtPayload(lastExtPayload);
       if (lastEnmCfg) applyEnmCfg(lastEnmCfg.ext, lastEnmCfg.cfg);
     });

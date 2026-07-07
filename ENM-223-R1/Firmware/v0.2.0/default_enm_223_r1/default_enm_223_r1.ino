@@ -1834,6 +1834,7 @@ static void sendWebExt() {
     yield();
   }
   JSONVar ext;
+  ext["atm"]["cal"] = calPhasesArrayFromCfg();
   ext["alarms"] = alarmsStateToJson();
   WebSerial.send("ext", ext);
   yield();
@@ -1868,7 +1869,7 @@ static void serviceMeterWeb(unsigned long now) {
 static void pushWebConfigPeriodic() {
   sendWebStatus();
   yield();
-  sendWebCfgCore();
+  sendWebCfg();
 }
 
 void sendWebBootstrap() {
