@@ -270,7 +270,7 @@ binary_sensor:
 # ===================== Coils (FC01/05) =====================
 # NEW MAP:
 # Relay coils: 0..1
-# Service coils: 5 Identify, 6 Save config, 7 Reboot
+# Service coils: 5 Identify, 6 Save config, 7 Reboot, 8 Reset energy counters, 8 Reset energy counters
 # Ack coils: 16..19 (write 1 to ACK; device auto-clears to 0)
 switch:
   - platform: modbus_controller
@@ -346,6 +346,13 @@ switch:
     address: 7
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    id: ${enm_id}_cmd_reset_energy
+    modbus_controller_id: ${enm_id}
+    register_type: coil
+    address: 8
+    internal: true
+    assumed_state: true
 
 button:
   - platform: template
@@ -360,6 +367,10 @@ button:
     name: "${enm_prefix} Reboot"
     on_press:
       - switch.turn_on: ${enm_id}_cmd_reboot
+  - platform: template
+    name: "${enm_prefix} Reset energy counters"
+    on_press:
+      - switch.turn_on: ${enm_id}_cmd_reset_energy
 
 
 # ===================== Sensors (FC04 Input Registers RO) =====================

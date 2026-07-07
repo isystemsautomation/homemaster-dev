@@ -205,9 +205,12 @@
     </div>
   </section>
 
-  <div class="sectiontitle">
-    <h3>Energies</h3>
-    <p class="hint">Chip counters from ENM_Sync / ext.energy (saved in flash).</p>
+  <div class="sectiontitle" style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
+    <div>
+      <h3>Energies</h3>
+      <p class="hint">Chip counters from ENM_Sync / ext.energy (saved in flash).</p>
+    </div>
+    <button type="button" class="btn" id="btn-reset-energy">Reset counters</button>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -856,6 +859,10 @@
       channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
+    $('btn-reset-energy')?.addEventListener('click', () => {
+      if (!confirm('Reset all energy counters to zero? Calibration is kept. Values are saved to flash.')) return;
+      HMWebConfig.sendCommand('reset_energy');
+    });
 
     HMWebConfig.conn.on('ext', onRx('ext', applyExtPayload));
     HMWebConfig.conn.on('ENM_Meter', onRx('ENM_Meter', applyLegacyMeter));

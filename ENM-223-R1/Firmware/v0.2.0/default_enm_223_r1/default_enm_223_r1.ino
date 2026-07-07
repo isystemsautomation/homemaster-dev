@@ -287,6 +287,7 @@ static bool webHostConnected = false;
 
 static void sendWebCfgCore();
 static void sendWebExt();
+static void resetEnergyCounters();
 static void sendWebIo(const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
 static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
 static void serviceMeterWeb(unsigned long now);
@@ -364,9 +365,10 @@ enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
   // Service coils (DIO-style)
-  COIL_IDENTIFY = 5,
-  COIL_SAVE_CFG = 6,
-  COIL_REBOOT   = 7,
+  COIL_IDENTIFY     = 5,
+  COIL_SAVE_CFG     = 6,
+  COIL_REBOOT       = 7,
+  COIL_RESET_ENERGY = 8,
   COIL_ACK_BASE = 16,
   DI_LED_BASE   = 0,
   DI_BTN_BASE   = 4,
@@ -485,6 +487,10 @@ static void serviceModbusServiceCoils(uint32_t now) {
     delay(50);
     rp2040.reboot();
   }
+  if (mb.Coil(COIL_RESET_ENERGY)) {
+    mb.Coil(COIL_RESET_ENERGY, false);
+    resetEnergyCounters();
+  }
 }
 
 static void updateLinkOkDetector(uint32_t now) {
@@ -536,14 +542,7 @@ static void setAtmDefaults() {
   }
 }
 
-static void setMeterDefaults() {
-  g_atm_cfg.ucal = 36000;
-  for (int i = 0; i < 3; i++) {
-    g_atm_cfg.cal[i].Ugain   = 39500;
-    g_atm_cfg.cal[i].Igain   = 49000;
-    g_atm_cfg.cal[i].Uoffset = 0;
-    g_atm_cfg.cal[i].Ioffset = 0;
-  }
+static void clearEnergyCounters() {
   memset(g_ap_cnt, 0, sizeof(g_ap_cnt));
   memset(g_an_cnt, 0, sizeof(g_an_cnt));
   memset(g_rp_cnt, 0, sizeof(g_rp_cnt));
@@ -552,6 +551,25 @@ static void setMeterDefaults() {
   for (int i = 0; i < 4; i++) {
     g_e_ap_Wh[i] = g_e_an_Wh[i] = g_e_rp_varh[i] = g_e_rn_varh[i] = g_e_s_VAh[i] = 0;
   }
+}
+
+static void drainChipEnergyRegs() {
+  (void)g_atm.rdAP_A(); (void)g_atm.rdAP_B(); (void)g_atm.rdAP_C(); (void)g_atm.rdAP_T();
+  (void)g_atm.rdAN_A(); (void)g_atm.rdAN_B(); (void)g_atm.rdAN_C(); (void)g_atm.rdAN_T();
+  (void)g_atm.rdRP_A(); (void)g_atm.rdRP_B(); (void)g_atm.rdRP_C(); (void)g_atm.rdRP_T();
+  (void)g_atm.rdRN_A(); (void)g_atm.rdRN_B(); (void)g_atm.rdRN_C(); (void)g_atm.rdRN_T();
+  (void)g_atm.rdSA_A(); (void)g_atm.rdSA_B(); (void)g_atm.rdSA_C(); (void)g_atm.rdSA_T();
+}
+
+static void setMeterDefaults() {
+  g_atm_cfg.ucal = 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = 39500;
+    g_atm_cfg.cal[i].Igain   = 49000;
+    g_atm_cfg.cal[i].Uoffset = 0;
+    g_atm_cfg.cal[i].Ioffset = 0;
+  }
+  clearEnergyCounters();
 }
 
 // ---- Meter cache + chunked SPI sampling (one step per loop) ----
@@ -1716,6 +1734,8 @@ void handleCommand(JSONVar obj) {
   } else if (act == "identify") {
     g_identifyUntilMs = millis() + IDENTIFY_MS;
     wsLog("Identify: LEDs active for 5 s");
+  } else if (act == "reset_energy") {
+    resetEnergyCounters();
   } else {
     wsLog(String("Unknown command: ") + actC);
   }
@@ -1868,6 +1888,20 @@ static void sendWebExt() {
   ext["alarms"] = alarmsStateToJson();
   WebSerial.send("ext", ext);
   yield();
+}
+
+static void resetEnergyCounters() {
+  if (!atmBusy) drainChipEnergyRegs();
+  clearEnergyCounters();
+  markMeterDirty();
+  if (saveMeterFS()) {
+    meterDirty = false;
+    wsLog("Energy counters reset");
+  } else {
+    wsLog("ERROR: Energy reset save failed");
+  }
+  mbPublishMeter();
+  sendWebExt();
 }
 
 static void sendWebIo(const bool* relayLogical, const bool* buttonState, const bool* ledPhysState) {
