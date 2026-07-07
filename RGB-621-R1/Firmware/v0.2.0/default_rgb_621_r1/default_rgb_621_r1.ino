@@ -14,6 +14,10 @@
 #include <utility>
 #include "hardware/watchdog.h"
 
+// Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
+struct PersistConfig;
+struct OutputStateSnapshot;
+
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
 #define RX2 5
