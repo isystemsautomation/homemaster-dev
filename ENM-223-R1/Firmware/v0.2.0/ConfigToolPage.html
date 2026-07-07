@@ -12,7 +12,8 @@
     .al-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
     .al-card{border:1px solid var(--border);border-radius:var(--r2);padding:1rem;background:#fff}
     .al-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
-    .al-led{width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block}
+    .al-led{width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;margin-left:.15rem}
+    .chip-ev-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
     .al-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:.25rem 0}
     .al-row .lbl{flex:0 0 70px;font-weight:600}
     .al-row .en{flex:0 0 110px;display:flex;align-items:center;gap:.4rem}
@@ -202,6 +203,16 @@
   <section class="card">
     <div class="cardbody">
       <div id="quality-grid" class="live-grid"></div>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
+    <h3>Chip Events (ATM90)</h3>
+    <p class="hint">Hardware PQ faults from ext.chipEv (same bitmasks as Modbus IR 101–104).</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="chip-ev-grid" class="live-grid"></div>
     </div>
   </section>
 
@@ -435,6 +446,7 @@
       catch (e) { HMWebConfig.appendLog('ext.atm parse: ' + (e?.message || e)); }
       if(ext.alarmsCfg && ext.alarmsCfg.ch!==undefined && ext.alarmsCfg.cfg)
         applyAlarmCfg({ [ext.alarmsCfg.ch]: ext.alarmsCfg.cfg });
+      try { if(ext.chipEv !== undefined) updateChipEv(ext.chipEv); } catch (e) {}
     }
 
     // Legacy channels (pre-unified ext firmware): keep UI working until device is flashed.
@@ -556,6 +568,24 @@
           const e=state&&state[ch]&&state[ch][ak];
           const on=e&&(e.active===1||e.active===true);
           if(dot) dot.style.background=on?(ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0'):'#ccc';
+        }
+      }
+    }
+
+    const CHIP_EV_BITS = [
+      { id: 'sag',  bit: 1, label: 'Sag',           color: '#6f42c1' },
+      { id: 'ov',   bit: 2, label: 'Overvoltage',   color: '#dc3545' },
+      { id: 'loss', bit: 4, label: 'Phase loss',    color: '#fd7e14' },
+      { id: 'oci',  bit: 8, label: 'Overcurrent',   color: '#ffc107' }
+    ];
+
+    function updateChipEv(chipEv){
+      const masks = toArr(chipEv);
+      for(let ch=0; ch<4; ch++){
+        const mask = asNum(masks[ch]) | 0;
+        for(const ev of CHIP_EV_BITS){
+          const dot = $('chip-ev-'+ch+'-'+ev.id);
+          if(dot) dot.style.background = (mask & ev.bit) ? ev.color : '#ccc';
         }
       }
     }
@@ -694,6 +724,22 @@
           <div>I<sub>N</sub> (A)</div><div id="irmsn" style="text-align:right">--</div>
         </div>`;
       grid.appendChild(nCard);
+    })();
+
+    (function buildChipEvCards(){
+      const grid=$('chip-ev-grid'); if(!grid) return;
+      const labels=['L1','L2','L3','Total'];
+      const rows=CHIP_EV_BITS.map(ev=>`
+        <div class="chip-ev-row">
+          <span>${ev.label}</span>
+          <span id="chip-ev-CH-${ev.id}" class="al-led"></span>
+        </div>`).join('');
+      for(let ch=0; ch<4; ch++){
+        const card=document.createElement('div'); card.className='live-card';
+        card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[ch]}</strong></div>
+          <div class="kv">${rows.replace(/CH/g, String(ch))}</div>`;
+        grid.appendChild(card);
+      }
     })();
 
     (function buildEnergyCards(){

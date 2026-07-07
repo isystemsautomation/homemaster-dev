@@ -745,6 +745,12 @@ static void chipEvPublishModbus() {
   mb.Ireg(IR_CHIP_EV_TOT, g_chipEvMask[3]);
 }
 
+static JSONVar chipEvMasksToJson() {
+  JSONVar a;
+  for (int i = 0; i < 4; i++) a[i] = (int)g_chipEvMask[i];
+  return a;
+}
+
 static void alarmSampleChipDiag() {
   if (atmBusy || meter_job) return;
   const M90DiagRegs d = g_atm.readDiag();
@@ -1886,6 +1892,7 @@ static void sendWebExt() {
   JSONVar ext;
   ext["atm"]["cal"] = calPhasesArraySlim();
   ext["alarms"] = alarmsStateToJson();
+  ext["chipEv"] = chipEvMasksToJson();
   WebSerial.send("ext", ext);
   yield();
 }
