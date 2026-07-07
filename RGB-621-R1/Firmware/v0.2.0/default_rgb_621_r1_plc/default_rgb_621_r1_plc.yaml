@@ -1,6 +1,12 @@
 ##
 ## RGB-621-R1 — ESPHome Modbus package (v0.2.0)
 ##
+## Bus-load notes (important on shared RS-485 with DIO/ENM):
+##   - modbus_controller OUTPUT registers as SensorItem and polls HR unless skip_updates is set.
+##   - PWM outputs are write-only (skip_updates=max); control via rgbww Light entity.
+##   - Relay/service coils are write-only (assumed_state); state from FC02 @60 / buttons.
+##   - Prefer rgb_update_interval 5s+ on busy buses; ENM uses 3s + command_throttle 50ms.
+##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
 ##   packages:
 ##     rgb1:
@@ -15,15 +21,16 @@
 ##   Discrete Inputs (FC02): 1..2 DI · 60 relay · 90..91 LED
 ##   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
 ##                    200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
-##   Holding (FC03): 400..404 PWM R,G,B,WW,CW (via rgbww Light) · 480 MB addr · 481 MB baud
-##   Identity IR (FC04): 200..204 MODEL_ID, FW_MAJOR/MINOR/PATCH, MAP_VERSION
+##   Holding (FC03): 400..404 PWM R,G,B,WW,CW (write via Light) · 480 MB addr · 481 MB baud
 
 substitutions:
   rgb_id: rgb
   rgb_address: "3"
   rgb_prefix: "RGB"
-  rgb_update_interval: 1s
-  rgb_command_throttle: 0ms
+  rgb_update_interval: 5s
+  rgb_command_throttle: 50ms
+  # modbus outputs extend SensorItem — without this they poll HR 400..404 every cycle
+  rgb_pwm_skip_updates: "65535"
 
 modbus_controller:
   - id: ${rgb_id}
@@ -74,9 +81,8 @@ binary_sensor:
     address: 91
     register_type: discrete_input
 
-# ===================== Coils (FC05/15) =====================
+# ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
 switch:
-  # Service (pulse)
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     id: ${rgb_id}_cmd_identify
@@ -98,27 +104,20 @@ switch:
     address: 7
     internal: true
     assumed_state: true
-
-  # Relay command pulses
   - platform: modbus_controller
-    id: ${rgb_id}_rly1_on
     modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Relay1 ON (Pulse)"
+    id: ${rgb_id}_rly1_on_coil
+    register_type: coil
     address: 200
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_rly1_on
-
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
-    id: ${rgb_id}_rly1_off
     modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Relay1 OFF (Pulse)"
-    address: 210
+    id: ${rgb_id}_rly1_off_coil
     register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_rly1_off
+    address: 210
+    internal: true
+    assumed_state: true
 
 button:
   - platform: template
@@ -133,9 +132,21 @@ button:
     name: "${rgb_prefix} Reboot"
     on_press:
       - switch.turn_on: ${rgb_id}_cmd_reboot
+  - platform: template
+    name: "${rgb_prefix} Relay1 ON (Pulse)"
+    on_press:
+      - switch.turn_on: ${rgb_id}_rly1_on_coil
+      - delay: 200ms
+      - switch.turn_off: ${rgb_id}_rly1_on_coil
+  - platform: template
+    name: "${rgb_prefix} Relay1 OFF (Pulse)"
+    on_press:
+      - switch.turn_on: ${rgb_id}_rly1_off_coil
+      - delay: 200ms
+      - switch.turn_off: ${rgb_id}_rly1_off_coil
 
 #############################################################
-# TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write HR 400–404)
+# PWM outputs — write-only (skip_updates); rgbww Light below
 #############################################################
 output:
   - platform: modbus_controller
@@ -145,6 +156,7 @@ output:
     register_type: holding
     value_type: U_WORD
     multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
 
   - platform: modbus_controller
     id: ${rgb_id}_out_g
@@ -153,6 +165,7 @@ output:
     register_type: holding
     value_type: U_WORD
     multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
 
   - platform: modbus_controller
     id: ${rgb_id}_out_b
@@ -161,6 +174,7 @@ output:
     register_type: holding
     value_type: U_WORD
     multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
 
   - platform: modbus_controller
     id: ${rgb_id}_out_ww
@@ -169,6 +183,7 @@ output:
     register_type: holding
     value_type: U_WORD
     multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
 
   - platform: modbus_controller
     id: ${rgb_id}_out_cw
@@ -177,9 +192,10 @@ output:
     register_type: holding
     value_type: U_WORD
     multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
 
 #############################################################
-# RGBWW LIGHT (uses the 5 template outputs above)
+# RGBWW LIGHT (writes HR 400–404 via outputs above)
 #############################################################
 light:
   - platform: rgbww
