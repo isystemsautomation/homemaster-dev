@@ -236,9 +236,8 @@
     }
     function wireGesture(idpfx, gname, isBtn){
       const pre=gname+'-'+idpfx;
-      const inNum=parseInt(idpfx.replace(/\D/g,''),10)||1;
       const cfgKey=(isBtn?'btn':'in')+'.'+gname;
-      const send=()=>HMWebConfig.sendConfig(cfgKey, isBtn?gestList(gname+'-btn',1):gestList(gname+'-in',inNum));
+      const send=()=>HMWebConfig.sendConfig(cfgKey, isBtn?gestListBtn(gname):gestList(gname));
       $(pre+'-act')?.addEventListener('change', ()=>{ rerenderGesture(idpfx,gname,isBtn); send(); });
       $(pre+'-tgt')?.addEventListener('change', ()=>{ rerenderGesture(idpfx,gname,isBtn); send(); });
     }
@@ -615,7 +614,14 @@
     function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
     function sendInputMode(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(parseInt($('mode-in'+i).value,10)); HMWebConfig.sendConfig('in.mode', l); }
     function sendInputLock(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('lock-in'+i).checked); HMWebConfig.sendConfig('in.lock', l); }
-    function gestList(pfx, n){ return [gestPayload(pfx+n+'-act', pfx+n+'-tgt')]; }
+    function gestList(gname){
+      const arr=[];
+      for(let i=1;i<=NUM_IN_CH;i++) arr.push(gestPayload(gname+'-in'+i+'-act', gname+'-in'+i+'-tgt'));
+      return arr;
+    }
+    function gestListBtn(gname){
+      return [gestPayload(gname+'-btn1-act', gname+'-btn1-tgt')];
+    }
     function sendGlobal(){
       HMWebConfig.sendConfig('global', {
         debounceMs:parseInt($('glob-debounce').value,10),
