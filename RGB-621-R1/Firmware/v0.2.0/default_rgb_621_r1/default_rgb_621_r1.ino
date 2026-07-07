@@ -352,15 +352,15 @@ bool applyFromPersist(const PersistConfig &pc) {
     hmNormalizeGestureBind(inChCfg[i].single);
     hmNormalizeGestureBind(inChCfg[i].dbl);
     hmNormalizeGestureBind(inChCfg[i].tpl);
-    hmNormalizeGestureBind(inChCfg[i].lng);
     hmNormalizeGestureBind(inChCfg[i].hold);
+    hmMigrateLegacyLongGesture(inChCfg[i]);
   }
   for (int i = 0; i < NUM_BTN; i++) {
     hmNormalizeGestureBind(btnChCfg[i].single);
     hmNormalizeGestureBind(btnChCfg[i].dbl);
     hmNormalizeGestureBind(btnChCfg[i].tpl);
-    hmNormalizeGestureBind(btnChCfg[i].lng);
     hmNormalizeGestureBind(btnChCfg[i].hold);
+    hmMigrateLegacyLongGesture(btnChCfg[i]);
   }
   memcpy(scenes, pc.scenes, sizeof(scenes));
   safeCfg = pc.safe;
@@ -411,12 +411,12 @@ inline void setSlaveIdIfAvailable(...) {}
 
 // ================== Modbus addresses ==================
 // Input Registers (FC=04) — contiguous 0..4 + event counters
-// IREG 6..20: 3 sources (DI1, DI2, SW2) × 5 gestures (single/double/triple/long/hold)
+// IREG 6..20: 3 sources (DI1, DI2, SW2) × 5 gestures (single/double/triple/reserved/hold)
 //
 // Holding Registers (FC=03/06/16)
 // 400-404 pwm 8-bit API (0..255), 410-414 pwm 12-bit (0..4095, same targets)
 // 480 MB_ADDR, 481 MB_BAUD
-// 500 debounceMs, 501 longPressMs, 502 multiClickGapMs, 503 holdDelayMs, 504 holdRepeatMs
+// 500 debounceMs, 501 reserved (was longPressMs), 502 multiClickGapMs, 503 holdDelayMs, 504 holdRepeatMs
 // 505 safe flags (bit0 allowLocalWhenOffline)
 // 506-510 chSafe[0..4] (0=OFF,1=ON,2=RESTORE_LAST)
 // 511-515 pwm minTrim[0..4], 516-520 maxTrim, 521-525 fadeMs, 526-530 powerOn
@@ -494,7 +494,7 @@ static inline void unpackInFlags(HmInputChannelCfg& c, uint16_t f) {
 
 void syncEngineToHregs() {
   mb.Hreg(HR_ENG_BASE + 0, inpTimings.debounceMs);
-  mb.Hreg(HR_ENG_BASE + 1, inpTimings.longPressMs);
+  mb.Hreg(HR_ENG_BASE + 1, 0);  // reserved (was longPressMs)
   mb.Hreg(HR_ENG_BASE + 2, inpTimings.multiClickGapMs);
   mb.Hreg(HR_ENG_BASE + 3, inpTimings.holdDelayMs);
   mb.Hreg(HR_ENG_BASE + 4, inpTimings.holdRepeatMs);
@@ -518,7 +518,7 @@ void syncEngineToHregs() {
     mb.Hreg(HR_ENG_BASE + inBase[s], packInFlags(*cfgs[s]));
     mb.Hreg(HR_ENG_BASE + inBase[s] + 1, packGesture(cfgs[s]->single));
     mb.Hreg(HR_ENG_BASE + inBase[s] + 2, packGesture(cfgs[s]->dbl));
-    mb.Hreg(HR_ENG_BASE + inBase[s] + 3, packGesture(cfgs[s]->lng));
+    mb.Hreg(HR_ENG_BASE + inBase[s] + 3, 0);  // reserved (was long gesture)
     mb.Hreg(HR_ENG_BASE + inBase[s] + 4, packGesture(cfgs[s]->hold));
   }
   for (int s = 0; s < NUM_SCENES; s++)
@@ -535,7 +535,7 @@ bool applyEngineFromHregs(bool markDirty) {
     if (v != dst) { dst = v; changed = true; }
   };
   u16(HR_ENG_BASE + 0, inpTimings.debounceMs);
-  u16(HR_ENG_BASE + 1, inpTimings.longPressMs);
+  (void)mb.Hreg(HR_ENG_BASE + 1);  // reserved (was longPressMs)
   u16(HR_ENG_BASE + 2, inpTimings.multiClickGapMs);
   u16(HR_ENG_BASE + 3, inpTimings.holdDelayMs);
   u16(HR_ENG_BASE + 4, inpTimings.holdRepeatMs);
@@ -581,7 +581,11 @@ bool applyEngineFromHregs(bool markDirty) {
     unpackGesture(g, (uint16_t)mb.Hreg(HR_ENG_BASE + inBase[s] + 2));
     if (memcmp(&g, &cfgs[s]->dbl, sizeof(g))) { cfgs[s]->dbl = g; changed = true; }
     unpackGesture(g, (uint16_t)mb.Hreg(HR_ENG_BASE + inBase[s] + 3));
-    if (memcmp(&g, &cfgs[s]->lng, sizeof(g))) { cfgs[s]->lng = g; changed = true; }
+    if (g.action == HM_ACT_IDENTIFY && cfgs[s]->dbl.action == HM_ACT_NONE) {
+      cfgs[s]->dbl = g;
+      changed = true;
+    }
+    cfgs[s]->lng = { HM_ACT_NONE, HM_TGT_NONE };
     unpackGesture(g, (uint16_t)mb.Hreg(HR_ENG_BASE + inBase[s] + 4));
     if (memcmp(&g, &cfgs[s]->hold, sizeof(g))) { cfgs[s]->hold = g; changed = true; }
   }
@@ -887,9 +891,6 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "in.double") {
     for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) applyGestureObj(inChCfg[i].dbl, list[i]);
     changed = true;
-  } else if (type == "in.long") {
-    for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) applyGestureObj(inChCfg[i].lng, list[i]);
-    changed = true;
   } else if (type == "in.hold") {
     for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) applyGestureObj(inChCfg[i].hold, list[i]);
     changed = true;
@@ -912,9 +913,6 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "btn.double") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].dbl, list[i]);
     changed = true;
-  } else if (type == "btn.long") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].lng, list[i]);
-    changed = true;
   } else if (type == "btn.hold") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].hold, list[i]);
     changed = true;
@@ -922,7 +920,6 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "global" || type == "engine") {
     JSONVar g = list;
     if (g.hasOwnProperty("debounceMs")) inpTimings.debounceMs = (uint16_t)constrain((int)g["debounceMs"], 1, 500);
-    if (g.hasOwnProperty("longPressMs")) inpTimings.longPressMs = (uint16_t)constrain((int)g["longPressMs"], 50, 5000);
     if (g.hasOwnProperty("multiClickGapMs")) inpTimings.multiClickGapMs = (uint16_t)constrain((int)g["multiClickGapMs"], 50, 2000);
     if (g.hasOwnProperty("holdDelayMs")) inpTimings.holdDelayMs = (uint16_t)constrain((int)g["holdDelayMs"], 100, 3000);
     if (g.hasOwnProperty("holdRepeatMs")) inpTimings.holdRepeatMs = (uint16_t)constrain((int)g["holdRepeatMs"], 20, 500);
@@ -1541,6 +1538,7 @@ void loop() {
     uint8_t chIdx = (p < NUM_IN_CH) ? p : 0;
     hmServiceMaintainedPhys(p, chIdx, cfg, inpRt[p], now);
     hmServiceMomentaryPhys(p, cfg, inpRt[p], inpTimings, allowLocal, g_dimToggleDir, evtCount, NUM_EVT_SRC, now);
+    inpRt[p].db.prevStable = inpRt[p].db.stable;
   }
   hmFinalizeClickGaps(inpRt, NUM_PHYS, inChCfg, NUM_IN_CH, btnChCfg, NUM_BTN, inpTimings, evtCount, now);
   serviceRelayFollow(now);
@@ -1649,8 +1647,6 @@ void sendWebCfg() {
     cfg["in"][i]["single"]["target"] = inChCfg[i].single.target;
     cfg["in"][i]["double"]["action"] = inChCfg[i].dbl.action;
     cfg["in"][i]["double"]["target"] = inChCfg[i].dbl.target;
-    cfg["in"][i]["long"]["action"] = inChCfg[i].lng.action;
-    cfg["in"][i]["long"]["target"] = inChCfg[i].lng.target;
     cfg["in"][i]["hold"]["action"] = inChCfg[i].hold.action;
     cfg["in"][i]["hold"]["target"] = inChCfg[i].hold.target;
   }
@@ -1662,12 +1658,10 @@ void sendWebCfg() {
     cfg["btn"][i]["single"]["action"] = btnChCfg[i].single.action;
     cfg["btn"][i]["double"]["action"] = btnChCfg[i].dbl.action;
     cfg["btn"][i]["double"]["target"] = btnChCfg[i].dbl.target;
-    cfg["btn"][i]["long"]["target"] = btnChCfg[i].lng.target;
     cfg["btn"][i]["hold"]["action"] = btnChCfg[i].hold.action;
     cfg["btn"][i]["hold"]["target"] = btnChCfg[i].hold.target;
   }
   cfg["global"]["debounceMs"] = inpTimings.debounceMs;
-  cfg["global"]["longPressMs"] = inpTimings.longPressMs;
   cfg["global"]["multiClickGapMs"] = inpTimings.multiClickGapMs;
   cfg["global"]["holdDelayMs"] = inpTimings.holdDelayMs;
   cfg["global"]["holdRepeatMs"] = inpTimings.holdRepeatMs;

@@ -591,7 +591,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 500–504 | Timings | debounce, longPress, multiClickGap, holdDelay, holdRepeat (ms) |
+| 500–504 | Timings | debounce, *(reserved)*, multiClickGap, holdDelay, holdRepeat (ms) |
 | 505 | Safe flags | bit0 = allowLocalWhenOffline |
 | 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
 | 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
@@ -605,7 +605,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **dimFullRangeMs** (HR 532) sets how long a full hold-to-dim sweep takes for both groups.
 
 | 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
-| 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/long/hold (`action<<8|target`) |
+| 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/hold (`action<<8|target`; HR +3 reserved) |
 | 560–579 | Scenes[4][5] | Preset channel levels (0–255 API) |
 | 580–581 | Output quality | gammaEnable, gammaTenths (22 = γ 2.2) |
 
@@ -630,7 +630,7 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 |-------|----------------|----------------|--------------|
 | **DI1** | Toggle Group RGB | — | Dim up → Group RGB *(or Dim toggle dir in single-button scheme)* |
 | **DI2** | Toggle Group CCT | — | Dim down → Group CCT |
-| **SW2** | Toggle All | — | — (long = Identify blink) |
+| **SW2** | Toggle All | Identify | — |
 
 **Dim button scheme** (HR **531** / WebConfig): *two-button* (default) — DI1 hold dims up, DI2 hold dims down; *single-button* — DI1 hold uses **Dim toggle dir** (direction reverses each hold).
 

@@ -164,7 +164,7 @@
   (function(){
     const $ = id => document.getElementById(id);
     const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
-    const EVT_NAMES = ['Single','Double','Triple','Long','Hold'];
+    const EVT_NAMES = ['Single','Double','Triple','(reserved)','Hold'];
     const SRC_NAMES = ['DI1','DI2','SW2'];
     let dimSingleButton = false;
     const ACT_DI_CORE = [
@@ -176,7 +176,7 @@
       {v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:10,l:'RGB+CCT'},{v:1,l:'Relay1'},{v:9,l:'All'}
     ];
     const TGT_RELAY_OPTS = [{v:1,l:'Relay1'}];
-    const GESTURE_LABELS = {single:'Single',double:'Double',long:'Long',hold:'Hold'};
+    const GESTURE_LABELS = {single:'Single',double:'Double',hold:'Hold'};
     const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
     const actSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val||0)}</select>`;
     const tgtSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val??opts[0]?.v??7)}</select>`;
@@ -318,7 +318,6 @@
       if(cfg.global){
         const g=cfg.global;
         if($('glob-debounce')) $('glob-debounce').value=g.debounceMs??25;
-        if($('glob-longpress')) $('glob-longpress').value=g.longPressMs??700;
         if($('glob-multiclick')) $('glob-multiclick').value=g.multiClickGapMs??350;
         if($('glob-holddelay')) $('glob-holddelay').value=g.holdDelayMs??650;
         if($('glob-holdrepeat')) $('glob-holdrepeat').value=g.holdRepeatMs??60;
@@ -363,7 +362,7 @@
           cell.innerHTML=`<label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj,isBtn)}`;
           wireGesture(idpfx,gname,isBtn);
         };
-        applyGest('single', o.single); applyGest('double', o.double); applyGest('long', o.long); applyGest('hold', o.hold);
+        applyGest('single', o.single); applyGest('double', o.double); applyGest('hold', o.hold);
         if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=normGesture(o.single).target;
         syncInputModeUi(pfx+n);
       };
@@ -407,13 +406,10 @@
       c.innerHTML=`
         <div class="row">
           <div><label for="glob-debounce">Debounce, ms</label><input type="number" id="glob-debounce" min="1" max="500" value="25" style="width:100%"></div>
-          <div><label for="glob-longpress">Long-press, ms</label><input type="number" id="glob-longpress" min="50" max="5000" value="700" style="width:100%"></div>
-        </div>
-        <div class="row" style="margin-top:10px">
           <div><label for="glob-multiclick">Double-click gap, ms</label><input type="number" id="glob-multiclick" min="50" max="2000" value="350" style="width:100%"></div>
-          <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="650" style="width:100%"></div>
         </div>
         <div class="row" style="margin-top:10px">
+          <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="650" style="width:100%"></div>
           <div><label for="glob-holdrepeat">Hold repeat, ms</label><input type="number" id="glob-holdrepeat" min="20" max="500" value="60" style="width:100%"></div>
         </div>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="glob-offline" checked> Allow local inputs when bus offline</label>`;
@@ -431,17 +427,17 @@
       const rgb=7, cct=8;
       if(i===1){
         return {
-          single:{action:1,target:rgb}, double:{action:0,target:0}, long:{action:0,target:0},
+          single:{action:1,target:rgb}, double:{action:0,target:0},
           hold:dimSingleButton?{action:7,target:rgb}:{action:5,target:rgb}
         };
       }
       return {
-        single:{action:1,target:cct}, double:{action:0,target:0}, long:{action:0,target:0},
+        single:{action:1,target:cct}, double:{action:0,target:0},
         hold:dimSingleButton?{action:0,target:0}:{action:6,target:cct}
       };
     }
     function refreshAllInputGestures(){
-      for(let i=1;i<=NUM_IN_CH;i++) ['single','double','long','hold'].forEach(g=>rerenderGesture('in'+i,g,false));
+      for(let i=1;i<=NUM_IN_CH;i++) ['single','double','hold'].forEach(g=>rerenderGesture('in'+i,g,false));
     }
     function buildGestureCard(idpfx, label, defaults, isBtn){
       const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
@@ -461,7 +457,7 @@
         </div>
         <div id="gestures-${idpfx}" class="gesture-rows">
           <div class="split split-gest">${gs('single',d.single)}${gs('double',d.double)}</div>
-          <div class="split split-gest" style="margin-top:8px">${gs('long',d.long)}${gs('hold',d.hold)}</div>
+          <div class="split split-gest" style="margin-top:8px">${gs('hold',d.hold)}</div>
         </div></div>`;
     }
 
@@ -469,15 +465,15 @@
       const c=$('io-inputs'); if(!c) return;
       for(let i=1;i<=NUM_IN_CH;i++){
         c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defaultInDefs(i), false);
-        ['single','double','long','hold'].forEach(g=>wireGesture('in'+i,g,false));
+        ['single','double','hold'].forEach(g=>wireGesture('in'+i,g,false));
         syncInputModeUi('in'+i);
       }
     })();
 
     (function buildBtn(){
       const c=$('io-btn'); if(!c) return;
-      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},double:{action:0,target:0},long:{action:11,target:0},hold:{action:0,target:0}}, true);
-      ['single','double','long','hold'].forEach(g=>wireGesture('btn1',g,true));
+      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},double:{action:11,target:0},hold:{action:0,target:0}}, true);
+      ['single','double','hold'].forEach(g=>wireGesture('btn1',g,true));
       syncInputModeUi('btn1');
     })();
 
@@ -595,7 +591,7 @@
     function gestList(pfx, n){ return [gestPayload(pfx+n+'-act', pfx+n+'-tgt')]; }
     function sendGlobal(){
       HMWebConfig.sendConfig('global', {
-        debounceMs:parseInt($('glob-debounce').value,10), longPressMs:parseInt($('glob-longpress').value,10),
+        debounceMs:parseInt($('glob-debounce').value,10),
         multiClickGapMs:parseInt($('glob-multiclick').value,10), holdDelayMs:parseInt($('glob-holddelay').value,10),
         holdRepeatMs:parseInt($('glob-holdrepeat').value,10),
         allowLocalWhenOffline: $('glob-offline').checked
@@ -646,7 +642,7 @@
     $('mode-btn1')?.addEventListener('change', ()=>onModeChange('btn1', true));
     $('maint-btn1-tgt')?.addEventListener('change', ()=>sendMaintTarget('btn1', true));
     $('lock-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.lock', [!!$('lock-btn1').checked]));
-    ['glob-debounce','glob-longpress','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
+    ['glob-debounce','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
     ['safe-offline'].concat([...Array(NUM_PWM)].map((_,i)=>'safe-ch'+(i+1))).forEach(id=>$(id)?.addEventListener('change', sendSafe));
     for(let i=0;i<NUM_PWM;i++){
       ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));

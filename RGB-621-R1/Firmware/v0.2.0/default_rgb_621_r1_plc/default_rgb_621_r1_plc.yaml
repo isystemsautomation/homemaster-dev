@@ -19,7 +19,7 @@
 ## Modbus map (default_rgb_621_r1.ino v0.2.0, MAP_VERSION=3):
 ##   Input Registers (FC04) 0..4 + 6..20 + 26..28:
 ##     0 DI_MASK · 1 RLY_MASK · 2 BTN_MASK (bit0=SW2) · 3 LED_MASK · 4 STATUS_FLAGS
-##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/long/hold)
+##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/reserved/hold)
 ##     26..28 STATE: packed applied PWM (API 0..255) + flags (anyOn, rgb/cct group, relay1)
 ##   Holding 500..579: local input engine config (see README §6.3)
 ##   Coils: 0 Relay1 · 5..7 service · 200/210 legacy pulse · 300..321 DI en/dis

@@ -105,7 +105,7 @@ struct HmInputChannelCfg {
 
 struct HmInputEngineTimings {
   uint16_t debounceMs;
-  uint16_t longPressMs;
+  uint16_t longPressMs;  // reserved (legacy HR 501); unused
   uint16_t multiClickGapMs;
   uint16_t holdDelayMs;
   uint16_t holdRepeatMs;
@@ -121,7 +121,6 @@ struct HmDebounceState {
 struct HmClickState {
   bool pressed;
   uint32_t pressStartMs;
-  bool longFired;
   bool holdFired;
   uint8_t pendingClicks;
   uint32_t lastReleaseMs;
@@ -187,15 +186,22 @@ static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n, 
   }
 }
 
+static inline void hmMigrateLegacyLongGesture(HmInputChannelCfg& c) {
+  if (c.lng.action == HM_ACT_IDENTIFY && c.dbl.action == HM_ACT_NONE) {
+    c.dbl = c.lng;
+  }
+  c.lng = { HM_ACT_NONE, HM_TGT_NONE };
+}
+
 static inline void hmInputEngineSetBtnDefaults(HmInputChannelCfg& btn) {
   hmGestureClear(btn);
   btn.single = { HM_ACT_TOGGLE, HM_TGT_ALL };
-  btn.lng    = { HM_ACT_IDENTIFY, HM_TGT_NONE };
+  btn.dbl    = { HM_ACT_IDENTIFY, HM_TGT_NONE };
 }
 
 static inline void hmInputEngineSetTimingDefaults(HmInputEngineTimings& t) {
   t.debounceMs = 25;
-  t.longPressMs = 700;
+  t.longPressMs = 0;
   t.multiClickGapMs = 350;
   t.holdDelayMs = 650;
   t.holdRepeatMs = 60;
@@ -240,22 +246,16 @@ static inline void hmServiceMomentaryPhys(uint8_t physIdx, const HmInputChannelC
   if (rising) {
     cs.pressed = true;
     cs.pressStartMs = now;
-    cs.longFired = false;
     cs.holdFired = false;
     ramp.active = false;
-    if (cfg.hold.action == HM_ACT_DIM_TOGGLE_DIR) dimToggleDir[physIdx] = !dimToggleDir[physIdx];
   }
 
   if (cs.pressed && db.stable) {
     uint32_t held = now - cs.pressStartMs;
-    if (!cs.longFired && !cs.holdFired && cfg.lng.action != HM_ACT_NONE &&
-        !hmIsDimHoldAction(cfg.hold.action) && held >= timings.longPressMs) {
-      hmFireGesture(physIdx, HM_EVT_LONG, cfg.lng, now, evtCount, numPhys);
-      cs.longFired = true;
-    }
     if (!ramp.active && hmIsDimHoldAction(cfg.hold.action) && held >= timings.holdDelayMs) {
       ramp.active = true;
       ramp.target = cfg.hold.target;
+      if (cfg.hold.action == HM_ACT_DIM_TOGGLE_DIR) dimToggleDir[physIdx] = !dimToggleDir[physIdx];
       ramp.dimDown = (cfg.hold.action == HM_ACT_DIM_DOWN) ||
         (cfg.hold.action == HM_ACT_DIM_TOGGLE_DIR && dimToggleDir[physIdx]);
       cs.holdFired = true;
@@ -269,7 +269,7 @@ static inline void hmServiceMomentaryPhys(uint8_t physIdx, const HmInputChannelC
     uint32_t held = now - cs.pressStartMs;
     if (ramp.active) hmHoldDimEnd(physIdx, now);
     ramp.active = false;
-    if (!cs.longFired && !cs.holdFired && held < timings.holdDelayMs) {
+    if (!cs.holdFired && held < timings.holdDelayMs) {
       if (!hmMultiClickConfigured(cfg)) {
         hmFireGesture(physIdx, HM_EVT_SINGLE, cfg.single, now, evtCount, numPhys);
       } else {
