@@ -6,8 +6,13 @@ static constexpr uint16_t ChannelMapI   = 0x01;
 static constexpr uint16_t ChannelMapU   = 0x02;
 static constexpr uint16_t MeterEn       = 0x00;
 static constexpr uint16_t SagPeakDetCfg = 0x05;
+// Threshold registers (ATM90E32AS datasheet, section 6.6 "Voltage Sag and Phase Loss")
+static constexpr uint16_t OVth         = 0x06;
 static constexpr uint16_t ZXConfig      = 0x07;
 static constexpr uint16_t SagTh         = 0x08;
+static constexpr uint16_t PhaseLossTh  = 0x09;
+static constexpr uint16_t INWarnTh     = 0x0A;
+static constexpr uint16_t OIth         = 0x0B;
 static constexpr uint16_t FreqLoTh      = 0x0C;
 static constexpr uint16_t FreqHiTh      = 0x0D;
 static constexpr uint16_t PLconstH      = 0x31;
@@ -168,13 +173,21 @@ int32_t ATM90E32::readSmean_VA(uint8_t phase) {
 double ATM90E32::readUPeak_V(uint8_t phase) {
   static const uint16_t reg[] = {UPeakA, UPeakB, UPeakC};
   if (phase > 2) return 0.0;
-  return (double)read16(reg[phase]) * 0.01;
+  // Datasheet: peak detect registers use the same voltage calibration domain
+  // as sag/OV thresholds (i.e. derived from Urms via ucal and √2 conversion).
+  // We convert the raw peak register code back to volts peak.
+  const double ucalRatio = ucal_ / 32768.0;
+  const uint16_t code = read16(reg[phase]);
+  return ((double)code) * (2.0 * ucalRatio) / 100.0; // Vpeak
 }
 
 double ATM90E32::readIPeak_A(uint8_t phase) {
   static const uint16_t reg[] = {IPeakA, IPeakB, IPeakC};
   if (phase > 2) return 0.0;
-  return (double)read16(reg[phase]) * 0.001;
+  // Keep the same current scale domain as Irms (datasheet: thresholds/peaks are
+  // compared against the internal calibrated current magnitude).
+  // The chip already applies PGA + Igain calibration before exposing the peak code.
+  return (double)read16(reg[phase]) * 0.001; // Apeak-equivalent code in mA units
 }
 
 double ATM90E32::readIrmsN_A() {
@@ -243,10 +256,40 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
 
   const double ucalRatio = ucal_ / 32768.0;
-  const uint16_t vSagTh = (uint16_t)((sagV * 100.0 * sqrt(2.0)) / (2.0 * ucalRatio));
+  // Datasheet (Atmel-46003), section 6.6: sag/OV/phase-loss thresholds are in the
+  // same domain as the voltage peak (Vrms·√2), derived via ucal.
+  auto vRmsToVth = [&](double vRms) -> uint16_t {
+    const double code = (vRms * 100.0 * sqrt(2.0)) / (2.0 * ucalRatio);
+    long x = lround(code);
+    if (x < 0) x = 0;
+    if (x > 65535) x = 65535;
+    return (uint16_t)x;
+  };
+
+  const uint16_t vSagTh = vRmsToVth((double)sagV);
+  // Reasonable defaults (field): OV≈280 Vrms, phase-loss≈20 Vrms.
+  const uint16_t vOvTh  = vRmsToVth(280.0);
+  const uint16_t vPlTh  = vRmsToVth(20.0);
+
+  // Datasheet: over-current / neutral warning thresholds are based on the internal
+  // calibrated current magnitude. We use the same RMS domain as Irms registers
+  // used elsewhere in this firmware (mA units).
+  auto aRmsToIth_mA = [&](double aRms) -> uint16_t {
+    long x = lround(aRms * 1000.0);
+    if (x < 0) x = 0;
+    if (x > 65535) x = 65535;
+    return (uint16_t)x;
+  };
+
+  const uint16_t iOIth     = aRmsToIth_mA(45.0); // ~45 A RMS over-current (ZEMCTK05 50 A FS)
+  const uint16_t iINWarnTh = aRmsToIth_mA(5.0);  // ~5 A RMS neutral current warning
 
   write16(SagPeakDetCfg, 0x143F);
   write16(SagTh,        vSagTh);
+  write16(OVth,         vOvTh);
+  write16(PhaseLossTh,  vPlTh);
+  write16(INWarnTh,     iINWarnTh);
+  write16(OIth,         iOIth);
   write16(FreqHiTh,     FreqHiThresh);
   write16(FreqLoTh,     FreqLoThresh);
 
