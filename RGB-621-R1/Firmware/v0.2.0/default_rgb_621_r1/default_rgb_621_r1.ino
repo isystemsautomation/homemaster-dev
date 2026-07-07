@@ -27,8 +27,8 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (RGB module) ==================
 // Macros for preprocessor-safe conflict checks:
-#define PIN_BTN1   0
-#define PIN_BTN2   1
+#define PIN_BTN_BOOT 0   // SW1 — BOOT strap only, not used in runtime
+#define PIN_BTN_USER 1   // SW2 — sole product button (WebConfig "Button 1")
 #define PIN_DI1    14
 #define PIN_DI2    13
 #define PIN_RELAY1 15
@@ -44,7 +44,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 static const uint8_t DI_PINS[2]    = {PIN_DI1, PIN_DI2};        // DI1..DI2
 static const uint8_t RELAY_PINS[1] = {PIN_RELAY1};              // Relay1
 static const uint8_t LED_PINS[2]   = {PIN_LED1, PIN_LED2};      // LED1..LED2
-static const uint8_t BTN_PINS[2]   = {PIN_BTN1, PIN_BTN2};      // Button1..2
+static const uint8_t BTN_PINS[1]   = { PIN_BTN_USER };
 
 static const uint8_t PWM_PINS[5] = {
   PIN_PWM_R,  // 0 -> R
@@ -58,7 +58,7 @@ static const uint8_t PWM_PINS[5] = {
 static const uint8_t NUM_DI   = 2;
 static const uint8_t NUM_RLY  = 1;
 static const uint8_t NUM_LED  = 2;
-static const uint8_t NUM_BTN  = 2;
+static const uint8_t NUM_BTN  = 1;
 static const uint8_t NUM_PWM  = 5; // R,G,B,WW,CW
 
 // ================== Config & runtime ==================
@@ -73,8 +73,8 @@ RlyCfg  rlyCfg[NUM_RLY];
 LedCfg  ledCfg[NUM_LED];
 BtnCfg  btnCfg[NUM_BTN];
 
-bool buttonState[NUM_BTN]   = {false,false};
-bool buttonPrev[NUM_BTN]    = {false,false};
+bool buttonState[NUM_BTN]   = {false};
+bool buttonPrev[NUM_BTN]    = {false};
 bool diState[NUM_DI]        = {false,false};
 bool diPrev[NUM_DI]         = {false,false};
 
@@ -358,7 +358,7 @@ void setup() {
   for (uint8_t i=0;i<NUM_DI;i++)   pinMode(DI_PINS[i],   INPUT);           // change to INPUT_PULLUP if needed
   for (uint8_t i=0;i<NUM_RLY;i++)  { pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); } // OFF
   for (uint8_t i=0;i<NUM_LED;i++)  { pinMode(LED_PINS[i],   OUTPUT);  digitalWrite(LED_PINS[i],   LOW); } // OFF
-  for (uint8_t i=0;i<NUM_BTN;i++)  pinMode(BTN_PINS[i],   INPUT_PULLUP);   // active-LOW
+  for (uint8_t i=0;i<NUM_BTN;i++)  pinMode(BTN_PINS[i], INPUT_PULLUP);
   // PWM pins init
   for (uint8_t i=0;i<NUM_PWM;i++) analogWrite(PWM_PINS[i], 0);
 
@@ -761,9 +761,9 @@ void loop() {
   }
   maybePersistOutputState(now);
 
-  // -------- Buttons: read (ACTIVE-LOW), rising edge ----------
+  // -------- Button (GPIO1 / SW2): active-HIGH, rising edge ----------
   for (int i = 0; i < NUM_BTN; i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i] = buttonState[i];
     buttonState[i] = pressed;
 
