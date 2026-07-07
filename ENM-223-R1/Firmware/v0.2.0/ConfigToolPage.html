@@ -365,11 +365,21 @@
     function applyExtPayload(ext){
       if(!ext) return;
       lastExtPayload = lastExtPayload ? Object.assign({}, lastExtPayload, ext) : ext;
-      if(ext.meter) applyMeterLive(ext.meter);
-      if(ext.energy) applyEnergies(ext.energy);
-      if(ext.alarms) updateAlarmsState(ext.alarms);
+      try { if(ext.meter) applyMeterLive(ext.meter); }
+      catch (e) { HMWebConfig.appendLog('ext.meter parse: ' + (e?.message || e)); }
+      try { if(ext.energy) applyEnergies(ext.energy); }
+      catch (e) { HMWebConfig.appendLog('ext.energy parse: ' + (e?.message || e)); }
+      try { if(ext.alarms) updateAlarmsState(ext.alarms); } catch (e) {}
       if(ext.alarmsCfg && ext.alarmsCfg.ch!==undefined && ext.alarmsCfg.cfg)
         applyAlarmCfg({ [ext.alarmsCfg.ch]: ext.alarmsCfg.cfg });
+    }
+
+    // Legacy channels (pre-unified ext firmware): keep UI working until device is flashed.
+    function applyLegacyMeter(m){
+      try { applyMeterLive(m); } catch (e) { HMWebConfig.appendLog('ENM_Meter parse: ' + (e?.message || e)); }
+    }
+    function applyLegacySync(o){
+      try { if (o) applyEnergies(o); } catch (e) { HMWebConfig.appendLog('ENM_Sync parse: ' + (e?.message || e)); }
     }
 
     function applyCalibCh(ch, obj, fromDevice){
@@ -503,6 +513,9 @@
     HMWebConfig.mountTools('hm-tools', { identify: true });
 
     HMWebConfig.conn.on('ext', applyExtPayload);
+    HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
+    HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
+    HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
 
     function pushModbus(){
       HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'30',10), parseInt($('modbus-baud')?.value||'19200',10));
