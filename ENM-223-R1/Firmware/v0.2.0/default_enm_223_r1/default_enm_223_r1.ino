@@ -1582,6 +1582,19 @@ static JSONVar energyToJsonObj() {
   return o;
 }
 
+// v0.1.0 ENM_Sync carried modbus identity, atm options, cal and energies together.
+static JSONVar enmSyncToJson() {
+  JSONVar o = energyToJsonObj();
+  o["address"] = (int)g_mb_address;
+  o["baud"]    = (int)g_mb_baud;
+  o["fw"]      = HM_FW;
+  o["lineHz"]  = (int)g_atm_cfg.lineHz;
+  o["sumAbs"]  = (int)g_atm_cfg.sumAbs;
+  o["ucal"]    = (int)g_atm_cfg.ucal;
+  o["cal"]     = calPhasesArrayFromCfg();
+  return o;
+}
+
 static JSONVar meterLiveToJson() {
   JSONVar m;
   for (int i = 0; i < 3; i++) {
@@ -1827,7 +1840,7 @@ static void sendWebCfgCore() {
 
 static void sendWebExt() {
   // Separate frames: one fat "ext" JSON often fails over USB WebSerial; ENM_Meter/ENM_Sync are proven.
-  WebSerial.send("ENM_Sync", energyToJsonObj());
+  WebSerial.send("ENM_Sync", enmSyncToJson());
   yield();
   if (g_haveMeter) {
     WebSerial.send("ENM_Meter", meterLiveToJson());

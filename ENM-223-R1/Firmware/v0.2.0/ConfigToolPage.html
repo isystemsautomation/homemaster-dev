@@ -368,6 +368,14 @@
       if (m.E_phase || m.E_tot) applyEnergies(m);
     }
 
+    function parseEventPayload(p) {
+      if (p == null) return null;
+      if (typeof p === 'string') {
+        try { return JSON.parse(p); } catch (e) { return null; }
+      }
+      return p;
+    }
+
     function applyAtmFromDevice(atm){
       if(!atm||typeof atm!=='object') return;
       if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
@@ -384,6 +392,7 @@
     }
 
     function applyExtPayload(ext){
+      ext = parseEventPayload(ext);
       if(!ext) return;
       lastExtPayload = lastExtPayload ? Object.assign({}, lastExtPayload, ext) : ext;
       try { if(ext.meter) applyMeterLive(ext.meter); }
@@ -399,13 +408,28 @@
 
     // Legacy channels (pre-unified ext firmware): keep UI working until device is flashed.
     function applyLegacyMeter(m){
-      try { applyMeterLive(m); } catch (e) { HMWebConfig.appendLog('ENM_Meter parse: ' + (e?.message || e)); }
+      try { applyMeterLive(parseEventPayload(m)); }
+      catch (e) { HMWebConfig.appendLog('ENM_Meter parse: ' + (e?.message || e)); }
     }
     function applyLegacySync(o){
-      try { if (o) applyEnergies(o); } catch (e) { HMWebConfig.appendLog('ENM_Sync parse: ' + (e?.message || e)); }
+      try {
+        o = parseEventPayload(o);
+        if (!o) return;
+        if (o.lineHz !== undefined || o.sumAbs !== undefined || o.wireMode !== undefined || o.phaseMap || o.cal) {
+          applyAtmFromDevice({
+            lineHz: o.lineHz,
+            sumAbs: o.sumAbs,
+            wireMode: o.wireMode,
+            phaseMap: o.phaseMap,
+            cal: o.cal
+          });
+        }
+        applyEnergies(o);
+      } catch (e) { HMWebConfig.appendLog('ENM_Sync parse: ' + (e?.message || e)); }
     }
 
     function applyCalibFromPayload(payload){
+      payload = parseEventPayload(payload);
       if(!payload) return;
       const cal = normalizeCalArray(payload.cal ?? payload.phases ?? payload);
       if(!cal) return;
@@ -800,7 +824,9 @@
     HMWebConfig.conn.on('ext', applyExtPayload);
     HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
     HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
-    HMWebConfig.conn.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
+    HMWebConfig.conn.on('AlarmsState', function(state){
+      try { updateAlarmsState(parseEventPayload(state)); } catch(e) {}
+    });
     HMWebConfig.conn.on('CalibCfg', function(payload){
       try { applyCalibFromPayload(payload); }
       catch (e) { HMWebConfig.appendLog('CalibCfg parse: ' + (e?.message || e)); }
