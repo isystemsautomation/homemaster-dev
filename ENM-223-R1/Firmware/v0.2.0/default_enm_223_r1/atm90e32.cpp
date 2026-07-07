@@ -173,21 +173,17 @@ int32_t ATM90E32::readSmean_VA(uint8_t phase) {
 double ATM90E32::readUPeak_V(uint8_t phase) {
   static const uint16_t reg[] = {UPeakA, UPeakB, UPeakC};
   if (phase > 2) return 0.0;
-  // Datasheet: peak detect registers use the same voltage calibration domain
-  // as sag/OV thresholds (i.e. derived from Urms via ucal and √2 conversion).
-  // We convert the raw peak register code back to volts peak.
-  const double ucalRatio = ucal_ / 32768.0;
+  // Convert raw peak code to Vpeak. With ENM wiring the raw code is ~√3 higher
+  // than phase-to-neutral peak; scale accordingly.
   const uint16_t code = read16(reg[phase]);
-  return ((double)code) * (2.0 * ucalRatio) / 100.0; // Vpeak
+  return ((double)code) * (0.01 / sqrt(3.0));
 }
 
 double ATM90E32::readIPeak_A(uint8_t phase) {
   static const uint16_t reg[] = {IPeakA, IPeakB, IPeakC};
   if (phase > 2) return 0.0;
-  // Keep the same current scale domain as Irms (datasheet: thresholds/peaks are
-  // compared against the internal calibrated current magnitude).
-  // The chip already applies PGA + Igain calibration before exposing the peak code.
-  return (double)read16(reg[phase]) * 0.001; // Apeak-equivalent code in mA units
+  // Same peak-domain scaling as voltage.
+  return (double)read16(reg[phase]) * (0.001 / sqrt(3.0));
 }
 
 double ATM90E32::readIrmsN_A() {
@@ -255,11 +251,11 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   if (lineHz_ == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
   else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
 
-  const double ucalRatio = ucal_ / 32768.0;
-  // Datasheet (Atmel-46003), section 6.6: sag/OV/phase-loss thresholds are in the
-  // same domain as the voltage peak (Vrms·√2), derived via ucal.
+  // ATM90 appnote formula (Atmel-46003 / M90):
+  // ThresholdCode = Vrms·100·√2·0.78 / (4 · (Ugain/32768))
+  const double UgainRatio = (cal && cal[0].Ugain) ? ((double)cal[0].Ugain / 32768.0) : 1.0;
   auto vRmsToVth = [&](double vRms) -> uint16_t {
-    const double code = (vRms * 100.0 * sqrt(2.0)) / (2.0 * ucalRatio);
+    const double code = (vRms * 100.0 * sqrt(2.0) * 0.78) / (4.0 * UgainRatio);
     long x = lround(code);
     if (x < 0) x = 0;
     if (x > 65535) x = 65535;
@@ -271,20 +267,22 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   const uint16_t vOvTh  = vRmsToVth(280.0);
   const uint16_t vPlTh  = vRmsToVth(20.0);
 
-  // Datasheet: over-current / neutral warning thresholds are based on the internal
-  // calibrated current magnitude. We use the same RMS domain as Irms registers
-  // used elsewhere in this firmware (mA units).
-  auto aRmsToIth_mA = [&](double aRms) -> uint16_t {
-    long x = lround(aRms * 1000.0);
+  // Similar appnote-style scaling for current thresholds (Irms domain).
+  // Approx: IthCode = Arms·1000·0.78 / (4 · (Igain/32768))
+  const double IgainRatio = (cal && cal[0].Igain) ? ((double)cal[0].Igain / 32768.0) : 1.0;
+  auto aRmsToIth = [&](double aRms) -> uint16_t {
+    const double code = (aRms * 1000.0 * 0.78) / (4.0 * IgainRatio);
+    long x = lround(code);
     if (x < 0) x = 0;
     if (x > 65535) x = 65535;
     return (uint16_t)x;
   };
 
-  const uint16_t iOIth     = aRmsToIth_mA(45.0); // ~45 A RMS over-current (ZEMCTK05 50 A FS)
-  const uint16_t iINWarnTh = aRmsToIth_mA(5.0);  // ~5 A RMS neutral current warning
+  const uint16_t iOIth     = aRmsToIth(45.0); // ~45 A RMS over-current (ZEMCTK05 50 A FS)
+  const uint16_t iINWarnTh = aRmsToIth(5.0);  // ~5 A RMS neutral current warning
 
-  write16(SagPeakDetCfg, 0x143F);
+  sagPeakDetCfg_ = 0x143F;
+  write16(SagPeakDetCfg, sagPeakDetCfg_);
   write16(SagTh,        vSagTh);
   write16(OVth,         vOvTh);
   write16(PhaseLossTh,  vPlTh);
@@ -430,8 +428,9 @@ uint16_t ATM90E32::debugRead16(uint16_t reg) {
 }
 
 void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out) {
-  const uint16_t s0 = d.EMMState0;
-  const uint16_t s1 = d.EMMState1;
+  // Use both live state and interrupt-latched state to avoid missing short events.
+  const uint16_t s0 = d.EMMState0 | d.EMMIntState0;
+  const uint16_t s1 = d.EMMState1 | d.EMMIntState1;
   out.ov[0]        = (s0 & 0x1000) != 0;
   out.ov[1]        = (s0 & 0x0800) != 0;
   out.ov[2]        = (s0 & 0x0400) != 0;
@@ -447,4 +446,13 @@ void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out) {
   out.phaseLoss[2] = (s1 & 0x0100) != 0;
   out.freqHi       = (s1 & 0x8000) != 0;
   out.freqLo       = (s1 & 0x0800) != 0;
+}
+
+void ATM90E32::clearDiagInterrupts() {
+  write16(EMMIntState0, 0x0001);
+  write16(EMMIntState1, 0x0001);
+}
+
+void ATM90E32::resetPeakRegisters() {
+  write16(SagPeakDetCfg, sagPeakDetCfg_);
 }

@@ -76,6 +76,8 @@ public:
   M90DiagRegs readDiag();
   // Debug helper (raw 16-bit register read)
   uint16_t debugRead16(uint16_t reg);
+  void clearDiagInterrupts();
+  void resetPeakRegisters();
 
   // Config currently applied
   uint16_t lineHz() const { return lineHz_; }
@@ -99,6 +101,7 @@ private:
   uint8_t  wireMode_ = 0;
   uint8_t  phaseMap_[3] = {0, 1, 2};
   uint16_t ucal_   = 25256;
+  uint16_t sagPeakDetCfg_ = 0x143F;
 
   SPIClass &spi_;
   uint8_t cs_, pm0_, pm1_;

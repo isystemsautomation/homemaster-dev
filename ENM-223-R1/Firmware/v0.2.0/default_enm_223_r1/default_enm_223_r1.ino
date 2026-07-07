@@ -592,10 +592,14 @@ static AlarmChCfg  alarmCfg[4];
 static AlarmChRun  alarmRun[4];
 static M90ChipEv   g_chipEv = {};
 static uint8_t     g_chipEvMask[4] = {0, 0, 0, 0};
+static uint8_t     g_chipEvMaskLatched[4] = {0, 0, 0, 0};
+static uint32_t    g_chipEvLastMs[4] = {0, 0, 0, 0};
 static unsigned long lastDiagSample = 0;
 static const unsigned long diagSampleMs = 500;
 static unsigned long lastWsDiagPrint = 0;
 static const unsigned long wsDiagPrintMs = 2000;
+static unsigned long lastPeakResetMs = 0;
+static const unsigned long peakResetMs = 10000;
 static unsigned long lastAlarmEval = 0;
 static const unsigned long alarmEvalMs = 200;
 
@@ -747,17 +751,34 @@ static void chipEvPublishModbus() {
   mb.Ireg(IR_CHIP_EV_TOT, g_chipEvMask[3]);
 }
 
+static void chipEvLatchFromMask(uint32_t now) {
+  for (int ch = 0; ch < 4; ch++) {
+    if (g_chipEvMask[ch]) {
+      g_chipEvMaskLatched[ch] |= g_chipEvMask[ch];
+      g_chipEvLastMs[ch] = now;
+    }
+    // Keep events visible for a short window even if chip clears state quickly.
+    if (g_chipEvMaskLatched[ch] && (uint32_t)(now - g_chipEvLastMs[ch]) > 5000u) {
+      g_chipEvMaskLatched[ch] = 0;
+    }
+  }
+  // Use latched masks for publication.
+  for (int ch = 0; ch < 4; ch++) g_chipEvMask[ch] = g_chipEvMaskLatched[ch];
+}
+
 static JSONVar chipEvMasksToJson() {
   JSONVar a;
   for (int i = 0; i < 4; i++) a[i] = (int)g_chipEvMask[i];
   return a;
 }
 
-static void alarmSampleChipDiag() {
+static void alarmSampleChipDiag(uint32_t now) {
   if (atmBusy || meter_job) return;
   const M90DiagRegs d = g_atm.readDiag();
   decodeM90ChipEv(d, g_chipEv);
   alarmUpdateChipMasks();
+  chipEvLatchFromMask(now);
+  g_atm.clearDiagInterrupts();
   chipEvPublishModbus();
   for (int ch = 0; ch < 4; ch++)
     alarmRun[ch].chipActive = g_chipEvMask[ch] != 0;
@@ -829,7 +850,7 @@ static void alarmAckAll() {
 static void alarmServiceTick(unsigned long now) {
   if (!atmBusy && !meter_job && (now - lastDiagSample >= diagSampleMs)) {
     lastDiagSample = now;
-    alarmSampleChipDiag();
+    alarmSampleChipDiag((uint32_t)now);
   }
   if (now - lastAlarmEval >= alarmEvalMs) {
     lastAlarmEval = now;
@@ -2100,6 +2121,11 @@ void loop() {
   mb.task();
   WebSerial.check();
   yield();
+
+  if (!atmBusy && !meter_job && (now - lastPeakResetMs >= peakResetMs)) {
+    lastPeakResetMs = now;
+    g_atm.resetPeakRegisters();
+  }
 
   updateLinkOkDetector((uint32_t)now);
   mbUpdateStatusFlags((uint32_t)now);
