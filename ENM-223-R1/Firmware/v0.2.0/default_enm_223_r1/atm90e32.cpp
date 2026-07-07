@@ -315,12 +315,20 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   write16(MMode0, m0);
   write16(MMode1, m1);
 
-  write16(PStartTh, 0x1D4C);
-  write16(QStartTh, 0x1D4C);
-  write16(SStartTh, 0x1D4C);
-  write16(PPhaseTh, 0x02EE);
-  write16(QPhaseTh, 0x02EE);
-  write16(SPhaseTh, 0x02EE);
+  // Energy anti-creep / start thresholds (Atmel-46103): Reg = P[W] / 0.00032.
+  // Old 0x1D4C (=7500) ≈ 2.4 W all-phase sum (~10 mA @ 230 V) — too high for
+  // small loads on 50 A CT (e.g. ~18 W). Lower to ~3 mA equivalent:
+  //   P ≈ 230 V × 0.003 A ≈ 0.69 W → Reg ≈ 2156 (0x086C).
+  // Per-phase no-load thresholds scaled proportionally from old 0x02EE:
+  //   0x02EE × (2156/7500) ≈ 216 (0x00D8) ≈ 0.07 W/phase (~0.3 mA @ 230 V).
+  static constexpr uint16_t kPwrStartTh  = 0x086C; // ~0.69 W sum, ~3 mA @ 230 V
+  static constexpr uint16_t kPwrPhaseTh  = 0x00D8; // ~0.07 W/phase no-load
+  write16(PStartTh, kPwrStartTh);
+  write16(QStartTh, kPwrStartTh);
+  write16(SStartTh, kPwrStartTh);
+  write16(PPhaseTh, kPwrPhaseTh);
+  write16(QPhaseTh, kPwrPhaseTh);
+  write16(SPhaseTh, kPwrPhaseTh);
 
   applyCalibration(cal);
 
