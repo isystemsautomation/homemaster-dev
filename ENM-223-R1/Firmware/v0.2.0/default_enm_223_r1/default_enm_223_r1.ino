@@ -1913,9 +1913,19 @@ static void sendWebExt() {
     yield();
   }
   JSONVar ext;
-  ext["atm"]["cal"] = calPhasesArraySlim();
-  ext["alarms"] = alarmsStateToJson();
-  ext["chipEv"] = chipEvMasksToJson();
+  // NOTE: Arduino_JSON JSONVar temporaries can serialize as null when assigned
+  // directly into nested objects; keep locals to ensure stable values.
+  JSONVar atm;
+  JSONVar cal = calPhasesArraySlim();
+  atm["cal"] = cal;
+  ext["atm"] = atm;
+
+  JSONVar alarms = alarmsStateToJson();
+  ext["alarms"] = alarms;
+
+  JSONVar chipEv;
+  for (int i = 0; i < 4; i++) chipEv[i] = (int)g_chipEvMask[i];
+  ext["chipEv"] = chipEv;
   WebSerial.send("ext", ext);
   yield();
 }
