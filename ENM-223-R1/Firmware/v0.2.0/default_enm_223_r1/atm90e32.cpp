@@ -251,35 +251,28 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   if (lineHz_ == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
   else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
 
-  // ATM90 appnote formula (Atmel-46003 / M90):
-  // ThresholdCode = Vrms·100·√2·0.78 / (4 · (Ugain/32768))
+  // Threshold conversion per ATM90E32AS datasheet + Atmel-46103 appnote:
+  // ThresholdCode = Vrms·100·√2·k / (4 · (Ugain/32768))
+  // k = 0.78 for sag, k = 1.22 for OV.
   const double UgainRatio = (cal && cal[0].Ugain) ? ((double)cal[0].Ugain / 32768.0) : 1.0;
-  auto vRmsToVth = [&](double vRms) -> uint16_t {
-    const double code = (vRms * 100.0 * sqrt(2.0) * 0.78) / (4.0 * UgainRatio);
+  auto vRmsToVth = [&](double vRms, double k) -> uint16_t {
+    const double code = (vRms * 100.0 * sqrt(2.0) * k) / (4.0 * UgainRatio);
     long x = lround(code);
     if (x < 0) x = 0;
     if (x > 65535) x = 65535;
     return (uint16_t)x;
   };
 
-  const uint16_t vSagTh = vRmsToVth((double)sagV);
+  const uint16_t vSagTh = vRmsToVth((double)sagV, 0.78);
   // Reasonable defaults (field): OV≈280 Vrms, phase-loss≈20 Vrms.
-  const uint16_t vOvTh  = vRmsToVth(280.0);
-  const uint16_t vPlTh  = vRmsToVth(20.0);
+  const uint16_t vOvTh  = vRmsToVth(280.0, 1.22);
+  const uint16_t vPlTh  = vRmsToVth(20.0, 0.78);
 
-  // Similar appnote-style scaling for current thresholds (Irms domain).
-  // Approx: IthCode = Arms·1000·0.78 / (4 · (Igain/32768))
-  const double IgainRatio = (cal && cal[0].Igain) ? ((double)cal[0].Igain / 32768.0) : 1.0;
-  auto aRmsToIth = [&](double aRms) -> uint16_t {
-    const double code = (aRms * 1000.0 * 0.78) / (4.0 * IgainRatio);
-    long x = lround(code);
-    if (x < 0) x = 0;
-    if (x > 65535) x = 65535;
-    return (uint16_t)x;
-  };
-
-  const uint16_t iOIth     = aRmsToIth(45.0); // ~45 A RMS over-current (ZEMCTK05 50 A FS)
-  const uint16_t iINWarnTh = aRmsToIth(5.0);  // ~5 A RMS neutral current warning
+  // Current thresholds: use Irms code domain (U16, 0.001A/count, max ~65.53A).
+  // (Reference: common ATM90E32 drivers expose Irms this way; OIth/INWarnTh are compared
+  // against the same internal magnitude domain.)
+  const uint16_t iOIth     = (uint16_t)lround(0.90 * 65535.0); // ~0.9 FS
+  const uint16_t iINWarnTh = (uint16_t)lround(0.20 * 65535.0); // ~0.2 FS
 
   sagPeakDetCfg_ = 0x143F;
   write16(SagPeakDetCfg, sagPeakDetCfg_);

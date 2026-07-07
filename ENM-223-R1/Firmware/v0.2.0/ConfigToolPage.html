@@ -372,12 +372,8 @@
       setElNum('pft', PF[3], 3);
       setElNum('f', m.FreqHz, 2);
       setElText('t', m.TempC);
-      const Upeak = toArr(m.Upeak_V);
-      const Ipeak = toArr(m.Ipeak_A);
       const THD = toArr(m.THD_pct);
       for(let i=0;i<3;i++){
-        setElNum(`upk${i}`, Upeak[i], 2);
-        setElNum(`ipk${i}`, Ipeak[i], 3);
         setElNum(`thd${i}`, THD[i], 2);
       }
       setElNum('irmsn', m.IrmsN_A, 3);
@@ -712,8 +708,6 @@
         const card=document.createElement('div'); card.className='live-card';
         card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[i]}</strong></div>
           <div class="kv">
-            <div>U peak (V)</div><div id="upk${i}" style="text-align:right">--</div>
-            <div>I peak (A)</div><div id="ipk${i}" style="text-align:right">--</div>
             <div>THD (%)</div><div id="thd${i}" style="text-align:right">--</div>
           </div>`;
         grid.appendChild(card);
