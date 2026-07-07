@@ -1,11 +1,10 @@
 ##
 ## RGB-621-R1 — ESPHome Modbus package (v0.2.0)
 ##
-## Bus-load notes (important on shared RS-485 with DIO/ENM):
-##   - modbus_controller OUTPUT registers as SensorItem and polls HR unless skip_updates is set.
-##   - PWM outputs are write-only (skip_updates=max); control via rgbww Light entity.
-##   - Relay/service coils are write-only (assumed_state); state from FC02 @60 / buttons.
-##   - Prefer rgb_update_interval 5s+ on busy buses; ENM uses 3s + command_throttle 50ms.
+## Bus-load notes (shared RS-485 with DIO/ENM):
+##   - DI/relay/LED/linkOk: one FC04 poll @0 count=5 (IREG 0..4), not sparse FC02.
+##   - PWM outputs are write-only (skip_updates=max); control via rgbww Light.
+##   - Relay/service coils are write-only (assumed_state); pulse via template buttons.
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
 ##   packages:
@@ -16,9 +15,10 @@
 ##         rgb_address: "3"
 ##         rgb_prefix: "RGB Living"
 ##
-## Modbus map (matches default_rgb_621_r1.ino v0.2.0):
-##   Input Registers (FC04): 4 STATUS_FLAGS (bit1=linkOk, bit3=cfgDirty)
-##   Discrete Inputs (FC02): 1..2 DI · 60 relay · 90..91 LED
+## Modbus map (default_rgb_621_r1.ino v0.2.0, MAP_VERSION=2):
+##   Input Registers (FC04) 0..4:
+##     0 DI_STATE_MASK · 1 RLY_STATE_MASK · 2 reserved · 3 LED_STATE_MASK · 4 STATUS_FLAGS
+##   Discrete Inputs (FC02) 1..2, 60, 90..91 — legacy mirror, do not poll from ESPHome
 ##   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
 ##                    200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
 ##   Holding (FC03): 400..404 PWM R,G,B,WW,CW (write via Light) · 480 MB addr · 481 MB baud
@@ -29,7 +29,6 @@ substitutions:
   rgb_prefix: "RGB"
   rgb_update_interval: 5s
   rgb_command_throttle: 50ms
-  # modbus outputs extend SensorItem — without this they poll HR 400..404 every cycle
   rgb_pwm_skip_updates: "65535"
 
 modbus_controller:
@@ -39,8 +38,38 @@ modbus_controller:
     update_interval: ${rgb_update_interval}
     command_throttle: ${rgb_command_throttle}
 
-# ===================== Input Registers (FC04) =====================
+# ===================== Input Registers (FC04) @0..4 — one merged poll =====================
 binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI1"
+    register_type: read
+    address: 0
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI2"
+    register_type: read
+    address: 0
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Relay1 State"
+    register_type: read
+    address: 1
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED1"
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED2"
+    register_type: read
+    address: 3
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} Link OK"
@@ -53,33 +82,6 @@ binary_sensor:
     register_type: read
     address: 4
     bitmask: 0x0008
-
-# ===================== Discrete Inputs (FC02) =====================
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI1"
-    address: 1
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI2"
-    address: 2
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Relay1 State"
-    address: 60
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} LED1"
-    address: 90
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} LED2"
-    address: 91
-    register_type: discrete_input
 
 # ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
 switch:

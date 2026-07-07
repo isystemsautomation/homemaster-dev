@@ -6,8 +6,8 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP        2
+#define HM_MAP_VERSION 2
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -299,8 +299,12 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
 inline void setSlaveIdIfAvailable(...) {}
 
 // ================== Modbus addresses ==================
-// Input Registers (FC=04)
+// Input Registers (FC=04) — contiguous 0..4 (one FC04 poll in ESPHome)
 enum : uint16_t {
+  IREG_DI_MASK      = 0,  // bit0..1 = DI1..DI2
+  IREG_RLY_MASK     = 1,  // bit0 = Relay1
+  IREG_RESERVED     = 2,  // always 0 (DIO uses BTN_MASK here)
+  IREG_LED_MASK     = 3,  // bit0..1 = LED1..LED2
   IREG_STATUS_FLAGS = 4   // bit1=linkOk, bit3=cfgDirty
 };
 
@@ -375,7 +379,7 @@ void setup() {
   for (uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
-  mb.addIreg(IREG_STATUS_FLAGS);
+  for (uint16_t i = 0; i <= IREG_STATUS_FLAGS; i++) mb.addIreg(i);
 
   // ==== Modbus service + command pulses (coils) ====
   mb.addCoil(COIL_IDENTIFY); mb.setCoil(COIL_IDENTIFY, false);
@@ -635,6 +639,19 @@ void updateLinkOkDetector(uint32_t now) {
 }
 
 void updateInputRegisters(uint32_t now) {
+  uint16_t diMask = 0, rlyMask = 0, ledMask = 0;
+  for (int i = 0; i < NUM_DI; i++)
+    if (mb.Ists(ISTS_DI_BASE + i)) diMask |= (uint16_t)(1u << i);
+  for (int i = 0; i < NUM_RLY; i++)
+    if (mb.Ists(ISTS_RLY_BASE + i)) rlyMask |= (uint16_t)(1u << i);
+  for (int i = 0; i < NUM_LED; i++)
+    if (mb.Ists(ISTS_LED_BASE + i)) ledMask |= (uint16_t)(1u << i);
+
+  mb.setIreg(IREG_DI_MASK, diMask);
+  mb.setIreg(IREG_RLY_MASK, rlyMask);
+  mb.setIreg(IREG_RESERVED, 0);
+  mb.setIreg(IREG_LED_MASK, ledMask);
+
   uint16_t status = 0;
   if (linkOkNow(now)) status |= (1 << 1);
   if (cfgDirty)       status |= (1 << 3);

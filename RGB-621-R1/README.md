@@ -533,13 +533,17 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 ---
 
-## 6.1 Discrete Inputs (FC02)
+## 6.1 Input Registers (FC04) — MAP_VERSION 2
 
-| Address | Name | Description |
-|---------|------|-------------|
-| 1–2 | **DI1–DI2** | Digital input state |
-| 60 | **Relay 1** | Relay output state mirror |
-| 90–91 | **LED1–LED2** | User LED state mirrors |
+| Address | Name | Bits | Description |
+|---------|------|------|-------------|
+| **0** | **DI_STATE_MASK** | bit0..1 | DI1..DI2 |
+| **1** | **RLY_STATE_MASK** | bit0 | Relay1 logical state |
+| **2** | *(reserved)* | — | Always 0 |
+| **3** | **LED_STATE_MASK** | bit0..1 | LED1..LED2 |
+| **4** | **STATUS_FLAGS** | bit1 linkOk, bit3 cfgDirty | Link / config status |
+
+> ESPHome package reads **FC04 @0 count=5** (one poll). FC02 discrete inputs (1..2, 60, 90..91) remain as legacy mirrors in firmware — do not poll from ESPHome on shared buses.
 
 ---
 
@@ -547,12 +551,15 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 200 | **Relay1 ON** | Pulse coil — write `1` to energize |
-| 210 | **Relay1 OFF** | Pulse coil — write `1` to de-energize |
-| 300–301 | **DI1–DI2 Enable** | Pulse per input |
-| 320–321 | **DI1–DI2 Disable** | Pulse per input |
+| **5** | **IDENTIFY** | Pulse — LED identify blink |
+| **6** | **SAVE_CFG** | Pulse — save config to flash |
+| **7** | **REBOOT** | Pulse — reboot module |
+| **200** | **Relay1 ON** | Pulse coil — write `1` to energize |
+| **210** | **Relay1 OFF** | Pulse coil — write `1` to de-energize |
+| **300–301** | **DI1–DI2 Enable** | Pulse per input |
+| **320–321** | **DI1–DI2 Disable** | Pulse per input |
 
-> Pulse coils auto-reset after the action.
+> Pulse coils auto-reset after the action. Service/relay coils: write-only from ESPHome (`assumed_state`).
 
 ---
 
@@ -572,16 +579,17 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 |-----------|--------------|
 | Set red to 128 | Holding **400** ← 128 |
 | Pulse relay ON | Coil **200** ← 1 |
-| Read DI2 | Discrete input **2** (FC02) |
+| Read DI2 | FC04 IR **0**, bitmask `0x0002` |
+| Read relay state | FC04 IR **1**, bitmask `0x0001` |
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
 ---
 
 ## 6.5 Polling Recommendations
 
-- **DI / relay / LED state:** 1 s (FC02)  
-- **PWM holding 400–404:** on change or 1–2 s  
-- **Relay pulse coils:** write only on demand
+- **DI / relay / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
+- **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  
+- **Relay/service coils:** write only on demand
 
 ---
 
