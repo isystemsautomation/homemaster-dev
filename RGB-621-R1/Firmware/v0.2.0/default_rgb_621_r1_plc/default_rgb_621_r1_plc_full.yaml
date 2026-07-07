@@ -1,9 +1,21 @@
+##
+## RGB-621-R1 — ESPHome Modbus package, full (v0.2.0)
+##
+## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix).
+
+substitutions:
+  rgb_id: rgb
+  rgb_address: "3"
+  rgb_prefix: "RGB"
+  rgb_update_interval: 1s
+  rgb_command_throttle: 0ms
+
 modbus_controller:
   - id: ${rgb_id}
     address: ${rgb_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: ${rgb_update_interval}
+    command_throttle: ${rgb_command_throttle}
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:
@@ -38,8 +50,8 @@ switch:
 number:
   # -------- RGB Channels (0–255) --------
   - platform: modbus_controller
-    name: "RGB621 Red"
-    id: rgb621_red
+    name: "${rgb_prefix} Red"
+    id: ${rgb_id}_red
     modbus_controller_id: ${rgb_id}
     address: 400
     register_type: holding
@@ -49,8 +61,8 @@ number:
     step: 1
 
   - platform: modbus_controller
-    name: "RGB621 Green"
-    id: rgb621_green
+    name: "${rgb_prefix} Green"
+    id: ${rgb_id}_green
     modbus_controller_id: ${rgb_id}
     address: 401
     register_type: holding
@@ -60,8 +72,8 @@ number:
     step: 1
 
   - platform: modbus_controller
-    name: "RGB621 Blue"
-    id: rgb621_blue
+    name: "${rgb_prefix} Blue"
+    id: ${rgb_id}_blue
     modbus_controller_id: ${rgb_id}
     address: 402
     register_type: holding
@@ -72,8 +84,8 @@ number:
 
   # -------- CCT Channels (0–255) --------
   - platform: modbus_controller
-    name: "RGB621 Warm White"
-    id: rgb621_ww
+    name: "${rgb_prefix} Warm White"
+    id: ${rgb_id}_ww
     modbus_controller_id: ${rgb_id}
     address: 403
     register_type: holding
@@ -83,8 +95,8 @@ number:
     step: 1
 
   - platform: modbus_controller
-    name: "RGB621 Cool White"
-    id: rgb621_cw
+    name: "${rgb_prefix} Cool White"
+    id: ${rgb_id}_cw
     modbus_controller_id: ${rgb_id}
     address: 404
     register_type: holding
@@ -97,7 +109,7 @@ number:
 #############################################################
 output:
   - platform: modbus_controller
-    id: rgb621_out_r
+    id: ${rgb_id}_out_r
     modbus_controller_id: ${rgb_id}
     address: 400
     register_type: holding
@@ -105,7 +117,7 @@ output:
     multiply: 255.0
 
   - platform: modbus_controller
-    id: rgb621_out_g
+    id: ${rgb_id}_out_g
     modbus_controller_id: ${rgb_id}
     address: 401
     register_type: holding
@@ -113,7 +125,7 @@ output:
     multiply: 255.0
 
   - platform: modbus_controller
-    id: rgb621_out_b
+    id: ${rgb_id}_out_b
     modbus_controller_id: ${rgb_id}
     address: 402
     register_type: holding
@@ -121,7 +133,7 @@ output:
     multiply: 255.0
 
   - platform: modbus_controller
-    id: rgb621_out_ww
+    id: ${rgb_id}_out_ww
     modbus_controller_id: ${rgb_id}
     address: 403
     register_type: holding
@@ -129,7 +141,7 @@ output:
     multiply: 255.0
 
   - platform: modbus_controller
-    id: rgb621_out_cw
+    id: ${rgb_id}_out_cw
     modbus_controller_id: ${rgb_id}
     address: 404
     register_type: holding
@@ -141,12 +153,12 @@ output:
 #############################################################
 light:
   - platform: rgbww
-    id: rgb_1_light
-    name: "RGB621 Light"
-    red: rgb621_out_r
-    green: rgb621_out_g
-    blue: rgb621_out_b
-    warm_white: rgb621_out_ww
-    cold_white: rgb621_out_cw
+    id: ${rgb_id}_light
+    name: "${rgb_prefix} Light"
+    red: ${rgb_id}_out_r
+    green: ${rgb_id}_out_g
+    blue: ${rgb_id}_out_b
+    warm_white: ${rgb_id}_out_ww
+    cold_white: ${rgb_id}_out_cw
     warm_white_color_temperature: 2700 K
     cold_white_color_temperature: 6500 K

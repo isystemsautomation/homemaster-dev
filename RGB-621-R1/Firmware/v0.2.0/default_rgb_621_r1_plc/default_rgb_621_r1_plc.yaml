@@ -1,9 +1,29 @@
+##
+## RGB-621-R1 — ESPHome Modbus package (v0.2.0)
+##
+## Include from your ESPHome YAML (set vars per module instance):
+##   packages:
+##     rgb1:
+##       url: ...
+##       vars:
+##         rgb_id: rgb1
+##         rgb_address: "3"
+##         rgb_prefix: "RGB Living"
+##
+
+substitutions:
+  rgb_id: rgb
+  rgb_address: "3"
+  rgb_prefix: "RGB"
+  rgb_update_interval: 1s
+  rgb_command_throttle: 0ms
+
 modbus_controller:
   - id: ${rgb_id}
     address: ${rgb_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: ${rgb_update_interval}
+    command_throttle: ${rgb_command_throttle}
 
 # ===================== Modbus map (RGB-621-R1 v0.2.0) =====================
 # Existing (unchanged):
@@ -62,8 +82,8 @@ switch:
 number:
   # -------- RGB Channels (0–255) --------
   - platform: modbus_controller
-    name: "RGB621 Red"
-    id: rgb621_red
+    name: "${rgb_prefix} Red"
+    id: ${rgb_id}_red
     modbus_controller_id: ${rgb_id}
     address: 400
     register_type: holding
@@ -73,8 +93,8 @@ number:
     step: 1
 
   - platform: modbus_controller
-    name: "RGB621 Green"
-    id: rgb621_green
+    name: "${rgb_prefix} Green"
+    id: ${rgb_id}_green
     modbus_controller_id: ${rgb_id}
     address: 401
     register_type: holding
@@ -84,8 +104,8 @@ number:
     step: 1
 
   - platform: modbus_controller
-    name: "RGB621 Blue"
-    id: rgb621_blue
+    name: "${rgb_prefix} Blue"
+    id: ${rgb_id}_blue
     modbus_controller_id: ${rgb_id}
     address: 402
     register_type: holding
