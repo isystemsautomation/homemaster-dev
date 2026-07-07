@@ -21,7 +21,8 @@
 ##   Discrete Inputs (FC02) 1..2, 60, 90..91 — legacy mirror, do not poll from ESPHome
 ##   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
 ##                    200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
-##   Holding (FC03): 400..404 PWM R,G,B,WW,CW (write via Light) · 480 MB addr · 481 MB baud
+##   Requires firmware v0.2.0 with MAP_VERSION=2 (IREG 0..4). Reflash RGB before ESPHome update.
+##   If slave is offline/wrong map, offline_skip_updates avoids blocking DIO/ENM on the bus.
 
 substitutions:
   rgb_id: rgb
@@ -30,6 +31,8 @@ substitutions:
   rgb_update_interval: 5s
   rgb_command_throttle: 50ms
   rgb_pwm_skip_updates: "65535"
+  rgb_offline_skip_updates: "10"
+  rgb_max_cmd_retries: "2"
 
 modbus_controller:
   - id: ${rgb_id}
@@ -37,6 +40,8 @@ modbus_controller:
     modbus_id: modbus_bus
     update_interval: ${rgb_update_interval}
     command_throttle: ${rgb_command_throttle}
+    offline_skip_updates: ${rgb_offline_skip_updates}
+    max_cmd_retries: ${rgb_max_cmd_retries}
 
 # ===================== Input Registers (FC04) @0..4 — one merged poll =====================
 binary_sensor:
@@ -210,3 +215,16 @@ light:
     cold_white: ${rgb_id}_out_cw
     warm_white_color_temperature: 2700 K
     cold_white_color_temperature: 6500 K
+
+# Identity IR @200..204 (FC04) — diagnostic only, rare poll
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Map version"
+    id: ${rgb_id}_map_version
+    internal: true
+    entity_category: diagnostic
+    register_type: read
+    address: 204
+    accuracy_decimals: 0
+    skip_updates: 60
