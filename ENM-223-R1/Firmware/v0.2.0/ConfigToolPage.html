@@ -1,8 +1,9 @@
-<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} -->
 <link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
-<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+<script src="simple-web-serial.min.js"></script>
+<script src="../../../_shared/hm-webconfig.js"></script>
 
-<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1200px;margin:auto;">
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
   <style>
     .cal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
     .cal-card{border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:1rem}
@@ -19,7 +20,6 @@
     .al-row .min,.al-row .max{flex:1 1 160px;min-width:140px}
     .al-hint{color:var(--muted2);font-size:.85rem;margin-top:-.15rem}
     .rly-alarm{border:1px dashed var(--border);border-radius:6px;padding:.5rem .75rem;background:#fff;margin-top:.5rem}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
     .lock-badge{font-size:.75rem;color:#0d6efd;margin-left:.35rem;display:none}
     .locked+.lock-badge{display:inline}
     .live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
@@ -62,10 +62,7 @@
 
   <div class="grid two">
     <section class="card">
-      <div class="cardheader">
-        <div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div>
-        <span class="tag">Step 1</span>
-      </div>
+      <div class="cardheader"><div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div><span class="tag">Step 1</span></div>
       <div class="cardbody">
         <div class="row">
           <div>
@@ -86,12 +83,8 @@
       </div>
     </section>
     <section class="card">
-      <div class="cardheader">
-        <div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div>
-      </div>
-      <div class="cardbody">
-        <div id="hm-log-box"><div id="hm-log"></div></div>
-      </div>
+      <div class="cardheader"><div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div></div>
+      <div class="cardbody"><div id="hm-log-box"><div id="hm-log"></div></div></div>
     </section>
   </div>
 
@@ -242,8 +235,6 @@
     </div>
   </section>
 
-  <script src="simple-web-serial.min.js"></script>
-  <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
     const $ = id => document.getElementById(id);
@@ -598,7 +589,7 @@
           <div>PF (tot)</div><div id="pft" style="text-align:right">--</div>
           <div>Freq (Hz)</div><div id="f" style="text-align:right">--</div>
           <div>Temp (°C)</div><div id="t" style="text-align:right">--</div>`;
-        card.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:.5rem;"><strong>${labels[ch]}</strong>${ch===3?'<span class="pill">totals</span>':''}</div><div class="kv">${ch<3?bodyPhase:bodyTotals}</div>`;
+        card.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:.5rem;"><strong>${labels[ch]}</strong>${ch===3?'<span class="tag">totals</span>':''}</div><div class="kv">${ch<3?bodyPhase:bodyTotals}</div>`;
         grid.appendChild(card);
       }
     })();
