@@ -49,7 +49,7 @@ static const uint8_t RELAY_PINS[1] = {PIN_RELAY1};              // Relay1
 static const uint8_t LED_PINS[2]   = {PIN_LED1, PIN_LED2};      // LED1..LED2
 static const uint8_t BTN_PINS[1]   = { PIN_BTN_SW2 };
 
-static const uint8_t PWM_PINS[5] = {
+const uint8_t PWM_PINS[NUM_PWM] = {
   PIN_PWM_R,  // 0 -> R
   PIN_PWM_G,  // 1 -> G
   PIN_PWM_B,  // 2 -> B
@@ -62,20 +62,12 @@ static const uint8_t NUM_DI   = 2;
 static const uint8_t NUM_RLY  = 1;
 static const uint8_t NUM_LED  = 2;
 static const uint8_t NUM_BTN  = 1;
-static const uint8_t NUM_PWM  = 5;
 static const uint8_t NUM_IN_CH = 2;
 static const uint8_t NUM_PHYS  = 3;       // DI1, DI2, SW2
 static const uint8_t NUM_SCENES = 4;
 static const uint8_t NUM_EVT_SRC = 3;
 
 enum RlyMode : uint8_t { RLY_MANUAL = 0, RLY_FOLLOW = 1 };
-
-struct PwmChCfg {
-  uint8_t minTrim;
-  uint8_t maxTrim;
-  uint16_t fadeMs;
-  uint8_t powerOn;
-};
 
 struct GroupCfg {
   uint8_t memberMask;
@@ -198,7 +190,7 @@ static const uint16_t OUT_STATE_VERSION = 0x0002;
 volatile bool   cfgDirty        = false;
 uint32_t        lastCfgTouchMs  = 0;
 const uint32_t  CFG_AUTOSAVE_MS = 1500;
-uint32_t        lastOutChangeMs = 0;
+volatile uint32_t lastOutChangeMs = 0;
 uint32_t        lastOutSaveMs   = 0;
 const uint32_t  OUT_AUTOSAVE_MS = 10000;
 bool            prevDesiredRelay[NUM_RLY] = {false};
@@ -1381,7 +1373,7 @@ void loop() {
     hmServiceMaintainedPhys(p, chIdx, cfg, inpRt[p], now);
     hmServiceMomentaryPhys(p, cfg, inpRt[p], inpTimings, allowLocal, g_dimToggleDir, evtCount, NUM_EVT_SRC, now);
   }
-  hmFinalizeClickGaps(inpRt, NUM_PHYS, inChCfg, NUM_IN_CH, btnChCfg, inpTimings, evtCount, now);
+  hmFinalizeClickGaps(inpRt, NUM_PHYS, inChCfg, NUM_IN_CH, btnChCfg, NUM_BTN, inpTimings, evtCount, now);
   serviceRelayFollow(now);
 
   // -------- Relays: drive outputs from desiredRelay + relay config ----------
@@ -1562,6 +1554,9 @@ void sendWebStatus() {
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   st["linkOk"] = linkOk ? 1 : 0;
+  WebSerial.send("status", st);
+}
+
 void sendWebBootstrap() {
   sendWebStatus();
   sendWebCfg();

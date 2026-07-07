@@ -4,6 +4,13 @@
 #include <Arduino.h>
 #include <math.h>
 
+#ifndef RGB_NUM_PWM
+#define RGB_NUM_PWM 5
+#endif
+#ifndef NUM_PWM
+#define NUM_PWM RGB_NUM_PWM
+#endif
+
 static const uint16_t PWM_HI = 4095;
 static const uint8_t  PWM_API_MAX = 255;
 
@@ -12,14 +19,19 @@ struct OutputQualityCfg {
   uint8_t gammaTenths; // 22 = gamma 2.2
 };
 
-struct PwmChCfg;
-extern PwmChCfg pwmChCfg[];
-extern const uint8_t NUM_PWM;
-extern const uint8_t PWM_PINS[];
-extern uint16_t pwmTarget[];
-extern uint16_t pwmCurrent[];
-extern uint16_t pwmLastNonZero[];
-extern uint32_t slewLastMs[];
+struct PwmChCfg {
+  uint8_t minTrim;
+  uint8_t maxTrim;
+  uint16_t fadeMs;
+  uint8_t powerOn;
+};
+
+extern PwmChCfg pwmChCfg[NUM_PWM];
+extern const uint8_t PWM_PINS[NUM_PWM];
+extern uint16_t pwmTarget[NUM_PWM];
+extern uint16_t pwmCurrent[NUM_PWM];
+extern uint16_t pwmLastNonZero[NUM_PWM];
+extern uint32_t slewLastMs[NUM_PWM];
 extern uint16_t g_gammaLut[PWM_HI + 1];
 extern OutputQualityCfg outQuality;
 extern volatile uint32_t lastOutChangeMs;
@@ -110,5 +122,4 @@ inline void pwmServiceSlew(uint32_t now) {
 
 inline uint16_t pwmDimStepHi(uint8_t dimStepPct) {
   return (uint16_t)((uint32_t)PWM_HI * (uint32_t)dimStepPct / 100u);
-  // dimStepPct is percent of full scale per hold tick (default 8 = 8%)
 }
