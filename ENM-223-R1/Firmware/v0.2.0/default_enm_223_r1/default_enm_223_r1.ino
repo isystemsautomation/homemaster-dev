@@ -2056,14 +2056,24 @@ static void wsDiagPrintRawAtm(uint32_t now) {
   const uint16_t fHiTh = g_atm.debugRead16(0x0D);
   const uint16_t fLoTh = g_atm.debugRead16(0x0C);
 
-  char buf[220];
+  const uint8_t m0 = g_chipEvMask[0];
+  const uint8_t m1 = g_chipEvMask[1];
+  const uint8_t m2 = g_chipEvMask[2];
+  const uint8_t m3 = g_chipEvMask[3];
+  JSONVar ev = chipEvMasksToJson();
+  String evSer = JSON.stringify(ev);
+
+  char buf[320];
   snprintf(buf, sizeof(buf),
            "DIAG EMM0=%04X EMM1=%04X INT0=%04X INT1=%04X | "
            "UPk=%04X/%04X/%04X IPk=%04X/%04X/%04X | "
-           "SagTh=%04X OVth=%04X PLth=%04X OIth=%04X FHi=%04X FLo=%04X",
+           "SagTh=%04X OVth=%04X PLth=%04X OIth=%04X FHi=%04X FLo=%04X | "
+           "mask=%02X/%02X/%02X/%02X ev=%s",
            emm0, emm1, int0, int1,
            uPkA, uPkB, uPkC, iPkA, iPkB, iPkC,
-           sagTh, ovTh, plTh, oiTh, fHiTh, fLoTh);
+           sagTh, ovTh, plTh, oiTh, fHiTh, fLoTh,
+           m0, m1, m2, m3,
+           evSer.c_str());
   wsLog(buf);
 }
 
