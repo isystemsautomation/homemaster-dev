@@ -527,7 +527,7 @@ Summarize steps in 3 phases:
 
 # 6. Modbus RTU Communication
 
-The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware **v0.2.1-dev**.
+The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware v0.2.0.
 
 **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
 
@@ -577,7 +577,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
 | **500–579** | **ENGINE_CFG** | — | Local input engine (see below) |
 
-### Holding block 500+ — local input engine (v0.2.1-dev)
+### Holding block 500+ — local input engine (v0.2.0)
 
 | Address | Name | Description |
 |---------|------|-------------|
@@ -604,7 +604,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 ---
 
-## 6.5 Local input logic (v0.2.1-dev)
+## 6.5 Local input logic (v0.2.0)
 
 Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-module — no master required for hold-to-dim.
 

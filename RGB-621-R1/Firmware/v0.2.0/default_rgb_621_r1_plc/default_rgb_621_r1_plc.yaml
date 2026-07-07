@@ -15,7 +15,7 @@
 ##         rgb_address: "3"
 ##         rgb_prefix: "RGB Living"
 ##
-## Modbus map (default_rgb_621_r1.ino v0.2.1-dev, MAP_VERSION=3):
+## Modbus map (default_rgb_621_r1.ino v0.2.0, MAP_VERSION=3):
 ##   Input Registers (FC04) 0..4 + 6..20:
 ##     0 DI_MASK · 1 RLY_MASK · 2 BTN_MASK (bit0=SW2) · 3 LED_MASK · 4 STATUS_FLAGS
 ##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/long/hold)

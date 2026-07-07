@@ -4,8 +4,8 @@
 #define HM_MODEL_ID   7
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
-#define HM_FW_PATCH   1
-#define HM_FW         "0.2.1-dev"
+#define HM_FW_PATCH   0
+#define HM_FW         "0.2.0"
 #define HM_MAP        3
 #define HM_MAP_VERSION 3
 #include <SimpleWebSerial.h>
@@ -661,7 +661,7 @@ void setup() {
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
 
-  wsLog("Boot OK (RGB v0.2.1-dev; 12-bit gamma+slew; HR500+ engine)");
+  wsLog("Boot OK (RGB v0.2.0; 12-bit gamma+slew; HR500+ engine)");
   sendWebBootstrap();
 
   // Apply restored PWM levels to outputs
