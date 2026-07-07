@@ -100,6 +100,10 @@ bool blinkPhase = false;
 uint32_t g_identifyUntilMs = 0;
 const uint32_t IDENTIFY_MS = 5000;
 
+// ================== Modbus linkOk detector (DIO-compatible) ==================
+static uint32_t g_lastLinkSeenMs = 0;
+static const uint16_t g_linkTimeoutMs = 5000;
+
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
@@ -117,21 +121,6 @@ struct PersistConfig {
   uint32_t crc32;
 } __attribute__((packed));
 
-struct RlyCfgV2 { bool enabled; bool inverted; };
-
-struct PersistConfigV2 {
-  uint32_t magic;  uint16_t version;  uint16_t size;
-  InCfg    diCfg[NUM_DI];
-  RlyCfgV2 rlyCfg[NUM_RLY];
-  LedCfg   ledCfg[NUM_LED];
-  BtnCfg   btnCfg[NUM_BTN];
-  bool     desiredRelay[NUM_RLY];
-  uint16_t pwmLevel[NUM_PWM];
-  uint8_t  mb_address;
-  uint32_t mb_baud;
-  uint32_t crc32;
-} __attribute__((packed));
-
 struct OutputStateSnapshot {
   uint32_t magic; uint16_t version; uint16_t size;
   bool     desiredRelay[NUM_RLY];
@@ -140,8 +129,8 @@ struct OutputStateSnapshot {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x52474231UL; // '1BGR'
-static const uint16_t CFG_VERSION = 0x0003;       // Phase B: powerOn, output state decoupled
-static const uint16_t CFG_VERSION_V2 = 0x0002;
+// Config version tied to firmware: any FW update invalidates stored config.
+static const uint16_t CFG_VERSION = (uint16_t)((HM_FW_MAJOR << 12) | (HM_FW_MINOR << 4) | HM_FW_PATCH);
 static const char*    CFG_PATH    = "/cfg_rgb.bin";
 static const char*    OUT_STATE_PATH = "/cfg_out.bin";
 static const uint32_t OUT_STATE_MAGIC = 0x484D4F53UL; // 'HMOS'
@@ -257,27 +246,6 @@ void captureToPersist(PersistConfig &pc) {
   pc.crc32 = 0; pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
 }
 
-bool applyFromPersistV2(const PersistConfigV2 &pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV2)) return false;
-  PersistConfigV2 tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV2)) != crc) return false;
-  if (pc.version != CFG_VERSION_V2) return false;
-  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
-  for (int i = 0; i < NUM_RLY; i++) rlyCfg[i] = { pc.rlyCfg[i].enabled, pc.rlyCfg[i].inverted, HM_PWR_OFF };
-  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
-  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
-  for (int i = 0; i < NUM_PWM; i++) pwmPowerOn[i] = HM_PWR_OFF;
-  g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
-  OutputStateSnapshot snap{};
-  snap.magic = OUT_STATE_MAGIC; snap.version = OUT_STATE_VERSION; snap.size = sizeof(OutputStateSnapshot);
-  memcpy(snap.desiredRelay, pc.desiredRelay, sizeof(snap.desiredRelay));
-  memcpy(snap.pwmLevel, pc.pwmLevel, sizeof(snap.pwmLevel));
-  snap.crc32 = 0; snap.crc32 = crc32_update(0, (const uint8_t*)&snap, sizeof(snap));
-  File f = LittleFS.open(OUT_STATE_PATH, "w");
-  if (f) { f.write((const uint8_t*)&snap, sizeof(snap)); f.flush(); f.close(); }
-  return true;
-}
-
 bool applyFromPersist(const PersistConfig &pc) {
   if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfig)) return false;
   PersistConfig tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
@@ -313,15 +281,7 @@ bool saveConfigFS() {
 }
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r"); if (!f) { wsLog("load: open failed"); return false; }
-  size_t sz = f.size();
-  if (sz == sizeof(PersistConfigV2)) {
-    PersistConfigV2 pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
-    if (n != sizeof(pc)) { wsLog("load: short read (v2)"); return false; }
-    if (!applyFromPersistV2(pc)) { wsLog("load: v2 magic/version/crc mismatch"); return false; }
-    cfgDirty = true; lastCfgTouchMs = millis();
-    return true;
-  }
-  if (sz != sizeof(PersistConfig)) { wsLog(String("load: size ")+sz+" unsupported"); f.close(); return false; }
+  if ((size_t)f.size() != sizeof(PersistConfig)) { wsLog(String("load: size ")+f.size()+" unsupported"); f.close(); return false; }
   PersistConfig pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
   if (n != sizeof(pc)) { wsLog("load: short read"); return false; }
   if (!applyFromPersist(pc)) { wsLog("load: magic/version/crc mismatch"); return false; }
@@ -335,6 +295,11 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
 inline void setSlaveIdIfAvailable(...) {}
 
 // ================== Modbus addresses ==================
+// Input Registers (FC=04)
+enum : uint16_t {
+  IREG_STATUS_FLAGS = 4   // bit1=linkOk, bit3=cfgDirty
+};
+
 // Discrete Inputs (FC=02)
 enum : uint16_t {
   ISTS_DI_BASE   = 1,   // 1..2 : IN1..IN2 (after enable+invert)
@@ -344,6 +309,9 @@ enum : uint16_t {
 
 // Command Coils (FC=05/15; pulses)
 enum : uint16_t {
+  COIL_IDENTIFY   = 5,
+  COIL_SAVE_CFG   = 6,
+  COIL_REBOOT     = 7,
   CMD_RLY_ON_BASE   = 200,  // 200..200 : pulse turn Relay1 ON
   CMD_RLY_OFF_BASE  = 210,  // 210..210 : pulse turn Relay1 OFF
   CMD_DI_EN_BASE    = 300,  // 300..301 : pulse ENABLE  IN1..IN2
@@ -368,6 +336,8 @@ void sendWebStatus();
 void sendWebCfg();
 void sendWebBootstrap();
 void processModbusCommandPulses();
+void updateLinkOkDetector(uint32_t now);
+void updateInputRegisters(uint32_t now);
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 void applyPwmFromHoldingRegs();
 void analogWriteClamp(uint8_t pin, uint16_t level);
@@ -401,7 +371,12 @@ void setup() {
   for (uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
-  // ==== Modbus command pulses (coils) ====
+  mb.addIreg(IREG_STATUS_FLAGS);
+
+  // ==== Modbus service + command pulses (coils) ====
+  mb.addCoil(COIL_IDENTIFY); mb.setCoil(COIL_IDENTIFY, false);
+  mb.addCoil(COIL_SAVE_CFG); mb.setCoil(COIL_SAVE_CFG, false);
+  mb.addCoil(COIL_REBOOT);   mb.setCoil(COIL_REBOOT, false);
   for (uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE  + i);  mb.setCoil(CMD_RLY_ON_BASE  + i, false); }
   for (uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_OFF_BASE + i);  mb.setCoil(CMD_RLY_OFF_BASE + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++)  { mb.addCoil(CMD_DI_EN_BASE   + i);  mb.setCoil(CMD_DI_EN_BASE   + i, false); }
@@ -413,6 +388,8 @@ void setup() {
   mb.addHreg(HR_MB_BAUD); mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+
+  g_lastLinkSeenMs = millis();
 
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
@@ -628,8 +605,58 @@ void handleUnifiedConfig(JSONVar obj) {
   }
 }
 
+// ================== Modbus link / status ==================
+static const uint16_t kLinkWatchCoils[] = {
+  COIL_IDENTIFY, COIL_SAVE_CFG, COIL_REBOOT,
+  CMD_RLY_ON_BASE, CMD_RLY_OFF_BASE,
+  (uint16_t)(CMD_DI_EN_BASE + 0), (uint16_t)(CMD_DI_EN_BASE + 1),
+  (uint16_t)(CMD_DI_DIS_BASE + 0), (uint16_t)(CMD_DI_DIS_BASE + 1),
+};
+static bool coilSnapBefore[sizeof(kLinkWatchCoils) / sizeof(kLinkWatchCoils[0])] = {false};
+
+static inline bool linkOkNow(uint32_t now) {
+  return ((uint32_t)(now - g_lastLinkSeenMs) < (uint32_t)g_linkTimeoutMs);
+}
+
+void updateLinkOkDetector(uint32_t now) {
+  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
+  for (uint8_t i = 0; i < (uint8_t)(sizeof(kLinkWatchCoils) / sizeof(kLinkWatchCoils[0])); i++) {
+    const uint16_t addr = kLinkWatchCoils[i];
+    const bool c = mb.Coil(addr);
+    if (c != coilSnapBefore[i]) {
+      coilSnapBefore[i] = c;
+      g_lastLinkSeenMs = now;
+    }
+  }
+}
+
+void updateInputRegisters(uint32_t now) {
+  uint16_t status = 0;
+  if (linkOkNow(now)) status |= (1 << 1);
+  if (cfgDirty)       status |= (1 << 3);
+  mb.setIreg(IREG_STATUS_FLAGS, status);
+}
+
 // ================== Modbus command pulses ==================
 void processModbusCommandPulses() {
+  const uint32_t now = millis();
+
+  if (mb.Coil(COIL_IDENTIFY)) {
+    mb.setCoil(COIL_IDENTIFY, false);
+    g_identifyUntilMs = now + IDENTIFY_MS;
+  }
+  if (mb.Coil(COIL_SAVE_CFG)) {
+    mb.setCoil(COIL_SAVE_CFG, false);
+    if (saveConfigFS()) { wsLog("Configuration saved"); cfgDirty = false; }
+    else wsLog("ERROR: Save failed");
+  }
+  if (mb.Coil(COIL_REBOOT)) {
+    mb.setCoil(COIL_REBOOT, false);
+    wsLog("Rebooting…");
+    delay(50);
+    performReset();
+  }
+
   // Relay ON/OFF
   for (int r=0; r<NUM_RLY; r++) {
     if (mb.Coil(CMD_RLY_ON_BASE + r))  { mb.setCoil(CMD_RLY_ON_BASE + r,  false); desiredRelay[r] = true;  rlyPulseUntil[r] = 0; }
@@ -685,7 +712,12 @@ void loop() {
   hmWatchdogFeed();
   unsigned long now = millis();
 
+  for (uint8_t i = 0; i < (uint8_t)(sizeof(kLinkWatchCoils) / sizeof(kLinkWatchCoils[0])); i++)
+    coilSnapBefore[i] = mb.Coil(kLinkWatchCoils[i]);
+  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
+
   mb.task();                     // Modbus polling
+  updateLinkOkDetector(now);
   processModbusCommandPulses();  // consume pulses
 
   // Monitor for external Modbus writes to PWM registers
@@ -815,6 +847,7 @@ void loop() {
   }
 
   // -------- WebSerial UI updates --------
+  updateInputRegisters(now);
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
@@ -848,12 +881,15 @@ JSONVar LedConfigListFromCfg() {
 }
 
 void sendWebStatus() {
+  const uint32_t now = millis();
+  const bool linkOk = linkOkNow(now);
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
   st["map"]   = HM_MAP;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
+  st["linkOk"] = linkOk ? 1 : 0;
   WebSerial.send("status", st);
 }
 

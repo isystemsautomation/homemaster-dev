@@ -5,13 +5,59 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
-# ===================== Discrete Inputs (FC02) =====================
+# ===================== Modbus map (RGB-621-R1 v0.2.0) =====================
+# Existing (unchanged):
+#   Discrete Inputs (FC02): 1..2 DI · 60 relay · 90..91 LED
+#   Coils (FC05/15): 200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
+#   Holding (FC03): 400..404 PWM R,G,B,WW,CW · 480 MB addr · 481 MB baud
+# New additions:
+#   Input Register (FC04): 4 STATUS_FLAGS (bit1=linkOk, bit3=cfgDirty)
+#   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
+
+# ===================== Input Registers (FC04) =====================
 binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Link OK"
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Config dirty"
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+# ===================== Discrete Inputs (FC02) =====================
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} DI1"
     address: 1
     register_type: discrete_input
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_identify
+    register_type: coil
+    address: 5
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_save_cfg
+    register_type: coil
+    address: 6
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_reboot
+    register_type: coil
+    address: 7
+    internal: true
+    assumed_state: true
 
 number:
   # -------- RGB Channels (0–255) --------
@@ -47,3 +93,17 @@ number:
     min_value: 0
     max_value: 255
     step: 1
+
+button:
+  - platform: template
+    name: "${rgb_prefix} Identify"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_identify
+  - platform: template
+    name: "${rgb_prefix} Save config"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_save_cfg
+  - platform: template
+    name: "${rgb_prefix} Reboot"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_reboot
