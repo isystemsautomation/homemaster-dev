@@ -286,8 +286,7 @@ static const unsigned long bootstrapInterval = 10000;
 static bool webHostConnected = false;
 
 static void sendWebCfgCore();
-static void sendEnmSyncWeb();
-static void sendEnmMeterEcho();
+static void sendWebExt();
 static void sendWebIo(const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
 static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState);
 static void serviceMeterWeb(unsigned long now);
@@ -389,6 +388,11 @@ enum : uint16_t {
   IR_E_BASE     = 60,
   // New: status flags (bit1=linkOk, bit3=cfgDirty) — placed after energy block, does not shift existing IR map.
   IR_STATUS_FLAGS = 100,
+  // Chip PQ event masks (U16 bitfield): 101=L1, 102=L2, 103=L3, 104=Total
+  IR_CHIP_EV_L1   = 101,
+  IR_CHIP_EV_L2   = 102,
+  IR_CHIP_EV_L3   = 103,
+  IR_CHIP_EV_TOT  = 104,
   HR_MB_ADDR    = 0,
   HR_MB_BAUD_L  = 1,
   HR_LINE_HZ    = 4,
@@ -716,11 +720,19 @@ static void alarmUpdateChipMasks() {
   if (g_chipEv.revPhase) g_chipEvMask[3] |= CHIP_EV_REV_PHASE;
 }
 
+static void chipEvPublishModbus() {
+  mb.Ireg(IR_CHIP_EV_L1,  g_chipEvMask[0]);
+  mb.Ireg(IR_CHIP_EV_L2,  g_chipEvMask[1]);
+  mb.Ireg(IR_CHIP_EV_L3,  g_chipEvMask[2]);
+  mb.Ireg(IR_CHIP_EV_TOT, g_chipEvMask[3]);
+}
+
 static void alarmSampleChipDiag() {
   if (atmBusy || meter_job) return;
   const M90DiagRegs d = g_atm.readDiag();
   decodeM90ChipEv(d, g_chipEv);
   alarmUpdateChipMasks();
+  chipEvPublishModbus();
   for (int ch = 0; ch < 4; ch++)
     alarmRun[ch].chipActive = g_chipEvMask[ch] != 0;
 }
@@ -887,7 +899,7 @@ static void handleAlarmsCfg(JSONVar obj) {
   }
   markCfgDirty();
   sendWebCfg();
-  WebSerial.send("AlarmsState", alarmsStateToJson());
+  sendWebExt();
   wsLog("Alarm configuration updated");
 }
 
@@ -904,7 +916,7 @@ static void handleAlarmsAck(JSONVar obj) {
     alarmAckAll();
   }
   alarmPublishModbus();
-  WebSerial.send("AlarmsState", alarmsStateToJson());
+  sendWebExt();
   wsLog("Alarms acknowledged");
 }
 
@@ -1754,7 +1766,7 @@ void handleUnifiedConfig(JSONVar obj) {
     markCfgDirty();
     sendWebCfg();
     if (type == "alarm" || type == "alarms" || type == "AlarmsCfg")
-      WebSerial.send("AlarmsState", alarmsStateToJson());
+      sendWebExt();
   }
 }
 
@@ -1805,13 +1817,12 @@ static void sendWebCfgCore() {
   yield();
 }
 
-static void sendEnmSyncWeb() {
-  WebSerial.send("ENM_Sync", energyToJsonObj());
-  yield();
-}
-
-static void sendEnmMeterEcho() {
-  WebSerial.send("ENM_Meter", meterLiveToJson());
+static void sendWebExt() {
+  JSONVar ext;
+  if (g_haveMeter) ext["meter"] = meterLiveToJson();
+  ext["energy"] = energyToJsonObj();
+  ext["alarms"] = alarmsStateToJson();
+  WebSerial.send("ext", ext);
   yield();
 }
 
@@ -1824,32 +1835,20 @@ static void sendWebIo(const bool* relayLogical, const bool* buttonState, const b
   yield();
 }
 
-// Small frames only: status / io / alarms. Meter uses v0.1 ENM_Meter on its own 1 Hz tick.
+// Small frames: status / io rotate; meter+energy+alarms via ext on 1 Hz tick.
 static void serviceWebTelemetry(unsigned long now, const bool* relayLogical, const bool* buttonState, const bool* ledPhysState) {
   if (now - lastWebFrameMs < webFrameIntervalMs) return;
   lastWebFrameMs = now;
 
-  switch (webFramePhase) {
-    case 0:
-      sendWebStatus();
-      break;
-    case 1:
-      sendWebIo(relayLogical, buttonState, ledPhysState);
-      break;
-    case 2:
-      WebSerial.send("AlarmsState", alarmsStateToJson());
-      yield();
-      break;
-    default:
-      break;
-  }
-  webFramePhase = (uint8_t)((webFramePhase + 1) % 3);
+  if (webFramePhase == 0) sendWebStatus();
+  else sendWebIo(relayLogical, buttonState, ledPhysState);
+  webFramePhase = (uint8_t)(!webFramePhase);
 }
 
 static void serviceMeterWeb(unsigned long now) {
-  if (!g_haveMeter || (now - lastMeterWebMs < meterWebIntervalMs)) return;
+  if (now - lastMeterWebMs < meterWebIntervalMs) return;
   lastMeterWebMs = now;
-  sendEnmMeterEcho();
+  sendWebExt();
 }
 
 // v0.1.0 pushWebConfigPeriodic: status + cfg in small steps with yield between frames.
@@ -1862,12 +1861,9 @@ static void pushWebConfigPeriodic() {
 void sendWebBootstrap() {
   sendWebStatus();
   yield();
-  sendEnmSyncWeb();
-  if (g_haveMeter) sendEnmMeterEcho();
+  sendWebExt();
   yield();
   sendWebCfgCore();
-  yield();
-  WebSerial.send("AlarmsState", alarmsStateToJson());
   yield();
 }
 
