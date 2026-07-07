@@ -585,7 +585,15 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | 505 | Safe flags | bit0 = allowLocalWhenOffline |
 | 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
 | 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
-| 531–536 | Groups | RGB/CCT memberMask, dimStepPct, holdRampMs |
+| 531 | *(reserved)* | Former RGB memberMask — do not use |
+| 532 | **dimStepPct** | Hold-to-dim step % (1–25, default 8); RGB + CCT groups |
+| 533 | **holdRampMs** | Dimming speed ms/step (20–500, default 60) |
+| 534 | *(reserved)* | Former CCT memberMask — do not use |
+| 535 | **dimStepPct** | Mirror of HR 532 (legacy CCT offset) |
+| 536 | **holdRampMs** | Mirror of HR 533 (legacy CCT offset) |
+
+Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware and is not configurable. Only **dimStepPct** (HR 532) and **holdRampMs** (HR 533) tune hold-to-dim for both groups.
+
 | 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
 | 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/long/hold (`action<<8|target`) |
 | 560–579 | Scenes[4][5] | Preset channel levels (0–255 API) |
@@ -614,7 +622,13 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 | **DI2** | Toggle Group CCT | Set 100% Group CCT | Dim Group CCT |
 | **SW2** | Toggle All | — | — (long = Identify blink) |
 
-**Hold-to-dim:** after `holdDelayMs` (default 500 ms), brightness ramps every `holdRepeatMs` (60 ms) until release; levels clamp to per-channel min/max trim and are saved (throttled) for RESTORE_LAST.
+**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps every `holdRampMs` / `holdRepeatMs` (default **60 ms** per step, HR 533) until release.
+
+**Gesture targets** (WebConfig / `action<<8|target`): **7** = Group RGB (R,G,B), **8** = Group CCT (WW,CW), **10** = RGB+CCT (both groups in lockstep), **1** = Relay1, **9** = All. Per-channel PWM targets remain internal-only.
+
+**Gesture actions:** Toggle, On, Off, Dim up/down/toggle-dir, Set 100%, Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target ignored), Identify (**11**, onboard SW2 only). Legacy action **4** (All off) maps to Off+All.
+
+**Scenes:** four presets (HR **560–579**); Scene *n* recalls `applyScene(n−1)`.
 
 **Relay1 FOLLOW:** when mode=FOLLOW, relay energizes while any watched group is on; after all outputs reach zero, relay opens after `offDelayMs` (default 45 s) — typical LED PSU cut.
 
@@ -636,7 +650,7 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
 | Read press counters (DI1 singles) | FC04 IR **6** |
-| Configure DI1 hold action | HR **545** (`action<<8|target`) |
+| Configure DI1 hold action | HR **545** (`action<<8|target`; target 7=RGB, 8=CCT, 10=RGB+CCT) |
 
 ---
 

@@ -14,6 +14,19 @@
 static const uint16_t PWM_HI = 4095;
 static const uint8_t  PWM_API_MAX = 255;
 
+// Fixed group channel sets (RGB-621-R1 hardware — not configurable)
+static const uint8_t HM_GRP_RGB_CH_FIRST = 0;
+static const uint8_t HM_GRP_RGB_CH_COUNT = 3;  // R, G, B
+static const uint8_t HM_GRP_CCT_CH_FIRST = 3;
+static const uint8_t HM_GRP_CCT_CH_COUNT = 2;  // WW, CW
+
+struct DimCfg {
+  uint8_t dimStepPct;   // hold-to-dim step % (1..25)
+  uint16_t holdRampMs;  // dimming speed ms/step (20..500)
+};
+
+extern DimCfg dimCfg;
+
 struct OutputQualityCfg {
   bool gammaEnable;
   uint8_t gammaTenths; // 22 = gamma 2.2

@@ -16,6 +16,17 @@
     .btn-seg-active{background:#2563eb !important;color:#fff !important;border-color:#2563eb !important}
     #btn-off.btn-seg-active{background:#111827 !important;border-color:#111827 !important}
     .pwm-pwr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px}
+    #io-inputs{align-items:start}
+    #io-inputs .input-mode-card,#io-btn .input-mode-card{margin-bottom:10px;padding-bottom:20px}
+    .input-mode-card .mode-row{position:relative;z-index:3;margin-bottom:20px}
+    .input-mode-card .mode-row select{width:100%;display:block}
+    .input-mode-card .maintained-row{margin-bottom:14px}
+    .input-mode-card .maintained-hint{margin:6px 0 0;font-size:12px;color:#6b7280}
+    .input-mode-card .gesture-rows{margin-top:10px;position:relative;z-index:1}
+    .input-mode-card .split-gest{grid-template-columns:1fr 1fr}
+    .input-mode-card .split-gest>div{min-width:0}
+    .input-mode-card .split-gest select{width:100%;max-width:100%}
+    @media(max-width:640px){.input-mode-card .split-gest{grid-template-columns:1fr}}
   </style>
 
   <header class="appbar">
@@ -116,7 +127,7 @@
     </div>
   </section>
 
-  <div class="sectiontitle"><h3>Wall-switch inputs (DI1, DI2)</h3><p class="hint">Per-gesture action and target — hold-to-dim runs locally on the module.</p></div>
+  <div class="sectiontitle"><h3>Wall-switch inputs (DI1, DI2)</h3><p class="hint">Momentary: gestures and hold-to-dim. Maintained: output follows contact (closed = ON, open = OFF).</p></div>
   <section class="card"><div class="cardbody"><div id="io-inputs"></div></div></section>
 
   <div class="sectiontitle"><h3>Onboard button (SW2 / GPIO1)</h3></div>
@@ -129,7 +140,7 @@
   <div class="sectiontitle"><h3>PWM channels</h3><p class="hint">Min/max trim, fade, and power-on per channel.</p></div>
   <section class="card"><div class="cardbody" id="io-pwm"></div></section>
 
-  <div class="sectiontitle"><h3>Groups</h3></div>
+  <div class="sectiontitle"><h3>Dimming</h3><p class="hint">Hold-to-dim on wall switches. Group RGB = Red, Green, Blue · Group CCT = Warm white, Cool white (fixed by module hardware).</p></div>
   <section class="card"><div class="cardbody" id="io-groups"></div></section>
 
   <div class="sectiontitle"><h3>Scenes</h3></div>
@@ -155,32 +166,74 @@
     const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
     const EVT_NAMES = ['Single','Double','Triple','Long','Hold'];
     const SRC_NAMES = ['DI1','DI2','SW2'];
-    const ACT_OPTS = [
-      {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'},
+    const ACT_DI_OPTS = [
+      {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},
       {v:5,l:'Dim up'},{v:6,l:'Dim down'},{v:7,l:'Dim toggle dir'},{v:8,l:'Set 100%'},
-      {v:9,l:'Relay pulse'},{v:10,l:'Scene'},{v:11,l:'Identify'}
+      {v:9,l:'Relay pulse'},
+      {v:10,l:'Scene 1'},{v:12,l:'Scene 2'},{v:13,l:'Scene 3'},{v:14,l:'Scene 4'}
     ];
+    const ACT_BTN_OPTS = ACT_DI_OPTS.concat([{v:11,l:'Identify'}]);
     const TGT_OPTS = [
-      {v:0,l:'None'},{v:1,l:'Relay1'},{v:2,l:'R'},{v:3,l:'G'},{v:4,l:'B'},
-      {v:5,l:'WW'},{v:6,l:'CW'},{v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:9,l:'All'}
+      {v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:10,l:'RGB+CCT'},
+      {v:1,l:'Relay1'},{v:9,l:'All'}
     ];
     const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
-    const actSel = (id, val) => `<select id="${id}">${optHtml(ACT_OPTS, val||0)}</select>`;
-    const tgtSel = (id, val) => `<select id="${id}">${optHtml(TGT_OPTS, val||0)}</select>`;
-    function uiActTarget(action, target) {
-      if (action === 4) return { action: 3, target: 0 };
-      return { action: action ?? 0, target: target ?? 0 };
+    const actSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val||0)}</select>`;
+    const tgtSel = (id, val) => `<select id="${id}">${optHtml(TGT_OPTS, val??7)}</select>`;
+    function normGesture(obj){
+      if(!obj) return {action:0,target:0};
+      let a=obj.action??0, t=obj.target??0;
+      if(a===4){ a=3; t=9; }
+      if(a===10&&t>0&&t<4){ a=[10,12,13,14][t]; t=0; }
+      if(a===9) t=1;
+      if(a>=10&&a<=14) t=0;
+      if(a===11) t=0;
+      if(a===0) t=0;
+      return {action:a,target:t};
     }
-    function syncActTargetVis(actId, tgtId) {
-      const act = $(actId), tgt = $(tgtId);
-      if (!act || !tgt) return;
-      tgt.style.display = act.value === '0' ? 'none' : '';
+    function gestureNeedsTarget(act){
+      const a=parseInt(act,10);
+      if(!a||a===9||a===11) return false;
+      if(a>=10&&a<=14) return false;
+      return true;
     }
-    function wireActTarget(actId, tgtId) {
-      const act = $(actId);
-      if (!act) return;
-      act.addEventListener('change', () => syncActTargetVis(actId, tgtId));
+    function syncActTargetVis(actId, tgtId){
+      const act=$(actId), tgt=$(tgtId);
+      if(!act||!tgt) return;
+      const show=gestureNeedsTarget(act.value);
+      tgt.style.display=show?'':'none';
+      tgt.disabled=!show;
+    }
+    function wireActTarget(actId, tgtId){
+      const act=$(actId);
+      if(!act) return;
+      act.addEventListener('change', ()=>syncActTargetVis(actId, tgtId));
       syncActTargetVis(actId, tgtId);
+    }
+    function gestPayload(actId, tgtId){
+      const g=normGesture({action:parseInt($(actId)?.value||'0',10),target:parseInt($(tgtId)?.value||'0',10)});
+      return g;
+    }
+    function normInMode(v){ return (v===1||v===2)?1:0; }
+    function syncInputModeUi(idpfx){
+      const maintained=parseInt($('mode-'+idpfx)?.value||'0',10)===1;
+      const gest=$('gestures-'+idpfx), maint=$('maintained-'+idpfx);
+      if(gest) gest.hidden=maintained;
+      if(maint) maint.hidden=!maintained;
+    }
+    function onModeChange(idpfx, isBtn){
+      if(parseInt($('mode-'+idpfx)?.value||'0',10)===1){
+        const src=$('single-'+idpfx+'-tgt'), dst=$('maint-'+idpfx+'-tgt');
+        if(src&&dst) dst.value=src.value;
+      }
+      syncInputModeUi(idpfx);
+      if(isBtn) HMWebConfig.sendConfig('btn.mode',[parseInt($('mode-'+idpfx).value,10)]);
+      else sendInputMode();
+    }
+    function sendMaintTarget(idpfx, isBtn){
+      const tgt=parseInt($('maint-'+idpfx+'-tgt')?.value||'7',10);
+      const act=parseInt($('single-'+idpfx+'-act')?.value||'2',10);
+      HMWebConfig.sendConfig((isBtn?'btn':'in')+'.single',[{action:act,target:tgt}]);
     }
     const PWM_NAMES = ['Red','Green','Blue','Warm White','Cool White'];
     const PWM_IDS = ['r','g','b','ww','cw'];
@@ -235,7 +288,7 @@
         if($('glob-debounce')) $('glob-debounce').value=g.debounceMs??25;
         if($('glob-longpress')) $('glob-longpress').value=g.longPressMs??700;
         if($('glob-multiclick')) $('glob-multiclick').value=g.multiClickGapMs??350;
-        if($('glob-holddelay')) $('glob-holddelay').value=g.holdDelayMs??500;
+        if($('glob-holddelay')) $('glob-holddelay').value=g.holdDelayMs??650;
         if($('glob-holdrepeat')) $('glob-holdrepeat').value=g.holdRepeatMs??60;
         if($('glob-offline')) $('glob-offline').checked=!!(g.allowLocalWhenOffline??1);
       }
@@ -249,15 +302,9 @@
         if($('trim-max-'+i)) $('trim-max-'+i).value=p.maxTrim??255;
         if($('fade-'+i)) $('fade-'+i).value=p.fadeMs??p.transitionMs??400;
       }
-      if(cfg.group?.rgb){
-        if($('grp-rgb-mask')) $('grp-rgb-mask').value=cfg.group.rgb.memberMask??7;
-        if($('grp-rgb-step')) $('grp-rgb-step').value=cfg.group.rgb.dimStepPct??8;
-        if($('grp-rgb-ramp')) $('grp-rgb-ramp').value=cfg.group.rgb.holdRampMs??60;
-      }
-      if(cfg.group?.cct){
-        if($('grp-cct-mask')) $('grp-cct-mask').value=cfg.group.cct.memberMask??24;
-        if($('grp-cct-step')) $('grp-cct-step').value=cfg.group.cct.dimStepPct??8;
-        if($('grp-cct-ramp')) $('grp-cct-ramp').value=cfg.group.cct.holdRampMs??60;
+      if(cfg.dim){
+        if($('grp-dim-step')) $('grp-dim-step').value=cfg.dim.dimStepPct??8;
+        if($('grp-dim-speed')) $('grp-dim-speed').value=cfg.dim.holdRampMs??60;
       }
       if(cfg.scenes){
         for(let s=0;s<NUM_SCENES;s++){
@@ -271,11 +318,15 @@
         if(!o) return;
         if($('enable-'+pfx+n)) $('enable-'+pfx+n).checked=!!(o.enabled??1);
         if($('invert-'+pfx+n)) $('invert-'+pfx+n).checked=!!o.invert;
-        if($('mode-'+pfx+n)) $('mode-'+pfx+n).value=o.mode??0;
+        if($('mode-'+pfx+n)) $('mode-'+pfx+n).value=normInMode(o.mode??0);
         if($('lock-'+pfx+n)) $('lock-'+pfx+n).checked=!!o.lockLocal;
-        const g=(pre,obj)=>{ if(!obj) return; const a=$(pre+pfx+n+'-act'), t=$(pre+pfx+n+'-tgt');
-          if(a) a.value=obj.action??0; if(t) t.value=obj.target??0; syncActTargetVis(pre+pfx+n+'-act', pre+pfx+n+'-tgt'); };
+        const g=(pre,obj)=>{ if(!obj) return; const n=normGesture(obj);
+          const a=$(pre+pfx+n+'-act'), t=$(pre+pfx+n+'-tgt');
+          if(a) a.value=n.action; if(t) t.value=n.target;
+          syncActTargetVis(pre+pfx+n+'-act', pre+pfx+n+'-tgt'); };
         g('single-', o.single); g('double-', o.double); g('long-', o.long); g('hold-', o.hold);
+        if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=normGesture(o.single).target;
+        syncInputModeUi(pfx+n);
       };
       for(let i=0;i<NUM_IN_CH;i++) bindIn('in', cfg.in?.[i], i+1);
       for(let i=0;i<NUM_BTN;i++) bindIn('btn', cfg.btn?.[i], i+1);
@@ -321,7 +372,7 @@
         </div>
         <div class="row" style="margin-top:10px">
           <div><label for="glob-multiclick">Double-click gap, ms</label><input type="number" id="glob-multiclick" min="50" max="2000" value="350" style="width:100%"></div>
-          <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="500" style="width:100%"></div>
+          <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="650" style="width:100%"></div>
         </div>
         <div class="row" style="margin-top:10px">
           <div><label for="glob-holdrepeat">Hold repeat, ms</label><input type="number" id="glob-holdrepeat" min="20" max="500" value="60" style="width:100%"></div>
@@ -337,36 +388,46 @@
       c.innerHTML=`<p class="sub">Safe levels applied when Modbus link is lost.</p><label class="check"><input type="checkbox" id="safe-offline" checked> Allow wall switches when offline</label><div class="pwm-pwr-grid" style="margin-top:10px">${rows}</div>`;
     })();
 
-    function buildGestureCard(idpfx, label, defaults){
-      const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained toggle'},{v:2,l:'Maintained follow'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+    function buildGestureCard(idpfx, label, defaults, isBtn){
+      const actOpts=isBtn?ACT_BTN_OPTS:ACT_DI_OPTS;
+      const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       const d=defaults||{};
-      return `<div class="iocard tint-input">
+      const gs=(pre,obj)=>{ const n=normGesture(obj||{}); return `${actSel(pre+'-act',n.action,actOpts)}${tgtSel(pre+'-tgt',n.target)}`; };
+      return `<div class="iocard tint-input input-mode-card">
         <div class="iotop"><span class="ioid">${label}</span><span class="ioBadge badgeState"><span id="state-${idpfx}" class="state-dot dot-off"></span></span></div>
         <div class="checkRow">
           <label class="check"><input type="checkbox" id="enable-${idpfx}" checked> Enabled</label>
           <label class="check"><input type="checkbox" id="invert-${idpfx}"> Inverted</label>
           <label class="check"><input type="checkbox" id="lock-${idpfx}"> Child lock</label>
         </div>
-        <div><label for="mode-${idpfx}">Mode</label><select id="mode-${idpfx}">${modeOpts}</select></div>
-        <div class="split" style="margin-top:8px"><div><label>Single</label>${actSel('single-'+idpfx+'-act',d.single?.action)}${tgtSel('single-'+idpfx+'-tgt',d.single?.target)}</div>
-        <div><label>Double</label>${actSel('double-'+idpfx+'-act',d.double?.action)}${tgtSel('double-'+idpfx+'-tgt',d.double?.target)}</div></div>
-        <div class="split" style="margin-top:8px"><div><label>Long</label>${actSel('long-'+idpfx+'-act',d.long?.action)}${tgtSel('long-'+idpfx+'-tgt',d.long?.target)}</div>
-        <div><label>Hold</label>${actSel('hold-'+idpfx+'-act',d.hold?.action??7)}${tgtSel('hold-'+idpfx+'-tgt',d.hold?.target??7)}</div></div></div>`;
+        <div class="mode-row"><label for="mode-${idpfx}">Mode</label><select id="mode-${idpfx}">${modeOpts}</select></div>
+        <div id="maintained-${idpfx}" class="maintained-row" hidden>
+          <label for="maint-${idpfx}-tgt">Output target</label>${tgtSel('maint-'+idpfx+'-tgt',normGesture(d.single).target)}
+          <p class="sub maintained-hint">Contact closed = ON, open = OFF</p>
+        </div>
+        <div id="gestures-${idpfx}" class="gesture-rows">
+          <div class="split split-gest"><div><label>Single</label>${gs('single-'+idpfx,d.single)}</div>
+          <div><label>Double</label>${gs('double-'+idpfx,d.double)}</div></div>
+          <div class="split split-gest" style="margin-top:8px"><div><label>Long</label>${gs('long-'+idpfx,d.long)}</div>
+          <div><label>Hold</label>${gs('hold-'+idpfx,d.hold||{action:7,target:d.single?.target??7})}</div></div>
+        </div></div>`;
     }
 
     (function buildInputs(){
       const c=$('io-inputs'); if(!c) return;
       for(let i=1;i<=NUM_IN_CH;i++){
         const defs=i===1?{single:{action:1,target:7},double:{action:8,target:7},hold:{action:7,target:7}}:{single:{action:1,target:8},double:{action:8,target:8},hold:{action:7,target:8}};
-        c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defs);
+        c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defs, false);
         ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-in'+i+'-act', g+'-in'+i+'-tgt'));
+        syncInputModeUi('in'+i);
       }
     })();
 
     (function buildBtn(){
       const c=$('io-btn'); if(!c) return;
-      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},long:{action:11,target:0}});
+      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},long:{action:11,target:0}}, true);
       ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-btn1-act', g+'-btn1-tgt'));
+      syncInputModeUi('btn1');
     })();
 
     (function buildPwmCfg(){
@@ -384,17 +445,13 @@
       }
     })();
 
-    (function buildGroups(){
+    (function buildDimming(){
       const c=$('io-groups'); if(!c) return;
-      c.innerHTML=`<div class="row">
-        <div class="iocard"><div class="iotop"><span class="ioid">Group RGB</span></div>
-          <div><label for="grp-rgb-mask">Member mask (bits R,G,B,WW,CW)</label><input type="number" id="grp-rgb-mask" min="1" max="31" value="7" style="width:100%"></div>
-          <div style="margin-top:8px"><label for="grp-rgb-step">Dim step %</label><input type="number" id="grp-rgb-step" min="1" max="64" value="8" style="width:100%"></div>
-          <div style="margin-top:8px"><label for="grp-rgb-ramp">Hold ramp ms</label><input type="number" id="grp-rgb-ramp" min="20" max="2000" value="60" style="width:100%"></div></div>
-        <div class="iocard"><div class="iotop"><span class="ioid">Group CCT</span></div>
-          <div><label for="grp-cct-mask">Member mask</label><input type="number" id="grp-cct-mask" min="1" max="31" value="24" style="width:100%"></div>
-          <div style="margin-top:8px"><label for="grp-cct-step">Dim step %</label><input type="number" id="grp-cct-step" min="1" max="64" value="8" style="width:100%"></div>
-          <div style="margin-top:8px"><label for="grp-cct-ramp">Hold ramp ms</label><input type="number" id="grp-cct-ramp" min="20" max="2000" value="60" style="width:100%"></div></div>
+      c.innerHTML=`<div class="iocard">
+        <div class="row">
+          <div><label for="grp-dim-step">Dimming step (%)</label><input type="number" id="grp-dim-step" min="1" max="25" value="8" style="width:100%"></div>
+          <div><label for="grp-dim-speed">Dimming speed (ms/step)</label><input type="number" id="grp-dim-speed" min="20" max="500" value="60" style="width:100%"></div>
+        </div>
       </div>`;
     })();
 
@@ -405,8 +462,17 @@
         d.className='iocard';
         let ch='';
         for(let i=0;i<NUM_PWM;i++) ch+=`<div><label for="scene-${s}-${i}">${PWM_NAMES[i]}</label><input type="number" id="scene-${s}-${i}" min="0" max="255" value="0" style="width:100%"></div>`;
-        d.innerHTML=`<div class="iotop"><span class="ioid">Scene ${s}</span></div><div class="pwm-pwr-grid">${ch}</div>`;
+        d.innerHTML=`<div class="iotop"><span class="ioid">Scene ${s+1}</span>
+          <button type="button" class="btn" id="scene-cap-${s}" style="margin-left:auto;font-size:12px;padding:4px 10px">Capture current</button></div>
+          <div class="pwm-pwr-grid">${ch}</div>`;
         c.appendChild(d);
+      }
+      for(let s=0;s<NUM_SCENES;s++){
+        $('scene-cap-'+s)?.addEventListener('click', ()=>{
+          const row=PWM_IDS.map(id=>parseInt($(id)?.value||'0',10));
+          for(let i=0;i<NUM_PWM;i++){ const el=$('scene-'+s+'-'+i); if(el) el.value=String(row[i]); }
+          sendScenes();
+        });
       }
     })();
 
@@ -469,7 +535,7 @@
     function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
     function sendInputMode(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(parseInt($('mode-in'+i).value,10)); HMWebConfig.sendConfig('in.mode', l); }
     function sendInputLock(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('lock-in'+i).checked); HMWebConfig.sendConfig('in.lock', l); }
-    function gestList(pfx, n){ return [{action:parseInt($(pfx+n+'-act').value,10),target:parseInt($(pfx+n+'-tgt').value,10)}]; }
+    function gestList(pfx, n){ return [gestPayload(pfx+n+'-act', pfx+n+'-tgt')]; }
     function sendGlobal(){
       HMWebConfig.sendConfig('global', {
         debounceMs:parseInt($('glob-debounce').value,10), longPressMs:parseInt($('glob-longpress').value,10),
@@ -499,9 +565,11 @@
       });
       HMWebConfig.sendConfig('pwm', l);
     }
-    function sendGroups(){
-      HMWebConfig.sendConfig('group.rgb', { memberMask:parseInt($('grp-rgb-mask').value,10), dimStepPct:parseInt($('grp-rgb-step').value,10), holdRampMs:parseInt($('grp-rgb-ramp').value,10) });
-      HMWebConfig.sendConfig('group.cct', { memberMask:parseInt($('grp-cct-mask').value,10), dimStepPct:parseInt($('grp-cct-step').value,10), holdRampMs:parseInt($('grp-cct-ramp').value,10) });
+    function sendDim(){
+      HMWebConfig.sendConfig('dim', {
+        dimStepPct:parseInt($('grp-dim-step').value,10),
+        holdRampMs:parseInt($('grp-dim-speed').value,10)
+      });
     }
     function sendScenes(){
       const l=[]; for(let s=0;s<NUM_SCENES;s++){ const row=[]; for(let c=0;c<NUM_PWM;c++) row.push(parseInt($('scene-'+s+'-'+c).value,10)); l.push(row); }
@@ -510,7 +578,8 @@
     for(let i=1;i<=NUM_IN_CH;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
-      $('mode-in'+i)?.addEventListener('change', sendInputMode);
+      $('mode-in'+i)?.addEventListener('change', ()=>onModeChange('in'+i, false));
+      $('maint-in'+i+'-tgt')?.addEventListener('change', ()=>sendMaintTarget('in'+i, false));
       $('lock-in'+i)?.addEventListener('change', sendInputLock);
       ['single','double','long','hold'].forEach(g=>{
         $(g+'-in'+i+'-act')?.addEventListener('change', ()=>HMWebConfig.sendConfig('in.'+g, gestList(g+'-in', i)));
@@ -523,14 +592,15 @@
     });
     $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
     $('invert-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.invert', [!!$('invert-btn1').checked]));
-    $('mode-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.mode', [parseInt($('mode-btn1').value,10)]));
+    $('mode-btn1')?.addEventListener('change', ()=>onModeChange('btn1', true));
+    $('maint-btn1-tgt')?.addEventListener('change', ()=>sendMaintTarget('btn1', true));
     $('lock-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.lock', [!!$('lock-btn1').checked]));
     ['glob-debounce','glob-longpress','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
     ['safe-offline'].concat([...Array(NUM_PWM)].map((_,i)=>'safe-ch'+(i+1))).forEach(id=>$(id)?.addEventListener('change', sendSafe));
     for(let i=0;i<NUM_PWM;i++){
       ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));
     }
-    ['grp-rgb-mask','grp-rgb-step','grp-rgb-ramp','grp-cct-mask','grp-cct-step','grp-cct-ramp'].forEach(id=>$(id)?.addEventListener('change', sendGroups));
+    ['grp-dim-step','grp-dim-speed'].forEach(id=>$(id)?.addEventListener('change', sendDim));
     for(let s=0;s<NUM_SCENES;s++) for(let c=0;c<NUM_PWM;c++) $('scene-'+s+'-'+c)?.addEventListener('change', sendScenes);
 
     function sendRelayCfg(){

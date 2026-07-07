@@ -31,6 +31,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 // ================== GPIO MAP (RGB module) ==================
 // Macros for preprocessor-safe conflict checks:
 // SW1/GPIO0 = BOOT strap only — never polled. SW2/GPIO1 = onboard button (active-HIGH).
+// Field DI1/DI2: opto/dry-contact — idle LOW (INPUT_PULLDOWN), switch close drives HIGH.
 #define PIN_BTN_SW2  1
 #define PIN_DI1    14
 #define PIN_DI2    13
@@ -69,11 +70,8 @@ static const uint8_t NUM_EVT_SRC = 3;
 
 enum RlyMode : uint8_t { RLY_MANUAL = 0, RLY_FOLLOW = 1 };
 
-struct GroupCfg {
-  uint8_t memberMask;
-  uint8_t dimStepPct;
-  uint16_t holdRampMs;
-};
+static inline uint8_t clampDimStep(int v) { return (uint8_t)constrain(v, 1, 25); }
+static inline uint16_t clampDimSpeed(int v) { return (uint16_t)constrain(v, 20, 500); }
 
 struct RlyCfg {
   bool enabled;
@@ -95,8 +93,15 @@ HmInputChannelCfg inChCfg[NUM_IN_CH];
 HmInputChannelCfg btnChCfg[NUM_BTN];
 HmInputEngineTimings inpTimings;
 PwmChCfg pwmChCfg[NUM_PWM];
-GroupCfg grpRgb, grpCct;
+DimCfg dimCfg;
 uint8_t scenes[NUM_SCENES][NUM_PWM];
+
+static inline void applyDimParams(uint8_t stepPct, uint16_t speedMs) {
+  dimCfg.dimStepPct = clampDimStep(stepPct);
+  dimCfg.holdRampMs = clampDimSpeed(speedMs);
+  inpTimings.holdRepeatMs = dimCfg.holdRampMs;
+}
+
 SafeModeCfg safeCfg;
 RlyCfg  rlyCfg[NUM_RLY];
 LedCfg  ledCfg[NUM_LED];
@@ -160,8 +165,7 @@ struct PersistConfig {
   HmInputChannelCfg btnCh[NUM_BTN];
   HmInputEngineTimings inpTimings;
   PwmChCfg pwmCh[NUM_PWM];
-  GroupCfg grpRgb;
-  GroupCfg grpCct;
+  DimCfg dimCfg;
   uint8_t scenes[NUM_SCENES][NUM_PWM];
   SafeModeCfg safe;
   OutputQualityCfg outQuality;
@@ -216,8 +220,8 @@ void setDefaults() {
   hmInputEngineSetTimingDefaults(inpTimings);
   for (int i = 0; i < NUM_PWM; i++) pwmChCfg[i] = { 1, 255, 400, HM_PWR_OFF };
   outQuality = { true, 22 };
-  grpRgb = { 0x07, 8, 60 };
-  grpCct = { 0x18, 8, 60 };
+  dimCfg = { 8, 60 };
+  applyDimParams(8, 60);
   for (int s = 0; s < NUM_SCENES; s++)
     for (int c = 0; c < NUM_PWM; c++) scenes[s][c] = 0;
   scenes[0][0] = 255; scenes[0][1] = 128; scenes[0][2] = 64;
@@ -322,8 +326,7 @@ void captureToPersist(PersistConfig &pc) {
   memcpy(pc.btnCh, btnChCfg, sizeof(btnChCfg));
   pc.inpTimings = inpTimings;
   memcpy(pc.pwmCh, pwmChCfg, sizeof(pwmChCfg));
-  pc.grpRgb = grpRgb;
-  pc.grpCct = grpCct;
+  pc.dimCfg = dimCfg;
   memcpy(pc.scenes, scenes, sizeof(scenes));
   pc.safe = safeCfg;
   pc.outQuality = outQuality;
@@ -343,14 +346,30 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(btnChCfg, pc.btnCh, sizeof(btnChCfg));
   inpTimings = pc.inpTimings;
   memcpy(pwmChCfg, pc.pwmCh, sizeof(pwmChCfg));
-  grpRgb = pc.grpRgb;
-  grpCct = pc.grpCct;
+  dimCfg = pc.dimCfg;
+  applyDimParams(dimCfg.dimStepPct, dimCfg.holdRampMs);
+  for (int i = 0; i < NUM_IN_CH; i++) {
+    hmNormalizeGestureBind(inChCfg[i].single);
+    hmNormalizeGestureBind(inChCfg[i].dbl);
+    hmNormalizeGestureBind(inChCfg[i].tpl);
+    hmNormalizeGestureBind(inChCfg[i].lng);
+    hmNormalizeGestureBind(inChCfg[i].hold);
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    hmNormalizeGestureBind(btnChCfg[i].single);
+    hmNormalizeGestureBind(btnChCfg[i].dbl);
+    hmNormalizeGestureBind(btnChCfg[i].tpl);
+    hmNormalizeGestureBind(btnChCfg[i].lng);
+    hmNormalizeGestureBind(btnChCfg[i].hold);
+  }
   memcpy(scenes, pc.scenes, sizeof(scenes));
   safeCfg = pc.safe;
   outQuality = pc.outQuality;
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
   g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
+  for (int i = 0; i < NUM_IN_CH; i++) inChCfg[i].mode = hmNormalizeInMode(inChCfg[i].mode);
+  for (int i = 0; i < NUM_BTN; i++) btnChCfg[i].mode = hmNormalizeInMode(btnChCfg[i].mode);
   pwmBuildGammaLut();
   return true;
 }
@@ -399,10 +418,12 @@ inline void setSlaveIdIfAvailable(...) {}
 // 505 safe flags (bit0 allowLocalWhenOffline)
 // 506-510 chSafe[0..4] (0=OFF,1=ON,2=RESTORE_LAST)
 // 511-515 pwm minTrim[0..4], 516-520 maxTrim, 521-525 fadeMs, 526-530 powerOn
-// 531 grpRgb memberMask, 532 dimStepPct, 533 holdRampMs
-// 534 grpCct memberMask, 535 dimStepPct, 536 holdRampMs
+// 531 reserved (was grpRgb memberMask)
+// 532 dimStepPct, 533 holdRampMs (hold-to-dim; applies to RGB + CCT groups)
+// 534 reserved (was grpCct memberMask)
+// 535 dimStepPct mirror, 536 holdRampMs mirror (legacy CCT offsets; same values as 532–533)
 // 537 rly mode (0=manual,1=follow), 538 watchMask, 539-540 offDelayMs (lo/hi)
-// 541-545 in1 (541 flags, 542-545 gestures act<<8|tgt)
+// 541-545 in1 (541 flags, 542-545 gestures act<<8|tgt; target 7=RGB 8=CCT 9=All 10=RGB+CCT 1=Relay1)
 // 546-550 in2, 551-555 btn (SW2)
 // 560-579 scenes[4][5]
 // 580 gammaEnable, 581 gammaTenths (22 = 2.2)
@@ -458,7 +479,7 @@ static inline void unpackInFlags(HmInputChannelCfg& c, uint16_t f) {
   c.enabled = (f & 1) != 0;
   c.inverted = (f & 2) != 0;
   c.lockLocal = (f & 4) != 0;
-  c.mode = (uint8_t)((f >> 3) & 3);
+  c.mode = hmNormalizeInMode((uint8_t)((f >> 3) & 3));
 }
 
 void syncEngineToHregs() {
@@ -473,12 +494,11 @@ void syncEngineToHregs() {
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 16 + i, pwmChCfg[i].maxTrim);
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 21 + i, pwmChCfg[i].fadeMs);
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 26 + i, pwmChCfg[i].powerOn);
-  mb.Hreg(HR_ENG_BASE + 31, grpRgb.memberMask);
-  mb.Hreg(HR_ENG_BASE + 32, grpRgb.dimStepPct);
-  mb.Hreg(HR_ENG_BASE + 33, grpRgb.holdRampMs);
-  mb.Hreg(HR_ENG_BASE + 34, grpCct.memberMask);
-  mb.Hreg(HR_ENG_BASE + 35, grpCct.dimStepPct);
-  mb.Hreg(HR_ENG_BASE + 36, grpCct.holdRampMs);
+  // HR 531, 534 reserved (former memberMask)
+  mb.Hreg(HR_ENG_BASE + 32, dimCfg.dimStepPct);
+  mb.Hreg(HR_ENG_BASE + 33, dimCfg.holdRampMs);
+  mb.Hreg(HR_ENG_BASE + 35, dimCfg.dimStepPct);
+  mb.Hreg(HR_ENG_BASE + 36, dimCfg.holdRampMs);
   mb.Hreg(HR_ENG_BASE + 37, rlyCfg[0].mode);
   mb.Hreg(HR_ENG_BASE + 38, rlyCfg[0].watchMask);
   mb.Hreg(HR_ENG_BASE + 39, (uint16_t)(rlyCfg[0].offDelayMs & 0xFFFF));
@@ -527,13 +547,14 @@ bool applyEngineFromHregs(bool markDirty) {
     v = (uint16_t)mb.Hreg(HR_ENG_BASE + 26 + i);
     if (v != pwmChCfg[i].powerOn) { pwmChCfg[i].powerOn = (uint8_t)v; changed = true; }
   }
-  uint16_t v = (uint16_t)mb.Hreg(HR_ENG_BASE + 31);
-  if (v != grpRgb.memberMask) { grpRgb.memberMask = (uint8_t)v; changed = true; }
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 32); if (v != grpRgb.dimStepPct) { grpRgb.dimStepPct = (uint8_t)v; changed = true; }
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 33); if (v != grpRgb.holdRampMs) { grpRgb.holdRampMs = v; changed = true; }
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 34); if (v != grpCct.memberMask) { grpCct.memberMask = (uint8_t)v; changed = true; }
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 35); if (v != grpCct.dimStepPct) { grpCct.dimStepPct = (uint8_t)v; changed = true; }
-  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 36); if (v != grpCct.holdRampMs) { grpCct.holdRampMs = v; changed = true; }
+  uint16_t v = (uint16_t)mb.Hreg(HR_ENG_BASE + 32);
+  uint8_t step = clampDimStep((int)v);
+  v = (uint16_t)mb.Hreg(HR_ENG_BASE + 33);
+  uint16_t speed = clampDimSpeed((int)v);
+  if (dimCfg.dimStepPct != step || dimCfg.holdRampMs != speed) {
+    applyDimParams(step, speed);
+    changed = true;
+  }
   v = (uint16_t)mb.Hreg(HR_ENG_BASE + 37); if (v != rlyCfg[0].mode) { rlyCfg[0].mode = (uint8_t)v; changed = true; }
   v = (uint16_t)mb.Hreg(HR_ENG_BASE + 38); if (v != rlyCfg[0].watchMask) { rlyCfg[0].watchMask = (uint8_t)v; changed = true; }
   uint32_t od = ((uint32_t)mb.Hreg(HR_ENG_BASE + 40) << 16) | (uint32_t)mb.Hreg(HR_ENG_BASE + 39);
@@ -588,7 +609,7 @@ void updateLinkOkDetector(uint32_t now);
 void updateInputRegisters(uint32_t now);
 void syncCoilsFromState();
 void hmApplyGesture(uint8_t physIdx, HmEvt evt, uint8_t action, uint8_t target, uint32_t now);
-void hmApplyMaintainedEdge(uint8_t chIdx, bool level, uint32_t now);
+void hmApplyMaintainedEdge(uint8_t physIdx, bool level, uint32_t now);
 bool hmLocalInputAllowed(bool lockLocal, bool allowOffline);
 void serviceRelayFollow(uint32_t now);
 void applySafeModeOutputs(uint32_t now);
@@ -601,7 +622,7 @@ void setup() {
   Serial.begin(57600);
 
   // GPIO directions
-  for (uint8_t i=0;i<NUM_DI;i++)   pinMode(DI_PINS[i],   INPUT);           // change to INPUT_PULLUP if needed
+  for (uint8_t i=0;i<NUM_DI;i++)   pinMode(DI_PINS[i],   INPUT_PULLDOWN);
   for (uint8_t i=0;i<NUM_RLY;i++)  { pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); } // OFF
   for (uint8_t i=0;i<NUM_LED;i++)  { pinMode(LED_PINS[i],   OUTPUT);  digitalWrite(LED_PINS[i],   LOW); } // OFF
   for (uint8_t i=0;i<NUM_BTN;i++)  pinMode(BTN_PINS[i], INPUT);
@@ -663,6 +684,21 @@ void setup() {
 
   wsLog("Boot OK (RGB v0.2.0; 12-bit gamma+slew; HR500+ engine)");
   sendWebBootstrap();
+
+  // Seed debounce state from current pin levels (no spurious edge on first loop).
+  {
+    uint32_t now = millis();
+    for (uint8_t p = 0; p < NUM_PHYS; p++) {
+      bool raw = readPhysRaw(p);
+      inpRt[p].db.raw = raw;
+      inpRt[p].db.stable = raw;
+      inpRt[p].db.prevStable = raw;
+      inpRt[p].db.lastChangeMs = now;
+      physState[p] = raw;
+      if (p < NUM_DI) diState[p] = raw;
+      else buttonState[p - NUM_DI] = raw;
+    }
+  }
 
   // Apply restored PWM levels to outputs
   applyPwmFromHoldingRegs();
@@ -805,8 +841,9 @@ void handleValues(JSONVar values) {
 // Contract t: in.*, relay, led, ext.pwmPowerOn, global (+ legacy aliases)
 static void applyGestureObj(HmGestureBind& g, JSONVar o) {
   if (o.hasOwnProperty("action")) {
-    g.action = (uint8_t)constrain((int)o["action"], 0, 11);
-    g.target = (uint8_t)constrain((int)o["target"], 0, 9);
+    g.action = (uint8_t)constrain((int)o["action"], 0, 14);
+    g.target = (uint8_t)constrain((int)o["target"], 0, 10);
+    hmNormalizeGestureBind(g);
   }
 }
 
@@ -823,7 +860,7 @@ void handleUnifiedConfig(JSONVar obj) {
     wsLog("Input Invert list updated"); changed = true;
 
   } else if (type == "in.mode") {
-    for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) inChCfg[i].mode = (uint8_t)constrain((int)list[i], 0, 2);
+    for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) inChCfg[i].mode = hmNormalizeInMode((uint8_t)constrain((int)list[i], 0, 2));
     wsLog("Input mode updated"); changed = true;
 
   } else if (type == "in.lock") {
@@ -850,7 +887,7 @@ void handleUnifiedConfig(JSONVar obj) {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].inverted = (bool)list[i];
     changed = true;
   } else if (type == "btn.mode") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].mode = (uint8_t)constrain((int)list[i], 0, 2);
+    for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].mode = hmNormalizeInMode((uint8_t)constrain((int)list[i], 0, 2));
     changed = true;
   } else if (type == "btn.lock") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].lockLocal = (bool)list[i];
@@ -887,17 +924,13 @@ void handleUnifiedConfig(JSONVar obj) {
       if (list[i].hasOwnProperty("powerOn")) pwmChCfg[i].powerOn = (uint8_t)constrain((int)list[i]["powerOn"], 0, 2);
     }
     changed = true;
-  } else if (type == "group.rgb") {
+  } else if (type == "dim") {
     JSONVar g = list;
-    if (g.hasOwnProperty("memberMask")) grpRgb.memberMask = (uint8_t)constrain((int)g["memberMask"], 1, 0x1F);
-    if (g.hasOwnProperty("dimStepPct")) grpRgb.dimStepPct = (uint8_t)constrain((int)g["dimStepPct"], 1, 64);
-    if (g.hasOwnProperty("holdRampMs")) grpRgb.holdRampMs = (uint16_t)constrain((int)g["holdRampMs"], 20, 2000);
-    changed = true;
-  } else if (type == "group.cct") {
-    JSONVar g = list;
-    if (g.hasOwnProperty("memberMask")) grpCct.memberMask = (uint8_t)constrain((int)g["memberMask"], 1, 0x1F);
-    if (g.hasOwnProperty("dimStepPct")) grpCct.dimStepPct = (uint8_t)constrain((int)g["dimStepPct"], 1, 64);
-    if (g.hasOwnProperty("holdRampMs")) grpCct.holdRampMs = (uint16_t)constrain((int)g["holdRampMs"], 20, 2000);
+    uint8_t step = dimCfg.dimStepPct;
+    uint16_t speed = dimCfg.holdRampMs;
+    if (g.hasOwnProperty("dimStepPct")) step = clampDimStep((int)g["dimStepPct"]);
+    if (g.hasOwnProperty("holdRampMs")) speed = clampDimSpeed((int)g["holdRampMs"]);
+    applyDimParams(step, speed);
     changed = true;
   } else if (type == "scenes") {
     for (int s = 0; s < NUM_SCENES && s < list.length(); s++) {
@@ -1066,34 +1099,36 @@ void toggleGroupCct() {
 }
 
 void stepGroupRgb(int deltaHi) {
+  const uint8_t ch0 = HM_GRP_RGB_CH_FIRST;
+  const uint8_t chN = HM_GRP_RGB_CH_FIRST + HM_GRP_RGB_CH_COUNT;
   uint16_t mx = 0;
-  for (int i = 0; i < 3; i++) if ((grpRgb.memberMask & (1u << i)) && pwmTarget[i] > mx) mx = pwmTarget[i];
+  for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
   if (mx == 0 && deltaHi > 0) {
-    const uint16_t def = pwmLastNonZero[0] ? pwmLastNonZero[0] : pwmApiToHi(128);
-    for (int i = 0; i < 3; i++) if (grpRgb.memberMask & (1u << i)) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
-    for (int i = 0; i < 3; i++) if ((grpRgb.memberMask & (1u << i)) && pwmTarget[i] > mx) mx = pwmTarget[i];
+    const uint16_t def = pwmLastNonZero[ch0] ? pwmLastNonZero[ch0] : pwmApiToHi(128);
+    for (int i = ch0; i < chN; i++) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
+    for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
   }
   if (mx == 0) return;
-  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(0), (int)pwmTrimMaxHi(0));
-  for (int i = 0; i < 3; i++) {
-    if (!(grpRgb.memberMask & (1u << i))) continue;
+  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(ch0), (int)pwmTrimMaxHi(ch0));
+  for (int i = ch0; i < chN; i++) {
     int v = (pwmTarget[i] == 0) ? 0 : (int)((uint32_t)pwmTarget[i] * (uint32_t)newMx / (uint32_t)mx);
     writePwmCh((uint8_t)i, (uint16_t)v);
   }
 }
 
 void stepGroupCct(int deltaHi) {
+  const uint8_t ch0 = HM_GRP_CCT_CH_FIRST;
+  const uint8_t chN = HM_GRP_CCT_CH_FIRST + HM_GRP_CCT_CH_COUNT;
   uint16_t mx = 0;
-  for (int i = 3; i < 5; i++) if ((grpCct.memberMask & (1u << i)) && pwmTarget[i] > mx) mx = pwmTarget[i];
+  for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
   if (mx == 0 && deltaHi > 0) {
-    const uint16_t def = pwmLastNonZero[3] ? pwmLastNonZero[3] : pwmApiToHi(128);
-    for (int i = 3; i < 5; i++) if (grpCct.memberMask & (1u << i)) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
-    for (int i = 3; i < 5; i++) if ((grpCct.memberMask & (1u << i)) && pwmTarget[i] > mx) mx = pwmTarget[i];
+    const uint16_t def = pwmLastNonZero[ch0] ? pwmLastNonZero[ch0] : pwmApiToHi(128);
+    for (int i = ch0; i < chN; i++) writePwmCh((uint8_t)i, pwmLastNonZero[i] ? pwmLastNonZero[i] : def);
+    for (int i = ch0; i < chN; i++) if (pwmTarget[i] > mx) mx = pwmTarget[i];
   }
   if (mx == 0) return;
-  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(3), (int)pwmTrimMaxHi(3));
-  for (int i = 3; i < 5; i++) {
-    if (!(grpCct.memberMask & (1u << i))) continue;
+  int newMx = constrain((int)mx + deltaHi, (int)pwmTrimMinHi(ch0), (int)pwmTrimMaxHi(ch0));
+  for (int i = ch0; i < chN; i++) {
     int v = (pwmTarget[i] == 0) ? 0 : (int)((uint32_t)pwmTarget[i] * (uint32_t)newMx / (uint32_t)mx);
     writePwmCh((uint8_t)i, (uint16_t)v);
   }
@@ -1109,6 +1144,8 @@ void goMaxTarget(uint8_t target) {
     writePwmCh(0, PWM_HI); writePwmCh(1, PWM_HI); writePwmCh(2, PWM_HI);
   } else if (target == HM_TGT_GRP_CCT) {
     writePwmCh(3, PWM_HI); writePwmCh(4, PWM_HI);
+  } else if (target == HM_TGT_GRP_RGBCCT) {
+    for (int i = 0; i < NUM_PWM; i++) writePwmCh((uint8_t)i, PWM_HI);
   } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
     writePwmCh((uint8_t)(target - HM_TGT_PWM_R), PWM_HI);
   }
@@ -1125,8 +1162,38 @@ void applyRelayTarget(uint8_t target, uint8_t action, uint32_t now) {
   if (target == HM_TGT_RLY1) doR(0);
 }
 
+static bool groupRgbcctAnyOn() {
+  return groupRgbAnyOn() || groupCctAnyOn();
+}
+
+void toggleGroupRgbcct() {
+  if (groupRgbcctAnyOn()) {
+    if (groupRgbAnyOn()) {
+      rgbGroupStore[0] = pwmTarget[0]; rgbGroupStore[1] = pwmTarget[1]; rgbGroupStore[2] = pwmTarget[2];
+      rgbGroupStored = true;
+      writePwmCh(0, 0); writePwmCh(1, 0); writePwmCh(2, 0);
+    }
+    if (groupCctAnyOn()) {
+      cctGroupStore[0] = pwmTarget[3]; cctGroupStore[1] = pwmTarget[4];
+      cctGroupStored = true;
+      writePwmCh(3, 0); writePwmCh(4, 0);
+    }
+  } else {
+    if (rgbGroupStored) {
+      writePwmCh(0, rgbGroupStore[0]); writePwmCh(1, rgbGroupStore[1]); writePwmCh(2, rgbGroupStore[2]);
+    } else {
+      writePwmCh(0, pwmLastNonZero[0]); writePwmCh(1, pwmLastNonZero[1]); writePwmCh(2, pwmLastNonZero[2]);
+    }
+    if (cctGroupStored) {
+      writePwmCh(3, cctGroupStore[0]); writePwmCh(4, cctGroupStore[1]);
+    } else {
+      writePwmCh(3, pwmLastNonZero[3]); writePwmCh(4, pwmLastNonZero[4]);
+    }
+  }
+}
+
 void applyPwmTargetAction(uint8_t target, uint8_t action) {
-  const int deltaHi = (int)pwmDimStepHi(target == HM_TGT_GRP_CCT ? grpCct.dimStepPct : grpRgb.dimStepPct);
+  const int deltaHi = (int)pwmDimStepHi(dimCfg.dimStepPct);
   int d = deltaHi;
   if (action == HM_ACT_DIM_DOWN) d = -d;
   if (target == HM_TGT_GRP_RGB) {
@@ -1141,6 +1208,12 @@ void applyPwmTargetAction(uint8_t target, uint8_t action) {
     else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) stepGroupCct(d);
     else if (action == HM_ACT_ON) { if (!groupCctAnyOn()) toggleGroupCct(); }
     else if (action == HM_ACT_OFF) { if (groupCctAnyOn()) toggleGroupCct(); }
+  } else if (target == HM_TGT_GRP_RGBCCT) {
+    if (action == HM_ACT_TOGGLE) toggleGroupRgbcct();
+    else if (action == HM_ACT_SET_100) goMaxTarget(target);
+    else if (action == HM_ACT_DIM_UP || action == HM_ACT_DIM_DOWN) { stepGroupRgb(d); stepGroupCct(d); }
+    else if (action == HM_ACT_ON) { if (!groupRgbcctAnyOn()) toggleGroupRgbcct(); }
+    else if (action == HM_ACT_OFF) { if (groupRgbcctAnyOn()) toggleGroupRgbcct(); }
   } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
     uint8_t ch = (uint8_t)(target - HM_TGT_PWM_R);
     if (action == HM_ACT_TOGGLE) writePwmCh(ch, pwmTarget[ch] ? 0 : pwmLastNonZero[ch]);
@@ -1160,10 +1233,10 @@ bool hmLocalInputAllowed(bool lockLocal, bool allowOffline) {
   return true;
 }
 
-void hmApplyMaintainedEdge(uint8_t chIdx, bool level, uint32_t now) {
-  if (chIdx >= NUM_IN_CH) return;
-  uint8_t tgt = inChCfg[chIdx].single.target;
-  hmApplyGesture(chIdx, HM_EVT_SINGLE, level ? HM_ACT_ON : HM_ACT_OFF, tgt, now);
+void hmApplyMaintainedEdge(uint8_t physIdx, bool level, uint32_t now) {
+  if (physIdx >= NUM_PHYS) return;
+  const HmInputChannelCfg& cfg = physCfg(physIdx);
+  hmApplyGesture(physIdx, HM_EVT_SINGLE, level ? HM_ACT_ON : HM_ACT_OFF, cfg.single.target, now);
 }
 
 static bool anyOutputOn() {
@@ -1175,7 +1248,7 @@ static bool anyOutputOn() {
 void hmApplyGesture(uint8_t physIdx, HmEvt evt, uint8_t action, uint8_t target, uint32_t now) {
   (void)evt;
   if (action == HM_ACT_IDENTIFY) { g_identifyUntilMs = now + IDENTIFY_MS; return; }
-  if (action == HM_ACT_SCENE) { applyScene(target); serviceRelayFollow(now); return; }
+  if (hmIsSceneAction(action)) { applyScene(hmSceneIndex(action)); serviceRelayFollow(now); return; }
   if (action == HM_ACT_NONE) return;
   if (action == HM_ACT_ALLOFF || (action == HM_ACT_OFF && target == HM_TGT_ALL)) {
     for (int i = 0; i < NUM_PWM; i++) writePwmCh((uint8_t)i, 0);
@@ -1183,10 +1256,19 @@ void hmApplyGesture(uint8_t physIdx, HmEvt evt, uint8_t action, uint8_t target, 
     serviceRelayFollow(now);
     return;
   }
+  if (action == HM_ACT_RELAY_PULSE) {
+    applyRelayTarget(HM_TGT_RLY1, action, now);
+    return;
+  }
   if (target == HM_TGT_ALL) {
     if (action == HM_ACT_TOGGLE) {
       if (anyOutputOn()) hmApplyGesture(physIdx, evt, HM_ACT_ALLOFF, HM_TGT_NONE, now);
-      else { toggleGroupRgb(); toggleGroupCct(); }
+      else toggleGroupRgbcct();
+    } else if (action == HM_ACT_OFF) {
+      hmApplyGesture(physIdx, evt, HM_ACT_ALLOFF, HM_TGT_NONE, now);
+    } else if (action == HM_ACT_ON) {
+      if (!groupRgbcctAnyOn()) toggleGroupRgbcct();
+      serviceRelayFollow(now);
     }
     return;
   }
@@ -1195,7 +1277,10 @@ void hmApplyGesture(uint8_t physIdx, HmEvt evt, uint8_t action, uint8_t target, 
     applyRelayTarget(target, action, now);
     return;
   }
-  if (target >= HM_TGT_GRP_RGB && target <= HM_TGT_PWM_CW) {
+  if (target >= HM_TGT_GRP_RGB && target <= HM_TGT_GRP_RGBCCT) {
+    applyPwmTargetAction(target, action);
+    serviceRelayFollow(now);
+  } else if (target >= HM_TGT_PWM_R && target <= HM_TGT_PWM_CW) {
     applyPwmTargetAction(target, action);
     serviceRelayFollow(now);
   }
@@ -1474,7 +1559,7 @@ void sendWebCfg() {
   for (int i = 0; i < NUM_IN_CH; i++) {
     cfg["in"][i]["enabled"] = inChCfg[i].enabled ? 1 : 0;
     cfg["in"][i]["invert"]  = inChCfg[i].inverted ? 1 : 0;
-    cfg["in"][i]["mode"]    = inChCfg[i].mode;
+    cfg["in"][i]["mode"]    = hmNormalizeInMode(inChCfg[i].mode);
     cfg["in"][i]["lockLocal"] = inChCfg[i].lockLocal ? 1 : 0;
     cfg["in"][i]["single"]["action"] = inChCfg[i].single.action;
     cfg["in"][i]["single"]["target"] = inChCfg[i].single.target;
@@ -1488,7 +1573,7 @@ void sendWebCfg() {
   for (int i = 0; i < NUM_BTN; i++) {
     cfg["btn"][i]["enabled"] = btnChCfg[i].enabled ? 1 : 0;
     cfg["btn"][i]["invert"] = btnChCfg[i].inverted ? 1 : 0;
-    cfg["btn"][i]["mode"] = btnChCfg[i].mode;
+    cfg["btn"][i]["mode"] = hmNormalizeInMode(btnChCfg[i].mode);
     cfg["btn"][i]["lockLocal"] = btnChCfg[i].lockLocal ? 1 : 0;
     cfg["btn"][i]["single"]["action"] = btnChCfg[i].single.action;
     cfg["btn"][i]["double"]["action"] = btnChCfg[i].dbl.action;
@@ -1503,12 +1588,8 @@ void sendWebCfg() {
   cfg["global"]["holdDelayMs"] = inpTimings.holdDelayMs;
   cfg["global"]["holdRepeatMs"] = inpTimings.holdRepeatMs;
   cfg["global"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
-  cfg["group"]["rgb"]["memberMask"] = grpRgb.memberMask;
-  cfg["group"]["rgb"]["dimStepPct"] = grpRgb.dimStepPct;
-  cfg["group"]["rgb"]["holdRampMs"] = grpRgb.holdRampMs;
-  cfg["group"]["cct"]["memberMask"] = grpCct.memberMask;
-  cfg["group"]["cct"]["dimStepPct"] = grpCct.dimStepPct;
-  cfg["group"]["cct"]["holdRampMs"] = grpCct.holdRampMs;
+  cfg["dim"]["dimStepPct"] = dimCfg.dimStepPct;
+  cfg["dim"]["holdRampMs"] = dimCfg.holdRampMs;
   cfg["safe"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
   for (int i = 0; i < NUM_PWM; i++) cfg["safe"]["chSafe"][i] = safeCfg.chSafe[i];
   for (int i = 0; i < NUM_RLY; i++) {
