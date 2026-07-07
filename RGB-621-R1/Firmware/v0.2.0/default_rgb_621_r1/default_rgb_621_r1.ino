@@ -432,6 +432,9 @@ inline void setSlaveIdIfAvailable(...) {}
 // 560-579 scenes[4][5]
 // 580 gammaEnable, 581 gammaTenths (22 = 2.2)
 // IREG 21..25: PWM 12-bit current (diagnostic)
+// IREG 26..28: STATE readback — applied levels (pwmCurrent after slew, API 0..255) + flags
+//   26: (R<<8)|G   27: (B<<8)|WW   28: (CW<<8)|flags
+//   flags low byte: bit0 anyOn, bit1 rgbGroupOn, bit2 cctGroupOn, bit3 relay1
 enum : uint16_t {
   IREG_DI_MASK      = 0,
   IREG_RLY_MASK     = 1,
@@ -439,7 +442,9 @@ enum : uint16_t {
   IREG_LED_MASK     = 3,
   IREG_STATUS_FLAGS = 4,
   EVT_BASE = 6,
-  IREG_PWM_RAW_BASE = 21
+  IREG_PWM_RAW_BASE = 21,
+  IREG_STATE_BASE   = 26,
+  IREG_STATE_COUNT  = 3
 };
 
 // Discrete Inputs (FC=02)
@@ -657,6 +662,7 @@ void setup() {
 
   for (uint16_t i = 0; i < (EVT_BASE + NUM_EVT_SRC * HM_EVT_COUNT); i++) mb.addIreg(i);
   for (uint16_t i = 0; i < NUM_PWM; i++) mb.addIreg(IREG_PWM_RAW_BASE + i);
+  for (uint16_t i = 0; i < IREG_STATE_COUNT; i++) mb.addIreg(IREG_STATE_BASE + i);
 
   // ==== Modbus relay + service + command pulses (coils) ====
   for (uint16_t i = 0; i < NUM_RLY; i++) { mb.addCoil(COIL_RLY_BASE + i); mb.setCoil(COIL_RLY_BASE + i, false); }
@@ -1052,6 +1058,23 @@ void updateInputRegisters(uint32_t now) {
   for (int i = 0; i < NUM_PWM; i++) {
     mb.setIreg(IREG_PWM_RAW_BASE + i, pwmCurrent[i]);
   }
+
+  const uint8_t rApi  = pwmHiToApi(pwmCurrent[0]);
+  const uint8_t gApi  = pwmHiToApi(pwmCurrent[1]);
+  const uint8_t bApi  = pwmHiToApi(pwmCurrent[2]);
+  const uint8_t wwApi = pwmHiToApi(pwmCurrent[3]);
+  const uint8_t cwApi = pwmHiToApi(pwmCurrent[4]);
+  mb.setIreg(IREG_STATE_BASE + 0, (uint16_t)((rApi << 8) | gApi));
+  mb.setIreg(IREG_STATE_BASE + 1, (uint16_t)((bApi << 8) | wwApi));
+
+  uint8_t stFlags = 0;
+  for (int i = 0; i < NUM_PWM; i++) {
+    if (pwmCurrent[i] > 0) { stFlags |= 0x01; break; }
+  }
+  if (pwmCurrent[0] > 0 || pwmCurrent[1] > 0 || pwmCurrent[2] > 0) stFlags |= 0x02;
+  if (pwmCurrent[3] > 0 || pwmCurrent[4] > 0) stFlags |= 0x04;
+  if (mb.Ists(ISTS_RLY_BASE)) stFlags |= 0x08;
+  mb.setIreg(IREG_STATE_BASE + 2, (uint16_t)((cwApi << 8) | stFlags));
 }
 
 void syncCoilsFromState() {

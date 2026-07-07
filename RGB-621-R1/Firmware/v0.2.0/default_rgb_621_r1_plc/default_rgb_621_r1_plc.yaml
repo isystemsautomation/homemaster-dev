@@ -3,8 +3,9 @@
 ##
 ## Bus-load notes (shared RS-485 with DIO/ENM):
 ##   - DI/relay/LED/linkOk: one FC04 poll @0 count=5 (IREG 0..4), not sparse FC02.
-##   - PWM outputs are write-only (skip_updates=max); control via rgbww Light.
-##   - Relay/service coils are write-only (assumed_state); template switch for relay.
+##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
+##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
+##   - Relay/service coils are write-only (assumed_state).
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
 ##   packages:
@@ -16,9 +17,10 @@
 ##         rgb_prefix: "RGB Living"
 ##
 ## Modbus map (default_rgb_621_r1.ino v0.2.0, MAP_VERSION=3):
-##   Input Registers (FC04) 0..4 + 6..20:
+##   Input Registers (FC04) 0..4 + 6..20 + 26..28:
 ##     0 DI_MASK · 1 RLY_MASK · 2 BTN_MASK (bit0=SW2) · 3 LED_MASK · 4 STATUS_FLAGS
 ##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/long/hold)
+##     26..28 STATE: packed applied PWM (API 0..255) + flags (anyOn, rgb/cct group, relay1)
 ##   Holding 500..579: local input engine config (see README §6.3)
 ##   Coils: 0 Relay1 · 5..7 service · 200/210 legacy pulse · 300..321 DI en/dis
 ##   Requires MAP_VERSION=3 firmware. Each module needs a UNIQUE Modbus address.
@@ -59,14 +61,6 @@ binary_sensor:
     bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
-    id: ${rgb_id}_rly1_state
-    name: "${rgb_prefix} Relay1 State"
-    internal: true
-    register_type: read
-    address: 1
-    bitmask: 0x0001
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} Btn1"
     register_type: read
     address: 2
@@ -90,6 +84,8 @@ binary_sensor:
     address: 2
     bitmask: 0x0002
   - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Link OK"
     register_type: read
     address: 4
     bitmask: 0x0002
@@ -99,6 +95,18 @@ binary_sensor:
     register_type: read
     address: 4
     bitmask: 0x0008
+
+  # STATE flags (from FC04 @28 low byte) — updated on each STATE poll
+  - platform: template
+    id: ${rgb_id}_st_any_on
+    internal: true
+    lambda: |-
+      return false;
+  - platform: template
+    id: ${rgb_id}_st_rly1
+    internal: true
+    lambda: |-
+      return false;
 
 # ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
 switch:
@@ -131,12 +139,12 @@ switch:
     internal: true
     assumed_state: true
 
-  # Public relay switch — state from FC04 @1, command via write-only coil @0
+  # Public relay switch — state from STATE flags bit3, command via write-only coil @0
   - platform: template
     name: "${rgb_prefix} Relay 1"
     id: ${rgb_id}_relay1
     lambda: |-
-      return id(${rgb_id}_rly1_state).state;
+      return id(${rgb_id}_st_rly1).state;
     turn_on_action:
       - switch.turn_on: ${rgb_id}_relay1_coil
     turn_off_action:
@@ -157,7 +165,7 @@ button:
       - switch.turn_on: ${rgb_id}_cmd_reboot
 
 #############################################################
-# PWM outputs — write-only (skip_updates); rgbww Light below
+# PWM outputs — write-only (skip_updates); STATE IREG feedback
 #############################################################
 output:
   - platform: modbus_controller
@@ -206,7 +214,122 @@ output:
     skip_updates: ${rgb_pwm_skip_updates}
 
 #############################################################
-# RGBWW LIGHT (writes HR 400–404 via outputs above)
+# Applied channel levels (from STATE IREG 26..28)
+#############################################################
+sensor:
+  - platform: template
+    id: ${rgb_id}_act_r
+    internal: true
+    lambda: |-
+      return 0;
+  - platform: template
+    id: ${rgb_id}_act_g
+    internal: true
+    lambda: |-
+      return 0;
+  - platform: template
+    id: ${rgb_id}_act_b
+    internal: true
+    lambda: |-
+      return 0;
+  - platform: template
+    id: ${rgb_id}_act_ww
+    internal: true
+    lambda: |-
+      return 0;
+  - platform: template
+    id: ${rgb_id}_act_cw
+    internal: true
+    lambda: |-
+      return 0;
+
+  # STATE block — one FC04 read @26 count=3 (force_new_range on first reg only)
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_rg
+    internal: true
+    register_type: read
+    address: 26
+    force_new_range: true
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            id(${rgb_id}_act_r).publish_state((v >> 8) & 0xFF);
+            id(${rgb_id}_act_g).publish_state(v & 0xFF);
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_bw
+    internal: true
+    register_type: read
+    address: 27
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            id(${rgb_id}_act_b).publish_state((v >> 8) & 0xFF);
+            id(${rgb_id}_act_ww).publish_state(v & 0xFF);
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_cw_flags
+    internal: true
+    register_type: read
+    address: 28
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            id(${rgb_id}_act_cw).publish_state((v >> 8) & 0xFF);
+            uint8_t flags = v & 0xFF;
+            const bool any_on = (flags & 0x01) != 0;
+            const bool rly = (flags & 0x08) != 0;
+            id(${rgb_id}_st_any_on).publish_state(any_on);
+            id(${rgb_id}_st_rly1).publish_state(rly);
+            id(${rgb_id}_relay1).publish_state(rly);
+            auto *light = id(${rgb_id}_light);
+            auto &rv = light->remote_values;
+            if (!any_on) {
+              rv.set_state(false);
+            } else {
+              const float r = id(${rgb_id}_act_r).state / 255.0f;
+              const float g = id(${rgb_id}_act_g).state / 255.0f;
+              const float b = id(${rgb_id}_act_b).state / 255.0f;
+              const float ww = id(${rgb_id}_act_ww).state / 255.0f;
+              const float cw = ((v >> 8) & 0xFF) / 255.0f;
+              rv.set_state(true);
+              rv.set_brightness(1.0f);
+              rv.set_red(r);
+              rv.set_green(g);
+              rv.set_blue(b);
+              rv.set_warm_white(ww);
+              rv.set_cold_white(cw);
+              const bool has_rgb = (r > 0.0f) || (g > 0.0f) || (b > 0.0f);
+              const bool has_white = (ww > 0.0f) || (cw > 0.0f);
+              if (has_rgb && has_white) {
+                rv.set_color_mode(ColorMode::RGB_COLD_WARM_WHITE);
+              } else if (has_white) {
+                rv.set_color_mode(ColorMode::COLD_WARM_WHITE);
+              } else {
+                rv.set_color_mode(ColorMode::RGB);
+              }
+            }
+            light->current_values = rv;
+            light->publish_state();
+
+  # Identity IR @200..204 (FC04) — diagnostic only, rare poll
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Map version"
+    id: ${rgb_id}_map_version
+    internal: true
+    entity_category: diagnostic
+    register_type: read
+    address: 204
+    accuracy_decimals: 0
+    skip_updates: 60
+
+#############################################################
+# RGBWW LIGHT — writes HR 400–404; state synced from STATE readback
 #############################################################
 light:
   - platform: rgbww
@@ -219,16 +342,3 @@ light:
     cold_white: ${rgb_id}_out_cw
     warm_white_color_temperature: 2700 K
     cold_white_color_temperature: 6500 K
-
-# Identity IR @200..204 (FC04) — diagnostic only, rare poll
-sensor:
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Map version"
-    id: ${rgb_id}_map_version
-    internal: true
-    entity_category: diagnostic
-    register_type: read
-    address: 204
-    accuracy_decimals: 0
-    skip_updates: 60

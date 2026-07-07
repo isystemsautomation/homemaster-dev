@@ -544,10 +544,19 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 | **4** | **STATUS_FLAGS** | bit1 linkOk, bit3 cfgDirty | Link / config status |
 | **6–20** | **EVT_COUNTERS** | uint16 | Press counters: 3 sources × 5 gestures |
 | **21–25** | **PWM_RAW** | 0–4095 | 12-bit perceived current per channel (diagnostic) |
+| **26–28** | **STATE** | packed | Applied PWM levels (API 0–255, after slew) + status flags |
+
+**STATE block (IREG 26–28)** — one FC04 read for HA feedback:
+
+| Address | Format | Description |
+|---------|--------|-------------|
+| **26** | `(R<<8)\|G` | Applied red (high byte) and green (low byte), API 0–255 |
+| **27** | `(B<<8)\|WW` | Applied blue and warm white |
+| **28** | `(CW<<8)\|flags` | Applied cold white (high byte); flags low byte: bit0 **anyOn**, bit1 **rgbGroupOn**, bit2 **cctGroupOn**, bit3 **relay1** |
 
 Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE + source×5 + gesture`.
 
-> ESPHome package reads **FC04 @0 count=5** (one poll). Event counters **6–20** are optional for masters that need WirenBoard-style press accounting.
+> ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (applied light + relay flags) every 5 s. Event counters **6–20** are optional for masters that need WirenBoard-style press accounting.
 
 ---
 
@@ -649,7 +658,8 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 | Toggle relay | Coil **0** ← 1/0 (or ESPHome switch) |
 | Read DI2 | FC04 IR **0**, bitmask `0x0002` |
 | Read button state | FC04 IR **2**, bitmask `0x0001` |
-| Read relay state | FC04 IR **1**, bitmask `0x0001` |
+| Read relay state | FC04 STATE **28**, flags bit3 *(or legacy IR **1**)* |
+| Read applied light levels | FC04 STATE **26–28** (one contiguous read) |
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
 | Read press counters (DI1 singles) | FC04 IR **6** |
@@ -659,7 +669,8 @@ Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-mo
 
 ## 6.7 Polling Recommendations
 
-- **DI / relay / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
+- **DI / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
+- **Applied PWM + relay flags:** one FC04 read **26..28** every 5 s (STATE block; drives HA light/relay feedback)  
 - **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  
 - **Relay/service coils:** write only on demand
 
