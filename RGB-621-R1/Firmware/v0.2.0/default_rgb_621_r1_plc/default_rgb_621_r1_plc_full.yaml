@@ -1,7 +1,22 @@
 ##
 ## RGB-621-R1 — ESPHome Modbus package, full (v0.2.0)
 ##
-## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix).
+## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
+##   packages:
+##     rgb1:
+##       url: github://isystemsautomation/homemaster-dev/RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc_full.yaml
+##       vars:
+##         rgb_id: rgb1
+##         rgb_address: "3"
+##         rgb_prefix: "RGB Living"
+##
+## Modbus map (matches default_rgb_621_r1.ino v0.2.0):
+##   Input Registers (FC04): 4 STATUS_FLAGS (bit1=linkOk, bit3=cfgDirty)
+##   Discrete Inputs (FC02): 1..2 DI · 60 relay · 90..91 LED
+##   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
+##                    200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
+##   Holding (FC03): 400..404 PWM R,G,B,WW,CW · 480 MB addr · 481 MB baud
+##   Identity IR (FC04): 200..204 MODEL_ID, FW_MAJOR/MINOR/PATCH, MAP_VERSION
 
 substitutions:
   rgb_id: rgb
@@ -17,16 +32,74 @@ modbus_controller:
     update_interval: ${rgb_update_interval}
     command_throttle: ${rgb_command_throttle}
 
-# ===================== Discrete Inputs (FC02) =====================
+# ===================== Input Registers (FC04) =====================
 binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Link OK"
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Config dirty"
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+# ===================== Discrete Inputs (FC02) =====================
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} DI1"
     address: 1
     register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI2"
+    address: 2
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Relay1 State"
+    address: 60
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED1"
+    address: 90
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED2"
+    address: 91
+    register_type: discrete_input
 
-# ===================== Coils (FC01/05) — pulses =====================
+# ===================== Coils (FC05/15) =====================
 switch:
+  # Service (pulse)
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_identify
+    register_type: coil
+    address: 5
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_save_cfg
+    register_type: coil
+    address: 6
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_reboot
+    register_type: coil
+    address: 7
+    internal: true
+    assumed_state: true
+
+  # Relay command pulses (from v0.1.0 full)
   - platform: modbus_controller
     id: ${rgb_id}_rly1_on
     modbus_controller_id: ${rgb_id}
@@ -48,7 +121,7 @@ switch:
       - switch.turn_off: ${rgb_id}_rly1_off
 
 number:
-  # -------- RGB Channels (0–255) --------
+  # -------- RGB Channels (0–255), HR 400..402 --------
   - platform: modbus_controller
     name: "${rgb_prefix} Red"
     id: ${rgb_id}_red
@@ -82,7 +155,7 @@ number:
     max_value: 255
     step: 1
 
-  # -------- CCT Channels (0–255) --------
+  # -------- CCT Channels (0–255), HR 403..404 --------
   - platform: modbus_controller
     name: "${rgb_prefix} Warm White"
     id: ${rgb_id}_ww
@@ -104,8 +177,23 @@ number:
     min_value: 0
     max_value: 255
     step: 1
+
+button:
+  - platform: template
+    name: "${rgb_prefix} Identify"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_identify
+  - platform: template
+    name: "${rgb_prefix} Save config"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_save_cfg
+  - platform: template
+    name: "${rgb_prefix} Reboot"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_reboot
+
 #############################################################
-# TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write 400–404)
+# TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write HR 400–404)
 #############################################################
 output:
   - platform: modbus_controller
