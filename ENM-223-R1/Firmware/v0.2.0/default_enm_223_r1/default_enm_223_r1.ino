@@ -1565,10 +1565,27 @@ static JSONVar calPhasesArrayFromCfg() {
   return cal;
 }
 
+// Web-only: numeric indices 0..2 (no duplicate A/B/C keys) for smaller JSON frames.
+static JSONVar calPhasesArraySlim() {
+  JSONVar cal;
+  for (int i = 0; i < 3; i++) {
+    JSONVar p;
+    p["Ugain"]   = (int)g_atm_cfg.cal[i].Ugain;
+    p["Igain"]   = (int)g_atm_cfg.cal[i].Igain;
+    p["Uoffset"] = (int)g_atm_cfg.cal[i].Uoffset;
+    p["Ioffset"] = (int)g_atm_cfg.cal[i].Ioffset;
+    cal[(int)i] = p;
+  }
+  return cal;
+}
+
 static void sendWebCalib() {
+  const JSONVar slim = calPhasesArraySlim();
   JSONVar root;
-  root["cal"] = calPhasesArrayFromCfg();
+  root["cal"] = slim;
   WebSerial.send("CalibCfg", root);
+  yield();
+  WebSerial.send("cal", slim);
   yield();
 }
 
@@ -1591,7 +1608,7 @@ static JSONVar enmSyncToJson() {
   o["lineHz"]  = (int)g_atm_cfg.lineHz;
   o["sumAbs"]  = (int)g_atm_cfg.sumAbs;
   o["ucal"]    = (int)g_atm_cfg.ucal;
-  o["cal"]     = calPhasesArrayFromCfg();
+  o["cal"]     = calPhasesArraySlim();
   return o;
 }
 
@@ -1832,7 +1849,7 @@ static void sendWebCfgCore() {
   for (int i = 0; i < 3; i++) pmap[i] = (int)g_atm_cfg.phaseMap[i];
   cfg["ext"]["atm"]["phaseMap"] = pmap;
   cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
-  cfg["ext"]["atm"]["cal"]    = calPhasesArrayFromCfg();
+  // cal via CalibCfg / cal / ENM_Sync / ext — keep cfg lean (alarm block is large).
   cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
   yield();
@@ -1847,7 +1864,7 @@ static void sendWebExt() {
     yield();
   }
   JSONVar ext;
-  ext["atm"]["cal"] = calPhasesArrayFromCfg();
+  ext["atm"]["cal"] = calPhasesArraySlim();
   ext["alarms"] = alarmsStateToJson();
   WebSerial.send("ext", ext);
   yield();

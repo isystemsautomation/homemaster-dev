@@ -243,6 +243,8 @@
     const canApply = key => !locked.has(key);
     let lastExtPayload = null;
     let lastEnmCfg = null;
+    let pendingCalib = null;
+    const rxOnce = {};
 
     function toArr(x) {
       if (window.HMWebConfig && HMWebConfig.toArray) return HMWebConfig.toArray(x);
@@ -376,6 +378,24 @@
       return p;
     }
 
+    function logRxOnce(channel, payload) {
+      if (rxOnce[channel]) return;
+      rxOnce[channel] = true;
+      try {
+        const preview = JSON.stringify(payload);
+        HMWebConfig.appendLog('RX ' + channel + ': ' + preview.slice(0, 160) + (preview.length > 160 ? '…' : ''));
+      } catch (e) {
+        HMWebConfig.appendLog('RX ' + channel);
+      }
+    }
+
+    function onRx(channel, fn) {
+      return function(payload) {
+        logRxOnce(channel, payload);
+        fn(payload);
+      };
+    }
+
     function applyAtmFromDevice(atm){
       if(!atm||typeof atm!=='object') return;
       if(atm.lineHz!==undefined){ const el=$('opt-lineHz'); if(el&&el!==document.activeElement) el.value=String(atm.lineHz); }
@@ -389,6 +409,14 @@
         }
       }
       if(atm.cal) applyCalibFromPayload({ cal: atm.cal });
+    }
+
+    function flushPendingCalib(){
+      if (pendingCalib) {
+        const p = pendingCalib;
+        pendingCalib = null;
+        applyCalibFromPayload(p);
+      }
     }
 
     function applyExtPayload(ext){
@@ -431,8 +459,14 @@
     function applyCalibFromPayload(payload){
       payload = parseEventPayload(payload);
       if(!payload) return;
-      const cal = normalizeCalArray(payload.cal ?? payload.phases ?? payload);
+      let raw = payload.cal ?? payload.phases ?? payload;
+      if (typeof raw === 'string') raw = parseEventPayload(raw);
+      const cal = normalizeCalArray(raw);
       if(!cal) return;
+      if (!$('cal-ugain-0')) {
+        pendingCalib = payload;
+        return;
+      }
       for(let ch=0;ch<3;ch++) if(cal[ch]) applyCalibCh(ch, cal[ch], true);
     }
 
@@ -440,7 +474,8 @@
       if(!obj||typeof obj!=='object') return;
       const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
       const ok=key=>fromDevice||canApply(key);
-      const Ug=num(obj.Ugain), Ig=num(obj.Igain), Uo=num(obj.Uoffset), Io=num(obj.Ioffset);
+      const Ug=num(obj.Ug ?? obj.Ugain), Ig=num(obj.Ig ?? obj.Igain);
+      const Uo=num(obj.Uo ?? obj.Uoffset), Io=num(obj.Io ?? obj.Ioffset);
       if(Ug!==undefined&&ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
       if(Ig!==undefined&&ok('cal-igain-'+ch)){ const el=$('cal-igain-'+ch); if(el) el.value=String(Ig); }
       if(Uo!==undefined&&ok('cal-uoff-'+ch)) { const el=$('cal-uoff-'+ch);  if(el) el.value=String(Uo); }
@@ -611,6 +646,7 @@
         attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), false);
         attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), false);
       }
+      flushPendingCalib();
     })();
 
     (function buildLiveCards(){
@@ -821,22 +857,28 @@
     HMWebConfig.connect({ requestElement:'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
 
-    HMWebConfig.conn.on('ext', applyExtPayload);
-    HMWebConfig.conn.on('ENM_Meter', applyLegacyMeter);
-    HMWebConfig.conn.on('ENM_Sync', applyLegacySync);
-    HMWebConfig.conn.on('AlarmsState', function(state){
+    HMWebConfig.conn.on('ext', onRx('ext', applyExtPayload));
+    HMWebConfig.conn.on('ENM_Meter', onRx('ENM_Meter', applyLegacyMeter));
+    HMWebConfig.conn.on('ENM_Sync', onRx('ENM_Sync', applyLegacySync));
+    HMWebConfig.conn.on('AlarmsState', onRx('AlarmsState', function(state){
       try { updateAlarmsState(parseEventPayload(state)); } catch(e) {}
-    });
-    HMWebConfig.conn.on('CalibCfg', function(payload){
+    }));
+    HMWebConfig.conn.on('CalibCfg', onRx('CalibCfg', function(payload){
       try { applyCalibFromPayload(payload); }
       catch (e) { HMWebConfig.appendLog('CalibCfg parse: ' + (e?.message || e)); }
-    });
+    }));
+    HMWebConfig.conn.on('cal', onRx('cal', function(payload){
+      try { applyCalibFromPayload({ cal: payload }); }
+      catch (e) { HMWebConfig.appendLog('cal parse: ' + (e?.message || e)); }
+    }));
     HMWebConfig.conn.on('open', function(){
+      Object.keys(rxOnce).forEach(k => { delete rxOnce[k]; });
       if (HMWebConfig.conn?.send) {
         HMWebConfig.conn.send('command', { action: 'hello' }).catch(() => {});
       }
       if (lastExtPayload) applyExtPayload(lastExtPayload);
       if (lastEnmCfg) applyEnmCfg(lastEnmCfg.ext, lastEnmCfg.cfg);
+      flushPendingCalib();
     });
 
     if (lastExtPayload) applyExtPayload(lastExtPayload);
