@@ -527,23 +527,27 @@ Summarize steps in 3 phases:
 
 # 6. Modbus RTU Communication
 
-The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware v0.2.0.
+The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware **v0.2.1-dev**.
 
 **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
 
 ---
 
-## 6.1 Input Registers (FC04) — MAP_VERSION 2
+## 6.1 Input Registers (FC04) — MAP_VERSION 3
 
 | Address | Name | Bits | Description |
 |---------|------|------|-------------|
 | **0** | **DI_STATE_MASK** | bit0..1 | DI1..DI2 |
 | **1** | **RLY_STATE_MASK** | bit0 | Relay1 logical state |
-| **2** | *(reserved)* | — | Always 0 |
+| **2** | **BTN_STATE_MASK** | bit0 | SW2 onboard button (GPIO1) |
 | **3** | **LED_STATE_MASK** | bit0..1 | LED1..LED2 |
 | **4** | **STATUS_FLAGS** | bit1 linkOk, bit3 cfgDirty | Link / config status |
+| **6–20** | **EVT_COUNTERS** | uint16 | Press counters: 3 sources × 5 gestures |
+| **21–25** | **PWM_RAW** | 0–4095 | 12-bit perceived current per channel (diagnostic) |
 
-> ESPHome package reads **FC04 @0 count=5** (one poll). FC02 discrete inputs (1..2, 60, 90..91) remain as legacy mirrors in firmware — do not poll from ESPHome on shared buses.
+Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE + source×5 + gesture`.
+
+> ESPHome package reads **FC04 @0 count=5** (one poll). Event counters **6–20** are optional for masters that need WirenBoard-style press accounting.
 
 ---
 
@@ -551,15 +555,16 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Description |
 |---------|------|-------------|
+| **0** | **Relay1** | Toggle coil — write `1`/`0` (DIO-compatible) |
 | **5** | **IDENTIFY** | Pulse — LED identify blink |
 | **6** | **SAVE_CFG** | Pulse — save config to flash |
 | **7** | **REBOOT** | Pulse — reboot module |
-| **200** | **Relay1 ON** | Pulse coil — write `1` to energize |
-| **210** | **Relay1 OFF** | Pulse coil — write `1` to de-energize |
+| **200** | **Relay1 ON** | Legacy pulse coil — write `1` to energize |
+| **210** | **Relay1 OFF** | Legacy pulse coil — write `1` to de-energize |
 | **300–301** | **DI1–DI2 Enable** | Pulse per input |
 | **320–321** | **DI1–DI2 Disable** | Pulse per input |
 
-> Pulse coils auto-reset after the action. Service/relay coils: write-only from ESPHome (`assumed_state`).
+> Relay coil **0** is the primary control path (ESPHome template switch). Pulse coils **200/210** remain for legacy tools. Service coils: write-only from ESPHome (`assumed_state`).
 
 ---
 
@@ -567,25 +572,75 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 | Address | Name | Range | Description |
 |---------|------|-------|-------------|
-| 400–404 | **R, G, B, WW, CW** | 0–255 | PWM channel levels |
+| 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (scaled to 12-bit internally; slew-smoothed) |
 | 480 | **MB_ADDR** | 1–255 | Modbus address |
 | 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
+| **500–579** | **ENGINE_CFG** | — | Local input engine (see below) |
+
+### Holding block 500+ — local input engine (v0.2.1-dev)
+
+| Address | Name | Description |
+|---------|------|-------------|
+| 500–504 | Timings | debounce, longPress, multiClickGap, holdDelay, holdRepeat (ms) |
+| 505 | Safe flags | bit0 = allowLocalWhenOffline |
+| 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
+| 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
+| 531–536 | Groups | RGB/CCT memberMask, dimStepPct, holdRampMs |
+| 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
+| 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/long/hold (`action<<8|target`) |
+| 560–579 | Scenes[4][5] | Preset channel levels (0–255 API) |
+| 580–581 | Output quality | gammaEnable, gammaTenths (22 = γ 2.2) |
 
 ---
 
-## 6.4 Register Use Examples
+## 6.4 Output quality (12-bit + gamma + slew)
+
+- **Internal resolution:** 12-bit (0–4095) on all five PWM channels (`analogWriteResolution(12)`).
+- **API:** Modbus HR **400–404** and WebConfig accept **0–255**; firmware scales to 12-bit setpoints.
+- **Gamma:** configurable (default γ 2.2) via HR **580–581** / WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
+- **Trim:** per-channel min/max (HR 511–520) applied in perceived space before gamma.
+- **Slew:** each channel has `current` and `target`; all writers (Modbus, gestures, scenes, hold-to-dim) update **target** only. A non-blocking slew engine ramps `current → target` over `transitionMs` (default **400 ms**, HR 521–525). `transitionMs = 0` = instant.
+- **Diagnostics:** FC04 IREG **21–25** expose raw 12-bit current.
+
+---
+
+## 6.5 Local input logic (v0.2.1-dev)
+
+Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-module — no master required for hold-to-dim.
+
+| Input | Default single | Default double | Default hold |
+|-------|----------------|----------------|--------------|
+| **DI1** | Toggle Group RGB | Set 100% Group RGB | Dim Group RGB (direction toggles each hold) |
+| **DI2** | Toggle Group CCT | Set 100% Group CCT | Dim Group CCT |
+| **SW2** | Toggle All | — | — (long = Identify blink) |
+
+**Hold-to-dim:** after `holdDelayMs` (default 500 ms), brightness ramps every `holdRepeatMs` (60 ms) until release; levels clamp to per-channel min/max trim and are saved (throttled) for RESTORE_LAST.
+
+**Relay1 FOLLOW:** when mode=FOLLOW, relay energizes while any watched group is on; after all outputs reach zero, relay opens after `offDelayMs` (default 45 s) — typical LED PSU cut.
+
+**Child lock:** ignores local gestures; Modbus/HA control still works.
+
+**Press counters:** IREG 6–20 increment per gesture so masters never miss events between polls.
+
+---
+
+## 6.6 Register Use Examples
 
 | Operation | Write / Read |
 |-----------|--------------|
 | Set red to 128 | Holding **400** ← 128 |
-| Pulse relay ON | Coil **200** ← 1 |
+| Toggle relay | Coil **0** ← 1/0 (or ESPHome switch) |
 | Read DI2 | FC04 IR **0**, bitmask `0x0002` |
+| Read button state | FC04 IR **2**, bitmask `0x0001` |
 | Read relay state | FC04 IR **1**, bitmask `0x0001` |
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
+| Read press counters (DI1 singles) | FC04 IR **6** |
+| Configure DI1 hold action | HR **545** (`action<<8|target`) |
+
 ---
 
-## 6.5 Polling Recommendations
+## 6.7 Polling Recommendations
 
 - **DI / relay / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
 - **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  

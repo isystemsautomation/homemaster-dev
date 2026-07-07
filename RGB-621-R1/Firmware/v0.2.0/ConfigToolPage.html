@@ -111,30 +111,77 @@
         <button id="btn-full" type="button" class="btn">FULL</button>
       </div>
       <div class="sectiontitle" style="margin-top:18px;">
-        <h3 style="font-size:14px;">PWM power-on policy</h3>
+        <h3 style="font-size:14px;">Quick presets</h3>
       </div>
-      <div class="pwm-pwr-grid" id="pwm-poweron"></div>
     </div>
   </section>
 
-  <div class="sectiontitle"><h3>Digital Inputs (2)</h3></div>
-  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-inputs"></div></div></section>
+  <div class="sectiontitle"><h3>Wall-switch inputs (DI1, DI2)</h3><p class="hint">Per-gesture action and target — hold-to-dim runs locally on the module.</p></div>
+  <section class="card"><div class="cardbody"><div id="io-inputs"></div></div></section>
+
+  <div class="sectiontitle"><h3>Onboard button (SW2 / GPIO1)</h3></div>
+  <section class="card"><div class="cardbody"><div id="io-btn"></div></div></section>
+
+  <div class="sectiontitle"><h3>Engine timings &amp; safe-mode</h3></div>
+  <section class="card"><div class="cardbody" id="io-timing"></div></section>
+  <section class="card" style="margin-top:12px"><div class="cardbody" id="io-safe"></div></section>
+
+  <div class="sectiontitle"><h3>PWM channels</h3><p class="hint">Min/max trim, fade, and power-on per channel.</p></div>
+  <section class="card"><div class="cardbody" id="io-pwm"></div></section>
+
+  <div class="sectiontitle"><h3>Groups</h3></div>
+  <section class="card"><div class="cardbody" id="io-groups"></div></section>
+
+  <div class="sectiontitle"><h3>Scenes</h3></div>
+  <section class="card"><div class="cardbody" id="io-scenes"></div></section>
 
   <div class="sectiontitle"><h3>Relays (1)</h3></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-relays"></div></div></section>
 
-  <div class="sectiontitle"><h3>Button (1)</h3></div>
-  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
-
   <div class="sectiontitle"><h3>User LEDs (2)</h3></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
+
+  <div class="sectiontitle"><h3>Output quality</h3><p class="hint">12-bit PWM with perceptual gamma correction.</p></div>
+  <section class="card"><div class="cardbody" id="io-output"></div></section>
+
+  <div class="sectiontitle"><h3>Live press counters</h3></div>
+  <section class="card"><div class="cardbody" id="io-evt"></div></section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
     const $ = id => document.getElementById(id);
-    const NUM_DI = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5;
+    const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
+    const EVT_NAMES = ['Single','Double','Triple','Long','Hold'];
+    const SRC_NAMES = ['DI1','DI2','SW2'];
+    const ACT_OPTS = [
+      {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},{v:4,l:'All off'},
+      {v:5,l:'Dim up'},{v:6,l:'Dim down'},{v:7,l:'Dim toggle dir'},{v:8,l:'Set 100%'},
+      {v:9,l:'Relay pulse'},{v:10,l:'Scene'},{v:11,l:'Identify'}
+    ];
+    const TGT_OPTS = [
+      {v:0,l:'None'},{v:1,l:'Relay1'},{v:2,l:'R'},{v:3,l:'G'},{v:4,l:'B'},
+      {v:5,l:'WW'},{v:6,l:'CW'},{v:7,l:'Group RGB'},{v:8,l:'Group CCT'},{v:9,l:'All'}
+    ];
+    const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
+    const actSel = (id, val) => `<select id="${id}">${optHtml(ACT_OPTS, val||0)}</select>`;
+    const tgtSel = (id, val) => `<select id="${id}">${optHtml(TGT_OPTS, val||0)}</select>`;
+    function uiActTarget(action, target) {
+      if (action === 4) return { action: 3, target: 0 };
+      return { action: action ?? 0, target: target ?? 0 };
+    }
+    function syncActTargetVis(actId, tgtId) {
+      const act = $(actId), tgt = $(tgtId);
+      if (!act || !tgt) return;
+      tgt.style.display = act.value === '0' ? 'none' : '';
+    }
+    function wireActTarget(actId, tgtId) {
+      const act = $(actId);
+      if (!act) return;
+      act.addEventListener('change', () => syncActTargetVis(actId, tgtId));
+      syncActTargetVis(actId, tgtId);
+    }
     const PWM_NAMES = ['Red','Green','Blue','Warm White','Cool White'];
     const PWM_IDS = ['r','g','b','ww','cw'];
     let pwmSyncLock = false;
@@ -175,13 +222,78 @@
       pwmSyncLock=false;
     }
 
-    function applyRgbCfg(ext){
-      const pwr=ext&&ext.pwmPowerOn;
-      if(!pwr) return;
-      HMWebConfig.toArray(pwr).forEach((v,i)=>{
-        const el=$('powerOn-pwm'+(i+1));
-        if(el && el!==document.activeElement) el.value=String(v??0);
-      });
+    function applyRgbCfg(ext, cfg){
+      const pwr=cfg?.ext?.pwmPowerOn || ext?.pwmPowerOn;
+      if(pwr){
+        HMWebConfig.toArray(pwr).forEach((v,i)=>{
+          const el=$('powerOn-pwm'+(i+1));
+          if(el && el!==document.activeElement) el.value=String(v??0);
+        });
+      }
+      if(cfg.global){
+        const g=cfg.global;
+        if($('glob-debounce')) $('glob-debounce').value=g.debounceMs??25;
+        if($('glob-longpress')) $('glob-longpress').value=g.longPressMs??700;
+        if($('glob-multiclick')) $('glob-multiclick').value=g.multiClickGapMs??350;
+        if($('glob-holddelay')) $('glob-holddelay').value=g.holdDelayMs??500;
+        if($('glob-holdrepeat')) $('glob-holdrepeat').value=g.holdRepeatMs??60;
+        if($('glob-offline')) $('glob-offline').checked=!!(g.allowLocalWhenOffline??1);
+      }
+      if(cfg.safe){
+        if($('safe-offline')) $('safe-offline').checked=!!cfg.safe.allowLocalWhenOffline;
+        HMWebConfig.toArray(cfg.safe.chSafe||[]).forEach((v,i)=>{ const el=$('safe-ch'+(i+1)); if(el) el.value=String(v??2); });
+      }
+      for(let i=0;i<NUM_PWM;i++){
+        const p=cfg.pwm?.[i]; if(!p) continue;
+        if($('trim-min-'+i)) $('trim-min-'+i).value=p.minTrim??1;
+        if($('trim-max-'+i)) $('trim-max-'+i).value=p.maxTrim??255;
+        if($('fade-'+i)) $('fade-'+i).value=p.fadeMs??p.transitionMs??400;
+      }
+      if(cfg.group?.rgb){
+        if($('grp-rgb-mask')) $('grp-rgb-mask').value=cfg.group.rgb.memberMask??7;
+        if($('grp-rgb-step')) $('grp-rgb-step').value=cfg.group.rgb.dimStepPct??8;
+        if($('grp-rgb-ramp')) $('grp-rgb-ramp').value=cfg.group.rgb.holdRampMs??60;
+      }
+      if(cfg.group?.cct){
+        if($('grp-cct-mask')) $('grp-cct-mask').value=cfg.group.cct.memberMask??24;
+        if($('grp-cct-step')) $('grp-cct-step').value=cfg.group.cct.dimStepPct??8;
+        if($('grp-cct-ramp')) $('grp-cct-ramp').value=cfg.group.cct.holdRampMs??60;
+      }
+      if(cfg.scenes){
+        for(let s=0;s<NUM_SCENES;s++){
+          const row=cfg.scenes[s]; if(!row) continue;
+          for(let c=0;c<NUM_PWM;c++){
+            const el=$('scene-'+s+'-'+c); if(el) el.value=row[c]??0;
+          }
+        }
+      }
+      const bindIn=(pfx,o,n)=>{
+        if(!o) return;
+        if($('enable-'+pfx+n)) $('enable-'+pfx+n).checked=!!(o.enabled??1);
+        if($('invert-'+pfx+n)) $('invert-'+pfx+n).checked=!!o.invert;
+        if($('mode-'+pfx+n)) $('mode-'+pfx+n).value=o.mode??0;
+        if($('lock-'+pfx+n)) $('lock-'+pfx+n).checked=!!o.lockLocal;
+        const g=(pre,obj)=>{ if(!obj) return; const a=$(pre+pfx+n+'-act'), t=$(pre+pfx+n+'-tgt');
+          if(a) a.value=obj.action??0; if(t) t.value=obj.target??0; syncActTargetVis(pre+pfx+n+'-act', pre+pfx+n+'-tgt'); };
+        g('single-', o.single); g('double-', o.double); g('long-', o.long); g('hold-', o.hold);
+      };
+      for(let i=0;i<NUM_IN_CH;i++) bindIn('in', cfg.in?.[i], i+1);
+      for(let i=0;i<NUM_BTN;i++) bindIn('btn', cfg.btn?.[i], i+1);
+      if(cfg.relay?.[0]){
+        if($('mode-relay1')) $('mode-relay1').value=cfg.relay[0].mode??1;
+        if($('watch-relay1')) $('watch-relay1').value=cfg.relay[0].watchMask??3;
+        if($('offdelay-relay1')) $('offdelay-relay1').value=cfg.relay[0].offDelayMs??45000;
+      }
+      if(cfg.output){
+        if($('gamma-enable')) $('gamma-enable').checked=!!cfg.output.gammaEnable;
+        if($('gamma-value')) $('gamma-value').value=cfg.output.gammaTenths??22;
+      }
+      if(cfg.ext?.evt){
+        for(let s=0;s<NUM_EVT;s++){
+          const parts=[]; for(let e=0;e<5;e++) parts.push(cfg.ext.evt[s]?.[e]??0);
+          const el=$('evt-'+s); if(el) el.textContent=SRC_NAMES[s]+': '+EVT_NAMES.map((n,i)=>n+'='+parts[i]).join(' · ');
+        }
+      }
     }
 
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
@@ -189,44 +301,129 @@
     HMWebConfig.register({
       model: 7,
       modelName: 'RGB-621-R1',
-      fw: '0.2.0',
-      webconfigVersion: '0.2.0',
+      fw: '0.2.1-dev',
+      webconfigVersion: '0.2.1-dev',
       readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/RGB-621-R1/README.md',
-      channels: { in: NUM_DI, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
+      channels: { in: NUM_IN_CH, relay: NUM_RLY, btn: NUM_BTN, led: NUM_LED },
       onCfg: applyRgbCfg
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
     HMWebConfig.conn.on('ext', ext=>{ if(ext&&ext.pwm) applyPwmFromExt(ext.pwm); });
+    HMWebConfig.conn.on('cfg', cfg=>{ if(cfg) applyRgbCfg(null, cfg); });
 
-    (function buildPwmPowerOn(){
-      const c=$('pwm-poweron'); if(!c) return;
+    (function buildTiming(){
+      const c=$('io-timing'); if(!c) return;
+      c.innerHTML=`
+        <div class="row">
+          <div><label for="glob-debounce">Debounce, ms</label><input type="number" id="glob-debounce" min="1" max="500" value="25" style="width:100%"></div>
+          <div><label for="glob-longpress">Long-press, ms</label><input type="number" id="glob-longpress" min="50" max="5000" value="700" style="width:100%"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div><label for="glob-multiclick">Double-click gap, ms</label><input type="number" id="glob-multiclick" min="50" max="2000" value="350" style="width:100%"></div>
+          <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="500" style="width:100%"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div><label for="glob-holdrepeat">Hold repeat, ms</label><input type="number" id="glob-holdrepeat" min="20" max="500" value="60" style="width:100%"></div>
+        </div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="glob-offline" checked> Allow local inputs when bus offline</label>`;
+    })();
+
+    (function buildSafe(){
+      const c=$('io-safe'); if(!c) return;
+      const safeOpts=[{v:0,l:'OFF'},{v:1,l:'ON'},{v:2,l:'Hold last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      let rows='';
+      for(let i=0;i<NUM_PWM;i++) rows+=`<div><label for="safe-ch${i+1}">${PWM_NAMES[i]} on link loss</label><select id="safe-ch${i+1}">${safeOpts}</select></div>`;
+      c.innerHTML=`<p class="sub">Safe levels applied when Modbus link is lost.</p><label class="check"><input type="checkbox" id="safe-offline" checked> Allow wall switches when offline</label><div class="pwm-pwr-grid" style="margin-top:10px">${rows}</div>`;
+    })();
+
+    function buildGestureCard(idpfx, label, defaults){
+      const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained toggle'},{v:2,l:'Maintained follow'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const d=defaults||{};
+      return `<div class="iocard tint-input">
+        <div class="iotop"><span class="ioid">${label}</span><span class="ioBadge badgeState"><span id="state-${idpfx}" class="state-dot dot-off"></span></span></div>
+        <div class="checkRow">
+          <label class="check"><input type="checkbox" id="enable-${idpfx}" checked> Enabled</label>
+          <label class="check"><input type="checkbox" id="invert-${idpfx}"> Inverted</label>
+          <label class="check"><input type="checkbox" id="lock-${idpfx}"> Child lock</label>
+        </div>
+        <div><label for="mode-${idpfx}">Mode</label><select id="mode-${idpfx}">${modeOpts}</select></div>
+        <div class="split" style="margin-top:8px"><div><label>Single</label>${actSel('single-'+idpfx+'-act',d.single?.action)}${tgtSel('single-'+idpfx+'-tgt',d.single?.target)}</div>
+        <div><label>Double</label>${actSel('double-'+idpfx+'-act',d.double?.action)}${tgtSel('double-'+idpfx+'-tgt',d.double?.target)}</div></div>
+        <div class="split" style="margin-top:8px"><div><label>Long</label>${actSel('long-'+idpfx+'-act',d.long?.action)}${tgtSel('long-'+idpfx+'-tgt',d.long?.target)}</div>
+        <div><label>Hold</label>${actSel('hold-'+idpfx+'-act',d.hold?.action??7)}${tgtSel('hold-'+idpfx+'-tgt',d.hold?.target??7)}</div></div></div>`;
+    }
+
+    (function buildInputs(){
+      const c=$('io-inputs'); if(!c) return;
+      for(let i=1;i<=NUM_IN_CH;i++){
+        const defs=i===1?{single:{action:1,target:7},double:{action:8,target:7},hold:{action:7,target:7}}:{single:{action:1,target:8},double:{action:8,target:8},hold:{action:7,target:8}};
+        c.innerHTML+=buildGestureCard('in'+i, 'DI'+i, defs);
+        ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-in'+i+'-act', g+'-in'+i+'-tgt'));
+      }
+    })();
+
+    (function buildBtn(){
+      const c=$('io-btn'); if(!c) return;
+      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},long:{action:11,target:0}});
+      ['single','double','long','hold'].forEach(g=>wireActTarget(g+'-btn1-act', g+'-btn1-tgt'));
+    })();
+
+    (function buildPwmCfg(){
+      const c=$('io-pwm'); if(!c) return;
       const pwrOpts=[{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       for(let i=0;i<NUM_PWM;i++){
         const d=document.createElement('div');
-        d.innerHTML=`<label for="powerOn-pwm${i+1}">${PWM_NAMES[i]} power-on</label><select id="powerOn-pwm${i+1}">${pwrOpts}</select>`;
+        d.className='iocard';
+        d.innerHTML=`<div class="iotop"><span class="ioid">${PWM_NAMES[i]}</span></div>
+          <div class="row"><div><label for="trim-min-${i}">Min trim</label><input type="number" id="trim-min-${i}" min="0" max="254" value="1" style="width:100%"></div>
+          <div><label for="trim-max-${i}">Max trim</label><input type="number" id="trim-max-${i}" min="1" max="255" value="255" style="width:100%"></div></div>
+          <div class="row" style="margin-top:8px"><div><label for="fade-${i}">Transition, ms</label><input type="number" id="fade-${i}" min="0" max="10000" value="400" style="width:100%"></div>
+          <div><label for="powerOn-pwm${i+1}">Power-on</label><select id="powerOn-pwm${i+1}">${pwrOpts}</select></div></div>`;
         c.appendChild(d);
       }
     })();
 
-    (function buildInputs(){
-      const c=$('io-inputs'); if(!c) return;
-      const actionOpts=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
-      const targetOpts=[{v:4,l:'None'},{v:0,l:'Control all'},{v:1,l:'Control relay 1'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
-      for(let i=1;i<=NUM_DI;i++){
+    (function buildGroups(){
+      const c=$('io-groups'); if(!c) return;
+      c.innerHTML=`<div class="row">
+        <div class="iocard"><div class="iotop"><span class="ioid">Group RGB</span></div>
+          <div><label for="grp-rgb-mask">Member mask (bits R,G,B,WW,CW)</label><input type="number" id="grp-rgb-mask" min="1" max="31" value="7" style="width:100%"></div>
+          <div style="margin-top:8px"><label for="grp-rgb-step">Dim step %</label><input type="number" id="grp-rgb-step" min="1" max="64" value="8" style="width:100%"></div>
+          <div style="margin-top:8px"><label for="grp-rgb-ramp">Hold ramp ms</label><input type="number" id="grp-rgb-ramp" min="20" max="2000" value="60" style="width:100%"></div></div>
+        <div class="iocard"><div class="iotop"><span class="ioid">Group CCT</span></div>
+          <div><label for="grp-cct-mask">Member mask</label><input type="number" id="grp-cct-mask" min="1" max="31" value="24" style="width:100%"></div>
+          <div style="margin-top:8px"><label for="grp-cct-step">Dim step %</label><input type="number" id="grp-cct-step" min="1" max="64" value="8" style="width:100%"></div>
+          <div style="margin-top:8px"><label for="grp-cct-ramp">Hold ramp ms</label><input type="number" id="grp-cct-ramp" min="20" max="2000" value="60" style="width:100%"></div></div>
+      </div>`;
+    })();
+
+    (function buildScenes(){
+      const c=$('io-scenes'); if(!c) return;
+      for(let s=0;s<NUM_SCENES;s++){
         const d=document.createElement('div');
-        d.className='iocard tint-input';
-        d.innerHTML=`
-          <div class="iotop"><span class="ioid">IN${i}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
-          <div class="checkRow">
-            <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
-            <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
-          </div>
-          <div class="split">
-            <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
-            <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
-          </div>`;
+        d.className='iocard';
+        let ch='';
+        for(let i=0;i<NUM_PWM;i++) ch+=`<div><label for="scene-${s}-${i}">${PWM_NAMES[i]}</label><input type="number" id="scene-${s}-${i}" min="0" max="255" value="0" style="width:100%"></div>`;
+        d.innerHTML=`<div class="iotop"><span class="ioid">Scene ${s}</span></div><div class="pwm-pwr-grid">${ch}</div>`;
         c.appendChild(d);
+      }
+    })();
+
+    (function buildOutput(){
+      const c=$('io-output'); if(!c) return;
+      c.innerHTML=`<label class="check"><input type="checkbox" id="gamma-enable" checked> Gamma correction</label>
+        <div style="margin-top:10px"><label for="gamma-value">Gamma (×10, e.g. 22 = 2.2)</label>
+        <input type="number" id="gamma-value" min="10" max="40" value="22" style="width:100%"></div>
+        <p class="sub" style="margin-top:8px">PWM runs at 12-bit internally; Modbus/WebConfig use 0–255. Smooth slew uses per-channel transition ms.</p>`;
+    })();
+
+    (function buildEvt(){
+      const c=$('io-evt'); if(!c) return;
+      for(let s=0;s<NUM_EVT;s++){
+        const p=document.createElement('p');
+        p.className='sub'; p.id='evt-'+s; p.textContent=SRC_NAMES[s]+': —';
+        c.appendChild(p);
       }
     })();
 
@@ -242,20 +439,10 @@
             <label class="check"><input type="checkbox" id="enable-relay${i}"> Enabled</label>
             <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
           </div>
-          <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>`;
-        c.appendChild(d);
-      }
-    })();
-
-    (function buildButtons(){
-      const c=$('io-buttons'); if(!c) return;
-      const btnActOpts=[{v:0,l:'None'},{v:5,l:'Relay 1 override (toggle)'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
-      for(let i=1;i<=NUM_BTN;i++){
-        const d=document.createElement('div');
-        d.className='iocard tint-button';
-        d.innerHTML=`
-          <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
-          <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>`;
+          <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>
+          <div style="margin-top:8px"><label for="mode-relay${i}">Mode</label><select id="mode-relay${i}"><option value="0">Manual</option><option value="1" selected>Follow (PSU cut)</option></select></div>
+          <div style="margin-top:8px"><label for="watch-relay${i}">Follow watch mask (bit0=RGB, bit1=CCT)</label><input type="number" id="watch-relay${i}" min="0" max="3" value="3" style="width:100%"></div>
+          <div style="margin-top:8px"><label for="offdelay-relay${i}">Off delay, ms</label><input type="number" id="offdelay-relay${i}" min="0" max="600000" value="45000" style="width:100%"></div>`;
         c.appendChild(d);
       }
     })();
@@ -278,36 +465,96 @@
     $('modbus-address')?.addEventListener('input', ()=>HMWebConfig.sendValues(parseInt($('modbus-address').value||'3',10), parseInt($('modbus-baud').value||'19200',10)));
     $('modbus-baud')?.addEventListener('input', ()=>HMWebConfig.sendValues(parseInt($('modbus-address').value||'3',10), parseInt($('modbus-baud').value||'19200',10)));
 
-    function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
-    function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
-    function sendInputAction(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
-    function sendInputTarget(){ const l=[]; for(let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.target', l); }
-    for(let i=1;i<=NUM_DI;i++){
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+    function sendInputMode(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(parseInt($('mode-in'+i).value,10)); HMWebConfig.sendConfig('in.mode', l); }
+    function sendInputLock(){ const l=[]; for(let i=1;i<=NUM_IN_CH;i++) l.push(!!$('lock-in'+i).checked); HMWebConfig.sendConfig('in.lock', l); }
+    function gestList(pfx, n){ return [{action:parseInt($(pfx+n+'-act').value,10),target:parseInt($(pfx+n+'-tgt').value,10)}]; }
+    function sendGlobal(){
+      HMWebConfig.sendConfig('global', {
+        debounceMs:parseInt($('glob-debounce').value,10), longPressMs:parseInt($('glob-longpress').value,10),
+        multiClickGapMs:parseInt($('glob-multiclick').value,10), holdDelayMs:parseInt($('glob-holddelay').value,10),
+        holdRepeatMs:parseInt($('glob-holdrepeat').value,10),
+        allowLocalWhenOffline: $('glob-offline').checked
+      });
+    }
+    function sendSafe(){
+      const ch=[]; for(let i=1;i<=NUM_PWM;i++) ch.push(parseInt($('safe-ch'+i)?.value||'2',10));
+      HMWebConfig.sendConfig('safe', { allowLocalWhenOffline:$('safe-offline').checked, chSafe:ch });
+    }
+    function sendOutput(){
+      HMWebConfig.sendConfig('output', {
+        gammaEnable: $('gamma-enable').checked,
+        gammaTenths: parseInt($('gamma-value').value,10)
+      });
+    }
+    $('gamma-enable')?.addEventListener('change', sendOutput);
+    $('gamma-value')?.addEventListener('change', sendOutput);
+
+    function sendPwmCfg(){
+      const l=[]; for(let i=0;i<NUM_PWM;i++) l.push({
+        minTrim:parseInt($('trim-min-'+i).value,10), maxTrim:parseInt($('trim-max-'+i).value,10),
+        fadeMs:parseInt($('fade-'+i).value,10), transitionMs:parseInt($('fade-'+i).value,10),
+        powerOn:parseInt($('powerOn-pwm'+(i+1))?.value||'0',10)
+      });
+      HMWebConfig.sendConfig('pwm', l);
+    }
+    function sendGroups(){
+      HMWebConfig.sendConfig('group.rgb', { memberMask:parseInt($('grp-rgb-mask').value,10), dimStepPct:parseInt($('grp-rgb-step').value,10), holdRampMs:parseInt($('grp-rgb-ramp').value,10) });
+      HMWebConfig.sendConfig('group.cct', { memberMask:parseInt($('grp-cct-mask').value,10), dimStepPct:parseInt($('grp-cct-step').value,10), holdRampMs:parseInt($('grp-cct-ramp').value,10) });
+    }
+    function sendScenes(){
+      const l=[]; for(let s=0;s<NUM_SCENES;s++){ const row=[]; for(let c=0;c<NUM_PWM;c++) row.push(parseInt($('scene-'+s+'-'+c).value,10)); l.push(row); }
+      HMWebConfig.sendConfig('scenes', l);
+    }
+    for(let i=1;i<=NUM_IN_CH;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
-      $('action-in'+i)?.addEventListener('change', sendInputAction);
-      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+      $('mode-in'+i)?.addEventListener('change', sendInputMode);
+      $('lock-in'+i)?.addEventListener('change', sendInputLock);
+      ['single','double','long','hold'].forEach(g=>{
+        $(g+'-in'+i+'-act')?.addEventListener('change', ()=>HMWebConfig.sendConfig('in.'+g, gestList(g+'-in', i)));
+        $(g+'-in'+i+'-tgt')?.addEventListener('change', ()=>HMWebConfig.sendConfig('in.'+g, gestList(g+'-in', i)));
+      });
     }
+    ['single','double','long','hold'].forEach(g=>{
+      $(g+'-btn1-act')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.'+g, gestList(g+'-btn', 1)));
+      $(g+'-btn1-tgt')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.'+g, gestList(g+'-btn', 1)));
+    });
+    $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
+    $('invert-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.invert', [!!$('invert-btn1').checked]));
+    $('mode-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.mode', [parseInt($('mode-btn1').value,10)]));
+    $('lock-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.lock', [!!$('lock-btn1').checked]));
+    ['glob-debounce','glob-longpress','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
+    ['safe-offline'].concat([...Array(NUM_PWM)].map((_,i)=>'safe-ch'+(i+1))).forEach(id=>$(id)?.addEventListener('change', sendSafe));
+    for(let i=0;i<NUM_PWM;i++){
+      ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));
+    }
+    ['grp-rgb-mask','grp-rgb-step','grp-rgb-ramp','grp-cct-mask','grp-cct-step','grp-cct-ramp'].forEach(id=>$(id)?.addEventListener('change', sendGroups));
+    for(let s=0;s<NUM_SCENES;s++) for(let c=0;c<NUM_PWM;c++) $('scene-'+s+'-'+c)?.addEventListener('change', sendScenes);
 
     function sendRelayCfg(){
       const l=[];
-      for(let i=1;i<=NUM_RLY;i++) l.push({ enabled:$('enable-relay'+i).checked, inverted:$('invert-relay'+i).checked, powerOn:parseInt($('powerOn-relay'+i)?.value||'0',10) });
+      for(let i=1;i<=NUM_RLY;i++) l.push({
+        enabled:$('enable-relay'+i).checked, inverted:$('invert-relay'+i).checked,
+        powerOn:parseInt($('powerOn-relay'+i)?.value||'0',10),
+        mode:parseInt($('mode-relay'+i)?.value||'1',10),
+        watchMask:parseInt($('watch-relay'+i)?.value||'3',10),
+        offDelayMs:parseInt($('offdelay-relay'+i)?.value||'45000',10)
+      });
       HMWebConfig.sendConfig('relay', l);
     }
     for(let i=1;i<=NUM_RLY;i++){
       $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('mode-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('watch-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('offdelay-relay'+i)?.addEventListener('change', sendRelayCfg);
     }
 
-    function sendPwmPowerOn(){
-      const l=[]; for(let i=1;i<=NUM_PWM;i++) l.push(parseInt($('powerOn-pwm'+i)?.value||'0',10));
-      HMWebConfig.sendConfig('ext.pwmPowerOn', l);
-    }
+    function sendPwmPowerOn(){ sendPwmCfg(); }
     for(let i=1;i<=NUM_PWM;i++) $('powerOn-pwm'+i)?.addEventListener('change', sendPwmPowerOn);
-
-    function sendBtnCfg(){ const l=[]; for(let i=1;i<=NUM_BTN;i++) l.push({ action:parseInt($('action-btn'+i).value||'0',10) }); HMWebConfig.sendConfig('btn', l); }
-    for(let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
 
     function sendLedCfg(){
       const l=[]; for(let i=1;i<=NUM_LED;i++) l.push({ mode:parseInt($('mode-led'+i)?.value||'0',10), source:parseInt($('source-led'+i)?.value||'0',10) });

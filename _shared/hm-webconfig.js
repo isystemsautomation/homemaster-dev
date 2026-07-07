@@ -88,6 +88,21 @@
     return el;
   }
 
+  function parseFwTuple(s) {
+    const parts = String(s).replace(/-.*$/, '').split('.').map((x) => parseInt(x, 10) || 0);
+    while (parts.length < 3) parts.push(0);
+    return parts;
+  }
+
+  function compareFw(got, expected) {
+    const A = parseFwTuple(got);
+    const B = parseFwTuple(expected);
+    for (let i = 0; i < 3; i++) {
+      if (A[i] !== B[i]) return A[i] - B[i];
+    }
+    return 0;
+  }
+
   function evaluateCompat(st) {
     const exp = HMWebConfig.expected;
     if (!hasCompleteIdentity(st)) {
@@ -109,11 +124,15 @@
       };
     }
     if (gotFw !== String(exp.fw)) {
+      const cmp = compareFw(gotFw, exp.fw);
+      const message = cmp > 0
+        ? `Module firmware is ${gotFw} (newer than this WebConfig page, built for ${exp.fw}). Open the matching configurator version or continue — setup usually still works.`
+        : `Module firmware is ${gotFw}; this page expects ${exp.fw}. Flash newer firmware on the module.`;
       return {
         level: 'fw',
-        blocked: true,
+        blocked: cmp < 0,
         factoryBlocked: false,
-        message: `Firmware version mismatch: module has ${gotFw}, this software is built for ${exp.fw}. Update the module firmware.`,
+        message,
       };
     }
     return { level: 'ok', blocked: false, factoryBlocked: false, message: '' };

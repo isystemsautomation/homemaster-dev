@@ -4,7 +4,7 @@
 ## Bus-load notes (shared RS-485 with DIO/ENM):
 ##   - DI/relay/LED/linkOk: one FC04 poll @0 count=5 (IREG 0..4), not sparse FC02.
 ##   - PWM outputs are write-only (skip_updates=max); control via rgbww Light.
-##   - Relay/service coils are write-only (assumed_state); pulse via template buttons.
+##   - Relay/service coils are write-only (assumed_state); template switch for relay.
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
 ##   packages:
@@ -15,13 +15,13 @@
 ##         rgb_address: "3"
 ##         rgb_prefix: "RGB Living"
 ##
-## Modbus map (default_rgb_621_r1.ino v0.2.0, MAP_VERSION=2):
-##   Input Registers (FC04) 0..4:
-##     0 DI_STATE_MASK · 1 RLY_STATE_MASK · 2 reserved · 3 LED_STATE_MASK · 4 STATUS_FLAGS
-##   Discrete Inputs (FC02) 1..2, 60, 90..91 — legacy mirror, do not poll from ESPHome
-##   Coils (FC05/15): 5 IDENTIFY · 6 SAVE_CFG · 7 REBOOT
-##                    200 relay ON · 210 relay OFF · 300..301 DI enable · 320..321 DI disable
-##   Requires firmware v0.2.0 with MAP_VERSION=2 (IREG 0..4). Reflash RGB before ESPHome update.
+## Modbus map (default_rgb_621_r1.ino v0.2.1-dev, MAP_VERSION=3):
+##   Input Registers (FC04) 0..4 + 6..20:
+##     0 DI_MASK · 1 RLY_MASK · 2 BTN_MASK (bit0=SW2) · 3 LED_MASK · 4 STATUS_FLAGS
+##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/long/hold)
+##   Holding 500..579: local input engine config (see README §6.3)
+##   Coils: 0 Relay1 · 5..7 service · 200/210 legacy pulse · 300..321 DI en/dis
+##   Requires MAP_VERSION=3 firmware. Each module needs a UNIQUE Modbus address.
 ##   If slave is offline/wrong map, offline_skip_updates avoids blocking DIO/ENM on the bus.
 
 substitutions:
@@ -59,9 +59,17 @@ binary_sensor:
     bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_rly1_state
     name: "${rgb_prefix} Relay1 State"
+    internal: true
     register_type: read
     address: 1
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Btn1"
+    register_type: read
+    address: 2
     bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
@@ -77,7 +85,11 @@ binary_sensor:
     bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Link OK"
+    name: "${rgb_prefix} Btn2"
+    register_type: read
+    address: 2
+    bitmask: 0x0002
+  - platform: modbus_controller
     register_type: read
     address: 4
     bitmask: 0x0002
@@ -90,6 +102,13 @@ binary_sensor:
 
 # ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
 switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_relay1_coil
+    register_type: coil
+    address: 0
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     id: ${rgb_id}_cmd_identify
@@ -111,20 +130,17 @@ switch:
     address: 7
     internal: true
     assumed_state: true
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    id: ${rgb_id}_rly1_on_coil
-    register_type: coil
-    address: 200
-    internal: true
-    assumed_state: true
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    id: ${rgb_id}_rly1_off_coil
-    register_type: coil
-    address: 210
-    internal: true
-    assumed_state: true
+
+  # Public relay switch — state from FC04 @1, command via write-only coil @0
+  - platform: template
+    name: "${rgb_prefix} Relay 1"
+    id: ${rgb_id}_relay1
+    lambda: |-
+      return id(${rgb_id}_rly1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${rgb_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${rgb_id}_relay1_coil
 
 button:
   - platform: template
@@ -139,18 +155,6 @@ button:
     name: "${rgb_prefix} Reboot"
     on_press:
       - switch.turn_on: ${rgb_id}_cmd_reboot
-  - platform: template
-    name: "${rgb_prefix} Relay1 ON (Pulse)"
-    on_press:
-      - switch.turn_on: ${rgb_id}_rly1_on_coil
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_rly1_on_coil
-  - platform: template
-    name: "${rgb_prefix} Relay1 OFF (Pulse)"
-    on_press:
-      - switch.turn_on: ${rgb_id}_rly1_off_coil
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_rly1_off_coil
 
 #############################################################
 # PWM outputs — write-only (skip_updates); rgbww Light below
