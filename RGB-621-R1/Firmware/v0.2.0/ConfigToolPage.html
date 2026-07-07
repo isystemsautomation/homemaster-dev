@@ -366,8 +366,23 @@
         if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=normGesture(o.single).target;
         syncInputModeUi(pfx+n);
       };
+      const bindBtn=(o,n)=>{
+        if(!o) return;
+        const idpfx='btn'+n;
+        if($('enable-'+idpfx)) $('enable-'+idpfx).checked=!!(o.enabled??1);
+        const applyGest=(gname,obj)=>{
+          if(!obj) return;
+          const pre=gname+'-'+idpfx;
+          const cell=$(pre+'-act')?.parentElement;
+          if(!cell) return;
+          cell.innerHTML=`<label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj,true)}`;
+          wireGesture(idpfx,gname,true);
+        };
+        applyGest('single', o.single);
+        applyGest('double', o.double);
+      };
       for(let i=0;i<NUM_IN_CH;i++) bindIn('in', cfg.in?.[i], i+1);
-      for(let i=0;i<NUM_BTN;i++) bindIn('btn', cfg.btn?.[i], i+1);
+      for(let i=0;i<NUM_BTN;i++) bindBtn(cfg.btn?.[i], i+1);
       if(cfg.relay?.[0]){
         if($('mode-relay1')) $('mode-relay1').value=cfg.relay[0].mode??1;
         if($('watch-relay1')) $('watch-relay1').value=cfg.relay[0].watchMask??3;
@@ -461,6 +476,19 @@
         </div></div>`;
     }
 
+    function buildOnboardBtnCard(idpfx, defaults){
+      const d=defaults||{};
+      const gs=(gname,obj)=>`<div><label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj||{},true)}</div>`;
+      return `<div class="iocard tint-input input-mode-card">
+        <div class="iotop"><span class="ioid">SW2 (GPIO1)</span><span class="ioBadge badgeState"><span id="state-${idpfx}" class="state-dot dot-off"></span></span></div>
+        <div class="checkRow">
+          <label class="check"><input type="checkbox" id="enable-${idpfx}" checked> Enabled</label>
+        </div>
+        <div class="gesture-rows">
+          <div class="split split-gest">${gs('single',d.single)}${gs('double',d.double)}</div>
+        </div></div>`;
+    }
+
     (function buildInputs(){
       const c=$('io-inputs'); if(!c) return;
       for(let i=1;i<=NUM_IN_CH;i++){
@@ -472,9 +500,8 @@
 
     (function buildBtn(){
       const c=$('io-btn'); if(!c) return;
-      c.innerHTML=buildGestureCard('btn1', 'SW2 (GPIO1)', {single:{action:1,target:9},double:{action:11,target:0},hold:{action:0,target:0}}, true);
-      ['single','double','hold'].forEach(g=>wireGesture('btn1',g,true));
-      syncInputModeUi('btn1');
+      c.innerHTML=buildOnboardBtnCard('btn1', {single:{action:1,target:9},double:{action:11,target:0}});
+      ['single','double'].forEach(g=>wireGesture('btn1',g,true));
     })();
 
     (function buildPwmCfg(){
@@ -638,10 +665,6 @@
       $('lock-in'+i)?.addEventListener('change', sendInputLock);
     }
     $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
-    $('invert-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.invert', [!!$('invert-btn1').checked]));
-    $('mode-btn1')?.addEventListener('change', ()=>onModeChange('btn1', true));
-    $('maint-btn1-tgt')?.addEventListener('change', ()=>sendMaintTarget('btn1', true));
-    $('lock-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.lock', [!!$('lock-btn1').checked]));
     ['glob-debounce','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
     ['safe-offline'].concat([...Array(NUM_PWM)].map((_,i)=>'safe-ch'+(i+1))).forEach(id=>$(id)?.addEventListener('change', sendSafe));
     for(let i=0;i<NUM_PWM;i++){

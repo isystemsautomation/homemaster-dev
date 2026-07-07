@@ -193,10 +193,23 @@ static inline void hmMigrateLegacyLongGesture(HmInputChannelCfg& c) {
   c.lng = { HM_ACT_NONE, HM_TGT_NONE };
 }
 
+static inline void hmNormalizeBtnChannel(HmInputChannelCfg& btn) {
+  btn.mode = HM_IN_MOMENTARY;
+  btn.inverted = false;
+  btn.lockLocal = false;
+  btn.tpl = { HM_ACT_NONE, HM_TGT_NONE };
+  btn.lng = { HM_ACT_NONE, HM_TGT_NONE };
+  btn.hold = { HM_ACT_NONE, HM_TGT_NONE };
+  hmMigrateLegacyLongGesture(btn);
+  hmNormalizeGestureBind(btn.single);
+  hmNormalizeGestureBind(btn.dbl);
+}
+
 static inline void hmInputEngineSetBtnDefaults(HmInputChannelCfg& btn) {
   hmGestureClear(btn);
   btn.single = { HM_ACT_TOGGLE, HM_TGT_ALL };
   btn.dbl    = { HM_ACT_IDENTIFY, HM_TGT_NONE };
+  hmNormalizeBtnChannel(btn);
 }
 
 static inline void hmInputEngineSetTimingDefaults(HmInputEngineTimings& t) {
@@ -277,6 +290,35 @@ static inline void hmServiceMomentaryPhys(uint8_t physIdx, const HmInputChannelC
         cs.lastReleaseMs = now;
         cs.gapPending = true;
       }
+    }
+  }
+}
+
+static inline void hmServiceOnboardBtnPhys(uint8_t physIdx, const HmInputChannelCfg& cfg, HmInputRuntime& rt,
+                                           const HmInputEngineTimings& timings,
+                                           uint16_t evtCount[][HM_EVT_COUNT], uint8_t numPhys,
+                                           uint32_t now) {
+  if (!cfg.enabled) return;
+
+  HmDebounceState& db = rt.db;
+  HmClickState& cs = rt.cs;
+  bool rising = (!db.prevStable && db.stable);
+  bool falling = (db.prevStable && !db.stable);
+
+  if (rising) {
+    cs.pressed = true;
+    cs.pressStartMs = now;
+    cs.holdFired = false;
+  }
+
+  if (falling && cs.pressed) {
+    cs.pressed = false;
+    if (!hmMultiClickConfigured(cfg)) {
+      hmFireGesture(physIdx, HM_EVT_SINGLE, cfg.single, now, evtCount, numPhys);
+    } else {
+      cs.pendingClicks++;
+      cs.lastReleaseMs = now;
+      cs.gapPending = true;
     }
   }
 }

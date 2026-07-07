@@ -356,11 +356,7 @@ bool applyFromPersist(const PersistConfig &pc) {
     hmMigrateLegacyLongGesture(inChCfg[i]);
   }
   for (int i = 0; i < NUM_BTN; i++) {
-    hmNormalizeGestureBind(btnChCfg[i].single);
-    hmNormalizeGestureBind(btnChCfg[i].dbl);
-    hmNormalizeGestureBind(btnChCfg[i].tpl);
-    hmNormalizeGestureBind(btnChCfg[i].hold);
-    hmMigrateLegacyLongGesture(btnChCfg[i]);
+    hmNormalizeBtnChannel(btnChCfg[i]);
   }
   memcpy(scenes, pc.scenes, sizeof(scenes));
   safeCfg = pc.safe;
@@ -369,7 +365,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
   g_mb_address = pc.mb_address; g_mb_baud = pc.mb_baud;
   for (int i = 0; i < NUM_IN_CH; i++) inChCfg[i].mode = hmNormalizeInMode(inChCfg[i].mode);
-  for (int i = 0; i < NUM_BTN; i++) btnChCfg[i].mode = hmNormalizeInMode(btnChCfg[i].mode);
+  for (int i = 0; i < NUM_BTN; i++) btnChCfg[i].mode = HM_IN_MOMENTARY;
   pwmBuildGammaLut();
   return true;
 }
@@ -589,6 +585,7 @@ bool applyEngineFromHregs(bool markDirty) {
     unpackGesture(g, (uint16_t)mb.Hreg(HR_ENG_BASE + inBase[s] + 4));
     if (memcmp(&g, &cfgs[s]->hold, sizeof(g))) { cfgs[s]->hold = g; changed = true; }
   }
+  for (int i = 0; i < NUM_BTN; i++) hmNormalizeBtnChannel(btnChCfg[i]);
   for (int s = 0; s < NUM_SCENES; s++) {
     for (int c = 0; c < NUM_PWM; c++) {
       uint16_t sv = (uint16_t)mb.Hreg(HR_ENG_BASE + 60 + s * NUM_PWM + c);
@@ -898,23 +895,15 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "btn.enabled") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].enabled = (bool)list[i];
     changed = true;
-  } else if (type == "btn.invert") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].inverted = (bool)list[i];
-    changed = true;
-  } else if (type == "btn.mode") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].mode = hmNormalizeInMode((uint8_t)constrain((int)list[i], 0, 2));
-    changed = true;
-  } else if (type == "btn.lock") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) btnChCfg[i].lockLocal = (bool)list[i];
-    changed = true;
+  } else if (type == "btn.invert" || type == "btn.mode" || type == "btn.lock" || type == "btn.hold") {
+    // SW2 is fixed momentary single+double; ignore legacy keys
   } else if (type == "btn.single") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].single, list[i]);
+    for (int i = 0; i < NUM_BTN; i++) hmNormalizeBtnChannel(btnChCfg[i]);
     changed = true;
   } else if (type == "btn.double") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].dbl, list[i]);
-    changed = true;
-  } else if (type == "btn.hold") {
-    for (int i = 0; i < NUM_BTN && i < list.length(); i++) applyGestureObj(btnChCfg[i].hold, list[i]);
+    for (int i = 0; i < NUM_BTN; i++) hmNormalizeBtnChannel(btnChCfg[i]);
     changed = true;
 
   } else if (type == "global" || type == "engine") {
@@ -1536,8 +1525,12 @@ void loop() {
       buttonState[p - NUM_DI] = physState[p];
     }
     uint8_t chIdx = (p < NUM_IN_CH) ? p : 0;
-    hmServiceMaintainedPhys(p, chIdx, cfg, inpRt[p], now);
-    hmServiceMomentaryPhys(p, cfg, inpRt[p], inpTimings, allowLocal, g_dimToggleDir, evtCount, NUM_EVT_SRC, now);
+    if (p < NUM_DI) {
+      hmServiceMaintainedPhys(p, chIdx, cfg, inpRt[p], now);
+      hmServiceMomentaryPhys(p, cfg, inpRt[p], inpTimings, allowLocal, g_dimToggleDir, evtCount, NUM_EVT_SRC, now);
+    } else {
+      hmServiceOnboardBtnPhys(p, cfg, inpRt[p], inpTimings, evtCount, NUM_EVT_SRC, now);
+    }
     inpRt[p].db.prevStable = inpRt[p].db.stable;
   }
   hmFinalizeClickGaps(inpRt, NUM_PHYS, inChCfg, NUM_IN_CH, btnChCfg, NUM_BTN, inpTimings, evtCount, now);
@@ -1652,14 +1645,10 @@ void sendWebCfg() {
   }
   for (int i = 0; i < NUM_BTN; i++) {
     cfg["btn"][i]["enabled"] = btnChCfg[i].enabled ? 1 : 0;
-    cfg["btn"][i]["invert"] = btnChCfg[i].inverted ? 1 : 0;
-    cfg["btn"][i]["mode"] = hmNormalizeInMode(btnChCfg[i].mode);
-    cfg["btn"][i]["lockLocal"] = btnChCfg[i].lockLocal ? 1 : 0;
     cfg["btn"][i]["single"]["action"] = btnChCfg[i].single.action;
+    cfg["btn"][i]["single"]["target"] = btnChCfg[i].single.target;
     cfg["btn"][i]["double"]["action"] = btnChCfg[i].dbl.action;
     cfg["btn"][i]["double"]["target"] = btnChCfg[i].dbl.target;
-    cfg["btn"][i]["hold"]["action"] = btnChCfg[i].hold.action;
-    cfg["btn"][i]["hold"]["target"] = btnChCfg[i].hold.target;
   }
   cfg["global"]["debounceMs"] = inpTimings.debounceMs;
   cfg["global"]["multiClickGapMs"] = inpTimings.multiClickGapMs;

@@ -605,7 +605,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **dimFullRangeMs** (HR 532) sets how long a full hold-to-dim sweep takes for both groups.
 
 | 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
-| 541–555 | Input binds | DI1, DI2, SW2 — flags + single/double/hold (`action<<8|target`; HR +3 reserved) |
+| 541–555 | Input binds | DI1/DI2: flags + single/double/hold; SW2: single/double only (momentary) |
 | 560–579 | Scenes[4][5] | Preset channel levels (0–255 API) |
 | 580–581 | Output quality | gammaEnable, gammaTenths (22 = γ 2.2) |
 
@@ -624,13 +624,13 @@ Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **
 
 ## 6.5 Local input logic (v0.2.0)
 
-Wall switches (DI1/DI2) and onboard **SW2** run a **local gesture engine** on-module — no master required for hold-to-dim.
+Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-to-dim). Onboard **SW2** is a fixed tactile button: momentary **single** and **double** only.
 
 | Input | Default single | Default double | Default hold |
 |-------|----------------|----------------|--------------|
 | **DI1** | Toggle Group RGB | — | Dim up → Group RGB *(or Dim toggle dir in single-button scheme)* |
 | **DI2** | Toggle Group CCT | — | Dim down → Group CCT |
-| **SW2** | Toggle All | Identify | — |
+| **SW2** | Toggle All | Identify | *(not used)* |
 
 **Dim button scheme** (HR **531** / WebConfig): *two-button* (default) — DI1 hold dims up, DI2 hold dims down; *single-button* — DI1 hold uses **Dim toggle dir** (direction reverses each hold).
 
