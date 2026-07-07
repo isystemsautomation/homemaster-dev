@@ -527,7 +527,7 @@ Summarize steps in 3 phases:
 
 # 6. Modbus RTU Communication
 
-The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc_full.yaml` and firmware v0.2.0.
+The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware v0.2.0.
 
 **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
 
