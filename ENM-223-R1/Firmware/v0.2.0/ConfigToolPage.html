@@ -383,7 +383,7 @@
       rxOnce[channel] = true;
       try {
         const preview = JSON.stringify(payload);
-        HMWebConfig.appendLog('RX ' + channel + ': ' + preview.slice(0, 160) + (preview.length > 160 ? '…' : ''));
+        HMWebConfig.appendLog('RX ' + channel + ': ' + preview.slice(0, 96) + (preview.length > 96 ? '…' : ''));
       } catch (e) {
         HMWebConfig.appendLog('RX ' + channel);
       }

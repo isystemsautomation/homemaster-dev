@@ -241,7 +241,8 @@
     const el = $('hm-log');
     if (!el) return;
     const t = new Date().toLocaleTimeString();
-    const body = (typeof line === 'string') ? line : JSON.stringify(line);
+    let body = (typeof line === 'string') ? line : JSON.stringify(line);
+    if (body.length > 240) body = body.slice(0, 240) + '…';
     HMWebConfig._logBuf.push(`[${t}] ${body}`);
     if (HMWebConfig._logBuf.length > LOG_MAX) HMWebConfig._logBuf.shift();
     el.textContent = HMWebConfig._logBuf.join('\n');

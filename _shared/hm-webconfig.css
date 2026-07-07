@@ -54,6 +54,7 @@ textarea{min-height:140px;font-family:ui-monospace,Consolas,monospace}
 
 .grid{display:grid;gap:var(--gap);margin-top:16px}
 .grid.two{grid-template-columns:1.2fr .8fr}
+.grid.two > *{min-width:0}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
 
@@ -83,8 +84,8 @@ textarea{min-height:140px;font-family:ui-monospace,Consolas,monospace}
 .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 
-#hm-log-box{margin-bottom:1.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);font-size:12px}
-#hm-log{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
+#hm-log-box{margin-bottom:1.25rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);font-size:12px;overflow:hidden;min-width:0}
+#hm-log{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-family:monospace;line-height:1.25em;margin:.5rem 0 0;height:calc(1.25em * 8);max-width:100%;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:.6rem}
 
 .iogroup{display:grid;gap:var(--gap);grid-template-columns:repeat(4,1fr)}
 .iogroup.cols2{grid-template-columns:repeat(2,1fr)}
