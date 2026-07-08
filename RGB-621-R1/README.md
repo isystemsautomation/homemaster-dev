@@ -202,97 +202,29 @@ RGB + CCT LED controller with:
 
 # 3. Use Cases
 
-The **RGB-621-R1** module is primarily designed for multi-channel lighting control but can also be used in broader automation and signaling tasks.  
-Its combination of isolated inputs, PWM outputs, and a relay makes it suitable for ambient lighting, architectural control, and user-interactive automation.
+The RGB-621-R1 is a 5-channel RGB + tunable-white (CCT) LED controller with two wall-switch inputs,
+one relay, and an on-module control engine — it runs standalone or as a Modbus RTU / Home Assistant
+node. I/O: 5 PWM channels (R, G, B, WW, CW), 2 digital inputs, 1 SPST-NO relay.
 
----
+### 🎚️ Use Case 1 — Standalone wall-switch dimming, color and scenes (no controller)
+Drive an RGB or RGB+CCT strip directly from one or two momentary wall buttons, all logic on the
+module: short-press toggles a group, press-and-hold ramps brightness smoothly (hold-to-dim over a
+configurable time), double-press jumps to full or recalls one of four on-module scenes. DI1 handles
+the RGB group, DI2 the warm/cool (CCT) group by default — fully configurable in WebConfig. Works
+with the bus and Home Assistant offline.
 
-### 🏠 Use Case 1 — RGB Scene Control with Wall Switch Inputs
+### 🔌 Use Case 2 — Relay as automatic LED-PSU power-cut (energy saving)
+Set the onboard relay to FOLLOW mode: it powers the LED driver whenever any channel is on and cuts
+its supply after an off-delay once everything is dark — no standby draw or driver heating. Or use
+the relay in Manual mode as a free switched output driven by a gesture, Modbus, or Home Assistant.
+Module output is 3 A @ 250 VAC (PCB limit); use an interposing contactor for larger loads.
 
-**Purpose:**  
-Use two wall switches to trigger and cycle through preset color or brightness scenes stored in the controller.
-
-**How it works:**  
-Each digital input acts as a trigger to change the lighting mode or adjust brightness levels.
-
-**Setup Steps:**
-1. Connect **DI1** and **DI2** to wall switches (dry contact).  
-2. Wire **RGBW LED strips** to PWM outputs R, G, B, CW, WW.  
-3. In **WebConfig**, assign Modbus address and test LED channels.  
-4. In the **MicroPLC / MiniPLC**, define scene logic (e.g., DI1 → next scene, DI2 → off).  
-5. Use Modbus holding registers to control PWM duty cycles for each channel.
-
----
-
-### 💡 Use Case 2 — Relay-Based Power Switching for LED Drivers
-
-**Purpose:**  
-Control a 24 V LED power supply or auxiliary lighting circuit via the onboard relay.
-
-**How it works:**  
-The relay output switches the driver’s DC line or AC supply based on PLC logic or local input triggers.
-
-**Setup Steps:**
-1. Connect the **relay COM/NO terminals** in series with the LED driver’s supply.  
-2. Wire LED outputs to PWM channels for dimming control.  
-3. In **WebConfig**, enable relay control via Modbus coil.  
-4. Program the controller to energize the relay only when active scenes are running.  
-5. Optionally, use a wall switch on **DI1** as a manual override for relay control.
-
----
-
-### 🌈 Use Case 3 — Tunable White (CCT) Control with Daylight Automation
-
-**Purpose:**  
-Implement human-centric lighting that adjusts color temperature (CCT) throughout the day.
-
-**How it works:**  
-Two PWM channels (CW and WW) mix warm and cool light based on time of day or ambient sensor input.
-
-**Setup Steps:**
-1. Connect **CW** and **WW** LED strips to respective PWM outputs.  
-2. Define a time-based profile in the controller (morning = warm, midday = cool).  
-3. Use Modbus registers to update CW/WW duty cycles automatically.  
-4. Optionally, map DI1 as a manual “Day/Night” mode toggle.  
-5. Adjust max/min PWM limits in WebConfig for consistent brightness.
-
----
-
-### 🚨 Use Case 4 — Status Indicator / Alarm Signaling
-
-**Purpose:**  
-Display system or alarm status using color lighting patterns.
-
-**How it works:**  
-The module’s PWM channels can drive RGB indicators or stack lights controlled by alarm flags from the PLC.
-
-**Setup Steps:**
-1. Wire a small 12 V RGB LED indicator to PWM outputs R, G, and B.  
-2. Connect the module to the same Modbus bus as the alarm controller.  
-3. Assign registers to display alarm colors (e.g., red = alert, green = normal).  
-4. Use DI1 as a manual alarm acknowledge input.  
-5. Configure the relay as an auxiliary siren or warning signal driver.
-
----
-
-### 🧠 Use Case 5 — Standalone Mood Lighting Controller
-
-**Purpose:**  
-Operate ambient RGB lighting locally without an external PLC, using onboard inputs and preloaded logic.
-
-**How it works:**  
-The module can store simple input-to-output mapping rules (through WebConfig or firmware) for local lighting control.
-
-**Setup Steps:**
-1. Power the module from a 24 V DC supply.  
-2. Connect LED strips to PWM outputs and wall switches to DI1/DI2.  
-3. In WebConfig, set input-to-PWM mapping rules or fading behavior.  
-4. Adjust brightness levels and transition speeds.  
-5. Optionally, connect to Modbus later for centralized control or monitoring.
-
----
-
-These examples illustrate how the **RGB-621-R1** can serve as both a **dedicated lighting driver** and a **multi-purpose automation node**, combining smooth dimming, robust field isolation, and Modbus integration.
+### 🏠 Use Case 3 — Full Home Assistant integration with live state
+Add the ESPHome package (see Quick Start) to a MicroPLC/MiniPLC and the strip appears in Home
+Assistant as an RGB+CCT light with the relay as a switch. Control color, brightness and CCT from HA
+with 12-bit gamma-corrected, step-free dimming, while wall switches keep working locally; the module
+reports its actual state back so HA stays in sync — and everything keeps working if the controller
+or network goes down.
 
 ---
 
