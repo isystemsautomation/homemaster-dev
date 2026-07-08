@@ -672,7 +672,8 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 - **DI / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
 - **Applied PWM + relay flags:** one FC04 read **26..28** every 5 s (STATE block; drives HA light/relay feedback)  
 - **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  
-- **Relay/service coils:** write only on demand
+- **Relay/service coils:** write only on demand  
+- **HA light transitions:** ESPHome package sets `default_transition_length: 0s` so HA sends one final value per channel; smooth crossfade is done on-module via per-channel **fadeMs** (WebConfig, default 400 ms). HA’s transition slider does not apply to this entity.
 
 ---
 

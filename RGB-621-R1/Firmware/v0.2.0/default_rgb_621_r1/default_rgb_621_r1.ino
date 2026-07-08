@@ -1133,6 +1133,7 @@ static void holdDimArmChannel(uint8_t ch, uint16_t targetHi) {
   holdDimChMask |= (uint8_t)(1u << ch);
   pwmHoldTraverseMs[ch] = dimCfg.dimFullRangeMs;
   pwmSetTargetHi(ch, targetHi);
+  slewLastMs[ch] = millis();
   pwmLevel[ch] = pwmTarget[ch];
 }
 

@@ -5,6 +5,7 @@
 ##   - DI/relay/LED/linkOk: one FC04 poll @0 count=5 (IREG 0..4), not sparse FC02.
 ##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
 ##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
+##   - Light default_transition_length: 0s — HA sends one final value per channel; module slew (fadeMs) handles smooth fade locally.
 ##   - Relay/service coils are write-only (assumed_state).
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
@@ -343,11 +344,13 @@ sensor:
 
 #############################################################
 # RGBWW LIGHT — writes HR 400–404; state synced from STATE readback
+# default_transition_length 0s: skip ESPHome bus streaming; module fadeMs (WebConfig) slews 12-bit locally.
 #############################################################
 light:
   - platform: rgbww
     id: ${rgb_id}_light
     name: "${rgb_prefix} Light"
+    default_transition_length: 0s
     red: ${rgb_id}_out_r
     green: ${rgb_id}_out_g
     blue: ${rgb_id}_out_b

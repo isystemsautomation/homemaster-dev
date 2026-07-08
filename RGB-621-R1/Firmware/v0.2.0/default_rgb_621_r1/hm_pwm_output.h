@@ -93,7 +93,10 @@ inline void pwmSetTargetHi(uint8_t ch, uint16_t perceivedHi) {
     perceivedHi = pwmApplyTrim(ch, perceivedHi);
     pwmLastNonZero[ch] = perceivedHi;
   }
-  pwmTarget[ch] = perceivedHi;
+  if (pwmTarget[ch] != perceivedHi) {
+    pwmTarget[ch] = perceivedHi;
+    slewLastMs[ch] = millis();
+  }
   lastOutChangeMs = millis();
 }
 
@@ -109,7 +112,7 @@ inline void pwmSnapCurrentToTarget(uint8_t ch) {
 
 inline void pwmServiceSlew(uint32_t now) {
   for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
-    if (pwmCurrent[ch] == pwmTarget[ch]) continue;
+    if (pwmCurrent[ch] == pwmTarget[ch]) { slewLastMs[ch] = now; continue; }
     const uint16_t fadeMs = (pwmHoldTraverseMs[ch] > 0) ? pwmHoldTraverseMs[ch] : pwmChCfg[ch].fadeMs;
     if (fadeMs == 0) {
       pwmCurrent[ch] = pwmTarget[ch];
