@@ -11,22 +11,9 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 
 > **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
 
-## 🚀 Quick Start (current version)
+## 🚀 Quick Start
 
-**Firmware shipped on new modules: `v0.2.0`**
-
-```yaml
-packages:
-  rgb1:
-    url: https://github.com/isystemsautomation/homemaster-dev
-    ref: main
-    files:
-      - path: RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
-        vars:
-          rgb_prefix: "RGB#1"
-          rgb_id: rgb_1
-          rgb_address: 3
-```
+New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC** / **MiniPLC** — see [§7 ESPHome Integration](#7-esphome-integration-guide) for the ready-to-copy YAML. Give each module a **unique Modbus address** (default **3**).
 
 ## 📦 Version History
 
@@ -218,7 +205,7 @@ the relay in Manual mode as a free switched output driven by a gesture, Modbus, 
 Module output is 3 A @ 250 VAC (PCB limit); use an interposing contactor for larger loads.
 
 ### 🏠 Use Case 3 — Full Home Assistant integration with live state
-Add the ESPHome package (see Quick Start) to a MicroPLC/MiniPLC and the strip appears in Home
+Add the ESPHome package (see [§7](#7-esphome-integration-guide)) to a MicroPLC/MiniPLC and the strip appears in Home
 Assistant as an RGB+CCT light with the relay as a switch. Control color, brightness and CCT from HA
 with 12-bit gamma-corrected, step-free dimming, while wall switches keep working locally; the module
 reports its actual state back so HA stays in sync — and everything keeps working if the controller
@@ -528,7 +515,7 @@ Follow these steps for a first-time install (field wiring detail: [§5.4](#54-in
 3. Plug **USB-C** into a PC; open the **WebConfig** tool in Chrome or Edge and click **Connect**.
 4. Set a **unique Modbus address** (each module on the bus must differ; default is **3**) and baud **19200**; save to flash.
 5. Optionally assign **DI1** / **DI2** wall-switch actions; test the light from WebConfig.
-6. Add the [Quick Start](#-quick-start-current-version) ESPHome package to the controller with the matching `rgb_address`.
+6. Add the [§7 ESPHome](#7-esphome-integration-guide) package to the controller with the matching `rgb_address`.
 7. The light and relay appear in **Home Assistant**.
 
 ---
@@ -676,11 +663,22 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 
 # 7. ESPHome Integration Guide
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+Add this package to your **MicroPLC** or **MiniPLC** ESPHome configuration. Set `rgb_address` to the Modbus ID configured in WebConfig (default **3**; each module on the bus must be unique).
+
+```yaml
+packages:
+  rgb1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+        vars:
+          rgb_prefix: "RGB#1"
+          rgb_id: rgb_1
+          rgb_address: 3
+```
+
+The package exposes an **RGB+CCT light**, **relay switch**, **digital inputs**, and **button** entities in Home Assistant. UART and Modbus are configured on the controller; poll intervals and STATE readback match firmware v0.2.0 (see [§6](#6-modbus-rtu-communication)).
 
 ---
 
