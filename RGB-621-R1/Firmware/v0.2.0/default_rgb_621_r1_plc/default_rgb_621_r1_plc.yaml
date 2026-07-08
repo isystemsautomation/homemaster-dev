@@ -279,42 +279,55 @@ sensor:
       then:
         - lambda: |-
             uint16_t v = (uint16_t) x;
-            id(${rgb_id}_act_cw).publish_state((v >> 8) & 0xFF);
+            const uint16_t rg = (uint16_t) id(${rgb_id}_st_rg).state;
+            const uint16_t bw = (uint16_t) id(${rgb_id}_st_bw).state;
+            const uint8_t r_api = (rg >> 8) & 0xFF;
+            const uint8_t g_api = rg & 0xFF;
+            const uint8_t b_api = (bw >> 8) & 0xFF;
+            const uint8_t ww_api = bw & 0xFF;
+            const uint8_t cw_api = (v >> 8) & 0xFF;
+            id(${rgb_id}_act_r).publish_state(r_api);
+            id(${rgb_id}_act_g).publish_state(g_api);
+            id(${rgb_id}_act_b).publish_state(b_api);
+            id(${rgb_id}_act_ww).publish_state(ww_api);
+            id(${rgb_id}_act_cw).publish_state(cw_api);
             uint8_t flags = v & 0xFF;
             const bool any_on = (flags & 0x01) != 0;
             const bool rly = (flags & 0x08) != 0;
             id(${rgb_id}_st_any_on).publish_state(any_on);
             id(${rgb_id}_st_rly1).publish_state(rly);
             id(${rgb_id}_relay1).publish_state(rly);
-            auto *light = id(${rgb_id}_light);
-            auto &rv = light->remote_values;
+            static bool last_any_on = false;
+            static uint8_t last_r = 0, last_g = 0, last_b = 0, last_ww = 0, last_cw = 0;
+            const bool on_changed = (any_on != last_any_on);
+            const bool levels_changed = (r_api != last_r) || (g_api != last_g) || (b_api != last_b) ||
+                                        (ww_api != last_ww) || (cw_api != last_cw);
             if (!any_on) {
-              rv.set_state(false);
-            } else {
-              const float r = id(${rgb_id}_act_r).state / 255.0f;
-              const float g = id(${rgb_id}_act_g).state / 255.0f;
-              const float b = id(${rgb_id}_act_b).state / 255.0f;
-              const float ww = id(${rgb_id}_act_ww).state / 255.0f;
-              const float cw = ((v >> 8) & 0xFF) / 255.0f;
-              rv.set_state(true);
-              rv.set_brightness(1.0f);
-              rv.set_red(r);
-              rv.set_green(g);
-              rv.set_blue(b);
-              rv.set_warm_white(ww);
-              rv.set_cold_white(cw);
-              const bool has_rgb = (r > 0.0f) || (g > 0.0f) || (b > 0.0f);
-              const bool has_white = (ww > 0.0f) || (cw > 0.0f);
-              if (has_rgb && has_white) {
-                rv.set_color_mode(ColorMode::RGB_COLD_WARM_WHITE);
-              } else if (has_white) {
-                rv.set_color_mode(ColorMode::COLD_WARM_WHITE);
-              } else {
-                rv.set_color_mode(ColorMode::RGB);
+              if (last_any_on) {
+                auto call = id(${rgb_id}_light).turn_off();
+                call.set_transition_length(0);
+                call.perform();
               }
+            } else if (on_changed || levels_changed) {
+              auto call = id(${rgb_id}_light).turn_on();
+              call.set_transition_length(0);
+              call.set_brightness(1.0f);
+              const float r = r_api / 255.0f;
+              const float g = g_api / 255.0f;
+              const float b = b_api / 255.0f;
+              const float ww = ww_api / 255.0f;
+              const float cw = cw_api / 255.0f;
+              call.set_rgb(r, g, b);
+              call.set_warm_white(ww);
+              call.set_cold_white(cw);
+              call.perform();
             }
-            light->current_values = rv;
-            light->publish_state();
+            last_any_on = any_on;
+            last_r = r_api;
+            last_g = g_api;
+            last_b = b_api;
+            last_ww = ww_api;
+            last_cw = cw_api;
 
   # Identity IR @200..204 (FC04) — diagnostic only, rare poll
   - platform: modbus_controller
