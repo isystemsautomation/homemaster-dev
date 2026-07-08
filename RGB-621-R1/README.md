@@ -100,25 +100,24 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 ## 2.2 Overview
 
-RGB + CCT LED controller with:
-- **5 PWM outputs**, **2 IEC 61131-2 digital inputs**, **1 relay**
-- **RS-485 (Modbus RTU)** slave for HomeMaster controllers or SCADA
-- Configurable via **USB-C WebConfig**
-- Compact **DIN-rail** form factor
+See [§1.2 Features & Architecture](#12-features--architecture) for the subsystem overview. The sections below cover pinouts, electrical ratings, protections, and absolute limits.
 
 ---
 
 ## 2.3 I/O Summary
 
-| Interface | Qty | Notes |
-|------------|-----|-------|
-| **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
-| **Relay** | 1 | SPST-NO, 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
-| **PWM Outputs** | 5 | Low-side MOSFETs (AP9990GH-HF) for R/G/B/CW/WW |
-| **RS-485 (Modbus)** | 1 | MAX485 transceiver, 19200 bps 8N1 default |
-| **USB-C** | 1 | Config & firmware upload (logic only) |
-| **MCU** | 1 | RP2350A @ 133 MHz, 32 Mbit QSPI Flash |
-| **Buttons / LEDs** | — | SW2 button; LED1/LED2 + DI1/DI2 status indication |
+I/O counts only — full descriptions in [§1.2](#12-features--architecture).
+
+| Interface | Qty |
+|------------|-----|
+| **Digital Inputs** | 2 |
+| **Relay** | 1 |
+| **PWM Outputs** | 5 |
+| **RS-485 (Modbus)** | 1 |
+| **USB-C** | 1 |
+| **MCU** | 1 |
+| **Buttons** | 2 |
+| **LED Indicators** | 2 + DI |
 
 ---
 
@@ -426,53 +425,45 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 ## 5.4 Installation & Wiring
 
-Wire the module on a **35 mm DIN rail** inside a dry enclosure; disconnect field power before making connections. Two supplies are used: **24 V DC** for module logic (**V+** / **0V**) and a separate **12 V or 24 V DC** LED PSU for the strip (**LED PS** +/−). Do **not** bridge `GND_FUSED` (field) and `GND` (logic/USB) externally.
+Diagram-first wiring map. Power, grounds, and PSU sizing: [§5.2](#52-power). RS-485 bus, termination, and **RS-485 COM**: [§5.3](#53-communication).
+
+Mount on a **35 mm DIN rail** inside a dry enclosure; disconnect field power before making connections.
 
 ### Power
 
-Connect a regulated **24 V DC SELV/PELV** supply to **V+** and **0V** for module logic, RS-485, and input wetting; connect a separate **12 V or 24 V DC** LED PSU to the **LED PS** (+/−) terminals for the strip load (PTC fuses, reverse-polarity diode, and TVS protect both paths).
-
 ![Power supply wiring — module V+/0V and LED PS](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_PowerSupply.png)
-*Module **V+** / **0V** (24 V DC) and **LED PS** (+/−) for a 12/24 V common-anode strip.*
+*Module **V+** / **0V** (24 V DC) and **LED PS** (+/−) — see [§5.2](#52-power).*
 
 ### LED outputs (5× PWM)
-
-Five low-side PWM sinks (**R**, **G**, **B**, **CW**, **WW**) drive **12/24 V DC common-anode** LED strips: tie strip **+** to **COM (LED+)** and each cathode to its channel; unused channels may be left open.
 
 | RGB (3 colour) | RGB + CW |
 |:---:|:---:|
 | ![RGB LED strip wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGB_Connection.png) | ![RGB + Cool White wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGBCW_Connection.png) |
-| *R, G, B channels — strip + on **COM (LED+)**.* | *Adds **CW** for RGB + cool-white mixes.* |
+| *Strip **+** on **COM (LED+)**; cathodes on **R** / **G** / **B**.* | *Adds **CW** for RGB + cool-white mixes.* |
 
 | Tunable white (CWWW) | Full RGBCCT (RGB + CCT) |
 |:---:|:---:|
 | ![CCT / tunable white wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_CWWW_Connection.png) | ![Full RGBCCT wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGBCWWW_Connection.png) |
-| ***CW** and **WW** only — colour-temperature control without RGB.* | *All five channels — native operating mode of the module.* |
+| ***CW** and **WW** only.* | *All five channels — native operating mode.* |
 
 ### Digital inputs
 
-Two **IEC 61131-2** digital inputs (**I1**, **I2**) use an **ISO1212** front-end wetted from the module 24 V supply; connect **dry contacts** or **24 V DC sourcing** sensors to **I1**/**I2** and **GND** (PTC fuse, TVS, and reverse-polarity protection on each path — do not inject external voltage into the DI pins).
-
 ![Digital inputs — dry-contact wiring to I1 and I2](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DigitalInputs.png)
-*Wall switches or sensors on **I1** / **I2** with shared **GND**.*
+*Dry contacts or 24 V sourcing on **I1** / **I2** + **GND** — see [§4.2](#42-installation-practices).*
 
 ### Relay
 
-One **SPST-NO** dry-contact relay (**Relay C** / **NO**) switches an external load at up to **3 A @ 250 VAC** (module/PCB limit); add an external fuse or breaker sized for the load, and use a flyback diode or RC snubber on inductive circuits. The relay is **not** in the LED anode rail on the PCB.
-
 ![Relay output — NO and C to external load](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RelayConnectioin.png)
-*Normally-open contact between **Relay C** and **NO** — independent of **COM (LED+)**. For FOLLOW-mode LED-PSU cut, wire **Relay C / NO** externally in series with the LED PSU (+) feed.*
+*External load on **Relay C** / **NO** — independent of **COM (LED+)**; FOLLOW PSU cut: external series wiring ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving), [§5.2](#52-power)).*
 
 ### RS-485 (Modbus RTU)
 
-Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **RS-485 COM** is an optional field-ground reference for long runs — fit an external 120 Ω resistor across A/B at the two physical ends of the bus (the module has no onboard terminator).
-
 ![RS-485 A/B/COM Modbus RTU wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RS485Connection.png)
-***A**, **B**, and optional **RS-485 COM** to the controller or next module.*
+***A** / **B** / optional **RS-485 COM** — daisy-chain to controller; see [§5.3](#53-communication).*
 
 ### USB-C
 
-The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from the host PC, logic domain); it is **not** a field power or data bus — disconnect USB before energising the installation and before handing control to RS-485.
+*WebConfig and firmware only — disconnect before energising the field installation (see [§5.3](#53-communication)).*
 
 ## 5.5 Software & UI Configuration
 
