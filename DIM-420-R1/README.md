@@ -590,7 +590,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
   - Transceiver: **MAX485**
   - TVS: **SMAJ6.8CA**
   - Pull-up/down: 4.7 kΩ bias
-  - Termination pads included
+  - External 120 Ω bus termination at segment ends (installer-fitted; not on module)
 
 - **USB-C**
   - USB-UART: **RP2350**

@@ -334,10 +334,10 @@ Two **3.3 V presence-sensor inputs** (**IN1**, **IN2**) accept PIR or motion det
 
 ### RS-485 (Modbus RTU)
 
-Wire **A**, **B**, and optional **COM** on shielded twisted-pair in a daisy-chain bus; enable the onboard **120 Ω** termination resistor **only** at the last device on the segment.
+Wire **A**, **B**, and optional **COM** on shielded twisted-pair in a daisy-chain bus; fit an external 120 Ω resistor across A/B at each physical bus end (no onboard terminator).
 
 ![RS-485 bus wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_RS485_Connection.png)
-***A**, **B**, and **COM** to the controller or next module; terminate at line end.*
+***A**, **B**, and **COM** to the controller or next module; external 120 Ω at both bus ends.*
 
 ### USB-C
 

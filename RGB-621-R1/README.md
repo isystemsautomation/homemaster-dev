@@ -65,7 +65,7 @@ Its **isolated I/O architecture**, **dual-board design**, and built-in **surge a
 | **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
 | **LED Indicators** | 8 | Power, TX/RX, input, and status LEDs for feedback and diagnostics |
-| **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver; external 120 Ω bus termination at segment ends (not on module) |
+| **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver (external 120 Ω bus termination) |
 | **USB-C** | Yes | WebConfig & firmware flashing with PRTR5V0U2X ESD protection |
 | **Power Input** | 24 V DC | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
 | **Logic Supply** | — | AP64501SP-13 buck (5 V) + AMS1117-3.3 LDO chain |
@@ -88,6 +88,7 @@ Each module on the bus must have a **unique** Modbus address (default **3**); ch
 - **Address:** 3  
 - **Baud rate:** 19200 bps  
 - **Format:** 8 data bits, no parity, 1 stop bit (8N1)  
+- **Bus termination:** external 120 Ω at both physical bus ends (not on the module)  
 - **Fail-safe:** retains last valid PWM and relay state if communication is lost  
 
 The controller periodically polls holding registers to:  
@@ -325,7 +326,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 | Transceiver | MAX485CSA+T |
 | Bus Type | Differential, multi-drop (A/B lines) |
 | Default Settings | 19200 bps · 8N1 |
-| Bus termination | External 120 Ω at both physical ends of the bus (not provided on the module) |
+| Bus termination | External 120 Ω at both bus ends |
 | Protection | Surge/ESD network integrated |
 | Notes | Observe polarity (A = +, B = –). Use shielded twisted-pair cable; ground shield at one end only. |
 
@@ -408,7 +409,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 - **Network topology:**  
   Daisy-chain (bus) — no star wiring.  
-  RS-485 bus termination: install an external 120 Ω resistor at **both** physical ends of the bus (not provided on the module).
+  Fit an external 120 Ω resistor across A/B at each of the two physical bus ends.
 
 - **Default Modbus settings:**  
   - **Address:** 3 (each module on the bus must be unique — change in WebConfig to avoid collisions)  
@@ -479,7 +480,7 @@ One **SPST-NO** dry-contact relay (**C** / **NO**) switches an external load at 
 
 ### RS-485 (Modbus RTU)
 
-Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **COM** is an optional field-ground reference for long runs. RS-485 bus termination: install an external 120 Ω resistor at **both** physical ends of the bus (not provided on the module).
+Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **COM** is an optional field-ground reference for long runs — fit an external 120 Ω resistor across A/B at the two physical ends of the bus (the module has no onboard terminator).
 
 ![RS-485 A/B/COM Modbus RTU wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RS485Connection.png)
 ***A**, **B**, and optional **COM** to the controller or next module.*

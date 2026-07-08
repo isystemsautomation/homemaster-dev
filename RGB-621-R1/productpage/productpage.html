@@ -783,7 +783,7 @@ packages:
 
       <h4 id="rs485-wiring"><strong>RS-485 Wiring</strong></h4>
       <p>
-        Connect <strong>A</strong> and <strong>B</strong> to the bus; <strong>COM</strong> is optional common reference. Use twisted-pair (120 Ω characteristic impedance); shielded cable recommended in industrial environments. Enable 120 Ω termination only at the last device on the bus.
+        Connect <strong>A</strong> and <strong>B</strong> to the bus; <strong>COM</strong> is optional common reference. Use twisted-pair (120 Ω characteristic impedance); shielded cable recommended in industrial environments. Fit an external 120 Ω resistor across A/B at each of the two physical bus ends (the module has no onboard terminator).
       </p>
 
       <div class="plc-grid">
@@ -797,7 +797,7 @@ packages:
               height="400"
               decoding="async"
             >
-            <div class="plc-caption">Connect A, B, and COM to the bus; 120 Ω termination at line end.</div>
+            <div class="plc-caption">Connect A, B, and COM to the bus; external 120 Ω at both bus ends.</div>
           </div>
         </div>
       </div>
