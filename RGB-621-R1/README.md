@@ -674,7 +674,7 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 - **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  
 - **Relay/service coils:** write only on demand  
 - **HA light transitions:** ESPHome package sets `default_transition_length: 0s` so HA sends one final value per channel; smooth crossfade is done on-module via per-channel **fadeMs** (WebConfig, default 400 ms). HA’s transition slider does not apply to this entity.  
-- **HA light readback:** STATE@26–28 updates HA display via publish-only `remote_values` (stable across two polls, 4 s HA-command gate, ±2/255 tolerance) — never re-writes HR 400–404.
+- **HA light readback:** STATE@26–28 updates HA display via publish-only `remote_values` (4 s HA-command gate) — never re-writes HR 400–404. Template holders have no lambda so `publish_state` values persist.
 
 ---
 

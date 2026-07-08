@@ -103,9 +103,12 @@ binary_sensor:
     address: 4
     bitmask: 0x0008
 
-  # STATE flags (from FC04 @28 low byte) — updated on each STATE poll via publish_state
+  # STATE flags (from FC04 @28 low byte) — holders updated via publish_state only (no lambda)
   - platform: template
     id: ${rgb_id}_st_any_on
+    internal: true
+  - platform: template
+    id: ${rgb_id}_st_rly1
     internal: true
 
 # ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
@@ -286,63 +289,31 @@ sensor:
             uint8_t flags = v & 0xFF;
             const bool any_on = (flags & 0x01) != 0;
             const bool rly = (flags & 0x08) != 0;
-            id(${rgb_id}_st_any_on).publish_state(any_on);
+            id(${rgb_id}_st_rly1).publish_state(rly);
             id(${rgb_id}_relay1).publish_state(rly);
-            static bool last_any_on = false;
-            static uint8_t last_r = 0, last_g = 0, last_b = 0, last_ww = 0, last_cw = 0;
-            static bool have_last = false;
-            const bool readback_changed = !have_last || (any_on != last_any_on) ||
-                                          (r_api != last_r) || (g_api != last_g) || (b_api != last_b) ||
-                                          (ww_api != last_ww) || (cw_api != last_cw);
-            last_any_on = any_on;
-            last_r = r_api;
-            last_g = g_api;
-            last_b = b_api;
-            last_ww = ww_api;
-            last_cw = cw_api;
-            have_last = true;
-            if (readback_changed) return;
+            id(${rgb_id}_st_any_on).publish_state(any_on);
             if ((millis() - id(${rgb_id}_ha_cmd_at)) < 4000) return;
-            const float r = r_api / 255.0f;
-            const float g = g_api / 255.0f;
-            const float b = b_api / 255.0f;
-            const float ww = ww_api / 255.0f;
-            const float cw = cw_api / 255.0f;
-            constexpr float tol = 2.0f / 255.0f;
             auto *lt = id(${rgb_id}_light);
-            auto cur = lt->remote_values;
-            auto differs = [&]() -> bool {
-              if (!any_on) return cur.get_state() > 0.0f;
-              if (cur.get_state() <= 0.0f) return true;
-              if (fabsf(cur.get_red() - r) > tol) return true;
-              if (fabsf(cur.get_green() - g) > tol) return true;
-              if (fabsf(cur.get_blue() - b) > tol) return true;
-              if (fabsf(cur.get_warm_white() - ww) > tol) return true;
-              if (fabsf(cur.get_cold_white() - cw) > tol) return true;
-              return false;
-            };
-            if (!differs()) return;
-            auto nv = cur;
+            auto nv = lt->remote_values;
             if (!any_on) {
               nv.set_state(0.0f);
             } else {
               nv.set_state(1.0f);
               nv.set_brightness(1.0f);
-              nv.set_color_brightness(1.0f);
-              const bool rgb_on = (flags & 0x02) != 0;
-              const bool cct_on = (flags & 0x04) != 0;
-              if (rgb_on && cct_on) {
+              nv.set_red(r_api / 255.0f);
+              nv.set_green(g_api / 255.0f);
+              nv.set_blue(b_api / 255.0f);
+              nv.set_warm_white(ww_api / 255.0f);
+              nv.set_cold_white(cw_api / 255.0f);
+              const bool has_rgb = (r_api || g_api || b_api);
+              const bool has_w = (ww_api || cw_api);
+              if (has_rgb && has_w) {
                 nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
-              } else if (cct_on) {
+              } else if (has_w) {
                 nv.set_color_mode(esphome::light::ColorMode::COLD_WARM_WHITE);
               } else {
                 nv.set_color_mode(esphome::light::ColorMode::RGB);
               }
-              nv.set_red(r);
-              nv.set_green(g);
-              nv.set_blue(b);
-              nv.set_warm_white(ww);
-              nv.set_cold_white(cw);
             }
             lt->remote_values = nv;
             lt->current_values = nv;
