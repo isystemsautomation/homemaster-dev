@@ -241,6 +241,16 @@
       return g;
     }
     function normInMode(v){ return (v===1||v===2)?1:0; }
+    function normWatchMask(v){
+      const n=parseInt(v,10);
+      if(n===1||n===2||n===3) return n;
+      return 3;
+    }
+    function syncRelayFollowUi(i){
+      const follow=parseInt($('mode-relay'+i)?.value||'1',10)===1;
+      const el=$('follow-fields-relay'+i);
+      if(el) el.hidden=!follow;
+    }
     function syncInputModeUi(idpfx){
       const maintained=parseInt($('mode-'+idpfx)?.value||'0',10)===1;
       const gest=$('gestures-'+idpfx), maint=$('maintained-'+idpfx);
@@ -377,10 +387,15 @@
       };
       for(let i=0;i<NUM_IN_CH;i++) bindIn('in', cfg.in?.[i], i+1);
       for(let i=0;i<NUM_BTN;i++) bindBtn(cfg.btn?.[i], i+1);
-      if(cfg.relay?.[0]){
-        if($('mode-relay1')) $('mode-relay1').value=cfg.relay[0].mode??1;
-        if($('watch-relay1')) $('watch-relay1').value=cfg.relay[0].watchMask??3;
-        if($('offdelay-relay1')) $('offdelay-relay1').value=cfg.relay[0].offDelayMs??45000;
+      if(cfg.relay){
+        for(let i=0;i<NUM_RLY;i++){
+          const r=cfg.relay[i]; if(!r) continue;
+          const n=i+1;
+          if($('mode-relay'+n)) $('mode-relay'+n).value=r.mode??1;
+          if($('watch-relay'+n)) $('watch-relay'+n).value=String(normWatchMask(r.watchMask??3));
+          if($('offdelay-relay'+n)) $('offdelay-relay'+n).value=String(Math.round((r.offDelayMs??45000)/1000));
+          syncRelayFollowUi(n);
+        }
       }
       if(cfg.output){
         if($('gamma-enable')) $('gamma-enable').checked=!!cfg.output.gammaEnable;
@@ -565,6 +580,7 @@
     (function buildRelays(){
       const c=$('io-relays'); if(!c) return;
       const pwrOpts=[{v:0,l:'OFF at power-on'},{v:1,l:'ON at power-on'},{v:2,l:'Restore last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const watchOpts=[{v:1,l:'RGB only'},{v:2,l:'CCT only'},{v:3,l:'RGB + CCT'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       for(let i=1;i<=NUM_RLY;i++){
         const d=document.createElement('div');
         d.className='iocard tint-relay';
@@ -575,10 +591,13 @@
             <label class="check"><input type="checkbox" id="invert-relay${i}"> Inverted</label>
           </div>
           <div><label for="powerOn-relay${i}">Power-on state</label><select id="powerOn-relay${i}">${pwrOpts}</select></div>
-          <div style="margin-top:8px"><label for="mode-relay${i}">Mode</label><select id="mode-relay${i}"><option value="0">Manual</option><option value="1" selected>Follow (PSU cut)</option></select></div>
-          <div style="margin-top:8px"><label for="watch-relay${i}">Follow watch mask (bit0=RGB, bit1=CCT)</label><input type="number" id="watch-relay${i}" min="0" max="3" value="3" style="width:100%"></div>
-          <div style="margin-top:8px"><label for="offdelay-relay${i}">Off delay, ms</label><input type="number" id="offdelay-relay${i}" min="0" max="600000" value="45000" style="width:100%"></div>`;
+          <div style="margin-top:8px"><label for="mode-relay${i}">Relay mode</label><select id="mode-relay${i}"><option value="0">Manual</option><option value="1" selected>Follow (PSU cut)</option></select></div>
+          <div id="follow-fields-relay${i}" style="margin-top:8px">
+            <div><label for="watch-relay${i}">Follow channels</label><select id="watch-relay${i}">${watchOpts}</select></div>
+            <div style="margin-top:8px"><label for="offdelay-relay${i}">Off delay (seconds)</label><input type="number" id="offdelay-relay${i}" min="0" max="600" value="45" style="width:100%"></div>
+          </div>`;
         c.appendChild(d);
+        syncRelayFollowUi(i);
       }
     })();
 
@@ -672,8 +691,8 @@
         enabled:$('enable-relay'+i).checked, inverted:$('invert-relay'+i).checked,
         powerOn:parseInt($('powerOn-relay'+i)?.value||'0',10),
         mode:parseInt($('mode-relay'+i)?.value||'1',10),
-        watchMask:parseInt($('watch-relay'+i)?.value||'3',10),
-        offDelayMs:parseInt($('offdelay-relay'+i)?.value||'45000',10)
+        watchMask:normWatchMask($('watch-relay'+i)?.value??3),
+        offDelayMs:parseInt($('offdelay-relay'+i)?.value||'45',10)*1000
       });
       HMWebConfig.sendConfig('relay', l);
     }
@@ -681,7 +700,7 @@
       $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('powerOn-relay'+i)?.addEventListener('change', sendRelayCfg);
-      $('mode-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('mode-relay'+i)?.addEventListener('change', ()=>{ syncRelayFollowUi(i); sendRelayCfg(); });
       $('watch-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('offdelay-relay'+i)?.addEventListener('change', sendRelayCfg);
     }

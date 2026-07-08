@@ -819,11 +819,14 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values) {
-  int addr = (int)values["mb_address"];
-  int baud = (int)values["mb_baud"];
-  addr = hmValidAddress(addr);
-  baud = hmValidBaud(baud);
-  applyModbusSettings((uint8_t)addr, (uint32_t)baud);
+  bool changed = false;
+
+  if (values.hasOwnProperty("mb_address") || values.hasOwnProperty("mb_baud")) {
+    int addr = values.hasOwnProperty("mb_address") ? (int)values["mb_address"] : (int)g_mb_address;
+    int baud = values.hasOwnProperty("mb_baud")    ? (int)values["mb_baud"]    : (int)g_mb_baud;
+    applyModbusSettings(hmValidAddress(addr), hmValidBaud(baud));
+    changed = true;
+  }
 
   // Optionally accept direct PWM payloads: {"rgb":[r,g,b],"cct":[ww,cw]} (0..255)
   if (values.hasOwnProperty("rgb")) {
@@ -836,6 +839,7 @@ void handleValues(JSONVar values) {
         mb.Hreg(HR_PWM_BASE + i, api);
         mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
       }
+      changed = true;
     }
   }
   if (values.hasOwnProperty("cct")) {
@@ -848,10 +852,11 @@ void handleValues(JSONVar values) {
         mb.Hreg(HR_PWM_BASE + 3 + j, api);
         mb.Hreg(HR_PWM_HI_BASE + 3 + j, pwmTarget[3 + j]);
       }
+      changed = true;
     }
   }
   wsLog("Values updated");
-  cfgDirty = true; lastCfgTouchMs = millis();
+  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
   sendWebStatus();
 }
 
