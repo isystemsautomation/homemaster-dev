@@ -103,17 +103,10 @@ binary_sensor:
     address: 4
     bitmask: 0x0008
 
-  # STATE flags (from FC04 @28 low byte) — updated on each STATE poll
+  # STATE flags (from FC04 @28 low byte) — updated on each STATE poll via publish_state
   - platform: template
     id: ${rgb_id}_st_any_on
     internal: true
-    lambda: |-
-      return false;
-  - platform: template
-    id: ${rgb_id}_st_rly1
-    internal: true
-    lambda: |-
-      return false;
 
 # ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
 switch:
@@ -146,14 +139,12 @@ switch:
     internal: true
     assumed_state: true
 
-  # Public relay switch — actual state from STATE flags bit3; command via write-only coil @0
+  # Public relay switch — state from STATE@28 publish_state; command via write-only coil @0
   - platform: template
     name: "${rgb_prefix} Relay 1"
     id: ${rgb_id}_relay1
     optimistic: false
     assumed_state: false
-    lambda: |-
-      return id(${rgb_id}_st_rly1).state;
     turn_on_action:
       - switch.turn_on: ${rgb_id}_relay1_coil
     turn_off_action:
@@ -231,28 +222,18 @@ sensor:
   - platform: template
     id: ${rgb_id}_act_r
     internal: true
-    lambda: |-
-      return 0;
   - platform: template
     id: ${rgb_id}_act_g
     internal: true
-    lambda: |-
-      return 0;
   - platform: template
     id: ${rgb_id}_act_b
     internal: true
-    lambda: |-
-      return 0;
   - platform: template
     id: ${rgb_id}_act_ww
     internal: true
-    lambda: |-
-      return 0;
   - platform: template
     id: ${rgb_id}_act_cw
     internal: true
-    lambda: |-
-      return 0;
 
   # STATE block — one FC04 read @26 count=3 (force_new_range on first reg only)
   - platform: modbus_controller
@@ -306,7 +287,6 @@ sensor:
             const bool any_on = (flags & 0x01) != 0;
             const bool rly = (flags & 0x08) != 0;
             id(${rgb_id}_st_any_on).publish_state(any_on);
-            id(${rgb_id}_st_rly1).publish_state(rly);
             id(${rgb_id}_relay1).publish_state(rly);
             static bool last_any_on = false;
             static uint8_t last_r = 0, last_g = 0, last_b = 0, last_ww = 0, last_cw = 0;
