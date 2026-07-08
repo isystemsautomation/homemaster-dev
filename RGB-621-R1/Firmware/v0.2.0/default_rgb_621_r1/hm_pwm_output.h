@@ -22,7 +22,6 @@ static const uint8_t HM_GRP_CCT_CH_COUNT = 2;  // WW, CW
 
 struct DimCfg {
   uint16_t dimFullRangeMs; // hold-to-dim: full 0..100% traverse while held (800..8000)
-  uint8_t singleButtonDim; // 0=two-button (DI1 up, DI2 down), 1=DI1 hold toggle-dir
 };
 
 extern DimCfg dimCfg;

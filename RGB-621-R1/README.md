@@ -595,7 +595,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | 505 | Safe flags | bit0 = allowLocalWhenOffline |
 | 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
 | 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
-| 531 | **singleButtonDim** | 0 = two-button dim (DI1 up, DI2 down); 1 = DI1 hold toggle-dir |
+| 531 | *(reserved)* | — | Former singleButtonDim — do not use |
 | 532 | **dimFullRangeMs** | Hold-to-dim full 0..100% traverse while held (800–8000 ms, default 3000) |
 | 533 | *(reserved)* | Former holdRampMs — do not use |
 | 534 | *(reserved)* | Former CCT memberMask — do not use |
@@ -628,17 +628,17 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 
 | Input | Default single | Default double | Default hold |
 |-------|----------------|----------------|--------------|
-| **DI1** | Toggle Group RGB | — | Dim up → Group RGB *(or Dim toggle dir in single-button scheme)* |
+| **DI1** | Toggle Group RGB | — | Dim up → Group RGB |
 | **DI2** | Toggle Group CCT | — | Dim down → Group CCT |
 | **SW2** | Toggle All | Identify | *(not used)* |
 
-**Dim button scheme** (HR **531** / WebConfig): *two-button* (default) — DI1 hold dims up, DI2 hold dims down; *single-button* — DI1 hold uses **Dim toggle dir** (direction reverses each hold).
+**Maintained mode:** contact closed = ON, open = OFF on **`maintTarget`** (independent of momentary gesture targets). Defaults: DI1 → Group RGB, DI2 → Group CCT.
 
-**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps **continuously** toward min (0) or max trim over `dimFullRangeMs` (default **3000 ms**, HR 532). Release freezes at the current level (saved for RESTORE_LAST). Group dimming preserves channel ratios within RGB / CCT / RGB+CCT.
+**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps **continuously** toward min (0) or max trim over `dimFullRangeMs` (default **3000 ms**, HR 532). Direction and target come from each input's **Hold** gesture (Dim up / Dim down / Dim toggle dir + target). Release freezes at the current level (saved for RESTORE_LAST). Group dimming preserves channel ratios within RGB / CCT / RGB+CCT.
 
 **Gesture targets** (WebConfig / `action<<8|target`): **7** = Group RGB (R,G,B), **8** = Group CCT (WW,CW), **10** = RGB+CCT (both groups in lockstep), **1** = Relay1, **9** = All. Per-channel PWM targets remain internal-only.
 
-**Gesture actions:** None, Toggle, On, Off, Dim up, Dim down, Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target hidden/unused), **Dim toggle dir** (action **7**, single-button scheme only), Identify (**11**, onboard SW2 only). Legacy **Set 100%** (action **8**) maps to None. Legacy action **4** (All off) maps to Off+All. **Relay pulse** is offered only when target is Relay1.
+**Gesture actions:** None, Toggle, On, Off, Dim up, Dim down, **Dim toggle dir** (action **7**), Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target hidden/unused), Identify (**11**, onboard SW2 only). Legacy **Set 100%** (action **8**) maps to None. Legacy action **4** (All off) maps to Off+All. **Relay pulse** is offered only when target is Relay1.
 
 **Scenes:** four presets (HR **560–579**); Scene *n* recalls `applyScene(n−1)`.
 

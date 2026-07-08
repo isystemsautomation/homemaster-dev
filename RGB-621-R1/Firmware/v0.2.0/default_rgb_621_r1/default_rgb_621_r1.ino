@@ -95,9 +95,8 @@ PwmChCfg pwmChCfg[NUM_PWM];
 DimCfg dimCfg;
 uint8_t scenes[NUM_SCENES][NUM_PWM];
 
-static inline void applyDimParams(uint16_t fullRangeMs, uint8_t singleButtonDim = 0) {
+static inline void applyDimParams(uint16_t fullRangeMs) {
   dimCfg.dimFullRangeMs = clampDimFullRange(fullRangeMs);
-  dimCfg.singleButtonDim = singleButtonDim ? 1 : 0;
 }
 
 SafeModeCfg safeCfg;
@@ -215,9 +214,9 @@ inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; 
 
 // ================== Defaults / persist ==================
 void setDefaults() {
-  dimCfg = { 3000, 0 };
-  applyDimParams(3000, 0);
-  hmInputEngineSetDiDefaults(inChCfg, NUM_IN_CH, dimCfg.singleButtonDim != 0);
+  dimCfg.dimFullRangeMs = 3000;
+  applyDimParams(3000);
+  hmInputEngineSetDiDefaults(inChCfg, NUM_IN_CH);
   hmInputEngineSetBtnDefaults(btnChCfg[0]);
   hmInputEngineSetTimingDefaults(inpTimings);
   for (int i = 0; i < NUM_PWM; i++) pwmChCfg[i] = { 1, 255, 400, HM_PWR_OFF };
@@ -347,13 +346,16 @@ bool applyFromPersist(const PersistConfig &pc) {
   inpTimings = pc.inpTimings;
   memcpy(pwmChCfg, pc.pwmCh, sizeof(pwmChCfg));
   dimCfg = pc.dimCfg;
-  applyDimParams(dimCfg.dimFullRangeMs, dimCfg.singleButtonDim);
+  applyDimParams(dimCfg.dimFullRangeMs);
   for (int i = 0; i < NUM_IN_CH; i++) {
     hmNormalizeGestureBind(inChCfg[i].single);
     hmNormalizeGestureBind(inChCfg[i].dbl);
     hmNormalizeGestureBind(inChCfg[i].tpl);
     hmNormalizeGestureBind(inChCfg[i].hold);
     hmMigrateLegacyLongGesture(inChCfg[i]);
+    if (inChCfg[i].maintTarget == 0) {
+      inChCfg[i].maintTarget = (i == 0) ? HM_TGT_GRP_RGB : HM_TGT_GRP_CCT;
+    }
   }
   for (int i = 0; i < NUM_BTN; i++) {
     hmNormalizeBtnChannel(btnChCfg[i]);
@@ -416,7 +418,7 @@ inline void setSlaveIdIfAvailable(...) {}
 // 505 safe flags (bit0 allowLocalWhenOffline)
 // 506-510 chSafe[0..4] (0=OFF,1=ON,2=RESTORE_LAST)
 // 511-515 pwm minTrim[0..4], 516-520 maxTrim, 521-525 fadeMs, 526-530 powerOn
-// 531 singleButtonDim (0=two-button, 1=DI1 hold toggle-dir)
+// 531 reserved (was singleButtonDim)
 // 532 dimFullRangeMs (hold-to-dim full 0..100% traverse, ms)
 // 533 reserved (was holdRampMs)
 // 534 reserved (was grpCct memberMask)
@@ -501,7 +503,7 @@ void syncEngineToHregs() {
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 21 + i, pwmChCfg[i].fadeMs);
   for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_ENG_BASE + 26 + i, pwmChCfg[i].powerOn);
   // HR 534 reserved (former memberMask)
-  mb.Hreg(HR_ENG_BASE + 31, dimCfg.singleButtonDim ? 1 : 0);
+  mb.Hreg(HR_ENG_BASE + 31, 0);  // reserved (was singleButtonDim)
   mb.Hreg(HR_ENG_BASE + 32, dimCfg.dimFullRangeMs);
   mb.Hreg(HR_ENG_BASE + 35, dimCfg.dimFullRangeMs);
   mb.Hreg(HR_ENG_BASE + 37, rlyCfg[0].mode);
@@ -552,12 +554,12 @@ bool applyEngineFromHregs(bool markDirty) {
     v = (uint16_t)mb.Hreg(HR_ENG_BASE + 26 + i);
     if (v != pwmChCfg[i].powerOn) { pwmChCfg[i].powerOn = (uint8_t)v; changed = true; }
   }
-  uint16_t v = (uint16_t)mb.Hreg(HR_ENG_BASE + 31);
-  uint8_t singleBtn = (v & 1) ? 1 : 0;
+  uint16_t v;
+  (void)mb.Hreg(HR_ENG_BASE + 31);  // reserved (was singleButtonDim)
   v = (uint16_t)mb.Hreg(HR_ENG_BASE + 32);
   uint16_t fullRange = clampDimFullRange((int)v);
-  if (dimCfg.dimFullRangeMs != fullRange || dimCfg.singleButtonDim != singleBtn) {
-    applyDimParams(fullRange, singleBtn);
+  if (dimCfg.dimFullRangeMs != fullRange) {
+    applyDimParams(fullRange);
     changed = true;
   }
   v = (uint16_t)mb.Hreg(HR_ENG_BASE + 37); if (v != rlyCfg[0].mode) { rlyCfg[0].mode = (uint8_t)v; changed = true; }
@@ -882,6 +884,11 @@ void handleUnifiedConfig(JSONVar obj) {
     for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) inChCfg[i].lockLocal = (bool)list[i];
     wsLog("Input child-lock updated"); changed = true;
 
+  } else if (type == "in.mainttarget") {
+    for (int i = 0; i < NUM_IN_CH && i < list.length(); i++)
+      inChCfg[i].maintTarget = (uint8_t)constrain((int)list[i], 0, 10);
+    wsLog("Input maintained target updated"); changed = true;
+
   } else if (type == "in.single") {
     for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) applyGestureObj(inChCfg[i].single, list[i]);
     changed = true;
@@ -926,11 +933,8 @@ void handleUnifiedConfig(JSONVar obj) {
     changed = true;
   } else if (type == "dim") {
     JSONVar g = list;
-    uint16_t fullRange = dimCfg.dimFullRangeMs;
-    uint8_t singleBtn = dimCfg.singleButtonDim;
-    if (g.hasOwnProperty("dimFullRangeMs")) fullRange = clampDimFullRange((int)g["dimFullRangeMs"]);
-    if (g.hasOwnProperty("singleButtonDim")) singleBtn = (bool)g["singleButtonDim"] ? 1 : 0;
-    applyDimParams(fullRange, singleBtn);
+    if (g.hasOwnProperty("dimFullRangeMs"))
+      applyDimParams(clampDimFullRange((int)g["dimFullRangeMs"]));
     changed = true;
   } else if (type == "scenes") {
     for (int s = 0; s < NUM_SCENES && s < list.length(); s++) {
@@ -1277,7 +1281,7 @@ bool hmLocalInputAllowed(bool lockLocal, bool allowOffline) {
 void hmApplyMaintainedEdge(uint8_t physIdx, bool level, uint32_t now) {
   if (physIdx >= NUM_PHYS) return;
   const HmInputChannelCfg& cfg = physCfg(physIdx);
-  hmApplyGesture(physIdx, HM_EVT_SINGLE, level ? HM_ACT_ON : HM_ACT_OFF, cfg.single.target, now);
+  hmApplyGesture(physIdx, HM_EVT_SINGLE, level ? HM_ACT_ON : HM_ACT_OFF, cfg.maintTarget, now);
 }
 
 static bool anyOutputOn() {
@@ -1636,6 +1640,7 @@ void sendWebCfg() {
     cfg["in"][i]["invert"]  = inChCfg[i].inverted ? 1 : 0;
     cfg["in"][i]["mode"]    = hmNormalizeInMode(inChCfg[i].mode);
     cfg["in"][i]["lockLocal"] = inChCfg[i].lockLocal ? 1 : 0;
+    cfg["in"][i]["maintTarget"] = inChCfg[i].maintTarget;
     cfg["in"][i]["single"]["action"] = inChCfg[i].single.action;
     cfg["in"][i]["single"]["target"] = inChCfg[i].single.target;
     cfg["in"][i]["double"]["action"] = inChCfg[i].dbl.action;
@@ -1656,7 +1661,6 @@ void sendWebCfg() {
   cfg["global"]["holdRepeatMs"] = inpTimings.holdRepeatMs;
   cfg["global"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
   cfg["dim"]["dimFullRangeMs"] = dimCfg.dimFullRangeMs;
-  cfg["dim"]["singleButtonDim"] = dimCfg.singleButtonDim != 0;
   cfg["safe"]["allowLocalWhenOffline"] = safeCfg.allowLocalWhenOffline ? 1 : 0;
   for (int i = 0; i < NUM_PWM; i++) cfg["safe"]["chSafe"][i] = safeCfg.chSafe[i];
   for (int i = 0; i < NUM_RLY; i++) {

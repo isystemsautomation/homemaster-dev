@@ -96,6 +96,7 @@ struct HmInputChannelCfg {
   bool inverted;
   bool lockLocal;
   uint8_t mode;
+  uint8_t maintTarget;
   HmGestureBind single;
   HmGestureBind dbl;
   HmGestureBind tpl;
@@ -154,6 +155,7 @@ static inline void hmGestureClear(HmInputChannelCfg& c) {
   c.inverted = false;
   c.lockLocal = false;
   c.mode = HM_IN_MOMENTARY;
+  c.maintTarget = HM_TGT_GRP_RGB;
   c.single = { HM_ACT_NONE, HM_TGT_NONE };
   c.dbl = { HM_ACT_NONE, HM_TGT_NONE };
   c.tpl = { HM_ACT_NONE, HM_TGT_NONE };
@@ -165,7 +167,7 @@ static inline bool hmMultiClickConfigured(const HmInputChannelCfg& cfg) {
   return cfg.dbl.action != HM_ACT_NONE || cfg.tpl.action != HM_ACT_NONE;
 }
 
-static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n, bool singleButtonDim) {
+static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n) {
   for (uint8_t i = 0; i < n; i++) {
     hmGestureClear(di[i]);
     di[i].inverted = false; // INPUT_PULLDOWN: idle LOW, switch close = HIGH
@@ -173,16 +175,14 @@ static inline void hmInputEngineSetDiDefaults(HmInputChannelCfg* di, uint8_t n, 
   if (n >= 1) {
     di[0].single = { HM_ACT_TOGGLE, HM_TGT_GRP_RGB };
     di[0].dbl    = { HM_ACT_NONE, HM_TGT_NONE };
-    di[0].hold   = singleButtonDim
-      ? HmGestureBind{ HM_ACT_DIM_TOGGLE_DIR, HM_TGT_GRP_RGB }
-      : HmGestureBind{ HM_ACT_DIM_UP, HM_TGT_GRP_RGB };
+    di[0].maintTarget = HM_TGT_GRP_RGB;
+    di[0].hold   = { HM_ACT_DIM_UP, HM_TGT_GRP_RGB };
   }
   if (n >= 2) {
     di[1].single = { HM_ACT_TOGGLE, HM_TGT_GRP_CCT };
     di[1].dbl    = { HM_ACT_NONE, HM_TGT_NONE };
-    di[1].hold   = singleButtonDim
-      ? HmGestureBind{ HM_ACT_NONE, HM_TGT_NONE }
-      : HmGestureBind{ HM_ACT_DIM_DOWN, HM_TGT_GRP_CCT };
+    di[1].maintTarget = HM_TGT_GRP_CCT;
+    di[1].hold   = { HM_ACT_DIM_DOWN, HM_TGT_GRP_CCT };
   }
 }
 
@@ -197,6 +197,7 @@ static inline void hmNormalizeBtnChannel(HmInputChannelCfg& btn) {
   btn.mode = HM_IN_MOMENTARY;
   btn.inverted = false;
   btn.lockLocal = false;
+  btn.maintTarget = HM_TGT_ALL;
   btn.tpl = { HM_ACT_NONE, HM_TGT_NONE };
   btn.lng = { HM_ACT_NONE, HM_TGT_NONE };
   btn.hold = { HM_ACT_NONE, HM_TGT_NONE };
@@ -359,8 +360,8 @@ static inline void hmFinalizeClickGaps(HmInputRuntime* rt, uint8_t numPhys,
   }
 }
 
-static inline void hmInputEngineSetDefaults(HmInputChannelCfg* di, uint8_t n, bool singleButtonDim) {
-  hmInputEngineSetDiDefaults(di, n, singleButtonDim);
+static inline void hmInputEngineSetDefaults(HmInputChannelCfg* di, uint8_t n) {
+  hmInputEngineSetDiDefaults(di, n);
 }
 
 static inline void hmServiceMaintainedPhys(uint8_t physIdx, uint8_t chIdx, const HmInputChannelCfg& cfg,

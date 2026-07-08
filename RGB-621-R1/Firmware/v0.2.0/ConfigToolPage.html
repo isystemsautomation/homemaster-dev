@@ -166,10 +166,9 @@
     const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
     const EVT_NAMES = ['Single','Double','Triple','(reserved)','Hold'];
     const SRC_NAMES = ['DI1','DI2','SW2'];
-    let dimSingleButton = false;
     const ACT_DI_CORE = [
       {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},
-      {v:5,l:'Dim up'},{v:6,l:'Dim down'},
+      {v:5,l:'Dim up'},{v:6,l:'Dim down'},{v:7,l:'Dim toggle dir'},
       {v:10,l:'Scene 1'},{v:12,l:'Scene 2'},{v:13,l:'Scene 3'},{v:14,l:'Scene 4'}
     ];
     const TGT_PWM_OPTS = [
@@ -180,17 +179,13 @@
     const optHtml = (arr, sel) => arr.map(o => `<option value="${o.v}"${o.v===sel?' selected':''}>${o.l}</option>`).join('');
     const actSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val||0)}</select>`;
     const tgtSel = (id, val, opts) => `<select id="${id}">${optHtml(opts, val??opts[0]?.v??7)}</select>`;
-    function getActDiOpts(target, singleBtn){
+    function getActDiOpts(target){
       const opts = ACT_DI_CORE.slice();
-      if (singleBtn) {
-        const i = opts.findIndex(o => o.v === 6);
-        opts.splice(i + 1, 0, {v:7,l:'Dim toggle dir'});
-      }
       if (parseInt(target, 10) === 1) opts.push({v:9,l:'Relay pulse'});
       return opts;
     }
     function getActBtnOpts(target){
-      return getActDiOpts(target, false).concat([{v:11,l:'Identify'}]);
+      return getActDiOpts(target).concat([{v:11,l:'Identify'}]);
     }
     function normGesture(obj){
       if(!obj) return {action:0,target:0};
@@ -217,7 +212,7 @@
     function gestureControlsHtml(idpfx, gname, bind, isBtn){
       const pre=gname+'-'+idpfx;
       const n=normGesture(bind||{});
-      const actOpts=isBtn?getActBtnOpts(n.target):getActDiOpts(n.target,dimSingleButton);
+      const actOpts=isBtn?getActBtnOpts(n.target):getActDiOpts(n.target);
       const tgtOpts=getTgtOpts(n.action);
       let html=actSel(pre+'-act',n.action,actOpts);
       if(tgtOpts.length) html+=tgtSel(pre+'-tgt',n.target,tgtOpts);
@@ -252,19 +247,21 @@
       if(gest) gest.hidden=maintained;
       if(maint) maint.hidden=!maintained;
     }
+    function defaultMaintTarget(n){ return n===1 ? 7 : 8; }
     function onModeChange(idpfx, isBtn){
-      if(parseInt($('mode-'+idpfx)?.value||'0',10)===1){
-        const src=$('single-'+idpfx+'-tgt'), dst=$('maint-'+idpfx+'-tgt');
-        if(src&&dst) dst.value=src.value;
+      if(!isBtn && parseInt($('mode-'+idpfx)?.value||'0',10)===1){
+        const dst=$('maint-'+idpfx+'-tgt');
+        const n=parseInt(String(idpfx).replace(/\D/g,''),10)||1;
+        if(dst && (!dst.value || parseInt(dst.value,10)===0)) dst.value=String(defaultMaintTarget(n));
       }
       syncInputModeUi(idpfx);
       if(isBtn) HMWebConfig.sendConfig('btn.mode',[parseInt($('mode-'+idpfx).value,10)]);
       else sendInputMode();
     }
-    function sendMaintTarget(idpfx, isBtn){
-      const tgt=parseInt($('maint-'+idpfx+'-tgt')?.value||'7',10);
-      const act=parseInt($('single-'+idpfx+'-act')?.value||'2',10);
-      HMWebConfig.sendConfig((isBtn?'btn':'in')+'.single',[{action:act,target:tgt}]);
+    function sendMaintTarget(){
+      const l=[];
+      for(let i=1;i<=NUM_IN_CH;i++) l.push(parseInt($('maint-in'+i+'-tgt')?.value||String(defaultMaintTarget(i)),10));
+      HMWebConfig.sendConfig('in.mainttarget', l);
     }
     const PWM_NAMES = ['Red','Green','Blue','Warm White','Cool White'];
     const PWM_IDS = ['r','g','b','ww','cw'];
@@ -334,8 +331,6 @@
       }
       if(cfg.dim){
         if($('grp-dim-full')) $('grp-dim-full').value=cfg.dim.dimFullRangeMs??3000;
-        dimSingleButton=!!cfg.dim.singleButtonDim;
-        if($('grp-dim-scheme')) $('grp-dim-scheme').value=dimSingleButton?'1':'0';
       }
       if(cfg.scenes){
         for(let s=0;s<NUM_SCENES;s++){
@@ -362,7 +357,7 @@
           wireGesture(idpfx,gname,isBtn);
         };
         applyGest('single', o.single); applyGest('double', o.double); applyGest('hold', o.hold);
-        if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=normGesture(o.single).target;
+        if($('maint-'+pfx+n+'-tgt')) $('maint-'+pfx+n+'-tgt').value=String(o.maintTarget ?? defaultMaintTarget(n));
         syncInputModeUi(pfx+n);
       };
       const bindBtn=(o,n)=>{
@@ -442,12 +437,14 @@
       if(i===1){
         return {
           single:{action:1,target:rgb}, double:{action:0,target:0},
-          hold:dimSingleButton?{action:7,target:rgb}:{action:5,target:rgb}
+          maintTarget:rgb,
+          hold:{action:5,target:rgb}
         };
       }
       return {
         single:{action:1,target:cct}, double:{action:0,target:0},
-        hold:dimSingleButton?{action:0,target:0}:{action:6,target:cct}
+        maintTarget:cct,
+        hold:{action:6,target:cct}
       };
     }
     function refreshAllInputGestures(){
@@ -456,6 +453,7 @@
     function buildGestureCard(idpfx, label, defaults, isBtn){
       const modeOpts=[{v:0,l:'Momentary'},{v:1,l:'Maintained'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       const d=defaults||{};
+      const inNum=parseInt(String(idpfx).replace(/\D/g,''),10)||1;
       const gs=(gname,obj)=>`<div><label>${GESTURE_LABELS[gname]}</label>${gestureControlsHtml(idpfx,gname,obj||{},isBtn)}</div>`;
       return `<div class="iocard tint-input input-mode-card">
         <div class="iotop"><span class="ioid">${label}</span><span class="ioBadge badgeState"><span id="state-${idpfx}" class="state-dot dot-off"></span></span></div>
@@ -466,7 +464,7 @@
         </div>
         <div class="mode-row"><label for="mode-${idpfx}">Mode</label><select id="mode-${idpfx}">${modeOpts}</select></div>
         <div id="maintained-${idpfx}" class="maintained-row" hidden>
-          <label for="maint-${idpfx}-tgt">Output target</label>${tgtSel('maint-'+idpfx+'-tgt',normGesture(d.single).target,TGT_PWM_OPTS)}
+          <label for="maint-${idpfx}-tgt">Output target</label>${tgtSel('maint-'+idpfx+'-tgt', d.maintTarget ?? defaultMaintTarget(inNum), TGT_PWM_OPTS)}
           <p class="sub maintained-hint">Contact closed = ON, open = OFF</p>
         </div>
         <div id="gestures-${idpfx}" class="gesture-rows">
@@ -521,16 +519,8 @@
     (function buildDimming(){
       const c=$('io-groups'); if(!c) return;
       c.innerHTML=`<div class="iocard">
-        <div class="row">
-          <div><label for="grp-dim-scheme">Dim button scheme</label>
-            <select id="grp-dim-scheme" style="width:100%">
-              <option value="0">Two buttons (DI1 dim up, DI2 dim down)</option>
-              <option value="1">Single button (DI1 hold dim toggle direction)</option>
-            </select>
-          </div>
-          <div><label for="grp-dim-full">Dimming time (ms, full range)</label><input type="number" id="grp-dim-full" min="800" max="8000" value="3000" style="width:100%"></div>
-        </div>
-        <p class="sub" style="margin-top:8px">Hold-to-dim traverses 0..100% over this time while the button is held. On/off and scene recalls still use per-channel transition ms.</p>
+        <div><label for="grp-dim-full">Dimming time (ms, full range)</label><input type="number" id="grp-dim-full" min="800" max="8000" value="3000" style="width:100%"></div>
+        <p class="sub" style="margin-top:8px">Hold-to-dim traverses 0..100% over this time while the button is held. Direction and target are set per input via the Hold gesture. On/off and scene recalls still use per-channel transition ms.</p>
       </div>`;
     })();
 
@@ -652,12 +642,9 @@
       HMWebConfig.sendConfig('pwm', l);
     }
     function sendDim(){
-      dimSingleButton=$('grp-dim-scheme')?.value==='1';
       HMWebConfig.sendConfig('dim', {
-        dimFullRangeMs:parseInt($('grp-dim-full').value,10),
-        singleButtonDim:dimSingleButton
+        dimFullRangeMs:parseInt($('grp-dim-full').value,10)
       });
-      refreshAllInputGestures();
     }
     function sendScenes(){
       const l=[]; for(let s=0;s<NUM_SCENES;s++){ const row=[]; for(let c=0;c<NUM_PWM;c++) row.push(parseInt($('scene-'+s+'-'+c).value,10)); l.push(row); }
@@ -667,7 +654,7 @@
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
       $('mode-in'+i)?.addEventListener('change', ()=>onModeChange('in'+i, false));
-      $('maint-in'+i+'-tgt')?.addEventListener('change', ()=>sendMaintTarget('in'+i, false));
+      $('maint-in'+i+'-tgt')?.addEventListener('change', sendMaintTarget);
       $('lock-in'+i)?.addEventListener('change', sendInputLock);
     }
     $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
@@ -676,7 +663,7 @@
     for(let i=0;i<NUM_PWM;i++){
       ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));
     }
-    ['grp-dim-full','grp-dim-scheme'].forEach(id=>$(id)?.addEventListener('change', sendDim));
+    ['grp-dim-full'].forEach(id=>$(id)?.addEventListener('change', sendDim));
     for(let s=0;s<NUM_SCENES;s++) for(let c=0;c<NUM_PWM;c++) $('scene-'+s+'-'+c)?.addEventListener('change', sendScenes);
 
     function sendRelayCfg(){
