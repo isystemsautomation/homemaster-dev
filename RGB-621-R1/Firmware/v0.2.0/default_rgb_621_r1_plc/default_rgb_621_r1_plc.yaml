@@ -42,6 +42,9 @@ globals:
   - id: ${rgb_id}_ha_cmd_at
     type: uint32_t
     initial_value: '0'
+  - id: ${rgb_id}_fb_publishing
+    type: bool
+    initial_value: 'false'
 
 modbus_controller:
   - id: ${rgb_id}
@@ -315,9 +318,11 @@ sensor:
                 nv.set_color_mode(esphome::light::ColorMode::RGB);
               }
             }
+            id(${rgb_id}_fb_publishing) = true;
             lt->remote_values = nv;
             lt->current_values = nv;
             lt->publish_state();
+            id(${rgb_id}_fb_publishing) = false;
 
   # Identity IR @200..204 (FC04) — diagnostic only, rare poll
   - platform: modbus_controller
@@ -341,7 +346,7 @@ light:
     name: "${rgb_prefix} Light"
     default_transition_length: 0s
     on_state:
-      - lambda: 'id(${rgb_id}_ha_cmd_at) = millis();'
+      - lambda: 'if (!id(${rgb_id}_fb_publishing)) id(${rgb_id}_ha_cmd_at) = millis();'
     red: ${rgb_id}_out_r
     green: ${rgb_id}_out_g
     blue: ${rgb_id}_out_b
