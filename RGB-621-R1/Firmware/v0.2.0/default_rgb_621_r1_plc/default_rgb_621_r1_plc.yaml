@@ -6,6 +6,7 @@
 ##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
 ##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
 ##   - Light default_transition_length: 0s — HA sends one final value per channel; module slew (fadeMs) handles smooth fade locally.
+##   - STATE@26-28 light readback: publish-only (remote_values), never light.turn_on — no HR write-back.
 ##   - Relay 1: template switch (optimistic false) — state from STATE@28 bit3; command via write-only coil @0.
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
@@ -36,6 +37,11 @@ substitutions:
   rgb_pwm_skip_updates: "65535"
   rgb_offline_skip_updates: "10"
   rgb_max_cmd_retries: "2"
+
+globals:
+  - id: ${rgb_id}_ha_cmd_at
+    type: uint32_t
+    initial_value: '0'
 
 modbus_controller:
   - id: ${rgb_id}
@@ -304,35 +310,63 @@ sensor:
             id(${rgb_id}_relay1).publish_state(rly);
             static bool last_any_on = false;
             static uint8_t last_r = 0, last_g = 0, last_b = 0, last_ww = 0, last_cw = 0;
-            const bool on_changed = (any_on != last_any_on);
-            const bool levels_changed = (r_api != last_r) || (g_api != last_g) || (b_api != last_b) ||
-                                        (ww_api != last_ww) || (cw_api != last_cw);
-            if (!any_on) {
-              if (last_any_on) {
-                auto call = id(${rgb_id}_light).turn_off();
-                call.set_transition_length(0);
-                call.perform();
-              }
-            } else if (on_changed || levels_changed) {
-              auto call = id(${rgb_id}_light).turn_on();
-              call.set_transition_length(0);
-              call.set_brightness(1.0f);
-              const float r = r_api / 255.0f;
-              const float g = g_api / 255.0f;
-              const float b = b_api / 255.0f;
-              const float ww = ww_api / 255.0f;
-              const float cw = cw_api / 255.0f;
-              call.set_rgb(r, g, b);
-              call.set_warm_white(ww);
-              call.set_cold_white(cw);
-              call.perform();
-            }
+            static bool have_last = false;
+            const bool readback_changed = !have_last || (any_on != last_any_on) ||
+                                          (r_api != last_r) || (g_api != last_g) || (b_api != last_b) ||
+                                          (ww_api != last_ww) || (cw_api != last_cw);
             last_any_on = any_on;
             last_r = r_api;
             last_g = g_api;
             last_b = b_api;
             last_ww = ww_api;
             last_cw = cw_api;
+            have_last = true;
+            if (readback_changed) return;
+            if ((millis() - id(${rgb_id}_ha_cmd_at)) < 4000) return;
+            const float r = r_api / 255.0f;
+            const float g = g_api / 255.0f;
+            const float b = b_api / 255.0f;
+            const float ww = ww_api / 255.0f;
+            const float cw = cw_api / 255.0f;
+            constexpr float tol = 2.0f / 255.0f;
+            auto *lt = id(${rgb_id}_light);
+            auto cur = lt->remote_values;
+            auto differs = [&]() -> bool {
+              if (!any_on) return cur.get_state() > 0.0f;
+              if (cur.get_state() <= 0.0f) return true;
+              if (fabsf(cur.get_red() - r) > tol) return true;
+              if (fabsf(cur.get_green() - g) > tol) return true;
+              if (fabsf(cur.get_blue() - b) > tol) return true;
+              if (fabsf(cur.get_warm_white() - ww) > tol) return true;
+              if (fabsf(cur.get_cold_white() - cw) > tol) return true;
+              return false;
+            };
+            if (!differs()) return;
+            auto nv = cur;
+            if (!any_on) {
+              nv.set_state(0.0f);
+            } else {
+              nv.set_state(1.0f);
+              nv.set_brightness(1.0f);
+              nv.set_color_brightness(1.0f);
+              const bool rgb_on = (flags & 0x02) != 0;
+              const bool cct_on = (flags & 0x04) != 0;
+              if (rgb_on && cct_on) {
+                nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
+              } else if (cct_on) {
+                nv.set_color_mode(esphome::light::ColorMode::COLD_WARM_WHITE);
+              } else {
+                nv.set_color_mode(esphome::light::ColorMode::RGB);
+              }
+              nv.set_red(r);
+              nv.set_green(g);
+              nv.set_blue(b);
+              nv.set_warm_white(ww);
+              nv.set_cold_white(cw);
+            }
+            lt->remote_values = nv;
+            lt->current_values = nv;
+            lt->publish_state();
 
   # Identity IR @200..204 (FC04) — diagnostic only, rare poll
   - platform: modbus_controller
@@ -347,7 +381,7 @@ sensor:
     skip_updates: 60
 
 #############################################################
-# RGBWW LIGHT — writes HR 400–404; state synced from STATE readback
+# RGBWW LIGHT — writes HR 400–404; HA display synced publish-only from STATE readback
 # default_transition_length 0s: skip ESPHome bus streaming; module fadeMs (WebConfig) slews 12-bit locally.
 #############################################################
 light:
@@ -355,6 +389,8 @@ light:
     id: ${rgb_id}_light
     name: "${rgb_prefix} Light"
     default_transition_length: 0s
+    on_state:
+      - lambda: 'id(${rgb_id}_ha_cmd_at) = millis();'
     red: ${rgb_id}_out_r
     green: ${rgb_id}_out_g
     blue: ${rgb_id}_out_b
