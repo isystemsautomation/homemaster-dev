@@ -6,7 +6,7 @@
 ##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
 ##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
 ##   - Light default_transition_length: 0s — HA sends one final value per channel; module slew (fadeMs) handles smooth fade locally.
-##   - Relay/service coils are write-only (assumed_state).
+##   - Relay 1: template switch (optimistic false) — state from STATE@28 bit3; command via write-only coil @0.
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
 ##   packages:
@@ -140,10 +140,12 @@ switch:
     internal: true
     assumed_state: true
 
-  # Public relay switch — state from STATE flags bit3, command via write-only coil @0
+  # Public relay switch — actual state from STATE flags bit3; command via write-only coil @0
   - platform: template
     name: "${rgb_prefix} Relay 1"
     id: ${rgb_id}_relay1
+    optimistic: false
+    assumed_state: false
     lambda: |-
       return id(${rgb_id}_st_rly1).state;
     turn_on_action:
@@ -158,10 +160,12 @@ button:
       - switch.turn_on: ${rgb_id}_cmd_identify
   - platform: template
     name: "${rgb_prefix} Save config"
+    internal: true
     on_press:
       - switch.turn_on: ${rgb_id}_cmd_save_cfg
   - platform: template
     name: "${rgb_prefix} Reboot"
+    internal: true
     on_press:
       - switch.turn_on: ${rgb_id}_cmd_reboot
 
