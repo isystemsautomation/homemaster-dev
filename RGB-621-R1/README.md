@@ -9,6 +9,63 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+## Contents
+
+- [Quick Start](#-quick-start)
+- [Version History](#-version-history)
+- [Hardware notes (current revision)](#hardware-notes-current-revision)
+- [1. Introduction](#1-introduction)
+  - [1.1 Overview of the RGB-621-R1](#11-overview-of-the-rgb-621-r1)
+  - [1.2 Features & Architecture](#12-features--architecture)
+  - [1.3 System Role & Communication](#13-system-role--communication)
+- [2. RGB-621-R1 — Technical Specification](#2-rgb-621-r1--technical-specification)
+  - [2.1 Diagrams & Pinouts](#21-diagrams--pinouts)
+  - [2.2 Overview](#22-overview)
+  - [2.3 I/O Summary](#23-io-summary)
+  - [2.4 Terminals & Pinout](#24-terminals--pinout)
+  - [2.5 Electrical & Environmental](#25-electrical--environmental)
+  - [2.6 MCU, Protections & Build](#26-mcu-protections--build)
+  - [2.7 Absolute Ratings](#27-absolute-ratings)
+  - [2.8 Firmware & Operation](#28-firmware--operation)
+- [3. Use Cases](#3-use-cases)
+  - [Use Case 1 — Standalone wall-switch dimming](#-use-case-1--standalone-wall-switch-dimming-color-and-scenes-no-controller)
+  - [Use Case 2 — Relay LED-PSU power-cut](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)
+  - [Use Case 3 — Home Assistant integration](#-use-case-3--full-home-assistant-integration-with-live-state)
+- [4. Safety Information](#4-safety-information)
+  - [4.1 General Requirements](#41-general-requirements)
+  - [4.2 Installation Practices](#42-installation-practices)
+  - [4.3 Interface Warnings](#43-interface-warnings)
+- [5. Installation & Quick Start](#5-installation--quick-start)
+  - [IMPORTANT — POWER](#important-power)
+  - [5.1 What You Need](#51-what-you-need)
+  - [5.2 Power](#52-power)
+  - [5.3 Communication](#53-communication)
+  - [5.4 Installation & Wiring](#54-installation--wiring)
+  - [5.5 Software & UI Configuration](#55-software--ui-configuration)
+  - [5.6 Getting Started](#56-getting-started)
+- [6. Modbus RTU Communication](#6-modbus-rtu-communication)
+  - [6.0 Register Map (complete)](#60-register-map-complete)
+  - [6.1 Input Registers (FC04)](#61-input-registers-fc04--map_version-3)
+  - [6.2 Coils (FC01/05)](#62-coils-fc0105)
+  - [6.2.1 Discrete Inputs (FC02)](#621-discrete-inputs-fc02)
+  - [6.3 Holding Registers (FC03/06/16)](#63-holding-registers-fc030616)
+  - [6.4 Output quality](#64-output-quality-12-bit--gamma--slew)
+  - [6.5 Local input logic](#65-local-input-logic-v020)
+  - [6.6 Register Use Examples](#66-register-use-examples)
+  - [6.7 Polling Recommendations](#67-polling-recommendations)
+- [7. ESPHome Integration Guide](#7-esphome-integration-guide)
+- [8. Firmware & Programming](#8-firmware--programming)
+  - [8.1 Updating firmware (regular users)](#81-updating-firmware-regular-users)
+  - [8.2 Building & flashing from source](#82-building--flashing-from-source-advanced--developers)
+- [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
+  - [9.1 Status LEDs (front panel)](#91-status-leds-front-panel)
+  - [9.2 Resets & Modes](#92-resets--modes)
+  - [9.3 Common Issues](#93-common-issues)
+- [10. Open Source & Licensing](#10-open-source--licensing)
+- [11. Downloads](#11-downloads)
+- [12. Support](#12-support)
+- [Compliance & Certifications](#compliance--certifications)
+
 > **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
 
 ## 🚀 Quick Start
@@ -133,7 +190,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 ## 2.5 Electrical & Environmental
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** total LED current through the module is limited by the onboard **10 A PTC fuse** on the LED rail; per-channel current is limited by the MOSFET and PCB tracks, and the **sum of all channels must not exceed 10 A** — size the external LED PSU within this limit  
+- **PWM Drive:** total LED current limited by onboard **10 A PTC fuse**; per-channel and track limits apply — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
 - **Digital inputs:** IEC 61131-2 front-end (ISO1212); surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
@@ -172,13 +229,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 
 ## 2.8 Firmware & Operation
 
-- Operates as **Modbus RTU slave**  
-- Configurable via **WebConfig (USB-C)**  
-- Registers control **PWM and Relay**; inputs readable as **coils/discretes**  
-- **Buttons:** local test / override  
-- **LED Indicators:**
-  - **LED1 / LED2:** user-assignable status indicators (WebConfig); Modbus discrete **90–91** / IREG **LED_STATE_MASK** bits  
-  - **DI1 / DI2:** input-state indication on the front panel (silkscreen swapped on this revision — see [Hardware notes](#hardware-notes-current-revision))  
+Modbus RTU slave; configured via USB-C WebConfig. Registers/coils control PWM and relay and read inputs — see [§6 Modbus](#6-modbus-rtu-communication). Front-panel LEDs — see [§9.1](#91-status-leds-front-panel).
 
 ---
 
@@ -214,10 +265,10 @@ or network goes down.
 
 | Requirement | Detail |
 |--------------|--------|
-| **Qualified Personnel** | Installation, wiring, and servicing must be performed by trained technicians familiar with 24 V DC SELV/PELV control systems. |
+| **Qualified Personnel** | Installation, wiring, and servicing must be performed by trained technicians familiar with 24 V DC SELV/PELV control systems and, where applicable, mains switching on relay contacts per local regulations. |
 | **Power Isolation** | Always disconnect the **24 V DC module supply**, **LED PSU**, and RS-485 network before wiring or servicing. |
-| **Rated Voltages Only** | **Module (V+ / 0V):** SELV/PELV **24 V DC** only (not 12 V). **LED strip:** separate **12 V or 24 V DC** supply on **LED PS** (+/−). Never connect mains (230 V AC) to any terminal. |
-| **Independent Power** | Use a **24 V DC** supply for the module and a **separate 12 V or 24 V DC** supply for the LED strip (within the **10 A** module LED-rail limit); size and fuse each appropriately. |
+| **Rated Voltages** | **Mains (230 VAC)** may be switched **only** on **Relay C / NO** (≤ **3 A**), by qualified personnel per local regulations — enclosure, SELV/mains separation, load fuse/breaker, strain relief. **All other terminals** (V+/0V, I1/I2, RS-485 A/B/**RS-485 COM**, **LED PS**, USB-C) are SELV/PELV — **never** apply mains to them. Module and LED supply: see [⚠️ IMPORTANT — POWER](#important-power) in [§5](#5-installation--quick-start). |
+| **Power** | See [⚠️ IMPORTANT — POWER](#important-power) in [§5](#5-installation--quick-start). |
 | **Grounding** | Ensure proper protective-earth (PE) connection of the control cabinet and shielded bus cable. |
 | **Enclosure** | Mount the device on a DIN rail inside a dry, clean enclosure. Avoid condensation, dust, or corrosive atmosphere. |
 
@@ -225,42 +276,16 @@ or network goes down.
 
 ## 4.2 Installation Practices
 
-**DIN-Rail Mounting**  
-- Mount on a **35 mm DIN rail (EN 60715)**.  
-- Provide at least **10 mm** clearance above/below for airflow and terminal access.  
-- Route LED-power wiring separately from communication lines.
+Safety practices for qualified installers. Field wiring map: [§5.4](#54-installation--wiring). Power layout: [⚠️ IMPORTANT — POWER](#important-power) in [§5](#5-installation--quick-start).
 
-**Electrical Domains**  
-Two distinct domains exist:  
-
-- **Field Power** — **24 V DC** module supply (V+/0V) plus a **separate 12 V or 24 V DC** LED PSU on **LED PS**; relay and input wetting from module 24 V  
-- **Logic Power (5 V / 3.3 V)** — internal regulation for MCU, USB, and RS-485.  
-
-The field return is **`GND_FUSED`**; the logic return is **`GND`**.  
-🟡 **Important:** Do **not** externally bridge `GND_FUSED` and `GND`.  
-Isolation between logic and relay-drive domains is provided internally through the SFH6156 optocoupler (relay coil driver). Digital inputs use an ISO1212 IEC 61131-2 front-end wetted from the module 24 V supply — not a galvanic isolator.
-
-**LED Power and Output Wiring**  
-- The LED **+** rail (**12 V or 24 V**, from the external LED PSU) enters through the protected **LED PS** input (**10 A** PTC fuses, reverse-polarity Schottky, and TVS surge protection) and feeds **COM (LED+)** on the bottom connector directly — the relay is **not** in this path on the PCB.  
-- LED channel outputs (**R, G, B, CW, WW**) are **low-side PWM sinks** using **AP9990GH-HF MOSFETs**.  
-- Connect strip **+** to **COM (LED+)**, and each color cathode to its respective channel output.  
-- Use **12/24 V common-anode** LED strips only; total LED current through the module is limited by the onboard **10 A PTC fuse** (sum of all channels ≤ 10 A).
-
-**Relay Wiring**  
-- Independent **SPST-NO dry-contact** output (**Relay C** / **NO**); **not** routed through the LED anode rail on the PCB.  
-- Type HF115F (5 V coil, SPST-NO).  
-- Contact rating: **3 A @ 250 VAC / 30 VDC (module/PCB limit)** (resistive).  
-- Relay component (HF115F class) rated up to 12 A @ 250 VAC at chip level — **that rating does not apply to the module**; use interposing contactors for higher or inductive loads.  
-- For **FOLLOW-mode LED-PSU power-cut**, wire **Relay C / NO** **externally in series** with the LED driver's supply — see [Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving).  
-- For inductive loads, add an **external flyback diode or RC snubber**.  
-- Keep relay conductors away from signal wiring.
-
-**Digital Input Wiring**  
-- Inputs use an **ISO1212 IEC 61131-2 digital-input front-end** (not galvanic isolation); wetted from the module 24 V supply.  
-- Connect **dry contacts** or **24 V DC sourcing sensors** only.  
-- Each input path has a **PTC fuse (F5/F6)**, **TVS D9**, and **reverse diodes (D10–D14)**.  
-- Do not inject external voltage into DI pins.  
-- Use shielded twisted-pair cable for runs > 10 m.
+- Mount on a **35 mm DIN rail (EN 60715)** inside a dry, clean enclosure ([§4.1](#41-general-requirements)).
+- Provide at least **10 mm** clearance above/below for airflow and terminal access.
+- **Disconnect** the **24 V DC module supply**, **LED PSU**, and RS-485 network before wiring or servicing.
+- Route **LED-power wiring separately** from RS-485 and signal lines.
+- **Do not** externally bridge `GND_FUSED` (field) and `GND` (logic/USB) — domains are separated on the PCB.
+- Relay coil drive is isolated from contacts via **SFH6156 optocoupler** (**basic insulation**); digital inputs use an ISO1212 IEC 61131-2 front-end wetted from module 24 V — **not** a galvanic isolator.
+- For inductive relay loads, add an **external flyback diode or RC snubber**; keep relay conductors away from signal wiring.
+- Follow local electrical codes for fusing, grounding, and enclosure class.
 
 ---
 
@@ -297,7 +322,8 @@ Isolation between logic and relay-drive domains is provided internally through t
 | Type | SPST-NO mechanical relay (HF115F/005-1ZS3) |
 | Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
 | Contact Rating | 3 A @ 250 VAC / 30 VDC (module/PCB limit, resistive) |
-| Component note | HF115F relay component rated up to 12 A @ 250 VAC — **not usable module output**; use interposing contactors for larger/inductive loads |
+| Insulation | Basic insulation between SELV coil drive and contacts; external contactor for reinforced isolation or heavy/inductive loads |
+| Component note | HF115F relay component rated up to 12 A @ 250 VAC — **module output limited to 3 A**; use an external contactor for higher or inductive loads |
 | Protection | External RC snubber / flyback diode recommended |
 | Notes | Independent SPST-NO dry contact (**Relay C** / **NO**); not in the LED anode rail. For FOLLOW-mode LED-PSU cut, wire **Relay C / NO** externally in series with the LED driver supply. Keep field wiring separate from logic. |
 
@@ -324,21 +350,20 @@ Isolation between logic and relay-drive domains is provided internally through t
 | Protection | PRTR5V0U2X ESD + CG0603MLC-05E current limiters |
 | Supply | 5 V DC from host computer (logic domain) |
 | Isolation | Shares logic ground (`GND`); not isolated from RS-485 logic |
-| Notes | Use only when field power is disconnected; not for continuous operation in field. |
+| Notes | USB-C is for WebConfig setup and firmware update. It may be connected at any time, including while the module is powered from its 24 V supply. Not a field power or data bus. |
 
 ---
 
-> ⚠️ **Important:**  
-> • **Module power (V+ / 0V)** operates **only on 24 V DC SELV/PELV** — not 12 V.  
-> • **LED strip power** uses a **separate 12 V or 24 V DC** supply on **LED PS** (+/−), sized within the module's **10 A** LED-rail limit.  
-> • Each module and controller has its own 24 V DC supply for logic/RS-485.  
-> • Never connect mains voltage to any terminal.  
-> • Maintain isolation between `GND_FUSED` (field) and `GND` (logic).  
-> • Follow local electrical codes for fusing and grounding.
+> Power layout and two-supply rules: see [⚠️ IMPORTANT — POWER](#important-power) in [§5](#5-installation--quick-start). Mains switching rules: [§4.1](#41-general-requirements). Follow local electrical codes for fusing and grounding.
 
 ---
 
 # 5. Installation & Quick Start
+
+<a id="important-power"></a>
+
+> ⚠️ **IMPORTANT — POWER**  
+> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), within the module's **10 A** LED-rail limit. **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
 
 ## 5.1 What You Need
 
@@ -346,8 +371,8 @@ Isolation between logic and relay-drive domains is provided internally through t
 |------|-------------|
 | **Module** | RGB-621-R1 LED control module |
 | **Controller** | HomeMaster **MicroPLC** / **MiniPLC** or any **Modbus RTU master** |
-| **Module PSU** | Regulated **24 V DC SELV/PELV** (module logic, RS-485, input wetting) |
-| **LED PSU (separate)** | Regulated **12 V or 24 V DC**, sized for the LED strip load (within the module's **10 A** limit) |
+| **Module PSU** | Regulated **24 V DC SELV/PELV** — see [⚠️ IMPORTANT — POWER](#important-power) |
+| **LED PSU (separate)** | Regulated **12 V or 24 V DC** — see [⚠️ IMPORTANT — POWER](#important-power) |
 | **Cables** | 1× **USB-C** cable (for setup), 1× **twisted-pair RS-485** cable |
 | **Software** | Any browser that supports the **Web Serial API** (for WebConfig) |
 | **Optional** | Shielded wiring for long RS-485 runs, DIN-rail enclosure, terminal labels |
@@ -356,27 +381,24 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 ## 5.2 Power
 
-- **Module (V+ / 0V):** the RGB-621-R1 logic, RS-485, relay coil, and input wetting operate from a **24 V DC SELV/PELV** supply only — connect **+24 V** and **0 V** to **V+** and **0V** (not 12 V).
+Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-installation--quick-start).
 
-- **LED strip (LED PS +/−):** use a **separate regulated 12 V or 24 V DC** PSU for the strip. The positive rail from that supply enters through:
+- **LED path (LED PS → COM (LED+)):** the positive rail from the external LED PSU enters through:
   - **PTC fuses** (10 A LED-rail limit)  
   - **Reverse-polarity protection** (Schottky)  
   - **TVS surge suppression**  
-  - Then feeds **COM (LED+)** directly for the strip common anode — **not** through the onboard relay.
+  - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
 
-  The LED channels (R/G/B/CW/WW) act as **low-side PWM sinks**; the strip must be **12/24 V common-anode**. Per-channel current is limited by the MOSFET and PCB tracks; the **sum of all channels must not exceed 10 A**.
+- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF); strip must be **12/24 V common-anode**. Per-channel current limited by MOSFET and PCB tracks; **sum of all channels ≤ 10 A**.
 
-- **Relay (Relay C / NO):** independent **SPST-NO dry-contact** output for an external load; for **FOLLOW-mode** LED-PSU cut, place **Relay C / NO** **externally in series** with the LED PSU (+) feed (see [Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)).
+- **Relay (Relay C / NO):** independent **SPST-NO dry-contact** rated **3 A @ 250 VAC / 30 VDC** (module/PCB limit); suitable for **230 VAC** loads when installed per [§4.1](#41-general-requirements). **Basic insulation** between SELV coil and contacts; external contactor for reinforced isolation or heavy/inductive loads. For **FOLLOW-mode** LED-PSU cut, wire **Relay C / NO** **externally in series** with the LED PSU (+) feed ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)).
 
 - **Current consumption (typical):**
   - Logic + RS-485: ≈ 100 mA  
   - Relay coil: ≈ 30 mA (active)  
-  - LED load: dependent on connected strips (size external **12/24 V** LED PSU within the **10 A** module limit)
+  - LED load: dependent on connected strips (size LED PSU within **10 A** module limit)
 
-- **Ground references:**  
-  - `GND_FUSED` → field ground for LED and inputs  
-  - `GND` → logic/USB ground  
-  These domains are separated internally — do **not** tie them together externally.
+- **Module input protection (V+ / 0V):** PTC fuses (F1–F4), reverse-polarity diode (STPS340U), surge TVS (SMBJ33A).
 
 ---
 
@@ -415,24 +437,22 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 > ⚙️ **Quick Summary**
 > 1. Mount the module on a DIN rail.  
-> 2. Wire **12 V or 24 V** LED PSU to the **LED PS** terminals; **24 V** to **V+** / **0V** for the module.  
+> 2. Wire power per [⚠️ IMPORTANT — POWER](#important-power).  
 > 3. Connect LED strips (common-anode to **COM (LED+)**, cathodes to R/G/B/CW/WW).  
 > 4. Wire RS-485 A/B to the controller.  
 > 5. Plug in USB-C, open WebConfig, assign address, set baudrate, test outputs.  
-> 6. Disconnect USB, power up the system, and verify Modbus communication.
+> 6. Verify Modbus communication over RS-485.
 
 ---
 
 ## 5.4 Installation & Wiring
 
-Diagram-first wiring map. Power, grounds, and PSU sizing: [§5.2](#52-power). RS-485 bus, termination, and **RS-485 COM**: [§5.3](#53-communication).
-
-Mount on a **35 mm DIN rail** inside a dry enclosure; disconnect field power before making connections.
+Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53-communication). Power layout: [⚠️ IMPORTANT — POWER](#important-power).
 
 ### Power
 
 ![Power supply wiring — module V+/0V and LED PS](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_PowerSupply.png)
-*Module **V+** / **0V** (24 V DC) and **LED PS** (+/−) — see [§5.2](#52-power).*
+*Wire **V+** / **0V** and **LED PS** (+/−) per [⚠️ IMPORTANT — POWER](#important-power); protection detail in [§5.2](#52-power).*
 
 ### LED outputs (5× PWM)
 
@@ -449,7 +469,7 @@ Mount on a **35 mm DIN rail** inside a dry enclosure; disconnect field power bef
 ### Digital inputs
 
 ![Digital inputs — dry-contact wiring to I1 and I2](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DigitalInputs.png)
-*Dry contacts or 24 V sourcing on **I1** / **I2** + **GND** — see [§4.2](#42-installation-practices).*
+*Dry contacts or 24 V sourcing on **I1** / **I2** + **GND**; do not inject external voltage into DI pins. Shielded cable for runs > 10 m ([§5.2](#52-power) protection: PTC F5/F6, TVS, reverse diodes).*
 
 ### Relay
 
@@ -463,7 +483,7 @@ Mount on a **35 mm DIN rail** inside a dry enclosure; disconnect field power bef
 
 ### USB-C
 
-*WebConfig and firmware only — disconnect before energising the field installation (see [§5.3](#53-communication)).*
+*WebConfig and firmware only — may be connected at any time; not a field power or data bus.*
 
 ## 5.5 Software & UI Configuration
 
@@ -498,7 +518,7 @@ Configuration is performed via **USB-C WebConfig** ([https://config.home-master.
 
 Follow these steps for a first-time install (field wiring detail: [§5.4](#54-installation--wiring); Home Assistant integration: [§7](#7-esphome-integration-guide)).
 
-1. Mount on a **35 mm DIN rail**; wire **24 V DC** to **V+** / **0V** and the LED PSU to **LED PS**; connect a **common-anode** strip (strip **+** to **COM (LED+)**, cathodes to **R** / **G** / **B** / **CW** / **WW**).
+1. Mount on a **35 mm DIN rail**; wire power per [⚠️ IMPORTANT — POWER](#important-power); connect a **common-anode** strip (strip **+** to **COM (LED+)**, cathodes to **R** / **G** / **B** / **CW** / **WW**).
 2. Connect **RS-485** **A** / **B** / **RS-485 COM** to the controller (**MicroPLC** / **MiniPLC**).
 3. Plug **USB-C** into a PC; open the **WebConfig** tool in a browser with **Web Serial API** support and click **Connect**.
 4. Set a **unique Modbus address** (each module on the bus must differ; default is **3**) and baud **19200**; save to flash.
@@ -516,8 +536,59 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 ---
 
+## 6.0 Register Map (complete)
+
+Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-code detail in [§6.1](#61-input-registers-fc04--map_version-3)–[§6.3](#63-holding-registers-fc030616). Gesture/scene/trim/relay-mode/gamma configuration is **USB WebConfig only** — not on Modbus.
+
+| Register / Address | Name | FC / Access | Type | Units / Range | Default | Effect | Firmware |
+|--------------------|------|-------------|------|---------------|---------|--------|----------|
+| **1** | **DI1** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.2.0 |
+| **2** | **DI2** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.2.0 |
+| **60** | **Relay1** | FC02 R | discrete input | 0 / 1 | 0 | Relay logical state | v0.2.0 |
+| **90** | **LED1** | FC02 R | discrete input | 0 / 1 | 0 | User LED1 logical state | v0.2.0 |
+| **91** | **LED2** | FC02 R | discrete input | 0 / 1 | 0 | User LED2 logical state | v0.2.0 |
+| **0** | **DI_STATE_MASK** | FC04 R | input register | bit0..1 | — | DI1..DI2 bitmask | v0.2.0 |
+| **1** | **RLY_STATE_MASK** | FC04 R | input register | bit0 | — | Relay1 logical state | v0.2.0 |
+| **2** | **BTN_STATE_MASK** | FC04 R | input register | bit0 | — | SW2 onboard button | v0.2.0 |
+| **3** | **LED_STATE_MASK** | FC04 R | input register | bit0..1 | — | LED1..LED2 bitmask | v0.2.0 |
+| **4** | **STATUS_FLAGS** | FC04 R | input register | bit1 linkOk, bit3 cfgDirty | — | Link / config status | v0.2.0 |
+| **6–20** | **EVT_COUNTERS** | FC04 R | input register | uint16 | 0 | Press counters: DI1 / DI2 / SW2 × 5 gestures each | v0.2.0 |
+| **21** | **PWM_RAW R** | FC04 R | input register | 0–4095 | 0 | Red channel 12-bit diagnostic current | v0.2.0 |
+| **22** | **PWM_RAW G** | FC04 R | input register | 0–4095 | 0 | Green channel 12-bit diagnostic current | v0.2.0 |
+| **23** | **PWM_RAW B** | FC04 R | input register | 0–4095 | 0 | Blue channel 12-bit diagnostic current | v0.2.0 |
+| **24** | **PWM_RAW WW** | FC04 R | input register | 0–4095 | 0 | Warm-white channel 12-bit diagnostic current | v0.2.0 |
+| **25** | **PWM_RAW CW** | FC04 R | input register | 0–4095 | 0 | Cool-white channel 12-bit diagnostic current | v0.2.0 |
+| **26** | **STATE RG** | FC04 R | input register | packed | — | Applied R (high byte) + G (low byte), API 0–255 | v0.2.0 |
+| **27** | **STATE BWW** | FC04 R | input register | packed | — | Applied B (high byte) + WW (low byte), API 0–255 | v0.2.0 |
+| **28** | **STATE CW+flags** | FC04 R | input register | packed | — | Applied CW (high byte); flags: anyOn, rgbGroupOn, cctGroupOn, relay1 | v0.2.0 |
+| **0** | **Relay1** | FC01 R / FC05 W | coil | 0 / 1 | 0 | Toggle relay — primary control path | v0.2.0 |
+| **5** | **IDENTIFY** | FC05 W | coil (pulse) | write 1 | 0 | LED identify blink | v0.2.0 |
+| **6** | **SAVE_CFG** | FC05 W | coil (pulse) | write 1 | 0 | Save config to flash | v0.2.0 |
+| **7** | **REBOOT** | FC05 W | coil (pulse) | write 1 | 0 | Reboot module | v0.2.0 |
+| **200** | **Relay1 ON** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — energize relay | v0.2.0 |
+| **210** | **Relay1 OFF** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — de-energize relay | v0.2.0 |
+| **300** | **DI1 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI1 | v0.2.0 |
+| **301** | **DI2 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI2 | v0.2.0 |
+| **320** | **DI1 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI1 | v0.2.0 |
+| **321** | **DI2 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI2 | v0.2.0 |
+| **400** | **R** | FC03 R / FC06 W | holding | 0–255 | 0 | Red PWM setpoint (8-bit API; slew-smoothed) | v0.2.0 |
+| **401** | **G** | FC03 R / FC06 W | holding | 0–255 | 0 | Green PWM setpoint | v0.2.0 |
+| **402** | **B** | FC03 R / FC06 W | holding | 0–255 | 0 | Blue PWM setpoint | v0.2.0 |
+| **403** | **WW** | FC03 R / FC06 W | holding | 0–255 | 0 | Warm-white PWM setpoint | v0.2.0 |
+| **404** | **CW** | FC03 R / FC06 W | holding | 0–255 | 0 | Cool-white PWM setpoint | v0.2.0 |
+| **410** | **R (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Red fine PWM setpoint | v0.2.0 |
+| **411** | **G (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Green fine PWM setpoint | v0.2.0 |
+| **412** | **B (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Blue fine PWM setpoint | v0.2.0 |
+| **413** | **WW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Warm-white fine PWM setpoint | v0.2.0 |
+| **414** | **CW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Cool-white fine PWM setpoint | v0.2.0 |
+| **480** | **MB_ADDR** | FC03 R / FC06 W | holding | 1–247 | **3** | Modbus slave address | v0.2.0 |
+| **481** | **MB_BAUD** | FC03 R / FC06 W | holding | 9600 / 19200 / 38400 / 57600 / 115200 | **19200** | Modbus baud rate (bps) | v0.2.0 |
+
+---
+
 ## 6.1 Input Registers (FC04) — MAP_VERSION 3
 
+> Summary: see [§6.0](#60-register-map-complete). Detail below.
 | Address | Name | Bits | Description |
 |---------|------|------|-------------|
 | **0** | **DI_STATE_MASK** | bit0..1 | DI1..DI2 |
@@ -545,6 +616,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 ## 6.2 Coils (FC01/05)
 
+> Summary: see [§6.0](#60-register-map-complete). Detail below.
 | Address | Name | Description |
 |---------|------|-------------|
 | **0** | **Relay1** | Toggle coil — write `1`/`0` (DIO-compatible) |
@@ -562,6 +634,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 ## 6.2.1 Discrete Inputs (FC02)
 
+> Summary: see [§6.0](#60-register-map-complete). Detail below.
 | Address | Name | Description |
 |---------|------|-------------|
 | **1–2** | **DI1–DI2** | Wall-switch logical state (after enable + invert) |
@@ -572,12 +645,13 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 ## 6.3 Holding Registers (FC03/06/16)
 
+> Summary: see [§6.0](#60-register-map-complete). Detail below.
 | Address | Name | Range | Description |
 |---------|------|-------|-------------|
 | 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (8-bit API; scaled to 12-bit internally; slew-smoothed) |
 | 410–414 | **R, G, B, WW, CW (12-bit)** | 0–4095 | Fine-grained PWM setpoints (same targets as HR 400–404) |
 | 480 | **MB_ADDR** | 1–255 | Modbus address |
-| 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
+| 481 | **MB_BAUD** | bps | 9600 / 19200 / 38400 / 57600 / 115200 |
 
 > Module configuration (inputs, gestures, dimming, scenes, trim, relay mode, gamma, etc.) is performed via **USB WebConfig only**; it is **not exposed on Modbus**.
 
