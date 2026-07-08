@@ -39,9 +39,8 @@ packages:
 
 # Hardware notes (current revision)
 
-1. DI status LEDs swapped: on this hardware revision, the front-panel indication for DI1 and DI2 is swapped (DI1 LED shows DI2 state and vice versa). This is a silkscreen/panel indication issue only; logical inputs, Modbus registers, and WebConfig are correct.
-2. Onboard buttons: only SW2 is a usable logic input (Button 1 in WebConfig). The second front button is not wired as a user input; it is used only to enter BOOT mode.
-3. Entering BOOT mode: hold BOTH front buttons while power-cycling the module (or trigger Reset from WebConfig while keeping both buttons held). Release after power returns. The module then enumerates in BOOT/flash mode for firmware upload.
+1. **DI1/DI2 status-LED indication swapped** — silkscreen/panel only; logical inputs, Modbus registers, and WebConfig are correct.
+2. **Only SW2 is a usable logic input** (Button 1 in WebConfig); the second front button is not a user input — it enters BOOT mode only (see [§8.2](#82-flashing)).
 
 # 1. Introduction
 
@@ -695,9 +694,13 @@ Only if supported. Cover:
 
 ## 8.2 Flashing
 
+### Entering BOOT mode
+
+Hold **both** front buttons while power-cycling the module (or trigger **Reset** from WebConfig while keeping both buttons held). Release after power returns. The module then enumerates in **BOOT/flash mode** for firmware upload.
+
 **USB-C (Web Serial / CDC)**
 1. Connect a USB-C cable from your PC to the module’s **USB** port.
-2. **Enter BOOT mode:** press **Button 1 + Button 2** together (see photo below).
+2. **Enter BOOT mode** (see above).
 3. Flash using **PlatformIO** or **Arduino IDE** (serial upload).
 4. When flashing completes, disconnect and power-cycle the module.
 
@@ -718,15 +721,15 @@ Only if supported. Cover:
 
   ![Button 1 and Button 2 positions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/buttons1.png)
 
-- **Button 1 + Button 2** → **BOOT mode**  
+- **Button 1 + Button 2** → **BOOT mode** (see [Entering BOOT mode](#entering-boot-mode) above)  
 - **Reset** → **power-cycle 24 VDC for ≥5 s**
 
 ## 8.3 Firmware Updates
 
 - Open the project in **PlatformIO** or **Arduino IDE**.
-- Put device in **BOOT** (Button **1+2**) and upload the new build.
+- Put device in [BOOT mode](#entering-boot-mode) and upload the new build.
 - **Configuration persistence:** device settings (address/baud, channel trims, etc.) are stored in flash and **kept** across updates unless you explicitly erase.
-- **Recovery:** if the device won’t enumerate, power-cycle 24 VDC (≥5 s) and retry **BOOT** (1+2). If needed, flash a minimal “factory” image first, then restore config via WebConfig backup.
+- **Recovery:** if the device won’t enumerate, power-cycle 24 VDC (≥5 s) and retry [BOOT mode](#entering-boot-mode). If needed, flash a minimal “factory” image first, then restore config via WebConfig backup.
 
 ---
 
@@ -744,7 +747,7 @@ Only if supported. Cover:
 
 ## 9.2 Resets & Modes
 
-- **BOOT mode:** **Button 1 + Button 2** (for flashing).
+- **BOOT mode:** see [§8.2 Entering BOOT mode](#entering-boot-mode).
 - **Reset:** **remove 24 VDC for ≥5 s** and re-apply.
 
 ## 9.3 Common Issues
@@ -758,7 +761,7 @@ Only if supported. Cover:
 - **Inputs not detected:**  
   Use **DI 24Vdc** terminals (I1/I2 with GND). Confirm sensor type (dry contact or 24 V sourcing) and debounce/invert settings in WebConfig.
 - **USB not detected:**  
-  Use a data-capable USB-C cable; close any app holding the port; re-enter **BOOT** (1+2).
+  Use a data-capable USB-C cable; close any app holding the port; re-enter [BOOT mode](#entering-boot-mode).
 
 ---
 
