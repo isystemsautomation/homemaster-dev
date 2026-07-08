@@ -23,7 +23,6 @@ packages:
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
 | **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | Current working version |
-| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | Deprecated (superseded by v0.2.0) |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
 
