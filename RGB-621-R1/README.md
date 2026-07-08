@@ -127,14 +127,14 @@ RGB + CCT LED controller with:
 ![Front Terminals](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
 **Top:** V+/0 V (24 V DC input), Relay C/NO, Inputs I1/I2 (+ GND)  
-**Bottom:** PWM R/G/B/CW/WW (24 V COM +), RS-485 A/B (+ COM opt.)
+**Bottom:** PWM R/G/B/CW/WW, **COM** (12/24 V LED +), RS-485 A/B (+ COM opt.)
 
 ---
 
 ## 2.5 Electrical & Environmental
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** up to 5 A per channel (25 A max total)  
+- **PWM Drive:** total LED current through the module is limited by the onboard **10 A PTC fuse** on the LED rail; per-channel current is limited by the MOSFET and PCB tracks, and the **sum of all channels must not exceed 10 A** — size the external LED PSU within this limit  
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
 - **Digital inputs:** IEC 61131-2 front-end (ISO1212); surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
@@ -162,7 +162,7 @@ RGB + CCT LED controller with:
 | Supply Voltage | 20 V | 24 V | 30 V | SELV input protected |
 | Power Use | — | 1.85 W | 3.0 W | No LED load |
 | Relay Contacts | — | — | 3 A @ 250 VAC / 30 VDC | Module/PCB limit (resistive) |
-| PWM Current | — | — | 5 A per ch | External PSU limited |
+| LED Rail Current | — | — | 10 A total | Onboard 10 A PTC fuse; per-channel MOSFET/track limited; sum of all channels ≤ 10 A |
 | RS-485 Rate | — | — | 115.2 kbps | Half-duplex |
 | USB Voltage | 4.75 V | 5 V | 5.25 V | Logic only |
 | Operating Temp | 0 °C | — | 40 °C | ≤ 95 % RH |
@@ -178,10 +178,11 @@ RGB + CCT LED controller with:
 - Registers control **PWM and Relay**; inputs readable as **coils/discretes**  
 - **Buttons:** local test / override  
 - **LED Indicators:**
-  - **PWR:** Power OK  
-  - **TX/RX:** Communication activity  
-  - **DI1/DI2:** Input state  
-  - **RUN/ERR:** Status / fault pattern  
+  - **Power:** module powered  
+  - **TX / RX:** Modbus activity  
+  - **Relay:** relay state  
+  - **LED1 / LED2:** user-assignable indicators (WebConfig)  
+  - **DI1 / DI2:** reflect input states (panel indication swapped on this revision — see [Hardware notes](#hardware-notes-current-revision))  
 
 ---
 
@@ -220,9 +221,9 @@ or network goes down.
 | Requirement | Detail |
 |--------------|--------|
 | **Qualified Personnel** | Installation, wiring, and servicing must be performed by trained technicians familiar with 24 V DC SELV/PELV control systems. |
-| **Power Isolation** | Always disconnect the 24 V DC supply and RS-485 network before wiring or servicing. |
-| **Rated Voltages Only** | Operate only from a **Safety Extra-Low Voltage (SELV/PELV) 24 V DC** source. **12 V DC is not supported.** Never connect mains (230 V AC) to any terminal. |
-| **Independent Power** | Each controller and I/O module must have its **own 24 V DC power supply**, sized for its load and fused appropriately. |
+| **Power Isolation** | Always disconnect the **24 V DC module supply**, **LED PSU**, and RS-485 network before wiring or servicing. |
+| **Rated Voltages Only** | **Module (V+ / 0V):** SELV/PELV **24 V DC** only (not 12 V). **LED strip:** separate **12 V or 24 V DC** supply on **LED PS** (+/−). Never connect mains (230 V AC) to any terminal. |
+| **Independent Power** | Use a **24 V DC** supply for the module and a **separate 12 V or 24 V DC** supply for the LED strip (within the **10 A** module LED-rail limit); size and fuse each appropriately. |
 | **Grounding** | Ensure proper protective-earth (PE) connection of the control cabinet and shielded bus cable. |
 | **Enclosure** | Mount the device on a DIN rail inside a dry, clean enclosure. Avoid condensation, dust, or corrosive atmosphere. |
 
@@ -238,7 +239,7 @@ or network goes down.
 **Electrical Domains**  
 Two distinct domains exist:  
 
-- **Field Power (24 V DC)** — supplies LED drivers, relay, and input circuits.  
+- **Field Power** — **24 V DC** module supply (V+/0V) plus a **separate 12 V or 24 V DC** LED PSU on **LED PS**; relay and input wetting from module 24 V  
 - **Logic Power (5 V / 3.3 V)** — internal regulation for MCU, USB, and RS-485.  
 
 The field return is **`GND_FUSED`**; the logic return is **`GND`**.  
@@ -246,11 +247,11 @@ The field return is **`GND_FUSED`**; the logic return is **`GND`**.
 Isolation between logic and relay-drive domains is provided internally through the SFH6156 optocoupler (relay coil driver). Digital inputs use an ISO1212 IEC 61131-2 front-end wetted from the module 24 V supply — not a galvanic isolator.
 
 **LED Power and Output Wiring**  
-- The LED power rail (+24 V) enters through the protected input (fuses F3/F4, diode D5 STPS340U, surge D6 SMBJ33A).  
-- It passes the relay K1 (HF115F) and feeds the **COM (+24 V)** terminal on the bottom connector.  
+- The LED power rail (**12 V or 24 V**, from the external LED PSU) enters through the protected **LED PS** input (PTC fuses, reverse-polarity Schottky, and TVS surge protection).  
+- It passes the relay K1 (HF115F) and feeds the **COM** terminal (switched LED positive) on the bottom connector.  
 - LED channel outputs (**R, G, B, CW, WW**) are **low-side PWM sinks** using **AP9990GH-HF MOSFETs**.  
 - Connect **LED +** to **COM**, and each color cathode to its respective channel output.  
-- Only **24 V LED strips** (common-anode type) are supported.
+- Use **12/24 V common-anode** LED strips only; total LED current through the module is limited by the onboard **10 A PTC fuse** (sum of all channels ≤ 10 A).
 
 **Relay Wiring**  
 - Type HF115F (5 V coil, SPST-NO).  
@@ -333,9 +334,9 @@ Isolation between logic and relay-drive domains is provided internally through t
 ---
 
 > ⚠️ **Important:**  
-> • The **RGB-621-R1** operates **only on 24 V DC SELV/PELV** power.  
-> • **12 V DC** operation is **not supported**.  
-> • Each module and controller has its own 24 V DC supply.  
+> • **Module power (V+ / 0V)** operates **only on 24 V DC SELV/PELV** — not 12 V.  
+> • **LED strip power** uses a **separate 12 V or 24 V DC** supply on **LED PS** (+/−), sized within the module's **10 A** LED-rail limit.  
+> • Each module and controller has its own 24 V DC supply for logic/RS-485.  
 > • Never connect mains voltage to any terminal.  
 > • Maintain isolation between `GND_FUSED` (field) and `GND` (logic).  
 > • Follow local electrical codes for fusing and grounding.
@@ -350,7 +351,8 @@ Isolation between logic and relay-drive domains is provided internally through t
 |------|-------------|
 | **Module** | RGB-621-R1 LED control module |
 | **Controller** | HomeMaster **MicroPLC** / **MiniPLC** or any **Modbus RTU master** |
-| **Power Supply (PSU)** | Regulated **24 V DC SELV/PELV**, sized for module and LED load |
+| **Module PSU** | Regulated **24 V DC SELV/PELV** (module logic, RS-485, input wetting) |
+| **LED PSU (separate)** | Regulated **12 V or 24 V DC**, sized for the LED strip load (within the module's **10 A** limit) |
 | **Cables** | 1× **USB-C** cable (for setup), 1× **twisted-pair RS-485** cable |
 | **Software** | Any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) with **Web Serial** support for WebConfig |
 | **Optional** | Shielded wiring for long RS-485 runs, DIN-rail enclosure, terminal labels |
@@ -359,26 +361,25 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 ## 5.2 Power
 
-- The RGB-621-R1 operates exclusively from a **24 V DC SELV/PELV** supply.  
-  Connect the **+24 V** and **0 V (GND)** to the top power terminals marked **V+** and **0V** or **LED PS**.
+- **Module (V+ / 0V):** the RGB-621-R1 logic, RS-485, relay coil, and input wetting operate from a **24 V DC SELV/PELV** supply only — connect **+24 V** and **0 V** to **V+** and **0V** (not 12 V).
 
-- The LED strip’s positive rail (**+24 V**) is routed internally through:
-  - **PTC fuses (F3/F4)** for over-current protection  
-  - **Reverse-polarity diode (STPS340U)**  
-  - **Surge suppressor (SMBJ33A)**  
-  - **Relay K1 (HF115F)**, which switches the LED power output (COM terminal)  
+- **LED strip (LED PS +/−):** use a **separate regulated 12 V or 24 V DC** PSU for the strip. The positive rail from that supply enters through:
+  - **PTC fuses** (10 A LED-rail limit)  
+  - **Reverse-polarity protection** (Schottky)  
+  - **TVS surge suppression**  
+  - **Relay K1 (HF115F)**, which switches the LED power output (**COM** terminal)  
 
-  The LED channels (R/G/B/CW/WW) act as **low-side PWM sinks**, and the LED strip must be **24 V common-anode**.
+  The LED channels (R/G/B/CW/WW) act as **low-side PWM sinks**; the strip must be **12/24 V common-anode**. Per-channel current is limited by the MOSFET and PCB tracks; the **sum of all channels must not exceed 10 A**.
 
 - **Current consumption (typical):**
   - Logic + RS-485: ≈ 100 mA  
   - Relay coil: ≈ 30 mA (active)  
-  - LED load: dependent on connected strips (sized per external 24 V LED PSU)
+  - LED load: dependent on connected strips (size external **12/24 V** LED PSU within the **10 A** module limit)
 
 - **Ground references:**  
   - `GND_FUSED` → field ground for LED and inputs  
   - `GND` → logic/USB ground  
-  These are internally isolated — do **not** tie them together externally.
+  These domains are separated internally — do **not** tie them together externally.
 
 ---
 
@@ -419,7 +420,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 > ⚙️ **Quick Summary**
 > 1. Mount the module on a DIN rail.  
-> 2. Wire +24 V and 0 V to the **LED PS** terminals.  
+> 2. Wire **12 V or 24 V** LED PSU to the **LED PS** terminals; **24 V** to **V+** / **0V** for the module.  
 > 3. Connect LED strips (common-anode to COM, cathodes to R/G/B/CW/WW).  
 > 4. Wire RS-485 A/B to the controller.  
 > 5. Plug in USB-C, open WebConfig, assign address, set baudrate, test outputs.  
@@ -735,13 +736,14 @@ Hold **both** front buttons while power-cycling the module (or trigger **Reset**
 
 ## 9.1 Status LEDs (front panel)
 
-| LED  | Meaning |
+| LED | Meaning |
 |-----|---------|
-| **PWR** | Steady when powered and firmware is running. |
-| **TX**  | Blinks on Modbus transmit. |
-| **RX**  | Blinks on Modbus receive. |
-| **I.1 / I.2** | Reflect isolated input states. |
-| **RUN/ERR** (if present) | Heartbeat / fault pattern (refer to firmware notes). |
+| **Power** | Steady when the module is powered and firmware is running. |
+| **TX** | Blinks on Modbus transmit. |
+| **RX** | Blinks on Modbus receive. |
+| **Relay** | Reflects relay state. |
+| **LED1 / LED2** | User-assignable indicators (WebConfig). |
+| **DI1 / DI2** | Reflect DI1/DI2 input states (panel indication swapped on this revision — see [Hardware notes](#hardware-notes-current-revision)). |
 
 ## 9.2 Resets & Modes
 
@@ -755,7 +757,7 @@ Hold **both** front buttons while power-cycling the module (or trigger **Reset**
 - **Relay won’t trigger:**  
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **C/NO** (dry contact). Add snubber for inductive loads.
 - **LED channels do not light:**  
-  Verify **COM (+24 V)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate 24 V PSU sizing.
+  Verify **COM** (12/24 V LED +) to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (≤ **10 A** total through module).
 - **Inputs not detected:**  
   Use **DI 24Vdc** terminals (I1/I2 with GND). Confirm sensor type (dry contact or 24 V sourcing) and debounce/invert settings in WebConfig.
 - **USB not detected:**  
