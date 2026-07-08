@@ -3,7 +3,7 @@
 
 ## 🚀 Quick Start (current version)
 
-**Firmware shipped on new modules: `v0.1.0`**
+**Firmware shipped on new modules: `v0.2.0`**
 
 ```yaml
 packages:
@@ -11,7 +11,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+      - path: RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
         vars:
           rgb_prefix: "RGB#1"
           rgb_id: rgb_1
@@ -22,7 +22,8 @@ packages:
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | First versioned release |
+| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | Current working version |
+| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-06 | Deprecated (superseded by v0.2.0) |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
 
@@ -777,7 +778,7 @@ See LICENSE files in each directory for full terms.
 - **Repository (module path):**  
   [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
-- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html`
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`
 - **Datasheet & docs:** `RGB-621-R1/Manuals/`
 - **Images & diagrams:** `RGB-621-R1/Images/`
@@ -787,7 +788,7 @@ See LICENSE files in each directory for full terms.
 # 12. Support
 
 - **Official Support:** https://www.home-master.eu/support  
-- **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.1.0/ConfigToolPage.html  
+- **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html  
 - **YouTube:** https://youtube.com/@HomeMaster  
 - **Hackster:** https://hackster.io/homemaster  
 - **Reddit:** https://reddit.com/r/HomeMaster  
