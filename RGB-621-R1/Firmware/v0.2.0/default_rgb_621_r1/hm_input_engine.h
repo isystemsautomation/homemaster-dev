@@ -106,7 +106,7 @@ struct HmInputChannelCfg {
 
 struct HmInputEngineTimings {
   uint16_t debounceMs;
-  uint16_t longPressMs;  // reserved (legacy HR 501); unused
+  uint16_t longPressMs;  // reserved for struct layout; unused
   uint16_t multiClickGapMs;
   uint16_t holdDelayMs;
   uint16_t holdRepeatMs;

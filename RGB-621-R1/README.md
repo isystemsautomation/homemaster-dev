@@ -1,6 +1,8 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
+> **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
+
 ## 🚀 Quick Start (current version)
 
 **Firmware shipped on new modules: `v0.2.0`**
@@ -22,7 +24,8 @@ packages:
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | Current working version |
+| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | **Current release.** Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
+| **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-01 | Deprecated (legacy) — superseded by v0.2.0. Kept for existing installs; no longer maintained. |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
 
@@ -516,11 +519,32 @@ Use diagrams and explain:
 
 ## 5.5 Software & UI Configuration
 
-Cover:
-- WebConfig setup (address, baud)
-- Input enable/invert/group
-- Relay logic mode (group/manual)
-- LED and Button mapping
+Configuration is performed via **USB-C WebConfig** ([v0.2.0 ConfigToolPage](Firmware/v0.2.0/ConfigToolPage.html) or [hosted copy](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html)) in any Chromium-based browser with Web Serial support. Settings are saved automatically to flash.
+
+- Modbus address and baud rate
+- Live light levels, quick presets, and identify/factory-reset tools
+- Wall-switch inputs (momentary/maintained, gestures, hold-to-dim targets)
+- Onboard button (SW2) gestures
+- Per-channel PWM trim, fade, and power-on state
+- Hold-to-dim timing and four scene presets
+- Relay FOLLOW mode, user LED mapping, 12-bit gamma output quality
+
+### WebConfig (USB-C)
+
+![WebConfig — connection, Modbus, and live light levels](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig1.png)
+*Connection & Modbus address/baud, serial log, live RGB+CCT levels, and quick presets (OFF / WHITE / RGB / FULL).*
+
+![WebConfig — wall-switch inputs and gesture engine](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig2.png)
+*Wall-switch inputs (DI1/DI2) with mode, output target, and per-gesture actions; onboard button (SW2); engine debounce, multi-click, and hold timings; offline wall-switch unlock.*
+
+![WebConfig — PWM channel trim and fade](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig3.png)
+*Per-channel min/max trim, transition (fade) ms, and power-on state for Red, Green, Blue, Warm white, and Cool white.*
+
+![WebConfig — hold-to-dim and scenes](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig4.png)
+*Global hold-to-dim traverse time (default 3000 ms) and four scene presets with per-channel levels and Capture current.*
+
+![WebConfig — relay, LEDs, and output quality](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig5.png)
+*Relay FOLLOW (PSU cut) with follow channels and off delay; user LED source/mode; 12-bit PWM with gamma correction.*
 
 ## 5.6 Getting Started
 
@@ -562,7 +586,7 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE + source×5 + gesture`.
 
-> ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (applied light + relay flags) every 5 s. Event counters **6–20** are optional for masters that need WirenBoard-style press accounting.
+> ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (applied light + relay flags) every 5 s. Event counters **6–20** are optional for masters that need register-based press accounting.
 
 ---
 
@@ -580,6 +604,16 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | **320–321** | **DI1–DI2 Disable** | Pulse per input |
 
 > Relay coil **0** is the primary control path (ESPHome template switch). Pulse coils **200/210** remain for legacy tools. Service coils: write-only from ESPHome (`assumed_state`).
+
+---
+
+## 6.2.1 Discrete Inputs (FC02)
+
+| Address | Name | Description |
+|---------|------|-------------|
+| **1–2** | **DI1–DI2** | Wall-switch logical state (after enable + invert) |
+| **60** | **Relay1** | Relay logical state |
+| **90–91** | **LED1–LED2** | User LED logical state |
 
 ---
 
@@ -619,13 +653,13 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 
 **Maintained mode:** contact closed = ON, open = OFF on **`maintTarget`** (independent of momentary gesture targets). Defaults: DI1 → Group RGB, DI2 → Group CCT.
 
-**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps **continuously** toward min (0) or max trim over `dimFullRangeMs` (default **3000 ms**, HR 532). Direction and target come from each input's **Hold** gesture (Dim up / Dim down / Dim toggle dir + target). Release freezes at the current level (saved for RESTORE_LAST). Group dimming preserves channel ratios within RGB / CCT / RGB+CCT.
+**Hold-to-dim:** after `holdDelayMs` (default **650 ms**), brightness ramps **continuously** toward min (0) or max trim over `dimFullRangeMs` (default **3000 ms**). Direction and target come from each input's **Hold** gesture (Dim up / Dim down / Dim toggle dir + target). Release freezes at the current level (saved for RESTORE_LAST). Group dimming preserves channel ratios within RGB / CCT / RGB+CCT.
 
 **Gesture targets** (WebConfig / `action<<8|target`): **7** = Group RGB (R,G,B), **8** = Group CCT (WW,CW), **10** = RGB+CCT (both groups in lockstep), **1** = Relay1, **9** = All. Per-channel PWM targets remain internal-only.
 
 **Gesture actions:** None, Toggle, On, Off, Dim up, Dim down, **Dim toggle dir** (action **7**), Relay pulse, **Scene 1–4** (actions **10, 12, 13, 14** — target hidden/unused), Identify (**11**, onboard SW2 only). Legacy **Set 100%** (action **8**) maps to None. Legacy action **4** (All off) maps to Off+All. **Relay pulse** is offered only when target is Relay1.
 
-**Scenes:** four presets (HR **560–579**); Scene *n* recalls `applyScene(n−1)`.
+**Scenes:** four presets configured in WebConfig; recalled by the Scene 1–4 gesture actions.
 
 **Relay1 FOLLOW:** when mode=FOLLOW, relay energizes while any watched group is on; after all outputs reach zero, relay opens after `offDelayMs` (default 45 s) — typical LED PSU cut.
 
@@ -648,7 +682,6 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
 | Read press counters (DI1 singles) | FC04 IR **6** |
-| Configure DI1 hold action | HR **545** (`action<<8|target`; target 7=RGB, 8=CCT, 10=RGB+CCT) |
 
 ---
 

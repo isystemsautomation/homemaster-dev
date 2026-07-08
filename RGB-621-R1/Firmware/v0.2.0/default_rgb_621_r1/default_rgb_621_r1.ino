@@ -1219,7 +1219,7 @@ void serviceRelayFollow(uint32_t now) {
   }
 }
 
-// Safe per-channel outputs on link loss were removed for RGB-621-R1 (kept HR slots reserved).
+// Safe per-channel outputs on link loss were removed for RGB-621-R1.
 
 // ================== Modbus coils (relay toggle + service + legacy pulses) ==================
 void processModbusCoils(uint32_t now) {
