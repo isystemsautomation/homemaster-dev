@@ -32,6 +32,12 @@ packages:
 
 ![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
+# Hardware notes (current revision)
+
+1. DI status LEDs swapped: on this hardware revision, the front-panel indication for DI1 and DI2 is swapped (DI1 LED shows DI2 state and vice versa). This is a silkscreen/panel indication issue only; logical inputs, Modbus registers, and WebConfig are correct.
+2. Onboard buttons: only SW2 is a usable logic input (Button 1 in WebConfig). The second front button is not wired as a user input; it is used only to enter BOOT mode.
+3. Entering BOOT mode: hold BOTH front buttons while power-cycling the module (or trigger Reset from WebConfig while keeping both buttons held). Release after power returns. The module then enumerates in BOOT/flash mode for firmware upload.
+
 # 1. Introduction
 
 ## 1.1 Overview of the RGB-621-R1
