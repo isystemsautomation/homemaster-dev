@@ -465,7 +465,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 ---
 
-## 4.3 Communication
+## 5.3 Communication
 
 **RS-485 Pinout (bottom connector):**
 
@@ -591,10 +591,15 @@ Configuration is performed via **USB-C WebConfig** ([v0.2.0 ConfigToolPage](Firm
 
 ## 5.6 Getting Started
 
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+Follow these steps for a first-time install (field wiring detail: [§5.4](#54-installation--wiring); Home Assistant integration: [§7](#7-esphome-integration-guide)).
+
+1. Mount on a **35 mm DIN rail**; wire **24 V DC** to **V+** / **0V** and the LED PSU to **LED PS**; connect a **common-anode** strip (strip **+** to **COM**, cathodes to **R** / **G** / **B** / **CW** / **WW**).
+2. Connect **RS-485** **A** / **B** / **COM** to the controller (**MicroPLC** / **MiniPLC**).
+3. Plug **USB-C** into a PC; open the **WebConfig** tool in Chrome or Edge and click **Connect**.
+4. Set a **unique Modbus address** (each module on the bus must differ; default is **3**) and baud **19200**; save to flash.
+5. Optionally assign **DI1** / **DI2** wall-switch actions; test the light from WebConfig.
+6. Add the [Quick Start](#-quick-start-current-version) ESPHome package to the controller with the matching `rgb_address`.
+7. The light and relay appear in **Home Assistant**.
 
 ---
 
