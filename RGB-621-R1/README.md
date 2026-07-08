@@ -15,52 +15,14 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 - [Version History](#-version-history)
 - [Hardware notes (current revision)](#hardware-notes-current-revision)
 - [1. Introduction](#1-introduction)
-  - [1.1 Overview of the RGB-621-R1](#11-overview-of-the-rgb-621-r1)
-  - [1.2 Features & Architecture](#12-features--architecture)
-  - [1.3 System Role & Communication](#13-system-role--communication)
-- [2. RGB-621-R1 — Technical Specification](#2-rgb-621-r1--technical-specification)
-  - [2.1 Diagrams & Pinouts](#21-diagrams--pinouts)
-  - [2.2 Overview](#22-overview)
-  - [2.3 I/O Summary](#23-io-summary)
-  - [2.4 Terminals & Pinout](#24-terminals--pinout)
-  - [2.5 Electrical & Environmental](#25-electrical--environmental)
-  - [2.6 MCU, Protections & Build](#26-mcu-protections--build)
-  - [2.7 Absolute Ratings](#27-absolute-ratings)
-  - [2.8 Firmware & Operation](#28-firmware--operation)
+- [2. Technical Specification](#2-rgb-621-r1--technical-specification)
 - [3. Use Cases](#3-use-cases)
-  - [Use Case 1 — Standalone wall-switch dimming](#-use-case-1--standalone-wall-switch-dimming-color-and-scenes-no-controller)
-  - [Use Case 2 — Relay LED-PSU power-cut](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)
-  - [Use Case 3 — Home Assistant integration](#-use-case-3--full-home-assistant-integration-with-live-state)
 - [4. Safety Information](#4-safety-information)
-  - [4.1 General Requirements](#41-general-requirements)
-  - [4.2 Installation Practices](#42-installation-practices)
-  - [4.3 Interface Warnings](#43-interface-warnings)
 - [5. Installation & Quick Start](#5-installation--quick-start)
-  - [IMPORTANT — POWER](#important-power)
-  - [5.1 What You Need](#51-what-you-need)
-  - [5.2 Power](#52-power)
-  - [5.3 Communication](#53-communication)
-  - [5.4 Installation & Wiring](#54-installation--wiring)
-  - [5.5 Software & UI Configuration](#55-software--ui-configuration)
-  - [5.6 Getting Started](#56-getting-started)
 - [6. Modbus RTU Communication](#6-modbus-rtu-communication)
-  - [6.0 Register Map (complete)](#60-register-map-complete)
-  - [6.1 Input Registers (FC04)](#61-input-registers-fc04--map_version-3)
-  - [6.2 Coils (FC01/05)](#62-coils-fc0105)
-  - [6.2.1 Discrete Inputs (FC02)](#621-discrete-inputs-fc02)
-  - [6.3 Holding Registers (FC03/06/16)](#63-holding-registers-fc030616)
-  - [6.4 Output quality](#64-output-quality-12-bit--gamma--slew)
-  - [6.5 Local input logic](#65-local-input-logic-v020)
-  - [6.6 Register Use Examples](#66-register-use-examples)
-  - [6.7 Polling Recommendations](#67-polling-recommendations)
 - [7. ESPHome Integration Guide](#7-esphome-integration-guide)
 - [8. Firmware & Programming](#8-firmware--programming)
-  - [8.1 Updating firmware (regular users)](#81-updating-firmware-regular-users)
-  - [8.2 Building & flashing from source](#82-building--flashing-from-source-advanced--developers)
 - [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
-  - [9.1 Status LEDs (front panel)](#91-status-leds-front-panel)
-  - [9.2 Resets & Modes](#92-resets--modes)
-  - [9.3 Common Issues](#93-common-issues)
 - [10. Open Source & Licensing](#10-open-source--licensing)
 - [11. Downloads](#11-downloads)
 - [12. Support](#12-support)
@@ -487,32 +449,37 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 
 ## 5.5 Software & UI Configuration
 
-Configuration is performed via **USB-C WebConfig** ([https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html)) in any browser with **Web Serial API** support. Settings are saved automatically to flash.
+Configure over USB-C in a browser with **Web Serial API** support: open [https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html), click **Connect**, pick the module's port. Changes apply live and save to flash.
 
-- Modbus address and baud rate
-- Live light levels, quick presets, and identify/factory-reset tools
-- Wall-switch inputs (momentary/maintained, gestures, hold-to-dim targets)
-- Onboard button (SW2) gestures
-- Per-channel PWM trim, fade, and power-on state
-- Hold-to-dim timing and four scene presets
-- Relay FOLLOW mode, user LED mapping, 12-bit gamma output quality
+### 1) Connection, light levels & presets
 
-### WebConfig (USB-C)
+| Screenshot | Settings |
+|---|---|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig1.png" width="360"> | <table><tr><th>Setting</th><th>What it does</th><th>Set to</th></tr><tr><td><b>Modbus Address</b></td><td>RS-485 bus ID; unique per module</td><td><b>1–255</b> (default <b>3</b>)</td></tr><tr><td><b>Baud Rate</b></td><td>Must match controller / bus</td><td>9600 / 19200 / 38400 / 57600 / 115200 (default <b>19200</b>)</td></tr><tr><td><b>Serial Log</b></td><td>USB diagnostics only</td><td>—</td></tr><tr><td><b>Light Levels</b></td><td>Live R/G/B/WW/CW sliders (0–255); test strip without Modbus</td><td>Any level for commissioning</td></tr><tr><td><b>Quick presets</b></td><td>OFF / WHITE / RGB / FULL test patterns</td><td>Use to verify wiring</td></tr></table> |
 
-![WebConfig — connection, Modbus, and live light levels](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig1.png)
-*Connection & Modbus address/baud, serial log, live RGB+CCT levels, and quick presets (OFF / WHITE / RGB / FULL).*
+### 2) Wall-switch inputs & onboard button
 
-![WebConfig — wall-switch inputs and gesture engine](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig2.png)
-*Wall-switch inputs (DI1/DI2) with mode, output target, and per-gesture actions; onboard button (SW2); engine debounce, multi-click, and hold timings; offline wall-switch unlock.*
+| Screenshot | Settings |
+|---|---|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig2.png" width="360"> | <table><tr><th>Setting</th><th>What it does</th><th>Set to</th></tr><tr><td><b>DI1 / DI2 — Enabled</b></td><td>Input active</td><td>On (default)</td></tr><tr><td><b>Inverted</b></td><td>Flip contact sense</td><td>Off unless wiring requires</td></tr><tr><td><b>Child lock</b></td><td>Ignore local gestures; Modbus/HA still works</td><td>Off unless tamper-proofing</td></tr><tr><td><b>Mode</b></td><td>Momentary = gestures; Maintained = closed ON / open OFF</td><td>Default <b>Momentary</b>; Maintained target <b>Group RGB</b> (DI1) / <b>Group CCT</b> (DI2)</td></tr><tr><td><b>Single / Double / Hold</b></td><td>Per-gesture action + target</td><td>None, Toggle, On, Off, Dim up, Dim down, Dim toggle dir, Relay pulse, Scene 1–4; targets Group RGB / Group CCT / RGB+CCT / Relay1 / All. Defaults: DI1 hold <b>Dim up → Group RGB</b>; DI2 hold <b>Dim down → Group CCT</b></td></tr><tr><td><b>SW2 (onboard)</b></td><td>Single / Double gestures only</td><td>Default: Single <b>Toggle → All</b>; Double <b>Identify</b></td></tr><tr><td><b>Engine timings</b></td><td>Debounce / double-click gap / hold start / hold repeat</td><td><b>25</b> / <b>350</b> / <b>650</b> / <b>60</b> ms</td></tr><tr><td><b>Unlock when bus offline</b></td><td>Wall switches work without controller</td><td>On (default)</td></tr></table> |
 
-![WebConfig — PWM channel trim and fade](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig3.png)
-*Per-channel min/max trim, transition (fade) ms, and power-on state for Red, Green, Blue, Warm white, and Cool white.*
+### 3) PWM channels (R/G/B/WW/CW)
 
-![WebConfig — hold-to-dim and scenes](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig4.png)
-*Global hold-to-dim traverse time (default 3000 ms) and four scene presets with per-channel levels and Capture current.*
+| Screenshot | Settings |
+|---|---|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig3.png" width="360"> | <table><tr><th>Setting</th><th>What it does</th><th>Set to</th></tr><tr><td><b>Min trim</b></td><td>Lowest PWM floor (reduces flicker)</td><td><b>1</b> per channel (default)</td></tr><tr><td><b>Max trim</b></td><td>Brightness ceiling</td><td><b>255</b> per channel (default)</td></tr><tr><td><b>Transition (fade) ms</b></td><td>Slew time on level changes</td><td><b>400</b> ms per channel (default)</td></tr><tr><td><b>Power-on</b></td><td>Channel state after power-up</td><td>OFF / ON / Restore last (default <b>OFF</b>)</td></tr></table> |
 
-![WebConfig — relay, LEDs, and output quality](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig5.png)
-*Relay FOLLOW (PSU cut via external **Relay C / NO** in series with LED PSU); follow channels and off delay; user LED source/mode; 12-bit PWM with gamma correction.*
+### 4) Dimming & scenes
+
+| Screenshot | Settings |
+|---|---|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig4.png" width="360"> | <table><tr><th>Setting</th><th>What it does</th><th>Set to</th></tr><tr><td><b>Dimming time (ms)</b></td><td>Hold-to-dim ramp over full range</td><td><b>3000</b> ms (default)</td></tr><tr><td><b>Scenes 1–4</b></td><td>Stored R/G/B/WW/CW levels</td><td>0–255 per channel</td></tr><tr><td><b>Capture current</b></td><td>Copies live slider levels into scene</td><td>After tuning a look; recall via Scene 1–4 gestures</td></tr></table> |
+
+### 5) Relay, user LEDs & output quality
+
+| Screenshot | Settings |
+|---|---|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig5.png" width="360"> | <table><tr><th>Setting</th><th>What it does</th><th>Set to</th></tr><tr><td><b>Relay — Power-on</b></td><td>Relay position at boot</td><td>OFF / ON / Restore last (default <b>OFF</b>)</td></tr><tr><td><b>Relay mode</b></td><td>Manual = free output; Follow = PSU-cut logic</td><td><b>Follow (PSU cut)</b> (default); wire <b>Relay C / NO</b> externally in series with LED PSU (+)</td></tr><tr><td><b>Follow channels</b></td><td>PWM groups watched in Follow</td><td><b>RGB + CCT</b> (default); or RGB only / CCT only</td></tr><tr><td><b>Off delay (s)</b></td><td>Delay after all outputs off before relay opens</td><td><b>45</b> s (default)</td></tr><tr><td><b>User LED1/LED2 — Mode</b></td><td>Panel LED behaviour</td><td>Solid / Blink</td></tr><tr><td><b>Source</b></td><td>What the user LED reflects</td><td>e.g. <b>Overridden Relay 1</b></td></tr><tr><td><b>Gamma correction</b></td><td>Perceptual dimming (12-bit output)</td><td>On (default)</td></tr><tr><td><b>Gamma (×10)</b></td><td>Curve exponent</td><td><b>22</b> = γ <b>2.2</b> (default)</td></tr></table> |
 
 ## 5.6 Getting Started
 
