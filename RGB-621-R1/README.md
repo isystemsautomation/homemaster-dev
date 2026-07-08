@@ -27,7 +27,7 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 # Hardware notes (current revision)
 
 1. **DI1/DI2 status-LED indication swapped** — silkscreen/panel only; logical inputs, Modbus registers, and WebConfig are correct.
-2. **Only SW2 is a usable logic input** (Button 1 in WebConfig); the second front button is not a user input — it enters BOOT mode only (see [§8.2](#82-flashing)).
+2. **Only SW2 is a usable logic input** (Button 1 in WebConfig); the second front button is not a user input — it enters BOOT mode only (see [§8.1](#81-updating-firmware-regular-users)).
 
 # 1. Introduction
 
@@ -354,7 +354,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 | **Module PSU** | Regulated **24 V DC SELV/PELV** (module logic, RS-485, input wetting) |
 | **LED PSU (separate)** | Regulated **12 V or 24 V DC**, sized for the LED strip load (within the module's **10 A** limit) |
 | **Cables** | 1× **USB-C** cable (for setup), 1× **twisted-pair RS-485** cable |
-| **Software** | Any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) with **Web Serial** support for WebConfig |
+| **Software** | Any browser that supports the **Web Serial API** (for WebConfig) |
 | **Optional** | Shielded wiring for long RS-485 runs, DIN-rail enclosure, terminal labels |
 
 ---
@@ -406,11 +406,9 @@ Isolation between logic and relay-drive domains is provided internally through t
   - **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)  
 
 - **Configuration:**  
-  - Connect via **USB-C** and open **WebConfig** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).  
+  - Connect via **USB-C** and open **WebConfig** in any browser that supports the **Web Serial API**.  
   - Set module address, baud rate, and optional relay/input parameters.  
   - Save settings to non-volatile memory.  
-
-> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
 - **Ground reference use:**  
   - In most RS-485 systems, differential A/B are sufficient.  
@@ -480,7 +478,7 @@ The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from
 
 ## 5.5 Software & UI Configuration
 
-Configuration is performed via **USB-C WebConfig** ([v0.2.0 ConfigToolPage](Firmware/v0.2.0/ConfigToolPage.html) or [hosted copy](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html)) in any Chromium-based browser with Web Serial support. Settings are saved automatically to flash.
+Configuration is performed via **USB-C WebConfig** ([https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html)) in any browser with **Web Serial API** support. Settings are saved automatically to flash.
 
 - Modbus address and baud rate
 - Live light levels, quick presets, and identify/factory-reset tools
@@ -513,7 +511,7 @@ Follow these steps for a first-time install (field wiring detail: [§5.4](#54-in
 
 1. Mount on a **35 mm DIN rail**; wire **24 V DC** to **V+** / **0V** and the LED PSU to **LED PS**; connect a **common-anode** strip (strip **+** to **COM**, cathodes to **R** / **G** / **B** / **CW** / **WW**).
 2. Connect **RS-485** **A** / **B** / **COM** to the controller (**MicroPLC** / **MiniPLC**).
-3. Plug **USB-C** into a PC; open the **WebConfig** tool in Chrome or Edge and click **Connect**.
+3. Plug **USB-C** into a PC; open the **WebConfig** tool in a browser with **Web Serial API** support and click **Connect**.
 4. Set a **unique Modbus address** (each module on the bus must differ; default is **3**) and baud **19200**; save to flash.
 5. Optionally assign **DI1** / **DI2** wall-switch actions; test the light from WebConfig.
 6. Add the [§7 ESPHome](#7-esphome-integration-guide) package to the controller with the matching `rgb_address`.
@@ -683,52 +681,32 @@ The package exposes an **RGB+CCT light**, **relay switch**, **digital inputs**, 
 
 ---
 
-# 8. Programming & Customization (RGB-621-R1)
+# 8. Firmware & Programming
 
-## 8.1 Supported Languages
+## 8.1 Updating firmware (regular users)
 
-- Arduino (RP2350 core)
-- C/C++ (PIO / SDK)
-- MicroPython
+No IDE or build tools required — RP2350 uses **UF2 drag-and-drop**.
 
-## 8.2 Flashing
+1. Download the latest RGB-621-R1 firmware `.uf2` — module card on [config.home-master.eu](https://config.home-master.eu) (Firmware → UF2) or the repository.
+2. **Enter BOOT mode:** hold **both** front buttons (Button 1 + Button 2) and, keeping them held, power-cycle the module (or use **Reset** in WebConfig). Release after power returns. The module mounts as a USB drive named **RPI-RP2**.
+3. Drag-and-drop the `.uf2` onto the **RPI-RP2** drive. The module flashes and reboots automatically.
+4. Settings (Modbus address/baud, trims, scenes, input mappings, relay mode, gamma) are stored in flash and preserved across updates.
+5. **Recovery:** if it doesn't enumerate, power-cycle and retry BOOT.
 
-### Entering BOOT mode
+![Button 1 and Button 2 positions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/buttons1.png)
 
-Hold **both** front buttons while power-cycling the module (or trigger **Reset** from WebConfig while keeping both buttons held). Release after power returns. The module then enumerates in **BOOT/flash mode** for firmware upload.
+## 8.2 Building & flashing from source (advanced / developers)
 
-**USB-C (Web Serial / CDC)**
-1. Connect a USB-C cable from your PC to the module’s **USB** port.
-2. **Enter BOOT mode** (see above).
-3. Flash using **PlatformIO** or **Arduino IDE** (serial upload).
-4. When flashing completes, disconnect and power-cycle the module.
+For modifying or rebuilding the firmware.
 
-> **Reset:** this module **does not** have a button combo for reset.  
-> To reset, **remove 24 VDC power for ≥5 s** and re-apply.
-
-**PlatformIO / Arduino IDE setup**
-- **Board/MCU:** *Raspberry Pi RP2350 / Generic RP235x*
-- **USB upload:** Serial (CDC)
-- **Flash layout (Arduino):** e.g. 2 MB (Sketch 1 MB / FS 1 MB)
-- **Recommended libs (Arduino examples):**
-  - `ModbusSerial` (RTU master/slave helpers)
-  - `Arduino_JSON`
-  - `LittleFS`
-  - `SimpleWebSerial` (for WebConfig bridge)
-
-**Buttons reference (RGB-621-R1 front)**
-
-  ![Button 1 and Button 2 positions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/buttons1.png)
-
-- **Button 1 + Button 2** → **BOOT mode** (see [Entering BOOT mode](#entering-boot-mode) above)  
-- **Reset** → **power-cycle 24 VDC for ≥5 s**
-
-## 8.3 Firmware Updates
-
-- Open the project in **PlatformIO** or **Arduino IDE**.
-- Put device in [BOOT mode](#entering-boot-mode) and upload the new build.
-- **Configuration persistence:** device settings (address/baud, channel trims, etc.) are stored in flash and **kept** across updates unless you explicitly erase.
-- **Recovery:** if the device won’t enumerate, power-cycle 24 VDC (≥5 s) and retry [BOOT mode](#entering-boot-mode). If needed, flash a minimal “factory” image first, then restore config via WebConfig backup.
+- **Languages:** Arduino (RP2350 core), C/C++ (Pico SDK / PlatformIO), MicroPython.
+- **Toolchain:** PlatformIO or Arduino IDE.
+  - Board/MCU: Raspberry Pi RP2350 / Generic RP235x
+  - USB upload: Serial (CDC)
+  - Flash layout (Arduino): e.g. 2 MB (Sketch 1 MB / FS 1 MB)
+  - Libraries (Arduino examples): ModbusSerial, Arduino_JSON, LittleFS, SimpleWebSerial.
+- Build the sketch (see the [reproducible build environment](../../README.md#build-environment-reproducible) and [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)), enter BOOT mode ([§8.1](#81-updating-firmware-regular-users) step 2), then upload the new build over USB, **or** export a `.uf2` and drag-drop it onto **RPI-RP2**.
+- **Reset:** power-cycle the module (remove and re-apply **24 V DC**) or use **Reset** in WebConfig — there is no reset button combo.
 
 ---
 
@@ -747,8 +725,7 @@ Hold **both** front buttons while power-cycling the module (or trigger **Reset**
 
 ## 9.2 Resets & Modes
 
-- **BOOT mode:** see [§8.2 Entering BOOT mode](#entering-boot-mode).
-- **Reset:** **remove 24 VDC for ≥5 s** and re-apply.
+- **BOOT mode** and **reset:** see [§8.1](#81-updating-firmware-regular-users).
 
 ## 9.3 Common Issues
 
@@ -761,7 +738,7 @@ Hold **both** front buttons while power-cycling the module (or trigger **Reset**
 - **Inputs not detected:**  
   Use **DI 24Vdc** terminals (I1/I2 with GND). Confirm sensor type (dry contact or 24 V sourcing) and debounce/invert settings in WebConfig.
 - **USB not detected:**  
-  Use a data-capable USB-C cable; close any app holding the port; re-enter [BOOT mode](#entering-boot-mode).
+  Use a data-capable USB-C cable; close any app holding the port; re-enter [BOOT mode](#81-updating-firmware-regular-users).
 
 ---
 
