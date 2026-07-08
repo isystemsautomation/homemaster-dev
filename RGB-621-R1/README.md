@@ -46,7 +46,7 @@ packages:
 ## 1.1 Overview of the RGB-621-R1
 
 The **RGB-621-R1** is a **smart RGB + CCT LED controller module** designed for **HomeMaster automation systems** and other **Modbus RTU networks**.  
-It features **5 high-current PWM outputs** for RGB and Tunable White (CCT) LED control, **2 isolated digital inputs** for wall switches or sensors, and **1 relay output** for switching external loads or LED drivers.
+It features **5 high-current PWM outputs** for RGB and Tunable White (CCT) LED control, **2 IEC 61131-2 compliant digital inputs** for wall switches or sensors, and **1 relay output** for switching external loads or LED drivers.
 
 Powered by the **Raspberry Pi RP2350A** microcontroller, the module supports **RS-485 (Modbus RTU)** communication and configuration via **WebConfig over USB-C (Web Serial)** — no drivers or external software required.  
 It connects directly to **HomeMaster MicroPLC** and **MiniPLC** controllers or operates as a **standalone Modbus slave** in any automation network.
@@ -60,9 +60,9 @@ Its **isolated I/O architecture**, **dual-board design**, and built-in **surge a
 
 | Subsystem         | Qty | Description |
 |-------------------|-----|-------------|
-| **Digital Inputs** | 2 | Galvanically isolated (ISO1212) dry-contact inputs with surge and reverse protection |
+| **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
 | **PWM Outputs** | 5 | N-channel MOSFET drivers (AP9990GH-HF), 12 V / 24 V LED channels for R / G / B / CW / WW |
-| **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil, rated 16 A @ 250 VAC / 30 VDC |
+| **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
 | **LED Indicators** | 8 | Power, TX/RX, input, and status LEDs for feedback and diagnostics |
 | **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver; 120 Ω termination selectable |
@@ -70,11 +70,11 @@ Its **isolated I/O architecture**, **dual-board design**, and built-in **surge a
 | **Power Input** | 24 V DC | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
 | **Logic Supply** | — | AP64501SP-13 buck (5 V) + AMS1117-3.3 LDO chain |
 | **MCU** | RP2350A | Dual-core Arm Cortex-M33 @ 133 MHz with 32 Mbit QSPI Flash (W25Q32JVUUIQ) |
-| **Isolation & Protection** | — | Galvanic isolation, TVS diodes, PTC fuses, transient suppression on all field I/O |
+| **Isolation & Protection** | — | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected; TVS diodes, PTC fuses, transient suppression on field I/O |
 
 **Architecture summary:**  
 - **MCU Board:** manages logic, USB, Modbus, and power regulation  
-- **Field Board:** contains LED drivers, relay circuit, and isolated input section  
+- **Field Board:** contains LED drivers, relay circuit, and digital input section  
 This modular, two-board design ensures clean signal separation between logic and 24 V field wiring, improving reliability in mixed-voltage installations.
 
 ---
@@ -116,7 +116,7 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 ## 2.2 Overview
 
 RGB + CCT LED controller with:
-- **5 PWM outputs**, **2 isolated digital inputs**, **1 relay**
+- **5 PWM outputs**, **2 IEC 61131-2 digital inputs**, **1 relay**
 - **RS-485 (Modbus RTU)** slave for HomeMaster controllers or SCADA
 - Configurable via **USB-C WebConfig**
 - Compact **DIN-rail** form factor
@@ -127,8 +127,8 @@ RGB + CCT LED controller with:
 
 | Interface | Qty | Notes |
 |------------|-----|-------|
-| **Digital Inputs** | 2 | 24 V isolated (ISO1212), dry-contact or sourcing |
-| **Relay** | 1 | SPST-NO, 16 A @ 250 VAC / 30 VDC |
+| **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
+| **Relay** | 1 | SPST-NO, 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **PWM Outputs** | 5 | Low-side MOSFETs (AP9990GH-HF) for R/G/B/CW/WW |
 | **RS-485 (Modbus)** | 1 | MAX485 transceiver, 19200 bps 8N1 default |
 | **USB-C** | 1 | Config & firmware upload (logic only) |
@@ -150,8 +150,8 @@ RGB + CCT LED controller with:
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
 - **PWM Drive:** up to 5 A per channel (25 A max total)  
-- **Relay:** 16 A @ 250 VAC / 30 V DC  
-- **Isolation:** 3 kVrms (inputs ↔ logic)  
+- **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
+- **Digital inputs:** IEC 61131-2 front-end (ISO1212); surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
 - **USB-C:** WebConfig / firmware only, ESD-protected  
 - **Env.:** 0 – 40 °C, ≤ 95 % RH non-condensing
@@ -176,7 +176,7 @@ RGB + CCT LED controller with:
 |------------|-----|-----|-----|-------|
 | Supply Voltage | 20 V | 24 V | 30 V | SELV input protected |
 | Power Use | — | 1.85 W | 3.0 W | No LED load |
-| Relay Contacts | — | — | 16 A @ 250 VAC / 30 V DC | Resistive |
+| Relay Contacts | — | — | 3 A @ 250 VAC / 30 VDC | Module/PCB limit (resistive) |
 | PWM Current | — | — | 5 A per ch | External PSU limited |
 | RS-485 Rate | — | — | 115.2 kbps | Half-duplex |
 | USB Voltage | 4.75 V | 5 V | 5.25 V | Logic only |
@@ -326,7 +326,7 @@ Two distinct domains exist:
 
 The field return is **`GND_FUSED`**; the logic return is **`GND`**.  
 🟡 **Important:** Do **not** externally bridge `GND_FUSED` and `GND`.  
-Isolation between these domains is provided internally through the ISO1212 and SFH6156 devices.
+Isolation between logic and relay-drive domains is provided internally through the SFH6156 optocoupler (relay coil driver). Digital inputs use an ISO1212 IEC 61131-2 front-end wetted from the module 24 V supply — not a galvanic isolator.
 
 **LED Power and Output Wiring**  
 - The LED power rail (+24 V) enters through the protected input (fuses F3/F4, diode D5 STPS340U, surge D6 SMBJ33A).  
@@ -337,12 +337,13 @@ Isolation between these domains is provided internally through the ISO1212 and S
 
 **Relay Wiring**  
 - Type HF115F (5 V coil, SPST-NO).  
-- Contact rating: 16 A @ 250 VAC / 30 V DC (resistive).  
+- Contact rating: **3 A @ 250 VAC / 30 VDC (module/PCB limit)** (resistive).  
+- Relay component (HF115F class) rated up to 12 A @ 250 VAC at chip level — **that rating does not apply to the module**; use interposing contactors for higher or inductive loads.  
 - For inductive loads, add an **external flyback diode or RC snubber**.  
 - Keep relay conductors away from signal wiring.
 
 **Digital Input Wiring**  
-- Inputs use **ISO1212 galvanic isolation**.  
+- Inputs use an **ISO1212 IEC 61131-2 digital-input front-end** (not galvanic isolation); wetted from the module 24 V supply.  
 - Connect **dry contacts** or **24 V DC sourcing sensors** only.  
 - Each input path has a **PTC fuse (F5/F6)**, **TVS D9**, and **reverse diodes (D10–D14)**.  
 - Do not inject external voltage into DI pins.  
@@ -359,8 +360,8 @@ Isolation between these domains is provided internally through the ISO1212 and S
 | Nominal Voltage | 24 V DC ± 10 % |
 | Input Protection | PTC fuses (F1–F4), reverse-polarity diode (STPS340U), surge TVS (SMBJ33A) |
 | Ground Reference | Field return `GND_FUSED` |
-| Isolation | Field side isolated from logic via DC/DC and opto-devices |
-| Notes | Use a regulated SELV 24 V DC supply rated ≥ 1 A per module. Each module must have its own isolated 24 V supply rail. |
+| Front-end | IEC 61131-2 digital-input front-end (ISO1212); surge/EMI protected |
+| Notes | Use a regulated SELV 24 V DC supply rated ≥ 1 A per module. |
 
 ---
 
@@ -368,10 +369,10 @@ Isolation between these domains is provided internally through the ISO1212 and S
 
 | Parameter | Specification |
 |------------|---------------|
-| Type | Galvanically isolated, dry-contact or sourcing 24 V DC input |
+| Type | IEC 61131-2 compliant, dry-contact or sourcing 24 V DC input |
 | Circuit | ISO1212 receiver with TVS (SMBJ26CA) + PTC protection |
 | Operating Range | 9 – 36 V DC (typ. 24 V DC) |
-| Isolation | 3 kVrms (input ↔ logic) |
+| Protection | PTC fuse, TVS surge and reverse-polarity protection |
 | Notes | For switches or sensors only; debounce handled in firmware. |
 
 ---
@@ -382,7 +383,8 @@ Isolation between these domains is provided internally through the ISO1212 and S
 |------------|---------------|
 | Type | SPST-NO mechanical relay (HF115F/005-1ZS3) |
 | Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
-| Contact Rating | 16 A @ 250 VAC / 30 V DC (resistive) |
+| Contact Rating | 3 A @ 250 VAC / 30 VDC (module/PCB limit, resistive) |
+| Component note | HF115F relay component rated up to 12 A @ 250 VAC — **not usable module output**; use interposing contactors for larger/inductive loads |
 | Protection | External RC snubber / flyback diode recommended |
 | Notes | Keep field wiring separate from logic; observe polarity and isolation boundaries. |
 

@@ -101,7 +101,7 @@ Click **Take Control** to import the official configuration from GitHub.
 |---|---|
 | Microcontroller | ESP32-WROOM-32U-N16 (16 MB flash) |
 | Power Supply | 5 V via USB-C (programming) or 24 V via terminal |
-| Relay Output | 1× 16 A (optically isolated) |
+| Relay Output | 1× SPDT relay (HF115F/005-1ZS3); 3 A @ 250 VAC module limit (relay component rated higher) |
 | Digital Input | 1× 24 V DI (ISO1212-based) |
 | Communication | RS-485, Wi-Fi, Bluetooth, USB-C |
 | RTC | PCF8563 |

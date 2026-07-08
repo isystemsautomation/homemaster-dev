@@ -110,7 +110,7 @@
           <h2><strong>HomeMaster STR-3221-R1</strong></h2>
 
           <p>
-            The <strong>HomeMaster STR-3221-R1</strong> is a high-density <strong>smart LED / I/O controller module</strong> designed for stair lighting, architectural illumination and general low-voltage automation in HomeMaster systems and other Modbus RTU networks. It features <strong>32 low-side MOSFET outputs</strong> for 12-24 V DC LED loads, <strong>1 opto-isolated 24 V DC discrete input</strong>, <strong>2 presence-sensor inputs</strong>, <strong>4 local buttons</strong> and <strong>4 user-assignable status LEDs</strong>.
+            The <strong>HomeMaster STR-3221-R1</strong> is a high-density <strong>smart LED / I/O controller module</strong> designed for stair lighting, architectural illumination and general low-voltage automation in HomeMaster systems and other Modbus RTU networks. It features <strong>32 low-side MOSFET outputs</strong> for 12-24 V DC LED loads, <strong>1 IEC 61131-2 compliant 24 V DC discrete input</strong>, <strong>2 presence-sensor inputs</strong>, <strong>4 local buttons</strong> and <strong>4 user-assignable status LEDs</strong>.
           </p>
 
           <p>
@@ -147,7 +147,7 @@
           <ul class="plc-list plc-list--tight">
             <li>32-channel smart LED / I/O module for Modbus automation systems</li>
             <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
-            <li>32 low-side MOSFET outputs (12-24 V DC), 1 opto-isolated DI + 2 presence-sensor inputs, 4 buttons, 4 status LEDs</li>
+            <li>32 low-side MOSFET outputs (12-24 V DC), 1 IEC 61131-2 DI + 2 presence-sensor inputs, 4 buttons, 4 status LEDs</li>
             <li>RS-485 Modbus RTU communication</li>
             <li>Local configuration via USB-C <a href="https://www.home-master.eu/configtool-str-3221-r1" target="_blank" rel="noopener">WebConfig</a> interface</li>
             <li>Isolated I/O, surge and short-circuit protection</li>
@@ -192,7 +192,7 @@
             <tr><th scope="row">Output Voltage</th><td>External 12-24 V DC LED supply (shared VCC group rails)</td></tr>
             <tr><th scope="row">Maximum Total Output Current</th><td>3.0 A typical at 24 V DC with full LED load</td></tr>
             <tr><th scope="row">LED Driver ICs</th><td>4 &times; TLC59208F (8-channel constant-current sinks) for status / indication and grouping</td></tr>
-            <tr><th scope="row">Digital Inputs</th><td>1 &times; opto-isolated 24 V DC discrete input (DI + GND) plus 2 &times; presence-sensor inputs (IN1, IN2 with GND); ISO1212; PTC fuses, TVS surge suppression</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>1 &times; IEC 61131-2 compliant 24 V DC discrete input (DI + GND) plus 2 &times; presence-sensor inputs (IN1, IN2 with GND); ISO1212 front-end; PTC fuses, TVS surge suppression</td></tr>
             <tr><th scope="row">Sensor Rails (SENS.A / SENS.B)</th><td>2 fused 24 V auxiliary rails for external sensors (low current, ~200 mA total)</td></tr>
             <tr><th scope="row">User Interface</th><td>4 buttons (SW1-SW4), 4 user-assignable status LEDs plus power / RX / TX indicators</td></tr>
             <tr><th scope="row">Communication</th><td>RS-485 Modbus RTU (MAX485, half-duplex); surge protection, fail-safe biasing</td></tr>
@@ -614,7 +614,7 @@ packages:
 
       <h4 id="digital-input-wiring"><strong>Digital Input Wiring (IN1, IN2)</strong></h4>
       <p>
-        Inputs use ISO1212 galvanic isolation. Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (IN1/IN2 with GND). Each input has PTC fuse, TVS, and reverse protection. Do not inject external voltage above 30 V DC.
+        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (IN1/IN2 with GND). Each input has PTC fuse, TVS, and reverse protection. Do not inject external voltage above 30 V DC.
       </p>
 
       <div class="plc-grid">

@@ -110,7 +110,7 @@
           <h2><strong>HomeMaster DIO-430-R1</strong></h2>
 
           <p>
-            The <strong>HomeMaster DIO-430-R1</strong> is a professional, open-source DIN-rail digital I/O module designed for reliable digital input monitoring and relay-based control in building automation and light industrial panels. It provides galvanically isolated (ISO1212) digital inputs, relay outputs, RS-485 Modbus communication, and USB-C configuration interface.
+            The <strong>HomeMaster DIO-430-R1</strong> is a professional, open-source DIN-rail digital I/O module designed for reliable digital input monitoring and relay-based control in building automation and light industrial panels. It provides IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), relay outputs, RS-485 Modbus communication, and USB-C configuration interface.
           </p>
 
           <p>
@@ -167,7 +167,7 @@
           <ul class="plc-list plc-list--tight">
             <li>Smart digital I/O expansion module for Modbus automation systems</li>
             <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
-            <li>4 galvanically isolated (ISO1212) digital inputs and 3 relay outputs</li>
+            <li>4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) and 3 relay outputs</li>
             <li>RS-485 Modbus RTU communication</li>
             <li>Local configuration via USB-C <a href="https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> interface</li>
             <li>Persistent onboard logic and configuration storage</li>
@@ -209,7 +209,7 @@
               <th scope="row">Power Input</th>
               <td>24 V DC nominal (V+ / 0V)</td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>4 × galvanically isolated (ISO1212) 24 V DC digital inputs (DIx + GNDx), dry-contact or 24 V; per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact or sourcing; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs</th>
               <td>
@@ -756,30 +756,30 @@ packages:
             <tr>
               <th scope="row">DI1</th>
               <td>IN1 / GND1</td>
-              <td>Isolated</td>
-              <td>Dry contact (voltage-free)</td>
-              <td>Isolated digital input</td>
+              <td>IEC 61131-2 front-end</td>
+              <td>Dry contact or 24 V sourcing</td>
+              <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI2</th>
               <td>IN2 / GND2</td>
-              <td>Isolated</td>
-              <td>Dry contact (voltage-free)</td>
-              <td>Isolated digital input</td>
+              <td>IEC 61131-2 front-end</td>
+              <td>Dry contact or 24 V sourcing</td>
+              <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI3</th>
               <td>IN3 / GND3</td>
-              <td>Isolated</td>
-              <td>Dry contact (voltage-free)</td>
-              <td>Isolated digital input</td>
+              <td>IEC 61131-2 front-end</td>
+              <td>Dry contact or 24 V sourcing</td>
+              <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI4</th>
               <td>IN4 / GND4</td>
-              <td>Isolated</td>
-              <td>Dry contact (voltage-free)</td>
-              <td>Isolated digital input</td>
+              <td>IEC 61131-2 front-end</td>
+              <td>Dry contact or 24 V sourcing</td>
+              <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
           </tbody>
         </table>
@@ -787,7 +787,7 @@ packages:
 
       <p><strong>Features:</strong></p>
       <ul class="plc-list">
-        <li>Galvanic isolation using ISO1212 input receivers</li>
+        <li>IEC 61131-2 digital-input front-end using ISO1212 receivers; PTC fuse, TVS surge and reverse-polarity protection per channel</li>
         <li>Dry contact inputs only (voltage-free contact closure). Do not apply external voltage.</li>
         <li>TVS and fuse protection per channel</li>
         <li>Noise-protected inputs</li>

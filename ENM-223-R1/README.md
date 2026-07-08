@@ -680,7 +680,7 @@ Each LED has:
 |-------------------|-----|-------------|
 | **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
 | **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
-| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 5 A @ 250 VAC / 30 VDC (module limit) |
+| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
 | **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
 | **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
 | **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
@@ -699,7 +699,7 @@ Each LED has:
 | **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
 | **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
 | **Current Inputs** | – | 1 / 0.333 | – | V RMS | External CTs |
-| **Relay Outputs** | – | – | 5 | A | SPDT; 250 VAC/30 VDC; varistor + snubber recommended |
+| **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
 | **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
 | **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
 | **Operating Temp.** | 0 | – | 40 | °C | ≤ 95 % RH non-condensing |
@@ -707,6 +707,8 @@ Each LED has:
 | **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
 
 > 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
+
+> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **12 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. Use interposing contactors for higher or inductive loads.
 
 ---
 
@@ -718,8 +720,8 @@ Each LED has:
 | **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
 | **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External CT (333 mV / 1 V RMS) | Shielded pairs recommended |
 | **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
-| **RELAY 1** | NO, C, NC | SPDT dry contact | 5 A max @ 250 VAC/30 VDC |
-| **RELAY 2** | NO, C, NC | SPDT dry contact | 5 A max @ 250 VAC/30 VDC |
+| **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
+| **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
 | **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
 | **LED / BTN Interface** | – | Internal header MCU ↔ Field Board | Service only |
 

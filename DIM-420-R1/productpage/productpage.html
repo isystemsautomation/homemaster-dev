@@ -110,7 +110,7 @@
           <h2><strong>HomeMaster DIM-420-R1</strong></h2>
 
           <p>
-            The <strong>HomeMaster DIM-420-R1</strong> is a professional, dual-channel AC dimmer module designed for phase-cut dimming of mains-powered loads in smart lighting, building automation, and industrial panels. It combines <strong>2 solid-state dimming channels</strong>, <strong>4 isolated digital inputs</strong>, <strong>4 user buttons</strong>, <strong>4 LEDs</strong>, RS-485 Modbus RTU communication, and a USB‑C <strong>WebConfig</strong> interface for in-browser commissioning.
+            The <strong>HomeMaster DIM-420-R1</strong> is a professional, dual-channel AC dimmer module designed for phase-cut dimming of mains-powered loads in smart lighting, building automation, and industrial panels. It combines <strong>2 solid-state dimming channels</strong>, <strong>4 IEC 61131-2 compliant digital inputs</strong>, <strong>4 user buttons</strong>, <strong>4 LEDs</strong>, RS-485 Modbus RTU communication, and a USB‑C <strong>WebConfig</strong> interface for in-browser commissioning.
           </p>
 
           <p>
@@ -146,7 +146,7 @@
           <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
           <ul class="plc-list plc-list--tight">
             <li>Dual-channel <strong>phase-cut AC dimmer</strong> (Leading / Trailing edge per channel)</li>
-            <li><strong>4 opto-isolated digital inputs</strong> with rich press logic (Short / Long / Double / Short-then-Long)</li>
+            <li><strong>4 IEC 61131-2 compliant digital inputs</strong> with rich press logic (Short / Long / Double / Short-then-Long)</li>
             <li><strong>4 user buttons</strong> and <strong>4 LEDs</strong> for local control, presets, and status indication</li>
             <li><strong>RS‑485 Modbus RTU</strong> slave for MicroPLC / MiniPLC / SCADA / third-party PLC masters</li>
             <li><strong>USB‑C WebConfig</strong> (Web Serial) for in-browser setup, diagnostics, and JSON snapshots</li>
@@ -198,7 +198,7 @@
             </tr>
             <tr>
               <th scope="row">Digital Inputs</th>
-              <td>4 × opto‑isolated inputs (DI1–DI4 with dedicated DIx_GND returns), ISO1212‑based front‑end with PTC and TVS protection; dry‑contact or isolated low‑voltage per datasheet.</td>
+              <td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DI1–DI4 with dedicated DIx_GND returns), dry-contact or sourcing; PTC fuse, TVS surge and reverse-polarity protection</td>
             </tr>
             <tr>
               <th scope="row">User Interface</th>
@@ -695,7 +695,7 @@ packages:
 
       <h3 id="digital-inputs-wiring"><strong>Digital Inputs (DI1–DI4)</strong></h3>
       <p>
-        Wire <strong>dry‑contact</strong> wall switches or isolated low‑voltage contacts to <strong>DI1–DI4</strong> with their corresponding <strong>DIx_GND</strong> returns.
+        Wire <strong>dry‑contact</strong> wall switches or <strong>24 V sourcing</strong> sensors to <strong>DI1–DI4</strong> with their corresponding <strong>DIx_GND</strong> returns.
         Input mode (Momentary/Latching), debounce, invert, and press actions are configured in WebConfig.
       </p>
 
@@ -721,7 +721,7 @@ packages:
               <li>Keep DI wiring separate from AC dimmer wiring and other high‑current conductors.</li>
               <li>Use twisted pairs per DI channel where possible.</li>
               <li>Configure press logic (Short / Long / Double / Short‑then‑Long) and mapping in WebConfig.</li>
-              <li>Inputs share 24&nbsp;V‑derived isolated rails through ISO1212 devices; see field board schematic for details.</li>
+              <li>Inputs are wetted from the module 24&nbsp;V supply through ISO1212 IEC 61131-2 front-end devices (not galvanic isolation); see field board schematic for details.</li>
             </ul>
           </div>
         </div>

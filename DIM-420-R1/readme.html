@@ -39,7 +39,7 @@ It connects over <strong>RS-485 (Modbus RTU)</strong> to a <strong>MicroPLC/Mini
 <p class="has-line-data" data-line-start="50" data-line-end="51">&lt;a id=“1-introduction”&gt;&lt;/a&gt;</p>
 <h1 class="code-line" data-line-start=52 data-line-end=53 ><a id="1_Introduction_52"></a>1. Introduction</h1>
 <h2 class="code-line" data-line-start=54 data-line-end=55 ><a id="11_Overview_of_the_DIM420R1_Module__54"></a>1.1 Overview of the DIM-420-R1 Module ✨</h2>
-<p class="has-line-data" data-line-start="56" data-line-end="57">The <strong>DIM‑420‑R1</strong> is a modular dimmer I/O device for <strong>dual‑channel phase‑cut AC dimming</strong> in the <strong>HomeMaster MicroPLC / MiniPLC</strong> ecosystem. It exposes <strong>2 dimming channels</strong>, <strong>4 isolated digital inputs</strong>, <strong>4 configurable user buttons</strong>, <strong>4 user LEDs</strong>, and an <strong>RS‑485 Modbus RTU</strong> interface. Setup and diagnostics are performed in‑browser via <strong>WebConfig over USB‑C (Web Serial)</strong>—no special software required.</p>
+<p class="has-line-data" data-line-start="56" data-line-end="57">The <strong>DIM‑420‑R1</strong> is a modular dimmer I/O device for <strong>dual‑channel phase‑cut AC dimming</strong> in the <strong>HomeMaster MicroPLC / MiniPLC</strong> ecosystem. It exposes <strong>2 dimming channels</strong>, <strong>4 IEC 61131-2 compliant digital inputs</strong>, <strong>4 configurable user buttons</strong>, <strong>4 user LEDs</strong>, and an <strong>RS‑485 Modbus RTU</strong> interface. Setup and diagnostics are performed in‑browser via <strong>WebConfig over USB‑C (Web Serial)</strong>—no special software required.</p>
 <p class="has-line-data" data-line-start="58" data-line-end="59">It integrates seamlessly with <strong>MiniPLC / MicroPLC controllers, third‑party Modbus masters, ESPHome / Home Assistant, and SCADA/PLC systems</strong>. Typical use: connect wall switches to the DIs, pick <strong>Leading/Trailing edge</strong> per load, set <strong>Lower/Upper thresholds</strong>, and control scenes from a PLC or locally with press‑logic.</p>
 <blockquote>
 <p class="has-line-data" data-line-start="60" data-line-end="62"><strong>Quick use case:</strong><br>
@@ -60,7 +60,7 @@ Wire DI1–DI4 to wall switches → select <em>Momentary</em> or <em>Latching</e
 <tr>
 <td><strong>Digital Inputs</strong></td>
 <td>4</td>
-<td><strong>isolated</strong> dry‑contact inputs (ISO1212 front‑end); modes: <em>Momentary</em>/<em>Latching</em> with <strong>Short / Long / Double / Short‑then‑Long</strong> press types. Debounced and firmware‑interpreted for actions.</td>
+<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection; modes: <em>Momentary</em>/<em>Latching</em> with <strong>Short / Long / Double / Short‑then‑Long</strong> press types. Debounced and firmware‑interpreted for actions.</td>
 </tr>
 <tr>
 <td><strong>Dimming Outputs</strong></td>
@@ -284,7 +284,7 @@ Wire DI1–DI4 to wall switches → select <em>Momentary</em> or <em>Latching</e
 <tbody>
 <tr>
 <td><strong>DI1–DI4</strong></td>
-<td><strong>Dry contacts / isolated low‑voltage</strong> only (isolated front end). Do <strong>not</strong> apply mains. Use <code>DIx_GND</code> returns and configure debounce/invert in UI.</td>
+<td><strong>Dry contacts / 24 V sourcing</strong> only (IEC 61131-2 ISO1212 front-end). Do <strong>not</strong> apply mains. Use <code>DIx_GND</code> returns and configure debounce/invert in UI.</td>
 </tr>
 </tbody>
 </table>
@@ -541,7 +541,7 @@ This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.</p>
 &lt;/div&gt;</p>
 <hr>
 <h3 class="code-line" data-line-start=330 data-line-end=331 ><a id="_Digital_Inputs_DI1DI4_330"></a>🔘 Digital Inputs (DI1–DI4)</h3>
-<p class="has-line-data" data-line-start="332" data-line-end="335">Wire <strong>dry‑contact</strong> switches to the opto‑isolated inputs.<br>
+<p class="has-line-data" data-line-start="332" data-line-end="335">Wire <strong>dry‑contact</strong> switches or <strong>24 V sourcing</strong> sensors to the IEC 61131-2 digital inputs.<br>
 Each input has its own paired <strong>Gnd</strong> and must be wired independently.<br>
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.</p>
 <p class="has-line-data" data-line-start="336" data-line-end="339">&lt;div align=“center”&gt;<br>
@@ -696,7 +696,7 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 <tr>
 <td><strong>Digital Inputs</strong></td>
 <td>4</td>
-<td>Opto-isolated sourcing inputs, surge-protected</td>
+<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection</td>
 </tr>
 <tr>
 <td><strong>Dimming Outputs</strong></td>
@@ -762,7 +762,7 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 </tr>
 <tr>
 <td>DI Input Threshold</td>
-<td>24 VDC, opto-isolated (ISO1212)</td>
+<td>24 VDC, IEC 61131-2 front-end (ISO1212)</td>
 </tr>
 <tr>
 <td>USB-C Function</td>
@@ -805,7 +805,7 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 <tr>
 <td><strong>DI</strong></td>
 <td>DI1–DI4 + GND pairs</td>
-<td>Opto-isolated inputs; each has dedicated GND</td>
+<td>IEC 61131-2 digital inputs (ISO1212 front-end); each has dedicated GND</td>
 </tr>
 <tr>
 <td><strong>AC OUT</strong></td>
@@ -926,7 +926,7 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 <li class="has-line-data" data-line-start="563" data-line-end="568">
 <p class="has-line-data" data-line-start="563" data-line-end="564"><strong>DI Channels</strong></p>
 <ul>
-<li class="has-line-data" data-line-start="564" data-line-end="565">ISO1212 opto-isolated front end</li>
+<li class="has-line-data" data-line-start="564" data-line-end="565">ISO1212 IEC 61131-2 digital-input front-end</li>
 <li class="has-line-data" data-line-start="565" data-line-end="566">PTC: <strong>1206L016WR</strong></li>
 <li class="has-line-data" data-line-start="566" data-line-end="568">TVS: <strong>SMBJ26CA</strong></li>
 </ul>

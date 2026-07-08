@@ -17,7 +17,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 
 **Key capabilities at a glance:**
 
-- **4 galvanically isolated digital inputs (ISO1212)** — dry contacts or 24 V signals; per-input Maintained/Momentary logic
+- **4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end)** — dry-contact or sourcing; PTC fuse, TVS surge and reverse-polarity protection; per-input Maintained/Momentary logic
 - **3 SPDT relays** — 3 A @ 250 VAC (resistive) dry contacts (NO/NC/COM); use interposing contactors for loads above 3 A
 - **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
@@ -35,7 +35,7 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 
 | Area | Detail |
 |------|--------|
-| **Isolation** | Galvanically isolated DI front-end (ISO1212 class); opto-isolated relay drivers |
+| **Isolation** | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected; opto-isolated relay drivers |
 | **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions {None, Toggle, On, Off} + target (R1–R3 / All / None). |
 | **Buttons** | 3 buttons (2 user-configurable): Button 1 / Button 2 assignable to relay actions (none, toggle, on, off) |
 | **LEDs** | Configurable Steady/Blink; 8 firmware sources (Off, HA, Link, Local, Child lock, Safe mode, Identify, Relay) |
@@ -60,7 +60,7 @@ Typical uses for the DIO-430-R1:
 
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
-| Digital Inputs | 4 | Galvanically isolated (ISO1212), dry contact compatible, noise-protected |
+| Digital Inputs | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
 | Relays | 3 | SPDT (NO/NC), 3 A @ 250 VAC (resistive), dry contacts |
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
 | Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
@@ -72,7 +72,7 @@ Typical uses for the DIO-430-R1:
 
 | Interface | Qty | Description |
 |-----------|----:|-------------|
-| **Digital Inputs** | 4 | Galvanically isolated (ISO1212 class). Dry contacts or 24 V signals. PTC + TVS per channel. |
+| **Digital Inputs** | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
 | **Relay Outputs** | 3 | SPDT (NO/NC/COM), 3 A @ 250 VAC (resistive) dry contacts. Relay component rated higher, but module output is limited to 3 A — use interposing contactors for larger or inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
 | **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
@@ -86,7 +86,7 @@ Typical uses for the DIO-430-R1:
 |-----------|----:|----:|----:|:----:|-------|
 | Supply Voltage | 22 | 24 | 28 | V DC | SELV/PELV input |
 | Logic Consumption | – | 1.5 | 3.0 | W | Excludes relay loads |
-| Digital Input Range | 0 | 24 | 30 | V DC | Isolated, noise-protected |
+| Digital Input Range | 0 | 24 | 30 | V DC | IEC 61131-2 front-end; surge/EMI protected |
 | Relay Contact Current | – | – | 3 | A | @ 250 VAC resistive; module/trace-limited (relay component rated higher) |
 | Relay Contact Voltage | – | – | 250 | V AC | or 30 V DC max |
 | RS-485 Data Rate | – | 19.2 | 115.2 | kbps | Default 19200 8N1 |
@@ -158,11 +158,11 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 |-------|------|----------|-------|
 | **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
 | **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
-| **DI 1-4** | INx, GNDx | Galvanically isolated inputs (ISO1212) | Dry contact or 24 V signal; wetting & isolation — see notes below |
+| **DI 1-4** | INx, GNDx | IEC 61131-2 digital inputs (ISO1212 front-end) | Dry contact or 24 V signal; wetting & front-end — see notes below |
 
-**Input power / wetting.** The digital inputs are built on an ISO1212 isolated input receiver and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
+**Input power / wetting.** The digital inputs are built on an ISO1212 IEC 61131-2 digital-input front-end and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
 
-**Power domain & isolation.** The input field side runs on the module's own 24 V supply (internally fused) — there is no separate isolated input supply. The ISO1212 isolates the **field (24 V) side from the MCU logic** only; the inputs are **not** isolated from the module's own 24 V rail. An external 24 V signal can be applied to INx (this is the normal "24 V signal" mode and does not disturb the internal wetting — SENSE and IN are separate pins, current-limited), and each channel is protected by a series fuse, common-mode choke, ~26 V TVS and an RC filter. **The signal return must share the module's SELV ground:** wire it to the paired **GNDx** (= the module's 24 V return). If the external 24 V comes from a separate supply, make sure both are SELV and share a common 0 V reference to avoid ground loops. Do not bond **GNDx** to logic GND.
+**Power domain & front-end.** The input field side runs on the module's own 24 V supply (internally fused) — there is no separate isolated input supply. The ISO1212 is a current/threshold-conditioning front-end, **not** a galvanic isolator; inputs are **not** galvanically isolated from the module's own 24 V rail. An external 24 V signal can be applied to INx (this is the normal "24 V signal" mode and does not disturb the internal wetting — SENSE and IN are separate pins, current-limited), and each channel is protected by a series fuse, common-mode choke, ~26 V TVS and an RC filter. **The signal return must share the module's SELV ground:** wire it to the paired **GNDx** (= the module's 24 V return). If the external 24 V comes from a separate supply, make sure both are SELV and share a common 0 V reference to avoid ground loops. Do not bond **GNDx** to logic GND.
 
 | **RS-485** | B, A, COM | Modbus RTU bus | Terminate 120 Ω at ends |
 | **USB-C** | D+, D−, VBUS, GND | Setup / Service port | Not for field powering |
@@ -234,7 +234,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 | Area | Warning |
 |------|---------|
 | Type | **Dry contact / 24 V signaling only**. Do not inject mains or undefined levels. |
-| Isolation | Inputs are isolated from logic. Keep sensor returns on the **field/isolated** domain; do not bond to logic GND. |
+| Isolation | IEC 61131-2 digital-input front-end (ISO1212); not galvanically isolated. Keep sensor returns on **GNDx** (module 24 V return); do not bond to logic GND. |
 | Debounce | Firmware provides debounce; route away from contactors/VFDs; use shielded/twisted pairs for long runs. |
 | Polarity | Configure invert/action in WebConfig; verify state transitions after wiring. |
 
@@ -288,7 +288,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 ### 5.3 Power notes
 
-The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V** for logic; DI front-end is isolated.
+The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V** for logic; DI front-end uses ISO1212 IEC 61131-2 conditioning wetted from the module 24 V supply (not galvanically isolated).
 
 - **24 VDC DIN-rail PSU** → **24Vdc(+) / 0V(–)** power terminals (top row: POWER).
 - **Sensor side (DI)** — ISO1212 receivers wetted from the module's internal fused 24 V (see [§4.2](#42-connectors--terminal-map)); for 3-wire sensors, power from your own source and return the output to **INx/GNDx**. Do **not** back-power logic from sensor rails.
@@ -304,7 +304,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 | ![24 Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png) | ![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png) | ![Relay wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png) | ![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png) |
 
 - **24 VDC** → **V+ / 0V** (top POWER terminals). Regulated SELV; keep pairs twisted.
-- **Digital inputs** → **INx / GNDx** (galvanically isolated field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and isolation.
+- **Digital inputs** → **INx / GNDx** (field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and front-end details.
 - **Relay outputs** → **COM / NO / NC**. Interposing contactors for motors/pumps; RC/MOV on inductive loads.
 - **RS-485** → **A / B / COM (GND)**. Shielded twisted pair; daisy-chain; 120 Ω at both ends.
 

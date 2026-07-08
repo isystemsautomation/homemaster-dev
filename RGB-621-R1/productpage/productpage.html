@@ -114,7 +114,7 @@
           <h2><strong>HomeMaster RGB-621-R1</strong></h2>
 
           <p>
-            The <strong>HomeMaster RGB-621-R1</strong> is a smart <strong>RGB + CCT LED controller module</strong> designed for HomeMaster automation systems and other Modbus RTU networks. It features five high-current PWM outputs for RGB and Tunable White (CCT) LED control, two isolated digital inputs for wall switches or sensors, and one relay output for switching external loads or LED drivers.
+            The <strong>HomeMaster RGB-621-R1</strong> is a smart <strong>RGB + CCT LED controller module</strong> designed for HomeMaster automation systems and other Modbus RTU networks. It features five high-current PWM outputs for RGB and Tunable White (CCT) LED control, two IEC 61131-2 compliant digital inputs for wall switches or sensors, and one relay output for switching external loads or LED drivers.
           </p>
 
           <p>
@@ -151,7 +151,7 @@
           <ul class="plc-list plc-list--tight">
             <li>RGB + CCT LED control module for Modbus automation systems</li>
             <li><strong>DIN-rail form factor</strong> with 24 V DC supply</li>
-            <li>5 PWM outputs (R, G, B, CW, WW), 2 isolated digital inputs, 1 relay</li>
+            <li>5 PWM outputs (R, G, B, CW, WW), 2 IEC 61131-2 digital inputs, 1 relay</li>
             <li>RS-485 Modbus RTU communication</li>
             <li>Local configuration via USB-C <a href="https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html" target="_blank" rel="noopener">WebConfig</a> interface</li>
             <li>Isolated I/O, surge and short-circuit protection</li>
@@ -196,7 +196,7 @@
             <tr><th scope="row">LED Output Voltage</th><td>External 12–24 V DC supply</td></tr>
             <tr><th scope="row">Maximum Total LED Current</th><td>Limited by 5 A input fuse (shared across channels)</td></tr>
             <tr><th scope="row">Recommended Current per Channel</th><td>≤ 1000 mA per channel (recommended)</td></tr>
-            <tr><th scope="row">Digital Inputs</th><td>2 × isolated 24 V DC discrete inputs (DIx + GND), dry-contact closure; per-channel PTC fuse, TVS surge suppression, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GND), dry-contact or sourcing; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs*</th>
               <td>
@@ -762,7 +762,7 @@ packages:
 
       <h4 id="digital-input-wiring"><strong>Digital Input Wiring</strong></h4>
       <p>
-        Inputs use ISO1212 galvanic isolation. Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (I1/I2 with GND). Each input has PTC fuse, TVS, and reverse protection. Do not inject external voltage into DI pins.
+        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (I1/I2 with GND). Each input has a PTC fuse, TVS, and reverse protection. Do not inject external voltage into DI pins.
       </p>
 
       <div class="plc-grid">

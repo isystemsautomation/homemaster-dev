@@ -40,12 +40,12 @@ packages:
 
 The **STR-3221-R1** is a compact and configurable **smart LED / I/O controller** designed for **multi-channel LED lighting and automation control** in architectural and industrial applications.
 
-It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **1 opto-isolated 24 V discrete input**, **2 presence-sensor inputs**, and **4 local buttons** each with indicator LEDs.  
+It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **1 IEC 61131-2 compliant 24 V discrete input**, **2 presence-sensor inputs**, and **4 local buttons** each with indicator LEDs.  
 Configuration is handled through a browser-based **WebConfig interface** via **USB-C (Web Serial)** — no additional software or drivers are required.
 
 The module communicates with a **MicroPLC/MiniPLC** or any Modbus master via **RS-485 (Modbus RTU)**, making it ideal for **staircase lighting, building automation, ambient illumination, alarm signaling, or other automation systems**.
 
-Internally, it features robust isolation, surge protection, and power regulation circuits, ensuring reliable field operation and long service life.
+Internally, it features robust surge protection and power regulation circuits, ensuring reliable field operation and long service life.
 
 **One-line purpose:** a **high-density field I/O lighting node** that’s easy to wire, configure, and supervise from PLC, SCADA, or home automation platforms.
 
@@ -55,7 +55,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Subsystem         | Qty | Description |
 |------------------:|----:|-------------|
-| **Digital Inputs** | 1 + 2 | **1 × opto-isolated 24 V DC discrete input** (DI + GND) plus **2 × presence-sensor inputs** (3.3 V, IN1/IN2 terminals) |
+| **Digital Inputs** | 1 + 2 | **1 × IEC 61131-2 compliant 24 V DC discrete input** (DI + GND) plus **2 × presence-sensor inputs** (3.3 V, IN1/IN2 terminals) |
 | **MOSFET Outputs** | 32 | Low-side **SI2307A** per channel (**O1…O32**), 12–24 V loads; flyback **SS24** diodes; grouped with shared **VCC** pins. |
 | **LED Driver ICs** | 4 | **TLC59208F** (8-ch constant-current sinks) used for status/indication and channel grouping/PWM. |
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
@@ -99,7 +99,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
-| **Digital Inputs** | 1 + 2 | **1 × opto-isolated 24 V DC discrete input** plus **2 × presence-sensor inputs** (IN1/IN2); ISO1212, surge-protected (F6/F7, D39). |
+| **Digital Inputs** | 1 + 2 | **1 × IEC 61131-2 compliant 24 V DC discrete input** plus **2 × presence-sensor inputs** (IN1/IN2); ISO1212 front-end, surge-protected (F6/F7, D39) |
 | **Outputs** | 32 | Low-side **MOSFET (SI2307A)** channels with **SS24** flyback diodes, grouped with shared **VCC** rails. |
 | **Buttons** | 4 | Local control / override / test switches. |
 | **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
@@ -124,11 +124,11 @@ Internally, it features robust isolation, surge protection, and power regulation
 | **Output Type** | — | — | — | — | Low-side MOSFET (SI2307A) 1 A max per channel. |
 | **Flyback Protection** | — | — | — | — | SS24 diodes on each channel. |
 | **Communication** | — | — | — | — | RS-485 (MAX485), 9600–115200 bps. |
-| **Isolation** | — | — | — | — | Optical (ISO1212 + galvanic separation). |
+| **Isolation** | — | — | — | — | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected. |
 | **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
 
 > ⚙️ **Design domains:**  
-> - Field side: 24 VDC isolated (DI, outputs).  
+> - Field side: 24 VDC (DI, outputs).  
 > - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
 > - Communication side: RS-485 isolated by line TVS + fuses.
 
@@ -138,7 +138,7 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Function | Description |
 |-----------|-------------|
-| **Input Processing** | Debounced and optically isolated; logic reported via Modbus coils/registers. |
+| **Input Processing** | Debounced; logic reported via Modbus coils/registers. |
 | **Output Control** | 32 channels controlled via Modbus write commands; supports PWM dimming and timed activation sequences. |
 | **Button Actions** | Assignable in firmware: manual test, override ON/OFF, or reset function. |
 | **LED Feedback** | Configurable for steady, blink, or activity indication via TLC59208F drivers. |
@@ -200,7 +200,7 @@ Follow all safety and wiring practices described below.
   Mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress.
 
 - **Isolation Domains:**  
-  The module contains isolated sections:
+  The module uses separate power domains:
   - **Field Power (24 VDC_FUSED)** for outputs and inputs  
   - **Logic Power (5 V / 3.3 V)** for MCU  
   Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
@@ -235,7 +235,7 @@ Follow all safety and wiring practices described below.
 | Area | Warning |
 |-------|----------|
 | **Input Type** | Accepts **24 VDC logic signals** (PNP, dry contact). No AC or high-voltage inputs. |
-| **Isolation** | Each input isolated through **ISO1212**; do not bridge input commons to other supplies. |
+| **Isolation** | IEC 61131-2 digital-input front-end (ISO1212); do not bridge input commons to other supplies. |
 | **Debounce** | Hardware filtering provided; avoid additional large RC filters that delay detection. |
 | **Protection** | Each input fused and surge-protected (F6/F7, D39). Replace fuses only with identical PTC parts. |
 
@@ -425,7 +425,7 @@ For Arduino or PlatformIO environments, include:
 | **Button 1–4** | GPIO2, GPIO3, GPIO4, GPIO5 | Local input buttons |
 | **LED 1–4** | I²C via TLC59208F | Status indicators |
 | **I²C SCL / SDA** | GPIO22 / GPIO23 | TLC59208F LED drivers |
-| **Digital Inputs (DI1/DI2)** | GPIO14 / GPIO15 | From ISO1212 isolator outputs |
+| **Digital Inputs (DI1/DI2)** | GPIO14 / GPIO15 | From ISO1212 front-end outputs |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
 

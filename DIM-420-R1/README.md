@@ -66,7 +66,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 ## 1.1 Overview of the DIM-420-R1 Module ✨
 
-The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 isolated digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
+The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 IEC 61131-2 compliant digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
 
 It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Modbus masters, ESPHome / Home Assistant, and SCADA/PLC systems**. Typical use: connect wall switches to the DIs, pick **Leading/Trailing edge** per load, set **Lower/Upper thresholds**, and control scenes from a PLC or locally with press‑logic. 
 
@@ -81,7 +81,7 @@ It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Mo
 
 | Subsystem       | Qty    | Description |
 |-----------------|--------|-------------|
-| **Digital Inputs** | 4      | **isolated** dry‑contact inputs (ISO1212 front‑end); modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
+| **Digital Inputs** | 4      | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection; modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
 | **Dimming Outputs** | 2      | MOSFET‑based **phase‑cut** AC outputs; **Leading/Trailing** per channel with **Lower/Upper** threshold limits and zero‑cross sync/monitoring.  |
 | **Relays**         | 0      | – |
 | **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
@@ -184,7 +184,7 @@ These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them ma
 
 | Area | Warning |
 |------|---------|
-| **DI1–DI4** | **Dry contacts / isolated low‑voltage** only (isolated front end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
+| **DI1–DI4** | **Dry contacts / 24 V sourcing** only (IEC 61131-2 ISO1212 front-end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
 
 ### Dimming Channels (MAINS)
 
@@ -342,7 +342,7 @@ This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
 
 ### 🔘 Digital Inputs (DI1–DI4)
 
-Wire **dry‑contact** switches to the opto‑isolated inputs.  
+Wire **dry‑contact** switches or **24 V sourcing** sensors to the IEC 61131-2 digital inputs.  
 Each input has its own paired **Gnd** and must be wired independently.  
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
 
@@ -504,7 +504,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 | Interface        | Qty | Description |
 |------------------|-----|-------------|
-| **Digital Inputs** | 4   | Opto-isolated sourcing inputs, surge-protected |
+| **Digital Inputs** | 4   | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
 | **Dimming Outputs** | 2 | Phase-cut AC outputs (MOSFET, Leading/Trailing) |
 | **User Buttons** | 4   | Local override / toggle / ramp / preset actions |
 | **User LEDs**    | 4   | Configurable (CH state, AC presence, DI state) |
@@ -523,7 +523,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 | Logic Rails           | 5 V (Buck), 3.3 V (LDO)    |
 | Isolated Power Rails  | +5V_ISO1 / +5V_ISO2        |
 | Dimming Outputs       | 110/230 VAC, Leading/Trailing |
-| DI Input Threshold    | 24 VDC, opto-isolated (ISO1212) |
+| DI Input Threshold    | 24 VDC, IEC 61131-2 front-end (ISO1212) |
 | USB-C Function        | Web Serial + UF2 upload    |
 | RS-485 Interface      | 115.2 kbps max, Modbus RTU |
 | Temperature Range     | 0…+40 °C                   |
@@ -540,7 +540,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Group     | Terminals                  | Description / Notes |
 |-----------|----------------------------|----------------------|
 | **POWER** | V+, 0V                     | Logic power (24 VDC SELV) |
-| **DI**    | DI1–DI4 + GND pairs        | Opto-isolated inputs; each has dedicated GND |
+| **DI**    | DI1–DI4 + GND pairs        | IEC 61131-2 digital inputs (ISO1212 front-end); each has dedicated GND |
 | **AC OUT**| Lx_IN/OUT, Nx_IN/OUT       | Dimmed output channels (CH1/CH2) |
 | **RS‑485**| A, B, COM                  | Differential bus + optional ground ref |
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
@@ -576,7 +576,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
   - High-side P-MOS + fuse (**F1206HI8000V024TM**)
 
 - **DI Channels**
-  - ISO1212 opto-isolated front end
+  - ISO1212 IEC 61131-2 digital-input front-end
   - PTC: **1206L016WR**
   - TVS: **SMBJ26CA**
 
