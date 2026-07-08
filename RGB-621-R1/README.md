@@ -1,3 +1,11 @@
+# RGB-621-R1 — Module for RGB+CCT LED Control
+
+**HOMEMASTER – Modular control. Custom logic.**
+
+The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 PWM channels**, **2 digital inputs**, **1 relay**, **Modbus RTU / Home Assistant** integration, and **USB-C WebConfig** setup.
+
+![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
+
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
@@ -28,12 +36,6 @@ packages:
 | **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-01 | Deprecated (legacy) — superseded by v0.2.0. Kept for existing installs; no longer maintained. |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
-
-# RGB-621-R1 — Module for RGB+CCT LED Control
-
-**HOMEMASTER – Modular control. Custom logic.**
-
-![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
 # Hardware notes (current revision)
 
