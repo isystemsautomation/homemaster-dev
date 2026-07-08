@@ -512,12 +512,53 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 ## 5.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+Wire the module on a **35 mm DIN rail** inside a dry enclosure; disconnect field power before making connections. Two supplies are used: **24 V DC** for module logic (**V+** / **0V**) and a separate **12 V or 24 V DC** LED PSU for the strip (**LED PS** +/−). Do **not** bridge `GND_FUSED` (field) and `GND` (logic/USB) externally.
+
+### Power
+
+Connect a regulated **24 V DC SELV/PELV** supply to **V+** and **0V** for module logic, RS-485, and input wetting; connect a separate **12 V or 24 V DC** LED PSU to the **LED PS** (+/−) terminals for the strip load (PTC fuses, reverse-polarity diode, and TVS protect both paths).
+
+![Power supply wiring — module V+/0V and LED PS](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_PowerSupply.png)
+*Module **V+** / **0V** (24 V DC) and **LED PS** (+/−) for a 12/24 V common-anode strip.*
+
+### LED outputs (5× PWM)
+
+Five low-side PWM sinks (**R**, **G**, **B**, **CW**, **WW**) drive **12/24 V DC common-anode** LED strips: tie strip **+** to **COM** (switched LED positive) and each cathode to its channel; unused channels may be left open.
+
+| RGB (3 colour) | RGB + CW |
+|:---:|:---:|
+| ![RGB LED strip wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGB_Connection.png) | ![RGB + Cool White wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGBCW_Connection.png) |
+| *R, G, B channels — strip + on **COM**.* | *Adds **CW** for RGB + cool-white mixes.* |
+
+| Tunable white (CWWW) | Full RGBCCT (RGB + CCT) |
+|:---:|:---:|
+| ![CCT / tunable white wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_CWWW_Connection.png) | ![Full RGBCCT wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RGBCWWW_Connection.png) |
+| ***CW** and **WW** only — colour-temperature control without RGB.* | *All five channels — native operating mode of the module.* |
+
+### Digital inputs
+
+Two **IEC 61131-2** digital inputs (**I1**, **I2**) use an **ISO1212** front-end wetted from the module 24 V supply; connect **dry contacts** or **24 V DC sourcing** sensors to **I1**/**I2** and **GND** (PTC fuse, TVS, and reverse-polarity protection on each path — do not inject external voltage into the DI pins).
+
+![Digital inputs — dry-contact wiring to I1 and I2](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DigitalInputs.png)
+*Wall switches or sensors on **I1** / **I2** with shared **GND**.*
+
+### Relay
+
+One **SPST-NO** dry-contact relay (**C** / **NO**) switches an external load at up to **3 A @ 250 VAC** (module/PCB limit); add an external fuse or breaker sized for the load, and use a flyback diode or RC snubber on inductive circuits.
+
+![Relay output — NO and C to external load](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RelayConnectioin.png)
+*Normally-open contact between **C** and **NO** (relay may also cut LED PSU via FOLLOW mode).*
+
+### RS-485 (Modbus RTU)
+
+Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **COM** is an optional field-ground reference for long runs — enable the onboard **120 Ω** termination resistor **only** at the last device on the bus.
+
+![RS-485 A/B/COM Modbus RTU wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RS485Connection.png)
+***A**, **B**, and optional **COM** to the controller or next module.*
+
+### USB-C
+
+The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from the host PC, logic domain); it is **not** a field power or data bus — disconnect USB before energising the installation and before handing control to RS-485.
 
 ## 5.5 Software & UI Configuration
 

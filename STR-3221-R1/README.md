@@ -305,12 +305,43 @@ Follow all safety and wiring practices described below.
 
 ## 5.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and the RS-485 trunk before wiring terminals. Use a separate **12 V or 24 V DC** LED PSU on **LED PS** (+/−) for stair segments — do **not** bridge **GND_FUSED** (field) and logic **GND** externally.
+
+### Power (24 V DC)
+
+Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
+
+![24 V DC power supply wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
+*Module **V+** / **0V** (24 V DC) — size the PSU for electronics plus LED load.*
+
+### Stair LED outputs (32 channels)
+
+Thirty-two low-side MOSFET sinks (**O1…O32**) switch **12–24 V DC** LED segments: tie each load **+** to its **VCC** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load; on-board SS24 flyback diodes).
+
+### Digital trigger input
+
+One **IEC 61131-2** discrete input (**DI** + **GND**) uses an **ISO1212** front-end for **dry contacts** or **24 V DC sourcing** sensors (PTC fuse and TVS protected — do not exceed 30 V DC).
+
+![Digital trigger input wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_DigitalInput.png)
+*Dry-contact or 24 V sourcing wiring to the **DI** terminal with **GND** return.*
+
+### PIR / presence sensors (IN1, IN2)
+
+Two **3.3 V presence-sensor inputs** (**IN1**, **IN2**) accept PIR or motion detectors; power low-current sensors from fused **SENS.A** / **SENS.B** rails (24 V, ≤200 mA combined).
+
+![PIR motion sensor wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_PIRSensors.png)
+*PIR sensors powered from **SENS** rail and signaling **IN1** / **IN2**.*
+
+### RS-485 (Modbus RTU)
+
+Wire **A**, **B**, and optional **COM** on shielded twisted-pair in a daisy-chain bus; enable the onboard **120 Ω** termination resistor **only** at the last device on the segment.
+
+![RS-485 bus wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_RS485_Connection.png)
+***A**, **B**, and **COM** to the controller or next module; terminate at line end.*
+
+### USB-C
+
+The **USB-C** port is for **WebConfig** setup and firmware update only; it is **not** a field power or runtime data bus — disconnect USB before energising the installation.
 
 ## 5.5 Software & UI Configuration
 

@@ -416,12 +416,51 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 ## 4.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+Mount the module on a **35 mm DIN rail** inside a suitable enclosure; only qualified personnel may wire **mains voltage**, **CT**, or relay load circuits. Do **not** bond **GND** (logic) to **GND_ISO** (metering domain).
+
+### Power (24 V DC)
+
+Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relays, and status LEDs (reverse-polarity protected; typical 50–150 mA).
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+
+*Regulated **24 V DC** to **V+** / **0V** — fuse the feed upstream per local rules.*
+
+### 3-phase voltage inputs
+
+Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals for your **3P4W** or **3P3W** installation — these terminals can carry hazardous mains voltage.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
+
+*Phase and neutral sensing inputs per terminal map; set wiring scheme and phase mapping in WebConfig.*
+
+### Current transformers (CT)
+
+Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity and the rated output level (333 mV or 1 V RMS).
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
+
+*Shielded CT leads recommended; observe arrow polarity for correct signed power readings.*
+
+### Relays (2× SPDT)
+
+Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
+
+*Dry contacts only — external load supply and overcurrent protection are mandatory.*
+
+### RS-485 (Modbus RTU)
+
+Wire **A**, **B**, and **COM** on twisted-pair cable in a daisy-chain bus; place **120 Ω** termination at the physical ends of the segment.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
+
+***A** → A, **B** → B, **COM** → reference ground as required by the network.*
+
+### USB-C
+
+The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from the host PC, logic domain); it is **not** a field power or runtime data bus — disconnect USB before energising the installation and before handing control to RS-485.
 
 <a id="software-ui-configuration"></a>
 

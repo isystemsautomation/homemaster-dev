@@ -490,12 +490,55 @@ All data accessible via FC03 Read Holding Registers.
 
 ## 4.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and RS-485 before wiring. Opto-isolated inputs return to **GND_ISO** — do not tie **GND_ISO** to logic **0V** unless your system design explicitly requires it.
+
+### Power (24 V DC)
+
+Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relay coils, and isolated sensor rails (reverse-polarity protected; size for ≥300 mA with headroom).
+
+<img src="Images/WLD_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+
+*Regulated **24 V DC** to **V+** / **0V** — fuse the feed per local rules.*
+
+### Leak / flood sensors
+
+Five opto-isolated digital inputs (**DI1…DI5**) accept leak probes, soil-moisture sensors, or dry contacts returning to **GND_ISO** (configure each channel as water sensor, soil moisture, or counter in WebConfig).
+
+<img src="Images/WLD_FloodmeterWiringConnections.png" width="440" alt="Leak and flood sensor wiring to digital inputs">
+
+*Field leak/moisture sensors and contacts on **DI** terminals with **GND_ISO** return.*
+
+### Flow meter (pulse counter)
+
+Configure a DI as **water counter** to count pulses from a flow meter — set **pulses per litre** in WebConfig to match the meter datasheet.
+
+<img src="Images/WLD_FlowmeterConnection.png" width="440" alt="Pulse flow meter connection to digital input">
+
+*Pulse output flow meter wired to a counter-mode **DI** channel.*
+
+### 1-Wire temperature sensors
+
+The protected **1-Wire** header (**+5 V**, **DATA**, **GND**) supports **DS18B20** sensors for supply/return temperature and ΔT heat-energy monitoring.
+
+<img src="Images/WLD_1WireConnection.png" width="440" alt="1-Wire DS18B20 temperature sensor wiring">
+
+*DS18B20 sensors on the **+5 V** / **DATA** / **GND** 1-Wire bus — keep leads short.*
+
+### Relays (2× SPDT)
+
+Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch valves, pumps, or alarms at up to **3 A @ 250 VAC** (module limit); external fuse/breaker and RC snubber are mandatory per load.
+
+<img src="Images/WLD_RelayConnections.png" width="440" alt="Relay NO/COM/NC wiring for two relays">
+
+*Dry contacts only — external load supply and overcurrent protection are mandatory.*
+
+### RS-485 (Modbus RTU)
+
+Wire **A**, **B**, and **COM** on shielded twisted-pair in a daisy-chain bus with **120 Ω** termination at both physical ends of the segment.
+
+### USB-C
+
+The **USB-C** port is for **WebConfig** setup and firmware update only; it is **not** a field power or runtime data bus — disconnect USB before energising the installation and before handing control to RS-485.
 
 <a id="software-ui-configuration"></a>
 
