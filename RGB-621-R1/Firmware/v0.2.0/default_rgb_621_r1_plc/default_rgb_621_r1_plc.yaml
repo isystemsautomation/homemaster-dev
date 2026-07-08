@@ -303,20 +303,12 @@ sensor:
             } else {
               nv.set_state(1.0f);
               nv.set_brightness(1.0f);
+              nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
               nv.set_red(r_api / 255.0f);
               nv.set_green(g_api / 255.0f);
               nv.set_blue(b_api / 255.0f);
               nv.set_warm_white(ww_api / 255.0f);
               nv.set_cold_white(cw_api / 255.0f);
-              const bool has_rgb = (r_api || g_api || b_api);
-              const bool has_w = (ww_api || cw_api);
-              if (has_rgb && has_w) {
-                nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
-              } else if (has_w) {
-                nv.set_color_mode(esphome::light::ColorMode::COLD_WARM_WHITE);
-              } else {
-                nv.set_color_mode(esphome::light::ColorMode::RGB);
-              }
             }
             id(${rgb_id}_fb_publishing) = true;
             lt->remote_values = nv;

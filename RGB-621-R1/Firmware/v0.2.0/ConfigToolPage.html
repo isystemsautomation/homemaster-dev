@@ -133,9 +133,8 @@
   <div class="sectiontitle"><h3>Onboard button (SW2 / GPIO1)</h3></div>
   <section class="card"><div class="cardbody"><div id="io-btn"></div></div></section>
 
-  <div class="sectiontitle"><h3>Engine timings &amp; safe-mode</h3></div>
+  <div class="sectiontitle"><h3>Engine timings</h3></div>
   <section class="card"><div class="cardbody" id="io-timing"></div></section>
-  <section class="card" style="margin-top:12px"><div class="cardbody" id="io-safe"></div></section>
 
   <div class="sectiontitle"><h3>PWM channels</h3><p class="hint">Min/max trim, fade, and power-on per channel.</p></div>
   <section class="card"><div class="cardbody" id="io-pwm"></div></section>
@@ -155,17 +154,14 @@
   <div class="sectiontitle"><h3>Output quality</h3><p class="hint">12-bit PWM with perceptual gamma correction.</p></div>
   <section class="card"><div class="cardbody" id="io-output"></div></section>
 
-  <div class="sectiontitle"><h3>Live press counters</h3></div>
-  <section class="card"><div class="cardbody" id="io-evt"></div></section>
+  
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
   <script>
   (function(){
     const $ = id => document.getElementById(id);
-    const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4, NUM_EVT = 3;
-    const EVT_NAMES = ['Single','Double','Triple','(reserved)','Hold'];
-    const SRC_NAMES = ['DI1','DI2','SW2'];
+    const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4;
     const ACT_DI_CORE = [
       {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},
       {v:5,l:'Dim up'},{v:6,l:'Dim down'},{v:7,l:'Dim toggle dir'},
@@ -329,10 +325,6 @@
         if($('glob-holdrepeat')) $('glob-holdrepeat').value=g.holdRepeatMs??60;
         if($('glob-offline')) $('glob-offline').checked=!!(g.allowLocalWhenOffline??1);
       }
-      if(cfg.safe){
-        if($('safe-offline')) $('safe-offline').checked=!!cfg.safe.allowLocalWhenOffline;
-        HMWebConfig.toArray(cfg.safe.chSafe||[]).forEach((v,i)=>{ const el=$('safe-ch'+(i+1)); if(el) el.value=String(v??2); });
-      }
       for(let i=0;i<NUM_PWM;i++){
         const p=cfg.pwm?.[i]; if(!p) continue;
         if($('trim-min-'+i)) $('trim-min-'+i).value=p.minTrim??1;
@@ -401,12 +393,6 @@
         if($('gamma-enable')) $('gamma-enable').checked=!!cfg.output.gammaEnable;
         if($('gamma-value')) $('gamma-value').value=cfg.output.gammaTenths??22;
       }
-      if(cfg.ext?.evt){
-        for(let s=0;s<NUM_EVT;s++){
-          const parts=[]; for(let e=0;e<5;e++) parts.push(cfg.ext.evt[s]?.[e]??0);
-          const el=$('evt-'+s); if(el) el.textContent=SRC_NAMES[s]+': '+EVT_NAMES.map((n,i)=>n+'='+parts[i]).join(' · ');
-        }
-      }
     }
 
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
@@ -436,15 +422,7 @@
           <div><label for="glob-holddelay">Hold start, ms</label><input type="number" id="glob-holddelay" min="100" max="3000" value="650" style="width:100%"></div>
           <div><label for="glob-holdrepeat">Hold repeat, ms</label><input type="number" id="glob-holdrepeat" min="20" max="500" value="60" style="width:100%"></div>
         </div>
-        <label class="check" style="margin-top:10px"><input type="checkbox" id="glob-offline" checked> Allow local inputs when bus offline</label>`;
-    })();
-
-    (function buildSafe(){
-      const c=$('io-safe'); if(!c) return;
-      const safeOpts=[{v:0,l:'OFF'},{v:1,l:'ON'},{v:2,l:'Hold last'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
-      let rows='';
-      for(let i=0;i<NUM_PWM;i++) rows+=`<div><label for="safe-ch${i+1}">${PWM_NAMES[i]} on link loss</label><select id="safe-ch${i+1}">${safeOpts}</select></div>`;
-      c.innerHTML=`<p class="sub">Safe levels applied when Modbus link is lost.</p><label class="check"><input type="checkbox" id="safe-offline" checked> Allow wall switches when offline</label><div class="pwm-pwr-grid" style="margin-top:10px">${rows}</div>`;
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="glob-offline" checked> Unlock wall switches when bus offline</label>`;
     })();
 
     function defaultInDefs(i){
@@ -568,14 +546,6 @@
         <p class="sub" style="margin-top:8px">PWM runs at 12-bit internally; Modbus/WebConfig use 0–255. Smooth slew uses per-channel transition ms.</p>`;
     })();
 
-    (function buildEvt(){
-      const c=$('io-evt'); if(!c) return;
-      for(let s=0;s<NUM_EVT;s++){
-        const p=document.createElement('p');
-        p.className='sub'; p.id='evt-'+s; p.textContent=SRC_NAMES[s]+': —';
-        c.appendChild(p);
-      }
-    })();
 
     (function buildRelays(){
       const c=$('io-relays'); if(!c) return;
@@ -639,10 +609,6 @@
         allowLocalWhenOffline: $('glob-offline').checked
       });
     }
-    function sendSafe(){
-      const ch=[]; for(let i=1;i<=NUM_PWM;i++) ch.push(parseInt($('safe-ch'+i)?.value||'2',10));
-      HMWebConfig.sendConfig('safe', { allowLocalWhenOffline:$('safe-offline').checked, chSafe:ch });
-    }
     function sendOutput(){
       HMWebConfig.sendConfig('output', {
         gammaEnable: $('gamma-enable').checked,
@@ -678,7 +644,6 @@
     }
     $('enable-btn1')?.addEventListener('change', ()=>HMWebConfig.sendConfig('btn.enabled', [!!$('enable-btn1').checked]));
     ['glob-debounce','glob-multiclick','glob-holddelay','glob-holdrepeat','glob-offline'].forEach(id=>$(id)?.addEventListener('change', sendGlobal));
-    ['safe-offline'].concat([...Array(NUM_PWM)].map((_,i)=>'safe-ch'+(i+1))).forEach(id=>$(id)?.addEventListener('change', sendSafe));
     for(let i=0;i<NUM_PWM;i++){
       ['trim-min-'+i,'trim-max-'+i,'fade-'+i].forEach(id=>$(id)?.addEventListener('change', sendPwmCfg));
     }

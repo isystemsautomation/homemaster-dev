@@ -585,29 +585,8 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | 410–414 | **R, G, B, WW, CW (12-bit)** | 0–4095 | Fine-grained PWM setpoints (same targets as HR 400–404) |
 | 480 | **MB_ADDR** | 1–255 | Modbus address |
 | 481 | **MB_BAUD** | enum | 0=9600 … 4=115200 |
-| **500–579** | **ENGINE_CFG** | — | Local input engine (see below) |
 
-### Holding block 500+ — local input engine (v0.2.0)
-
-| Address | Name | Description |
-|---------|------|-------------|
-| 500–504 | Timings | debounce, *(reserved)*, multiClickGap, holdDelay, holdRepeat (ms) |
-| 505 | Safe flags | bit0 = allowLocalWhenOffline |
-| 506–510 | chSafe[0..4] | 0=OFF, 1=ON, 2=RESTORE_LAST on link loss |
-| 511–530 | PWM cfg | minTrim, maxTrim, fadeMs, powerOn per channel |
-| 531 | *(reserved)* | — | Former singleButtonDim — do not use |
-| 532 | **dimFullRangeMs** | Hold-to-dim full 0..100% traverse while held (800–8000 ms, default 3000) |
-| 533 | *(reserved)* | Former holdRampMs — do not use |
-| 534 | *(reserved)* | Former CCT memberMask — do not use |
-| 535 | **dimFullRangeMs** | Mirror of HR 532 (legacy CCT offset) |
-| 536 | *(reserved)* | Former holdRampMs mirror — do not use |
-
-Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **dimFullRangeMs** (HR 532) sets how long a full hold-to-dim sweep takes for both groups.
-
-| 537–540 | Relay1 follow | mode (0=manual,1=follow), watchMask, offDelayMs |
-| 541–555 | Input binds | DI1/DI2: flags + single/double/hold; SW2: single/double only (momentary) |
-| 560–579 | Scenes[4][5] | Preset channel levels (0–255 API) |
-| 580–581 | Output quality | gammaEnable, gammaTenths (22 = γ 2.2) |
+> Module configuration (inputs, gestures, dimming, scenes, trim, relay mode, gamma, etc.) is performed via **USB WebConfig only**; it is **not exposed on Modbus**.
 
 ---
 
@@ -615,9 +594,9 @@ Group **RGB** (R, G, B) and **CCT** (WW, CW) membership is fixed by hardware. **
 
 - **Internal resolution:** 12-bit (0–4095) on all five PWM channels (`analogWriteResolution(12)`).
 - **API:** Modbus HR **400–404** and WebConfig accept **0–255**; HR **410–414** accept **0–4095** for finer control. Firmware scales 8-bit writes to 12-bit setpoints.
-- **Gamma:** configurable (default γ 2.2) via HR **580–581** / WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
-- **Trim:** per-channel min/max (HR 511–520) applied in perceived space before gamma.
-- **Slew:** each channel has `current` and `target`; Modbus, gestures, and scenes update **target** and ramp over per-channel `fadeMs` (default **400 ms**, HR 521–525). **Hold-to-dim** uses a separate `dimFullRangeMs` traverse (HR 532, default **3000 ms**) — continuous, not stepped. `fadeMs = 0` = instant.
+- **Gamma:** configurable (default γ 2.2) via WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
+- **Trim:** per-channel min/max applied in perceived space before gamma (WebConfig).
+- **Slew:** each channel has `current` and `target`; Modbus, gestures, and scenes update **target** and ramp over per-channel `fadeMs` (default **400 ms**, WebConfig). **Hold-to-dim** uses a separate `dimFullRangeMs` traverse (default **3000 ms**) — continuous, not stepped. `fadeMs = 0` = instant.
 - **Diagnostics:** FC04 IREG **21–25** expose raw 12-bit current.
 
 ---
