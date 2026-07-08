@@ -100,7 +100,7 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 ## 2.2 Overview
 
-See [§1.2 Features & Architecture](#12-features--architecture) for the subsystem overview. The sections below cover pinouts, electrical ratings, protections, and absolute limits.
+See [§1.2 Features & Architecture](#12-features--architecture) for the subsystem overview.
 
 ---
 
