@@ -17,7 +17,7 @@ packages:
         vars:
           rgb_prefix: "RGB#1"
           rgb_id: rgb_1
-          rgb_address: 1
+          rgb_address: 3
 ```
 
 ## 📦 Version History
@@ -65,7 +65,7 @@ Its **isolated I/O architecture**, **dual-board design**, and built-in **surge a
 | **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
 | **LED Indicators** | 8 | Power, TX/RX, input, and status LEDs for feedback and diagnostics |
-| **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver; 120 Ω termination selectable |
+| **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver; external 120 Ω bus termination at segment ends (not on module) |
 | **USB-C** | Yes | WebConfig & firmware flashing with PRTR5V0U2X ESD protection |
 | **Power Input** | 24 V DC | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
 | **Logic Supply** | — | AP64501SP-13 buck (5 V) + AMS1117-3.3 LDO chain |
@@ -82,13 +82,12 @@ This modular, two-board design ensures clean signal separation between logic and
 ## 1.3 System Role & Communication
 
 The **RGB-621-R1** operates as a **Modbus RTU slave** on an **RS-485 differential bus**, typically polled by a **HomeMaster controller** (MicroPLC / MiniPLC) or other Modbus master.  
-Each module is assigned a unique Modbus address via WebConfig, supporting up to 32 devices per bus.
+Each module on the bus must have a **unique** Modbus address (default **3**); change it in WebConfig to avoid collisions. Up to 32 devices per bus are supported.
 
 **Default communication parameters:**  
-- **Address:** 1  
+- **Address:** 3  
 - **Baud rate:** 19200 bps  
 - **Format:** 8 data bits, no parity, 1 stop bit (8N1)  
-- **Termination:** 120 Ω enabled at end of bus  
 - **Fail-safe:** retains last valid PWM and relay state if communication is lost  
 
 The controller periodically polls holding registers to:  
@@ -104,12 +103,9 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 ## 2.1 Diagrams & Pinouts
 
-| Diagram |
-|---|
-| ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_SystemBlock.png) **System Block Diagram** |
-| ![RP2350A Pinouts](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png) **RP2350A MCU Pinout** |
-| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png) **Field Board Layout** |
-| ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png) **MCU Board Layout** |
+| System Block | RP2350A Pinout | Field Board | MCU Board |
+|:---:|:---:|:---:|:---:|
+| <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_SystemBlock.png" width="200"> | <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png" width="200"> | <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png" width="200"> | <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png" width="200"> |
 
 ---
 
@@ -329,7 +325,7 @@ Isolation between logic and relay-drive domains is provided internally through t
 | Transceiver | MAX485CSA+T |
 | Bus Type | Differential, multi-drop (A/B lines) |
 | Default Settings | 19200 bps · 8N1 |
-| Termination | 120 Ω enabled only at end-of-line device |
+| Bus termination | External 120 Ω at both physical ends of the bus (not provided on the module) |
 | Protection | Surge/ESD network integrated |
 | Notes | Observe polarity (A = +, B = –). Use shielded twisted-pair cable; ground shield at one end only. |
 
@@ -412,10 +408,10 @@ Isolation between logic and relay-drive domains is provided internally through t
 
 - **Network topology:**  
   Daisy-chain (bus) — no star wiring.  
-  Enable the 120 Ω termination resistor **only** at the last module in the chain.
+  RS-485 bus termination: install an external 120 Ω resistor at **both** physical ends of the bus (not provided on the module).
 
 - **Default Modbus settings:**  
-  - **Address:** 1  
+  - **Address:** 3 (each module on the bus must be unique — change in WebConfig to avoid collisions)  
   - **Baud rate:** 19200 bps  
   - **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)  
 
@@ -483,7 +479,7 @@ One **SPST-NO** dry-contact relay (**C** / **NO**) switches an external load at 
 
 ### RS-485 (Modbus RTU)
 
-Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **COM** is an optional field-ground reference for long runs — enable the onboard **120 Ω** termination resistor **only** at the last device on the bus.
+Wire **A** (+) and **B** (−) on shielded twisted-pair cable in a daisy-chain bus; **COM** is an optional field-ground reference for long runs. RS-485 bus termination: install an external 120 Ω resistor at **both** physical ends of the bus (not provided on the module).
 
 ![RS-485 A/B/COM Modbus RTU wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_RS485Connection.png)
 ***A**, **B**, and optional **COM** to the controller or next module.*
@@ -751,7 +747,7 @@ Only if supported. Cover:
 ## 9.3 Common Issues
 
 - **No communication (TX/RX dark):**  
-  Check A/B polarity, termination at bus ends (120 Ω), baud/ID match, and shared COM reference if separate PSUs.
+  Check A/B polarity, external 120 Ω termination at both bus ends (not on module), baud/ID match, and shared COM reference if separate PSUs.
 - **Relay won’t trigger:**  
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **C/NO** (dry contact). Add snubber for inductive loads.
 - **LED channels do not light:**  
