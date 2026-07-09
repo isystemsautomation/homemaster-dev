@@ -388,8 +388,7 @@ Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-
 
 - **Configuration:**  
   - Connect via **USB-C** and open **WebConfig** in any browser that supports the **Web Serial API**.  
-  - Set module address, baud rate, and optional relay/input parameters.  
-  - Save settings to non-volatile memory.  
+  - Set module address, baud rate, and optional relay/input parameters — changes apply immediately and are saved to flash automatically.
 
 - **Ground reference use:**  
   - In most RS-485 systems, differential A/B are sufficient.  
@@ -521,7 +520,7 @@ Follow these steps for a first-time install (field wiring detail: [§5.4](#54-in
 1. Mount on a **35 mm DIN rail**; wire power per [⚠️ IMPORTANT — POWER](#important-power); connect a **common-anode** strip (strip **+** to **COM (LED+)**, cathodes to **R** / **G** / **B** / **CW** / **WW**).
 2. Connect **RS-485** **A** / **B** / **RS-485 COM** to the controller (**MicroPLC** / **MiniPLC**).
 3. Plug **USB-C** into a PC; open the **WebConfig** tool in a browser with **Web Serial API** support and click **Connect**.
-4. Set a **unique Modbus address** (each module on the bus must differ; default is **3**) and baud **19200**; save to flash.
+4. In WebConfig, give the module a **unique Modbus address** — every module on the same RS-485 bus must have a different one (factory default is **3**). Check the **baud rate** matches your controller (default **19200**). Changes apply immediately and are saved to flash automatically.
 5. Optionally assign **DI1** / **DI2** wall-switch actions; test the light from WebConfig.
 6. Add the [§7 ESPHome](#7-esphome-integration-guide) package to the controller with the matching `rgb_address`.
 7. The light and relay appear in **Home Assistant**.
