@@ -457,11 +457,11 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 | Setting | What it does | Set to |
 |---|---|---|
-| Modbus Address | RS-485 bus ID; unique per module | 1–255 (default **3**) |
-| Baud Rate | Must match controller / bus | 9600 / 19200 / 38400 / 57600 / 115200 (default **19200**) |
-| Serial Log | USB diagnostics only | — |
-| Light Levels | Live R/G/B/WW/CW sliders (0–255); test strip without Modbus | any level for commissioning |
-| Quick presets | OFF / WHITE / RGB / FULL test patterns | use to verify wiring |
+| Modbus Address | RS-485 bus ID; unique per module | 1–255 (default 3) |
+| Baud Rate | Must match controller/bus | 9600/19200/38400/57600/115200 (default 19200) |
+| Serial Log | USB diagnostics stream | — |
+| Light Levels (R/G/B/WW/CW) | Live 0–255 sliders; test strip without a controller | any level for commissioning |
+| Quick presets | OFF / WHITE / RGB / FULL test patterns | verify wiring |
 
 ### 2) Wall-switch inputs & onboard button
 
@@ -469,21 +469,26 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 | Setting | What it does | Set to |
 |---|---|---|
-| DI1/DI2 Mode | Momentary (gestures) or Maintained (closed=ON/open=OFF) | per switch type |
-| Output target | what the input controls | Group RGB / Group CCT / RGB+CCT / Relay1 |
-| Per-gesture (Single/Double/Hold) | action on each gesture | None, Toggle, On, Off, Dim up, Dim down, Dim toggle dir, Relay pulse, Scene 1–4, Identify |
-| Onboard button SW2 | Single/Double actions | e.g. Double = Identify |
-| Engine timings | press detection (ms) | Debounce **25** · Double-click **350** · Hold start **650** · Hold repeat **60** |
+| Enabled (per DI) | turns the input on/off | on to use |
+| Inverted (per DI) | flips contact sense | as wired |
+| Child lock (per DI) | blocks local control (auto-unlocks when Modbus link is offline) | off normally |
+| Mode | Momentary (gestures) or Maintained (closed=ON/open=OFF) | per switch |
+| Output target | what the input drives | Group RGB / Group CCT / RGB+CCT / Relay1 / All |
+| Single / Double / Hold actions | action per gesture | None, Toggle, On, Off, Dim up, Dim down, Dim toggle dir, Relay pulse, Scene 1–4, Identify |
+| Onboard button SW2 (Enabled + Single/Double) | usable front button actions | e.g. Double = Identify |
+| Engine timings | press detection | Debounce 25 · Double-click 350 · Hold start 650 · Hold repeat 60 ms |
+| Allow wall switches when offline | keep local control if the bus drops | on (recommended) |
 
-### 3) PWM channels (R/G/B/WW/CW)
+### 3) PWM channels — Red/Green/Blue/Warm White/Cool White
 
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/webconfig3.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
-| Min / Max trim | per-channel floor/ceiling (fix flicker / cap brightness) | **1** / **255** default |
-| Transition (fade) ms | smoothing when level changes | **400** default |
-| Power-on | channel state at power-up | OFF / ON / restore last |
+| Min trim | per-channel floor (fix low-end flicker) | 0–255 (default 1) |
+| Max trim | per-channel ceiling (cap brightness) | 0–255 (default 255) |
+| Transition, ms | fade smoothing on level change | default 400 |
+| Power-on | channel state at power-up | OFF at power-on / ON at power-on / Restore last |
 
 ### 4) Dimming & scenes
 
@@ -491,8 +496,8 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 | Setting | What it does | Set to |
 |---|---|---|
-| Dimming time (ms, full range) | hold ramp 0→100 % | **3000** default |
-| Scenes 1–4 | per-channel presets; Capture current saves live levels | recalled by Scene 1–4 gestures |
+| Dimming time (ms, full range) | hold ramp 0→100 % | default 3000 |
+| Scenes 1–4 (per-channel R/G/B/WW/CW) | stored presets | set levels; **Capture current** saves live values |
 
 ### 5) Relay, user LEDs & output quality
 
@@ -500,12 +505,14 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 | Setting | What it does | Set to |
 |---|---|---|
-| Relay Power-on state | position at power-up | OFF / ON / restore |
-| Relay mode | Manual (free output) or Follow (PSU cut) | per use |
-| Follow channels | groups watched in Follow | RGB / CCT / both |
-| Off delay (s) | delay before cut | **45** default |
-| User LEDs (LED1/LED2) | Mode & Source | per preference |
-| Gamma (×10) | perceptual dimming correction | **22** (=2.2) recommended |
+| Relay Power-on state | relay position at power-up | OFF at power-on / ON at power-on / Restore last |
+| Relay mode | Manual (free output) or Follow (LED-PSU cut) | per use |
+| Follow channels | groups watched in Follow mode | RGB only / CCT only / both |
+| Off delay (seconds) | delay before cutting after all dark | default 45 |
+| User LED1 / LED2 — Mode | how each LED behaves | per preference |
+| User LED1 / LED2 — Source | what each LED reflects | per preference |
+| Gamma correction (enable) | perceptual dimming curve on/off | on (recommended) |
+| Gamma (×10) | curve value | 22 (= 2.2) |
 
 ## 5.6 Getting Started
 
