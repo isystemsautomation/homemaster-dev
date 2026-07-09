@@ -116,7 +116,7 @@ bool desiredRelay[NUM_RLY] = {false};
 uint32_t rlyPulseUntil[NUM_RLY] = {0};
 const uint32_t PULSE_MS = 500; // default pulse width
 
-// PWM setpoints 0..4095 (12-bit perceived); Modbus/WebConfig use 0..255
+// PWM setpoints 0..4095 (12-bit internal target); Modbus/WebConfig use 0..255
 uint16_t pwmTarget[NUM_PWM] = {0,0,0,0,0};
 uint16_t pwmCurrent[NUM_PWM] = {0,0,0,0,0};
 uint16_t pwmLevel[NUM_PWM] = {0,0,0,0,0}; // alias: internal hi level (= pwmTarget)

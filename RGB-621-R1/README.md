@@ -456,7 +456,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 | Setting | What it does | Set to |
 |---|---|---|
-| Modbus Address | RS-485 bus ID; unique per module | 1–255 (default 3) |
+| Modbus Address | RS-485 bus ID; unique per module | 1–247 (default 3); values outside 1–247 are silently clamped |
 | Baud Rate | Must match controller/bus | 9600/19200/38400/57600/115200 (default 19200) |
 | Serial Log | USB diagnostics stream | — |
 | Light Levels (R/G/B/WW/CW) | Live 0–255 sliders; test strip without a controller | any level for commissioning |
@@ -537,7 +537,13 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 
 ## 6.0 Register Map (complete)
 
-Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-code detail in [§6.1](#61-input-registers-fc04--map_version-3)–[§6.3](#63-holding-registers-fc030616). Gesture/scene/trim/relay-mode/gamma configuration is **USB WebConfig only** — not on Modbus.
+> **Addressing convention:** all addresses in this document are zero-based Modbus PDU offsets. Do not add 1, and do not use 0xxxx/1xxxx/3xxxx/4xxxx notation.
+>
+> Example: PWM Red = holding register offset **400** → FC06 request address `0x0190`. In tools that use one-based register numbering, enter **401**.
+
+Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-code detail in [§6.1](#61-input-registers-fc04--map_version-3)–[§6.3](#63-holding-registers-fc0306). Gesture/scene/trim/relay-mode/gamma configuration is **USB WebConfig only** — not on Modbus.
+
+> **PWM dual bank:** HR **400–404** (8-bit) and HR **410–414** (12-bit) address the same PWM targets. The last successful write wins. HR 400–404 scales as `hi = value × 4095 / 255` (integer division); HR 410–414 sets the 12-bit target directly. Values above the register maximum are clamped (writing 300 to HR 400 yields 255; writing 5000 to HR 410 yields 4095). The module does not return exception code 03.
 
 | Register / Address | Name | FC / Access | Type | Units / Range | Default | Effect | Firmware |
 |--------------------|------|-------------|------|---------------|---------|--------|----------|
@@ -550,17 +556,17 @@ Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-cod
 | **1** | **RLY_STATE_MASK** | FC04 R | input register | bit0 | — | Relay1 logical state | v0.2.0 |
 | **2** | **BTN_STATE_MASK** | FC04 R | input register | bit0 | — | SW2 onboard button | v0.2.0 |
 | **3** | **LED_STATE_MASK** | FC04 R | input register | bit0..1 | — | LED1..LED2 bitmask | v0.2.0 |
-| **4** | **STATUS_FLAGS** | FC04 R | input register | bit1 linkOk, bit3 cfgDirty | — | Link / config status | v0.2.0 |
-| **6–20** | **EVT_COUNTERS** | FC04 R | input register | uint16 | 0 | Press counters: DI1 / DI2 / SW2 × 5 gestures each | v0.2.0 |
-| **21** | **PWM_RAW R** | FC04 R | input register | 0–4095 | 0 | Red channel 12-bit diagnostic current | v0.2.0 |
-| **22** | **PWM_RAW G** | FC04 R | input register | 0–4095 | 0 | Green channel 12-bit diagnostic current | v0.2.0 |
-| **23** | **PWM_RAW B** | FC04 R | input register | 0–4095 | 0 | Blue channel 12-bit diagnostic current | v0.2.0 |
-| **24** | **PWM_RAW WW** | FC04 R | input register | 0–4095 | 0 | Warm-white channel 12-bit diagnostic current | v0.2.0 |
-| **25** | **PWM_RAW CW** | FC04 R | input register | 0–4095 | 0 | Cool-white channel 12-bit diagnostic current | v0.2.0 |
+| **4** | **STATUS_FLAGS** | FC04 R | input register | bitfield | — | Link / config status — see [STATUS_FLAGS](#status_flags-ireg-4) | v0.2.0 |
+| **6–20** | **EVT_COUNTERS** | FC04 R | input register | uint16 | 0 | Press counters — see [event counters](#event-counters-ireg-620) | v0.2.0 |
+| **21** | **PWM_RAW R** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
+| **22** | **PWM_RAW G** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
+| **23** | **PWM_RAW B** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
+| **24** | **PWM_RAW WW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
+| **25** | **PWM_RAW CW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
 | **26** | **STATE RG** | FC04 R | input register | packed | — | Applied R (high byte) + G (low byte), API 0–255 | v0.2.0 |
 | **27** | **STATE BWW** | FC04 R | input register | packed | — | Applied B (high byte) + WW (low byte), API 0–255 | v0.2.0 |
 | **28** | **STATE CW+flags** | FC04 R | input register | packed | — | Applied CW (high byte); flags: anyOn, rgbGroupOn, cctGroupOn, relay1 | v0.2.0 |
-| **0** | **Relay1** | FC01 R / FC05 W | coil | 0 / 1 | 0 | Toggle relay — primary control path | v0.2.0 |
+| **0** | **Relay1** | FC01 R / FC05 W | coil | 0 / 1 | 0 | Relay1 — level-controlled coil: write `1` = energize, write `0` = de-energize | v0.2.0 |
 | **5** | **IDENTIFY** | FC05 W | coil (pulse) | write 1 | 0 | LED identify blink | v0.2.0 |
 | **6** | **SAVE_CFG** | FC05 W | coil (pulse) | write 1 | 0 | Save config to flash | v0.2.0 |
 | **7** | **REBOOT** | FC05 W | coil (pulse) | write 1 | 0 | Reboot module | v0.2.0 |
@@ -595,10 +601,44 @@ Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-cod
 | **1** | **RLY_STATE_MASK** | bit0 | Relay1 logical state |
 | **2** | **BTN_STATE_MASK** | bit0 | SW2 onboard button (GPIO1) |
 | **3** | **LED_STATE_MASK** | bit0..1 | LED1..LED2 |
-| **4** | **STATUS_FLAGS** | bit1 linkOk, bit3 cfgDirty | Link / config status |
-| **6–20** | **EVT_COUNTERS** | uint16 | Press counters: 3 sources × 5 gestures |
-| **21–25** | **PWM_RAW** | 0–4095 | 12-bit perceived current per channel (diagnostic) |
+| **4** | **STATUS_FLAGS** | bitfield | Link / config status — see below |
+| **6–20** | **EVT_COUNTERS** | uint16 | Press counters — see below |
+| **21–25** | **PWM_RAW** | 0–4095 | Applied 12-bit PWM duty after trim, gamma and slew. This is not a measured LED current. |
 | **26–28** | **STATE** | packed | Applied PWM levels (API 0–255, after slew) + status flags |
+
+#### STATUS_FLAGS (IREG 4) {#status_flags-ireg-4}
+
+| Bit | Name | Meaning |
+|-----|------|---------|
+| 0 | Reserved | Always 0 |
+| 1 | linkOk | Modbus link considered alive (see below) |
+| 2 | Reserved | Always 0 |
+| 3 | cfgDirty | Unsaved configuration changes in RAM |
+| 4–15 | Reserved | Always 0; masters must ignore |
+
+**linkOk** is set while less than **5000 ms** have elapsed since the last observed RS-485 activity. Activity means either bytes received on the RS-485 port, or a change to any of the watched coils (0, 5, 6, 7, 200, 210, 300, 301, 320, 321). It is not a carrier detect and does not require a valid, correctly addressed request.
+
+#### Event counters (IREG 6–20) {#event-counters-ireg-620}
+
+| Address | Counter |
+|---------|---------|
+| **6** | DI1 Single |
+| **7** | DI1 Double |
+| **8** | DI1 Triple |
+| **9** | DI1 Long |
+| **10** | DI1 Hold |
+| **11** | DI2 Single |
+| **12** | DI2 Double |
+| **13** | DI2 Triple |
+| **14** | DI2 Long |
+| **15** | DI2 Hold |
+| **16** | SW2 Single |
+| **17** | SW2 Double |
+| **18** | SW2 Triple |
+| **19** | SW2 Long |
+| **20** | SW2 Hold |
+
+Counters saturate at **65535** and do not wrap (`if (count < 0xFFFF) count++`). They are held in RAM, start at **0** after every power-up or reboot, and cannot be cleared over Modbus. Long-press was removed in v0.2.0, so the **Long** counters (**9**, **14**, **19**) always read **0**.
 
 **STATE block (IREG 26–28)** — one FC04 read for HA feedback:
 
@@ -608,7 +648,7 @@ Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-cod
 | **27** | `(B<<8)\|WW` | Applied blue and warm white |
 | **28** | `(CW<<8)\|flags` | Applied cold white (high byte); flags low byte: bit0 **anyOn**, bit1 **rgbGroupOn**, bit2 **cctGroupOn**, bit3 **relay1** |
 
-Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE + source×5 + gesture`.
+Sources: **0** = DI1, **1** = DI2, **2** = SW2. Layout: `EVT_BASE + source×5 + gesture` (`EVT_BASE` = **6**).
 
 > ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (applied light + relay flags) every 5 s. Event counters **6–20** are optional for masters that need register-based press accounting.
 
@@ -620,7 +660,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 | Address | Name | Description |
 |---------|------|-------------|
-| **0** | **Relay1** | Toggle coil — write `1`/`0` (DIO-compatible) |
+| **0** | **Relay1** | Level-controlled coil: write `1` = energize, write `0` = de-energize. If the relay is disabled in WebConfig, the module forces it off and resets this coil to **0**; writes are ignored. |
 | **5** | **IDENTIFY** | Pulse — LED identify blink |
 | **6** | **SAVE_CFG** | Pulse — save config to flash |
 | **7** | **REBOOT** | Pulse — reboot module |
@@ -628,6 +668,8 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 | **210** | **Relay1 OFF** | Legacy pulse coil — write `1` to de-energize |
 | **300–301** | **DI1–DI2 Enable** | Pulse per input |
 | **320–321** | **DI1–DI2 Disable** | Pulse per input |
+
+Pulse coils are write-one commands. Writing `1` executes the command once; writing `0` has no effect. They are not latched and always read back as `0`.
 
 > Relay coil **0** is the primary control path (ESPHome template switch). Pulse coils **200/210** remain for legacy tools. Service coils: write-only from ESPHome (`assumed_state`).
 
@@ -645,7 +687,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 
 ---
 
-## 6.3 Holding Registers (FC03/06/16)
+## 6.3 Holding Registers (FC03/06)
 
 > Summary: see [§6.0](#60-register-map-complete). Detail below.
 
@@ -653,8 +695,10 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 |---------|------|-------|-------------|
 | 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (8-bit API; scaled to 12-bit internally; slew-smoothed) |
 | 410–414 | **R, G, B, WW, CW (12-bit)** | 0–4095 | Fine-grained PWM setpoints (same targets as HR 400–404) |
-| 480 | **MB_ADDR** | 1–255 | Modbus address |
+| 480 | **MB_ADDR** | 1–247 | Modbus address; values outside 1–247 are silently clamped |
 | 481 | **MB_BAUD** | bps | 9600 / 19200 / 38400 / 57600 / 115200 |
+
+HR **400–404** (8-bit) and HR **410–414** (12-bit) address the same PWM targets. The last successful write wins. HR 400–404 scales as `hi = value × 4095 / 255` (integer division); HR 410–414 sets the 12-bit target directly. Values above the register maximum are clamped (writing 300 to HR 400 yields 255; writing 5000 to HR 410 yields 4095). The module does not return exception code 03.
 
 > Module configuration (inputs, gestures, dimming, scenes, trim, relay mode, gamma, etc.) is performed via **USB WebConfig only**; it is **not exposed on Modbus**.
 
@@ -663,11 +707,11 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 ## 6.4 Output quality (12-bit + gamma + slew)
 
 - **Internal resolution:** 12-bit (0–4095) on all five PWM channels (`analogWriteResolution(12)`).
-- **API:** Modbus HR **400–404** and WebConfig accept **0–255**; HR **410–414** accept **0–4095** for finer control. Firmware scales 8-bit writes to 12-bit setpoints.
+- **API:** Modbus HR **400–404** and WebConfig accept **0–255**; HR **410–414** accept **0–4095** for finer control. Both banks address the same targets; the last successful write wins. HR 400–404 scales as `hi = value × 4095 / 255` (integer division).
 - **Gamma:** configurable (default γ 2.2) via WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
 - **Trim:** per-channel min/max applied in perceived space before gamma (WebConfig).
 - **Slew:** each channel has `current` and `target`; Modbus, gestures, and scenes update **target** and ramp over per-channel `fadeMs` (default **400 ms**, WebConfig). **Hold-to-dim** uses a separate `dimFullRangeMs` traverse (default **3000 ms**) — continuous, not stepped. `fadeMs = 0` = instant.
-- **Diagnostics:** FC04 IREG **21–25** expose raw 12-bit current.
+- **Diagnostics:** FC04 IREG **21–25** expose applied 12-bit PWM duty after trim, gamma and slew. This is not a measured LED current.
 
 ---
 
@@ -695,7 +739,7 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 
 **Child lock:** ignores local gestures; Modbus/HA control still works.
 
-**Press counters:** IREG 6–20 increment per gesture so masters never miss events between polls.
+**Press counters:** IREG **6–20** — see [event-counter table](#event-counters-ireg-620).
 
 ---
 
@@ -704,7 +748,7 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 | Operation | Write / Read |
 |-----------|--------------|
 | Set red to 128 | Holding **400** ← 128 |
-| Toggle relay | Coil **0** ← 1/0 (or ESPHome switch) |
+| Set relay on/off | Coil **0** ← `1`/`0` (level-controlled; or ESPHome switch) |
 | Read DI2 | FC04 IR **0**, bitmask `0x0002` |
 | Read button state | FC04 IR **2**, bitmask `0x0001` |
 | Read relay state | FC04 STATE **28**, flags bit3 *(or legacy IR **1**)* |
