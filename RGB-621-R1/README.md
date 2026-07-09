@@ -45,7 +45,7 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 
 # Hardware notes (current revision)
 
-1. **DI1/DI2 status-LED indication swapped** — silkscreen/panel only; logical inputs, Modbus registers, and WebConfig are correct.
+1. **I.1/I.2 panel indicators swapped** — silkscreen only (I.1 shows DI2's state, I.2 shows DI1's); logical inputs, Modbus registers, and WebConfig are unaffected.
 2. **Only SW2 is a usable logic input** (Button 1 in WebConfig); the second front button is not a user input — it enters BOOT mode only (see [§8.1](#81-updating-firmware-regular-users)).
 
 # 1. Introduction
@@ -71,7 +71,7 @@ Its **dual-board I/O architecture**, **surge and short-circuit protection**, and
 | **PWM Outputs** | 5 | N-channel MOSFET drivers (AP9990GH-HF), 12 V / 24 V LED channels for R / G / B / CW / WW |
 | **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
-| **LED Indicators** | 2 + DI | Two user LEDs (LED1/LED2) plus DI1/DI2 status indication |
+| **LED Indicators** | 8 | PWR, TX, RX, I.1, I.2, O.1, and two user LEDs (LED1/LED2) |
 | **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver (external 120 Ω bus termination) |
 | **USB-C** | Yes | WebConfig & firmware flashing with PRTR5V0U2X ESD protection |
 | **Power Input** | 24 V DC ±10 % (SELV/PELV) | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
@@ -136,7 +136,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | **USB-C** | 1 |
 | **MCU** | 1 |
 | **Buttons** | 2 |
-| **LED Indicators** | 2 + DI |
+| **LED Indicators** | 8 |
 
 ---
 
@@ -777,10 +777,20 @@ For modifying or rebuilding the firmware.
 
 ## 9.1 Status LEDs (front panel)
 
-| Indicator | Meaning |
-|-----------|---------|
-| **LED1 / LED2** | User/status LEDs (WebConfig-assignable); logical state on Modbus discrete **90–91** and IREG **LED_STATE_MASK** (bits 0–1). |
-| **DI1 / DI2** | Front-panel indication of digital-input state (silkscreen swapped on this revision — see [Hardware notes](#hardware-notes-current-revision)). |
+| Indicator | Driven by | Meaning | Modbus |
+|---|---|---|---|
+| PWR | supply rail | Module 24 V DC supply present | — |
+| TX | MAX485 | RS-485 transmit activity | — |
+| RX | MAX485 | RS-485 receive activity | — |
+| I.1 | input circuit | Digital input 1 state | discrete **1** / IREG DI mask bit 0 |
+| I.2 | input circuit | Digital input 2 state | discrete **2** / IREG DI mask bit 1 |
+| O.1 | relay circuit | Relay output 1 state | discrete **60** |
+| LED1 | MCU (GPIO2) | User/status LED; Mode + Source set in WebConfig | discrete **90** / IREG LED mask bit 0 |
+| LED2 | MCU (GPIO3) | User/status LED; Mode + Source set in WebConfig | discrete **91** / IREG LED mask bit 1 |
+
+> ⚠️ On this hardware revision the **I.1** and **I.2** indicators are swapped (**I.1** shows DI2's state and vice versa). Logical inputs, Modbus registers and WebConfig are unaffected — see [Hardware notes](#hardware-notes-current-revision).
+
+> There is no **RUN** or **ERR** indicator on this module.
 
 ## 9.2 Resets & Modes
 
@@ -788,7 +798,7 @@ For modifying or rebuilding the firmware.
 
 ## 9.3 Common Issues
 
-- **No communication:**  
+- **No communication (TX/RX dark):**  
   Check A/B polarity, external 120 Ω termination at both bus ends (not on module), baud/ID match, and shared **RS-485 COM** reference if separate PSUs.
 - **Relay won’t trigger:**  
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **Relay C / NO** (dry contact). Add snubber for inductive loads.
