@@ -589,6 +589,7 @@ Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-cod
 ## 6.1 Input Registers (FC04) — MAP_VERSION 3
 
 > Summary: see [§6.0](#60-register-map-complete). Detail below.
+
 | Address | Name | Bits | Description |
 |---------|------|------|-------------|
 | **0** | **DI_STATE_MASK** | bit0..1 | DI1..DI2 |
@@ -617,6 +618,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 ## 6.2 Coils (FC01/05)
 
 > Summary: see [§6.0](#60-register-map-complete). Detail below.
+
 | Address | Name | Description |
 |---------|------|-------------|
 | **0** | **Relay1** | Toggle coil — write `1`/`0` (DIO-compatible) |
@@ -635,6 +637,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 ## 6.2.1 Discrete Inputs (FC02)
 
 > Summary: see [§6.0](#60-register-map-complete). Detail below.
+
 | Address | Name | Description |
 |---------|------|-------------|
 | **1–2** | **DI1–DI2** | Wall-switch logical state (after enable + invert) |
@@ -646,6 +649,7 @@ Sources: **0** = DI1, **1** = DI2, **2** = SW2. Gestures per source at `EVT_BASE
 ## 6.3 Holding Registers (FC03/06/16)
 
 > Summary: see [§6.0](#60-register-map-complete). Detail below.
+
 | Address | Name | Range | Description |
 |---------|------|-------|-------------|
 | 400–404 | **R, G, B, WW, CW** | 0–255 | PWM setpoints (8-bit API; scaled to 12-bit internally; slew-smoothed) |
