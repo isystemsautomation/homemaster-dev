@@ -196,7 +196,7 @@
             <tr><th scope="row">LED Output Voltage</th><td>External 12–24 V DC supply</td></tr>
             <tr><th scope="row">Maximum Total LED Current</th><td>Limited by 5 A input fuse (shared across channels)</td></tr>
             <tr><th scope="row">Recommended Current per Channel</th><td>≤ 1000 mA per channel (recommended)</td></tr>
-            <tr><th scope="row">Digital Inputs</th><td>2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GND), dry-contact or sourcing; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GND), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs*</th>
               <td>
@@ -762,7 +762,7 @@ packages:
 
       <h4 id="digital-input-wiring"><strong>Digital Input Wiring</strong></h4>
       <p>
-        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (I1/I2 with GND). Each input has a PTC fuse, TVS, and reverse protection. Do not inject external voltage into DI pins.
+        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close <strong>I1/I2</strong> to <strong>GND</strong>. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail). Each input has a PTC fuse, TVS, and reverse protection.
       </p>
 
       <div class="plc-grid">

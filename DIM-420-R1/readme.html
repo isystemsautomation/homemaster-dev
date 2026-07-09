@@ -60,7 +60,7 @@ Wire DI1–DI4 to wall switches → select <em>Momentary</em> or <em>Latching</e
 <tr>
 <td><strong>Digital Inputs</strong></td>
 <td>4</td>
-<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection; modes: <em>Momentary</em>/<em>Latching</em> with <strong>Short / Long / Double / Short‑then‑Long</strong> press types. Debounced and firmware‑interpreted for actions.</td>
+<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; modes: <em>Momentary</em>/<em>Latching</em> with <strong>Short / Long / Double / Short‑then‑Long</strong> press types. Debounced and firmware‑interpreted for actions.</td>
 </tr>
 <tr>
 <td><strong>Dimming Outputs</strong></td>
@@ -284,7 +284,7 @@ Wire DI1–DI4 to wall switches → select <em>Momentary</em> or <em>Latching</e
 <tbody>
 <tr>
 <td><strong>DI1–DI4</strong></td>
-<td><strong>Dry contacts / 24 V sourcing</strong> only (IEC 61131-2 ISO1212 front-end). Do <strong>not</strong> apply mains. Use <code>DIx_GND</code> returns and configure debounce/invert in UI.</td>
+<td><strong>Dry-contact (module-wetted)</strong> only (IEC 61131-2 ISO1212 front-end). Do <strong>not</strong> apply mains or external voltage. Use <code>DIx_GND</code> returns and configure debounce/invert in UI.</td>
 </tr>
 </tbody>
 </table>
@@ -541,7 +541,7 @@ This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.</p>
 &lt;/div&gt;</p>
 <hr>
 <h3 class="code-line" data-line-start=330 data-line-end=331 ><a id="_Digital_Inputs_DI1DI4_330"></a>🔘 Digital Inputs (DI1–DI4)</h3>
-<p class="has-line-data" data-line-start="332" data-line-end="335">Wire <strong>dry‑contact</strong> switches or <strong>24 V sourcing</strong> sensors to the IEC 61131-2 digital inputs.<br>
+<p class="has-line-data" data-line-start="332" data-line-end="335">Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close the input to its GND return. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).<br>
 Each input has its own paired <strong>Gnd</strong> and must be wired independently.<br>
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.</p>
 <p class="has-line-data" data-line-start="336" data-line-end="339">&lt;div align=“center”&gt;<br>
@@ -696,7 +696,7 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 <tr>
 <td><strong>Digital Inputs</strong></td>
 <td>4</td>
-<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection</td>
+<td>IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection</td>
 </tr>
 <tr>
 <td><strong>Dimming Outputs</strong></td>

@@ -53,7 +53,7 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 ## 1.1 Overview of the RGB-621-R1
 
 The **RGB-621-R1** is a **smart RGB + CCT LED controller module** designed for **HomeMaster automation systems** and other **Modbus RTU networks**.  
-It features **5 high-current PWM outputs** for RGB and Tunable White (CCT) LED control, **2 IEC 61131-2 compliant digital inputs** for wall switches or sensors, and **1 relay output** for switching external loads or LED drivers.
+It features **5 high-current PWM outputs** for RGB and Tunable White (CCT) LED control, **2 IEC 61131-2 compliant digital inputs** for potential-free wall switches or contacts, and **1 relay output** for switching external loads or LED drivers.
 
 Powered by the **Raspberry Pi RP2350A** microcontroller, the module supports **RS-485 (Modbus RTU)** communication and configuration via **WebConfig over USB-C (Web Serial)** — no drivers or external software required.  
 It connects directly to **HomeMaster MicroPLC** and **MiniPLC** controllers or operates as a **standalone Modbus slave** in any automation network.
@@ -67,7 +67,7 @@ Its **dual-board I/O architecture**, **surge and short-circuit protection**, and
 
 | Subsystem         | Qty | Description |
 |-------------------|-----|-------------|
-| **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
+| **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), **dry-contact (module-wetted)**, with PTC fuse, TVS surge and reverse-polarity protection |
 | **PWM Outputs** | 5 | N-channel MOSFET drivers (AP9990GH-HF), 12 V / 24 V LED channels for R / G / B / CW / WW |
 | **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
@@ -154,7 +154,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
 - **PWM Drive:** total LED current limited by onboard **10 A PTC fuse**; per-channel and track limits apply — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
-- **Digital inputs:** IEC 61131-2 front-end (ISO1212); surge/EMI protected  
+- **Digital inputs:** IEC 61131-2 front-end (ISO1212), **dry-contact (module-wetted)**; surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
 - **USB-C:** WebConfig / firmware only, ESD-protected  
 - **Env.:** 0 – 40 °C, ≤ 95 % RH non-condensing
@@ -269,11 +269,11 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 | Parameter | Specification |
 |------------|---------------|
-| Type | IEC 61131-2 compliant, dry-contact or sourcing 24 V DC input |
+| Type | IEC 61131-2 compliant, **dry-contact (module-wetted)** 24 V DC input |
 | Circuit | ISO1212 receiver with TVS (SMBJ26CA) + PTC protection |
-| Input voltage | 24 V DC ±10 % (SELV/PELV) |
+| Input voltage | 24 V DC ±10 % (SELV/PELV) — supplied by module wetting; do not apply external voltage to I1/I2 |
 | Protection | PTC fuse, TVS surge and reverse-polarity protection |
-| Notes | For switches or sensors only; debounce handled in firmware. |
+| Notes | Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close I1/I2 to **GND**. The module supplies the input current (wetting) from its own 24 V rail; do **not** feed external voltage into I1/I2. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail). Debounce handled in firmware. |
 
 ---
 
@@ -431,7 +431,7 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 ### Digital inputs
 
 ![Digital inputs — dry-contact wiring to I1 and I2](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/RGB_DigitalInputs.png)
-*Dry contacts or 24 V sourcing on **I1** / **I2** + **GND**; do not inject external voltage into DI pins. Shielded cable for runs > 10 m ([§5.2](#52-power) protection: PTC F5/F6, TVS, reverse diodes).*
+*Potential-free (dry) contacts between **I1** / **I2** and **GND** — module supplies wetting current from its 24 V rail; do **not** apply external voltage to I1/I2. Three-wire sensors: power from your own supply, switching output to the input only. Shielded cable for runs > 10 m ([§5.2](#52-power) protection: PTC F5/F6, TVS, reverse diodes).*
 
 ### Relay
 
@@ -805,7 +805,7 @@ For modifying or rebuilding the firmware.
 - **LED channels do not light:**  
   Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (≤ **10 A** total through module).
 - **Inputs not detected:**  
-  Use **DI 24Vdc** terminals (I1/I2 with GND). Confirm sensor type (dry contact or 24 V sourcing) and debounce/invert settings in WebConfig.
+  Wire the contact between **I1/I2** and the **GND** terminal of the **DI 24Vdc** block (not **0V** of the power input, not the LED **COM**, not the **RS-485 COM**). Use a potential-free contact — do not apply external voltage. In WebConfig check the input is **Enabled**, **Inverted** is off, and **Debounce** (default 25 ms) is not set too high.
 - **USB not detected:**  
   Use a data-capable USB-C cable; close any app holding the port; re-enter [BOOT mode](#81-updating-firmware-regular-users).
 

@@ -185,7 +185,7 @@
               <th scope="row">Power Input</th>
               <td>24 V DC nominal (24VDC)</td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>1 × IEC 61131-2 compliant 24 V digital input (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>1 × IEC 61131-2 compliant 24 V digital input (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection</td></tr>
             <tr>
               <th scope="row">Relay Outputs</th>
               <td>1 × SPDT relay (HF115F-005-1ZS3)</td>
@@ -609,7 +609,7 @@
             <tr>
               <th scope="row">DI #1</th>
               <td>DI24V (ESP32 GPIO via ISO1212)</td>
-              <td>Sourcing</td>
+              <td>Dry contact (module-wetted)</td>
               <td>24&nbsp;V DC</td>
               <td>Isolated 24&nbsp;V digital input with internal field supply, dry contact</td>
             </tr>
@@ -619,15 +619,19 @@
 
       <p><strong>Features:</strong></p>
       <ul>
-        <li>1× IEC 61131-2 compliant 24&nbsp;V DC digital input (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection</li>
+        <li>1× IEC 61131-2 compliant 24&nbsp;V DC digital input (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection</li>
         <li>Internal fused 24&nbsp;V field supply for dry-contact sensing</li>
-        <li>Sourcing-type inputs for passive devices (relay contacts, open-collector outputs)</li>
+        <li>Module-wetted inputs for potential-free contacts (relay contacts, open-collector / transistor outputs)</li>
         <li>Separate field ground and logic ground domains</li>
         <li>Per-channel protection with resettable PTC fuses and TVS surge suppression</li>
         <li>Integrated EMI and noise filtering on each input</li>
         <li>Configurable input inversion and debounce filtering via ESPHome</li>
         <li>Status monitoring via Home Assistant binary sensors</li>
       </ul>
+
+      <p>
+        Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close the input to its GND return. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).
+      </p>
 
       <div class="plc-grid">
         <div class="plc-col">

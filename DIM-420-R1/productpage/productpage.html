@@ -198,7 +198,7 @@
             </tr>
             <tr>
               <th scope="row">Digital Inputs</th>
-              <td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DI1–DI4 with dedicated DIx_GND returns), dry-contact or sourcing; PTC fuse, TVS surge and reverse-polarity protection</td>
+              <td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DI1–DI4 with dedicated DIx_GND returns), dry-contact (module-wetted); PTC fuse, TVS surge and reverse-polarity protection</td>
             </tr>
             <tr>
               <th scope="row">User Interface</th>
@@ -695,7 +695,7 @@ packages:
 
       <h3 id="digital-inputs-wiring"><strong>Digital Inputs (DI1–DI4)</strong></h3>
       <p>
-        Wire <strong>dry‑contact</strong> wall switches or <strong>24 V sourcing</strong> sensors to <strong>DI1–DI4</strong> with their corresponding <strong>DIx_GND</strong> returns.
+        Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close <strong>DI1–DI4</strong> to their corresponding <strong>DIx_GND</strong> return. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).
         Input mode (Momentary/Latching), debounce, invert, and press actions are configured in WebConfig.
       </p>
 

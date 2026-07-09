@@ -66,7 +66,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Features
 
 - ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
-- 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
+- 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
 - 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 12 A but the board/system rating governs.
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
@@ -651,7 +651,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | Symptom | Checks | Action |
 |---|---|---|
 | Device not in HA or ESPHome Dashboard | PWR LED solid ON? Status LED fast-blinking? Same subnet as HA? | Wait 60 s for Wi-Fi. If status LED blinks, device is connecting. If it does not connect, re-run Improv via BLE or USB. |
-| Digital input not responding | DI LED on front panel ON when input active? Wiring correct (24 V DC sourcing)? | Check the source side supplies 24 V DC and is connected to the correct DI terminal and GND. Verify the input is not inverted in YAML. |
+| Digital input not responding | DI LED on front panel ON when input active? Wiring uses potential-free contact to GND (not 0V power return)? | Wire the contact between the DI terminal and its GND return; do not apply external voltage. Verify the input is not inverted in YAML and debounce is not too high. |
 | Relay does not switch | `RELAY #n` switch entity present in HA? | Toggle from HA. Check external fuse / breaker on the load circuit. Note: load needs its own power supply — relays are dry contact. |
 | Analog input reads 0 V | Sensor 0 V tied to AI GND? Sensor powered? | Tie sensor reference to AI GND. Check that sensor output is actually in 0–10 V range (some sensors output 4–20 mA — those need a separate 250 Ω resistor or a 4–20 mA-capable module). |
 | RTD reads `NaN` or constant -242 °C | DIP switches set correctly for sensor type and wiring mode? YAML `rtd_nominal_resistance` and `wires` match? | Cross-check the DIP-switch table above against the sensor wiring. PT100 vs PT1000 mismatch is the most common cause. |

@@ -614,7 +614,7 @@ packages:
 
       <h4 id="digital-input-wiring"><strong>Digital Input Wiring (IN1, IN2)</strong></h4>
       <p>
-        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>dry contacts</strong> or <strong>24 V DC sourcing sensors</strong> only (IN1/IN2 with GND). Each input has PTC fuse, TVS, and reverse protection. Do not inject external voltage above 30 V DC.
+        Inputs use an ISO1212 IEC 61131-2 digital-input front-end (not galvanic isolation). Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close <strong>DI</strong> to <strong>GND</strong>. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail). Each input has PTC fuse, TVS, and reverse protection. Do not exceed 30 V DC on input pins.
       </p>
 
       <div class="plc-grid">

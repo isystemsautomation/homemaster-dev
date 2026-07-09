@@ -17,7 +17,7 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 
 **Key capabilities at a glance:**
 
-- **4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end)** — dry-contact or sourcing; PTC fuse, TVS surge and reverse-polarity protection; per-input Maintained/Momentary logic
+- **4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end)** — dry-contact (module-wetted); PTC fuse, TVS surge and reverse-polarity protection; per-input Maintained/Momentary logic
 - **3 SPDT relays** — 3 A @ 250 VAC (resistive) dry contacts (NO/NC/COM); use interposing contactors for loads above 3 A
 - **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
@@ -60,7 +60,7 @@ Typical uses for the DIO-430-R1:
 
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
-| Digital Inputs | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
+| Digital Inputs | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
 | Relays | 3 | SPDT (NO/NC), 3 A @ 250 VAC (resistive), dry contacts |
 | LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
 | Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
@@ -72,7 +72,7 @@ Typical uses for the DIO-430-R1:
 
 | Interface | Qty | Description |
 |-----------|----:|-------------|
-| **Digital Inputs** | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
+| **Digital Inputs** | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
 | **Relay Outputs** | 3 | SPDT (NO/NC/COM), 3 A @ 250 VAC (resistive) dry contacts. Relay component rated higher, but module output is limited to 3 A — use interposing contactors for larger or inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
 | **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
@@ -158,7 +158,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 |-------|------|----------|-------|
 | **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
 | **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
-| **DI 1-4** | INx, GNDx | IEC 61131-2 digital inputs (ISO1212 front-end) | Dry contact or 24 V signal; wetting & front-end — see notes below |
+| **DI 1-4** | INx, GNDx | IEC 61131-2 digital inputs (ISO1212 front-end) | Dry-contact (module-wetted); wetting & front-end — see notes below |
 
 **Input power / wetting.** The digital inputs are built on an ISO1212 IEC 61131-2 digital-input front-end and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
 
@@ -233,7 +233,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 | Area | Warning |
 |------|---------|
-| Type | **Dry contact / 24 V signaling only**. Do not inject mains or undefined levels. |
+| Type | **Dry-contact (module-wetted)** — see [§4.2](#42-connectors--terminal-map). Do not inject mains or undefined levels. |
 | Isolation | IEC 61131-2 digital-input front-end (ISO1212); not galvanically isolated. Keep sensor returns on **GNDx** (module 24 V return); do not bond to logic GND. |
 | Debounce | Firmware provides debounce; route away from contactors/VFDs; use shielded/twisted pairs for long runs. |
 | Polarity | Configure invert/action in WebConfig; verify state transitions after wiring. |

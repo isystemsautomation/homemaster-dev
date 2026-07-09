@@ -81,7 +81,7 @@ It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Mo
 
 | Subsystem       | Qty    | Description |
 |-----------------|--------|-------------|
-| **Digital Inputs** | 4      | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection; modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
+| **Digital Inputs** | 4      | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
 | **Dimming Outputs** | 2      | MOSFET‑based **phase‑cut** AC outputs; **Leading/Trailing** per channel with **Lower/Upper** threshold limits and zero‑cross sync/monitoring.  |
 | **Relays**         | 0      | – |
 | **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
@@ -184,7 +184,7 @@ These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them ma
 
 | Area | Warning |
 |------|---------|
-| **DI1–DI4** | **Dry contacts / 24 V sourcing** only (IEC 61131-2 ISO1212 front-end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
+| **DI1–DI4** | **Dry-contact (module-wetted)** only (IEC 61131-2 ISO1212 front-end). Do **not** apply mains or external voltage. Use `DIx_GND` returns and configure debounce/invert in UI.  |
 
 ### Dimming Channels (MAINS)
 
@@ -342,7 +342,7 @@ This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
 
 ### 🔘 Digital Inputs (DI1–DI4)
 
-Wire **dry‑contact** switches or **24 V sourcing** sensors to the IEC 61131-2 digital inputs.  
+Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close the input to its GND return. The module supplies the wetting current from its own 24 V rail; **do not feed external voltage into the input**. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).  
 Each input has its own paired **Gnd** and must be wired independently.  
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
 
@@ -504,7 +504,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 | Interface        | Qty | Description |
 |------------------|-----|-------------|
-| **Digital Inputs** | 4   | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact or sourcing, with PTC fuse, TVS surge and reverse-polarity protection |
+| **Digital Inputs** | 4   | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
 | **Dimming Outputs** | 2 | Phase-cut AC outputs (MOSFET, Leading/Trailing) |
 | **User Buttons** | 4   | Local override / toggle / ramp / preset actions |
 | **User LEDs**    | 4   | Configurable (CH state, AC presence, DI state) |

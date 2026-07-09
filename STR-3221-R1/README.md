@@ -320,10 +320,12 @@ Thirty-two low-side MOSFET sinks (**O1…O32**) switch **12–24 V DC** LED segm
 
 ### Digital trigger input
 
-One **IEC 61131-2** discrete input (**DI** + **GND**) uses an **ISO1212** front-end for **dry contacts** or **24 V DC sourcing** sensors (PTC fuse and TVS protected — do not exceed 30 V DC).
+One **IEC 61131-2** discrete input (**DI** + **GND**) uses an **ISO1212** front-end, **dry-contact (module-wetted)** (PTC fuse and TVS protected — do not exceed 30 V DC).
+
+Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close **DI** to **GND**. The module supplies the wetting current from its own 24 V rail; **do not feed external voltage into the input**. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).
 
 ![Digital trigger input wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_DigitalInput.png)
-*Dry-contact or 24 V sourcing wiring to the **DI** terminal with **GND** return.*
+*Potential-free (dry) contact between **DI** and **GND**; module supplies wetting current — do not apply external voltage.*
 
 ### PIR / presence sensors (IN1, IN2)
 
@@ -493,7 +495,7 @@ If flashing fails or the module is unresponsive:
 | **Buttons unresponsive** | Verify 3.3 V logic; reboot using **Buttons 3 + 4**. |
 | **No communication via USB-C** | Ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
 | **Outputs not responding** | Check 24 V LED PS supply and output VCC rail. |
-| **Digital inputs not changing** | Verify sensor wiring polarity (INx GND/+); ensure 24 V signal present. |
+| **Digital inputs not changing** | Wire potential-free contact between **DI** and **GND** (not 0V power return, not LED VCC, not RS-485 COM); do not apply external voltage. Check WebConfig enable/invert/debounce. |
 | **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |

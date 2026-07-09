@@ -209,7 +209,7 @@
               <th scope="row">Power Input</th>
               <td>24 V DC nominal (V+ / 0V)</td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact or sourcing; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs</th>
               <td>
@@ -757,33 +757,37 @@ packages:
               <th scope="row">DI1</th>
               <td>IN1 / GND1</td>
               <td>IEC 61131-2 front-end</td>
-              <td>Dry contact or 24 V sourcing</td>
+              <td>Dry contact (module-wetted)</td>
               <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI2</th>
               <td>IN2 / GND2</td>
               <td>IEC 61131-2 front-end</td>
-              <td>Dry contact or 24 V sourcing</td>
+              <td>Dry contact (module-wetted)</td>
               <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI3</th>
               <td>IN3 / GND3</td>
               <td>IEC 61131-2 front-end</td>
-              <td>Dry contact or 24 V sourcing</td>
+              <td>Dry contact (module-wetted)</td>
               <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
             <tr>
               <th scope="row">DI4</th>
               <td>IN4 / GND4</td>
               <td>IEC 61131-2 front-end</td>
-              <td>Dry contact or 24 V sourcing</td>
+              <td>Dry contact (module-wetted)</td>
               <td>IEC 61131-2 digital input (ISO1212 front-end)</td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <p>
+        Connect <strong>potential-free (dry) contacts</strong> — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close <strong>INx</strong> to <strong>GNDx</strong>. The module supplies the wetting current from its own 24 V rail; <strong>do not feed external voltage into the input</strong>. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).
+      </p>
 
       <p><strong>Features:</strong></p>
       <ul class="plc-list">
