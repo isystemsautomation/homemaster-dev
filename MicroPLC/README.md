@@ -27,6 +27,7 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Programming](#programming)
+- [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
 - [Bus System Configuration](#bus-system-configuration)
 - [Specifications](#specifications)
 - [Pinout](#pinout)
@@ -79,6 +80,16 @@ Click **Take Control** to import the official configuration from GitHub.
 3. Import it into ESPHome Dashboard and set your Wi-Fi credentials.
 4. Flash the device directly from ESPHome Dashboard.
 5. The board supports automatic reset/boot control (no manual BOOT/RESET sequence needed).
+
+### USB Serial Driver & Port Access
+
+The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for serial console, Improv Wi-Fi provisioning over USB Serial, and ESPHome USB flashing.
+
+- **Windows** — The CP210x driver installs automatically via **Windows Update** on first connect. The port appears as `COMx` in Device Manager.
+- **macOS** — Install the **Silicon Labs CP210x VCP driver**, then **enable its system extension**: on **macOS 15 / 26**, open **System Settings → General → Login Items & Extensions → Extensions**; on older macOS, use **System Settings → Privacy & Security** and allow the Silicon Labs extension. Log out and back in, or reboot, if prompted.
+- **Linux** — Support is **in-kernel** (`cp210x`). Add your user to the **`dialout`** group (`sudo usermod -aG dialout $USER`), then log out and back in. The port appears as `/dev/ttyUSB0` or similar.
+
+**Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
 
 ## Bus System Configuration
 

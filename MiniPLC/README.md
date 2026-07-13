@@ -52,6 +52,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Real-Time Clock (RTC) Battery](#real-time-clock-rtc-battery)
 - [Network Requirements](#network-requirements)
 - [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
+- [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
 - [Optional Ethernet (LAN8720)](#optional-ethernet-lan8720)
 - [Home Assistant Integration](#home-assistant-integration)
 - [Firmware Updates](#firmware-updates)
@@ -557,6 +558,16 @@ After successful Wi-Fi connection, the device appears automatically in:
 
 Click **Take Control** in ESPHome Dashboard to import the full shipped configuration.
 
+### USB Serial Driver & Port Access
+
+The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for serial console, Improv Wi-Fi provisioning over USB Serial, and ESPHome USB flashing.
+
+- **Windows** — The CP210x driver installs automatically via **Windows Update** on first connect. The port appears as `COMx` in Device Manager.
+- **macOS** — Install the **Silicon Labs CP210x VCP driver**, then **enable its system extension**: on **macOS 15 / 26**, open **System Settings → General → Login Items & Extensions → Extensions**; on older macOS, use **System Settings → Privacy & Security** and allow the Silicon Labs extension. Log out and back in, or reboot, if prompted.
+- **Linux** — Support is **in-kernel** (`cp210x`). Add your user to the **`dialout`** group (`sudo usermod -aG dialout $USER`), then log out and back in. The port appears as `/dev/ttyUSB0` or similar.
+
+**Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
+
 ## Optional Ethernet (LAN8720)
 
 The MiniPLC has an on-board LAN8720 PHY (RMII, fixed pins) but Ethernet is **not enabled in the factory firmware** — Wi-Fi is used by default.
@@ -660,7 +671,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | Modbus slave not responding | Address correct on slave WebConfig? Same baud / parity? A/B not swapped? | Check ESPHome logs for `[modbus]` timeouts. Confirm A→A and B→B (not crossed). Confirm COM is tied between all nodes. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/manifest.json`. If `http_request` / `update` blocks removed from YAML, use ESPHome OTA instead. |
 | Wi-Fi credentials changed, device unreachable | — | Re-provision Wi-Fi via USB-C Serial Improv at <https://improv-wifi.com>. The serial path always works regardless of Wi-Fi state. |
-| Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. Driver: CP2102N (Silicon Labs, auto on macOS/Linux). Use <https://web.esphome.io> (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. |
+| Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use <https://web.esphome.io> (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. |
 
 ## Entity Reference
 
