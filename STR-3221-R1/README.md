@@ -55,9 +55,9 @@ Internally, it features robust surge protection and power regulation circuits, e
 
 | Subsystem         | Qty | Description |
 |------------------:|----:|-------------|
-| **Digital Inputs** | 1 + 2 | **1 × IEC 61131-2 compliant 24 V DC discrete input** (DI + GND) plus **2 × presence-sensor inputs** (3.3 V, IN1/IN2 terminals) |
-| **MOSFET Outputs** | 32 | Low-side **SI2307A** per channel (**O1…O32**), 12–24 V loads; flyback **SS24** diodes; grouped with shared **VCC** pins. |
-| **LED Driver ICs** | 4 | **TLC59208F** (8-ch constant-current sinks) used for status/indication and channel grouping/PWM. |
+| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** U17/U18) |
+| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped with shared **VCC** pins. |
+| **LED Driver ICs** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM channel drivers to FieldBoard output stages. |
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
 | **Status LEDs** | 4 | User-assignable (steady/blink) for power/activity/logic states. |
 | **Modbus RTU** | Yes | RS-485 via **MAX485** transceiver; activity LEDs. |
@@ -66,15 +66,13 @@ Internally, it features robust surge protection and power regulation circuits, e
 | **MCU** | RP2350 + **W25Q32** | Dual-core MCU with external QSPI flash for firmware/config. |
 | **Protection** | TVS, PTC | Surge/ESD and resettable fuses across field & comms lines. |
 
-> Note: Two additional opto input circuits exist on the PCB design, but **only IN1/IN2 are brought to terminals** on this enclosure revision.
-
 ---
 
 ## 1.3 System Role & Communication
 
 - **Connection to RS-485 bus:** wire controller **A/B/COM** to the module’s **A/B/COM** terminals (daisy-chain friendly, terminate the ends).  
 - **Operating mode:** **Modbus RTU slave**; can run simple local patterns/tests from buttons, while a PLC/SCADA/HA supervises over Modbus.  
-- **Polling:** Controller reads **IN1/IN2** state and writes/reads **O1…O32**; optional mirrors for LEDs/buttons.  
+- **Polling:** Controller reads **DI**, **IN1**, and **IN2** state and writes/reads **O1…O32**; optional mirrors for LEDs/buttons.  
 - **Defaults (changeable in WebConfig):**
   - **Address:** `21`
   - **Baud:** `115200` (8N1)
@@ -88,7 +86,7 @@ Internally, it features robust surge protection and power regulation circuits, e
 | Diagrams & Descriptions |
 |--------------------------|
 | ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
+| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS rails. |
 | ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
 | ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
 
@@ -99,14 +97,14 @@ Internally, it features robust surge protection and power regulation circuits, e
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
-| **Digital Inputs** | 1 + 2 | **1 × IEC 61131-2 compliant 24 V DC discrete input** plus **2 × presence-sensor inputs** (IN1/IN2); ISO1212 front-end, surge-protected (F6/F7, D39) |
-| **Outputs** | 32 | Low-side **MOSFET (SI2307A)** channels with **SS24** flyback diodes, grouped with shared **VCC** rails. |
+| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
+| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped with shared **VCC** rails; PWM from MCU-board **TLC59208F** drivers. |
 | **Buttons** | 4 | Local control / override / test switches. |
 | **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
 | **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
 | **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
 | **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
-| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused 24 V auxiliary rails for external sensors (low current). |
+| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused **+5 V** auxiliary rails (**F9**/**F10** **1206L150THWR** PTC, **150 mA** per rail) for presence-sensor power only. |
 
 ---
 
@@ -118,17 +116,17 @@ Internally, it features robust surge protection and power regulation circuits, e
 | **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
 | **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
 | **Full-Load Current (all outputs)** | — | — | 3.0 | A | At 24 VDC with max LED load. |
-| **Digital Input Range** | 9 | 24 | 30 | VDC | ISO1212-rated 24 V input. |
-| **Input Threshold (ON)** | — | 8 | — | VDC | Typical ISO1212 threshold. |
-| **Sensor Rail Output** | — | 24 | — | VDC | Fused 200 mA (total SENS.A + SENS.B). |
-| **Output Type** | — | — | — | — | Low-side MOSFET (SI2307A) 1 A max per channel. |
-| **Flyback Protection** | — | — | — | — | SS24 diodes on each channel. |
-| **Communication** | — | — | — | — | RS-485 (MAX485), 9600–115200 bps. |
-| **Isolation** | — | — | — | — | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected. |
+| **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
+| **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
+| **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** (**1206L150THWR**); **≤150 mA** continuous per rail. |
+| **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1 A** per channel (recommended **≤500 mA**). |
+| **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
+| **Communication** | — | — | — | — | RS-485 (**MAX485**), 9600–115200 bps. |
+| **Input Front-Ends** | — | — | — | — | **DI:** **ISO1212** (module-wetted 24 V). **IN1/IN2:** **SFH6156** opto-isolated presence inputs. |
 | **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
 
 > ⚙️ **Design domains:**  
-> - Field side: 24 VDC (DI, outputs).  
+> - Field side: 24 VDC (DI, outputs); **+5 V** fused SENS.A / SENS.B for presence sensors.  
 > - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
 > - Communication side: RS-485 isolated by line TVS + fuses.
 
@@ -206,8 +204,7 @@ Follow all safety and wiring practices described below.
   Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
 
 - **Sensor Power Connection:**  
-  Connect sensors or switches only to **DI** terminals rated for **24 VDC** inputs.  
-  Sensor rails labeled **SENS.A / SENS.B** provide limited, fused 24 V service for low-power sensors — do **not** backfeed or parallel with other supplies.
+  Power low-current PIR / presence sensors only from fused **SENS.A** / **SENS.B** rails (**+5 V**, **F9**/**F10**, **≤150 mA** per rail). The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** channel — do **not** backfeed or parallel SENS rails with other supplies.
 
 - **Wiring Discipline:**  
   Use ferruled, properly sized conductors (0.25–1.5 mm²).  
@@ -226,18 +223,27 @@ Follow all safety and wiring practices described below.
 |-------|----------|
 | **24 VDC Power (V+ / 0V)** | Use only clean, regulated SELV 24 VDC. Reverse polarity is protected but repeated mistakes may damage fuses. |
 | **LED PS (+/–)** | Provides the external LED load voltage (typically 12–24 VDC). Do not short or exceed rated current capacity of field wiring. |
-| **Sensor Rails (SENS.A / SENS.B)** | For powering external sensors only; limited current via fuses. Never use to drive loads or feed back external power sources. |
+| **Sensor Rails (SENS.A / SENS.B)** | For **+5 V** presence-sensor power only (**F9**/**F10** PTC, **150 mA** per rail). Never use to drive LED loads or feed back external power sources. |
 
 ---
 
-### 🔌 Digital Inputs (DI)
+### 🔌 Digital Input — module-wetted 24 V (DI)
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | Accepts **24 VDC logic signals** (PNP, dry contact). No AC or high-voltage inputs. |
-| **Isolation** | IEC 61131-2 digital-input front-end (ISO1212); do not bridge input commons to other supplies. |
-| **Debounce** | Hardware filtering provided; avoid additional large RC filters that delay detection. |
-| **Protection** | Each input fused and surge-protected (F6/F7, D39). Replace fuses only with identical PTC parts. |
+| **Input Type** | Terminals **8** (**Gnd**) and **9** (**24Vdc**) form one **module-wetted dry-contact** input via **ISO1212**. No AC or high-voltage inputs. |
+| **Wiring** | Close a potential-free contact between **Gnd** (8) and **24Vdc** (9). **Do not** apply external voltage. |
+| **Protection** | PTC/TVS protected (**F6**/**F7**, **1206L016**). Replace fuses only with identical PTC parts. |
+
+---
+
+### 🔌 Presence-sensor inputs (IN1, IN2)
+
+| Area | Warning |
+|-------|----------|
+| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **opto-isolated** via **SFH6156** (U17, U18); accept open-collector or dry-contact sensor outputs. |
+| **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). **≤150 mA** per rail (**F9**/**F10**). |
+| **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
 
 ---
 
@@ -245,9 +251,9 @@ Follow all safety and wiring practices described below.
 
 | Area | Warning |
 |-------|----------|
-| **Output Type** | **Low-side MOSFET** (SI2307A) sinks; maximum load per channel 1 A (12–24 VDC). |
+| **Output Type** | **Low-side AO4882** N-MOSFET sinks; maximum load per channel **1 A** (12–24 VDC; **≤500 mA** recommended). |
 | **Polarity** | Connect load +V to **VCC group rail**, load – to output terminal (O#). |
-| **Flyback / Inductive Loads** | Built-in **SS24 diodes**; for large inductive loads add external RC or TVS snubbers. |
+| **Inductive Loads** | Primarily LED/resistive loads; for large inductive loads add external RC or TVS snubbers. |
 | **Shared Rail** | Each 8-channel group shares a **VCC** rail — ensure consistent LED supply voltage. |
 
 ---
@@ -316,20 +322,22 @@ Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logi
 
 ### Stair LED outputs (32 channels)
 
-Thirty-two low-side MOSFET sinks (**O1…O32**) switch **12–24 V DC** LED segments: tie each load **+** to its **VCC** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load; on-board SS24 flyback diodes).
+Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **VCC** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load).
 
 ### Digital trigger input
 
-One **IEC 61131-2** discrete input (**DI** + **GND**) uses an **ISO1212** front-end, **dry-contact (module-wetted)** (PTC fuse and TVS protected — do not exceed 30 V DC).
+One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with an **ISO1212** front-end (PTC fuse and TVS protected — do not exceed 30 V DC).
 
-Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close **DI** to **GND**. The module supplies the wetting current from its own 24 V rail; **do not feed external voltage into the input**. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).
+Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **24Vdc** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
 ![Digital trigger input wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_DigitalInput.png)
-*Potential-free (dry) contact between **DI** and **GND**; module supplies wetting current — do not apply external voltage.*
+*Potential-free (dry) contact between **Gnd** (8) and **24Vdc** (9); module supplies wetting current — do not apply external voltage.*
 
 ### PIR / presence sensors (IN1, IN2)
 
-Two **3.3 V presence-sensor inputs** (**IN1**, **IN2**) accept PIR or motion detectors; power low-current sensors from fused **SENS.A** / **SENS.B** rails (24 V, ≤200 mA combined).
+Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/U18) accept PIR or motion detectors. Power low-current sensors from fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **≤150 mA** per rail via **F9**/**F10** **1206L150THWR**); return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+
+**Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 
 ![PIR motion sensor wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_PIRSensors.png)
 *PIR sensors powered from **SENS** rail and signaling **IN1** / **IN2**.*
@@ -452,13 +460,11 @@ For Arduino or PlatformIO environments, include:
 
 | Peripheral | MCU Pin | Description |
 |-------------|----------|-------------|
-| **RS-485 TX** | GPIO8 | MAX485 DI |
-| **RS-485 RX** | GPIO9 | MAX485 RO |
-| **RS-485 DE/RE** | GPIO10 | MAX485 Driver Enable |
-| **Button 1–4** | GPIO2, GPIO3, GPIO4, GPIO5 | Local input buttons |
+| **RS-485 TX / RX** | GPIO4 / GPIO5 | UART2 to **MAX485** (auto DE/RE) |
+| **Button 1–4** | GPIO16–GPIO19 | Local input buttons |
 | **LED 1–4** | I²C via TLC59208F | Status indicators |
-| **I²C SCL / SDA** | GPIO22 / GPIO23 | TLC59208F LED drivers |
-| **Digital Inputs (DI1/DI2)** | GPIO14 / GPIO15 | From ISO1212 front-end outputs |
+| **I²C SCL / SDA** | GPIO7 / GPIO6 | **TLC59208F** U9–U12 on MCU board |
+| **Field inputs IO1–IO3** | GPIO11 / GPIO10 / GPIO12 | From FieldBoard (**ISO1212** DI + **SFH6156** IN1/IN2) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
 
@@ -495,7 +501,7 @@ If flashing fails or the module is unresponsive:
 | **Buttons unresponsive** | Verify 3.3 V logic; reboot using **Buttons 3 + 4**. |
 | **No communication via USB-C** | Ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
 | **Outputs not responding** | Check 24 V LED PS supply and output VCC rail. |
-| **Digital inputs not changing** | Wire potential-free contact between **DI** and **GND** (not 0V power return, not LED VCC, not RS-485 COM); do not apply external voltage. Check WebConfig enable/invert/debounce. |
+| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check WebConfig enable/invert/debounce. |
 | **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |

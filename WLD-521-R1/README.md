@@ -213,7 +213,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 | **ESD Precaution**   | Use anti-static strap and handle boards by casing only. |
 | **Power Wiring**     | Connect regulated **24 VDC** to `V+ / 0V` terminals. Fuse upstream. |
 | **Relay Wiring**     | Use `NO / COM / NC` terminals for each relay. Relays are **dry contact SPDT** only. External loads must have their own power. |
-| **Digital Inputs**   | Connect dry-contact sensors or open-collector devices to `I1–I5`, with return to **GND_ISO** (not 0V). |
+| **Digital Inputs**   | Connect each dry-contact or open-collector sensor between the corresponding **Ix** terminal (**I1**–**I5**, positions 3–7) and **GND_ISO** (position 8, top-row **GND**). **Do not** return inputs to logic **0V**. Power isolated field sensors from **+5V_ISO** (position 21) or **+12V_ISO** (position 22), not from terminal 9. |
 | **Sensor Power**     | Use **+5 V** or **+12 V** outputs (right-side terminals) for low-power field sensors only. |
 | **GND Domains**      | Keep **GND_ISO** (inputs) and **0 V / GND (logic)** isolated unless explicitly bridged. |
 | **RS-485 Wiring**    | Wire `A/B/COM` to RS‑485 master. Maintain A↔A, B↔B polarity. COM = signal reference. Terminate both ends with ~120 Ω. |
@@ -236,7 +236,8 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 | Interface              | Warning |
 |------------------------|---------|
-| **Inputs I1–I5 (Top row)** | Opto-isolated channels. Connect only dry-contact or open-collector sources. Return via **GND (top right)** (this is **GND_ISO**, not logic ground). |
+| **Inputs I1–I5 (Top row)** | Opto-isolated channels (**SFH6156**, 100 kΩ pulldown). Wire the **switching contact** between **Ix** (pos. 3–7) and **GND_ISO** (pos. 8). **Do not** bridge **GND_ISO** to logic **0V**. |
+| **+5V (Top row, pos. 9)** | **Non-isolated 1-Wire logic supply** only — **not** for powering input-side field sensors. Using terminal 9 for leak/moisture probes **defeats input isolation**; use **+5V_ISO** (pos. 21) instead. |
 | **Relays (Bottom row)**   | `NC / COM / NO` per relay. Dry contact only. Max: **3 A @ 250 VAC / 30 VDC**. Use snubbers for inductive loads (e.g. pumps, valves). |
 | **Relay Power**           | Relay contacts are **not powered**. External load must have its own power source. |
 
@@ -502,7 +503,13 @@ Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485
 
 ### Leak / flood sensors
 
-Five opto-isolated digital inputs (**DI1…DI5**) accept leak probes, soil-moisture sensors, or dry contacts returning to **GND_ISO** (configure each channel as water sensor, soil moisture, or counter in WebConfig).
+Five opto-isolated digital inputs (**DI1…DI5**, terminals **I1**–**I5**, positions 3–7) accept leak probes, soil-moisture sensors, or dry contacts. Wire each sensor so the **active contact** is between the **Ix** terminal and **GND_ISO** (position 8, top-row **GND**). When the contact is open, the input is held low by an internal **100 kΩ** pulldown; closing the contact energises the opto front-end (**SFH6156** on FieldBoard schematic).
+
+**Example (leak probe on DI1):** probe wire **A** → **I1** (terminal 3); probe wire **B** → **GND** (terminal 8, **GND_ISO**). Power any three-wire sensor from **+5V_ISO** (terminal 21) and **GND_ISO** (terminal 8) — **not** from **+5V** at terminal 9 (1-Wire logic domain).
+
+> **Hazard:** Terminal **9** (+5V, top row) is the **non-isolated 1-Wire supply** shared with the MCU logic ground. **Do not** power input-side field sensors from terminal 9 if galvanic isolation is required; use **+5V_ISO** (terminal **21**) and **GND_ISO** (terminal **8**).
+
+Configure each channel as water sensor, soil moisture, or counter in WebConfig.
 
 <img src="Images/WLD_FloodmeterWiringConnections.png" width="440" alt="Leak and flood sensor wiring to digital inputs">
 
@@ -518,7 +525,7 @@ Configure a DI as **water counter** to count pulses from a flow meter — set **
 
 ### 1-Wire temperature sensors
 
-The protected **1-Wire** header (**+5 V**, **DATA**, **GND**) supports **DS18B20** sensors for supply/return temperature and ΔT heat-energy monitoring.
+The protected **1-Wire** header at terminals **+5V** (9), **DATA** (10), **GND** (11) supports **DS18B20** sensors for supply/return temperature and ΔT heat-energy monitoring. This **+5V** rail is in the **logic domain** (not isolated) — do **not** use it to power devices on the isolated DI sensor side.
 
 <img src="Images/WLD_1WireConnection.png" width="440" alt="1-Wire DS18B20 temperature sensor wiring">
 
@@ -856,11 +863,11 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 | Block / Label              | Pin(s) (left → right)             | Function / Signal                      | Limits / Notes |
 |---------------------------|------------------------------------|----------------------------------------|----------------|
 | **POWER**                 | `V+`, `0V`                         | 24 VDC SELV input                      | Reverse & surge protected; **fuse upstream**. |
-| **DIGITAL INPUTS – TOP**  | `I1…I5`, `GND` (ISO)               | DI1…DI5 with isolated return           | Keep returns on GND_ISO; dry‑contact/open‑collector only. |
+| **DIGITAL INPUTS – TOP**  | `I1…I5` (pos. 3–7), `GND` (pos. 8, **GND_ISO**) | DI1…DI5: contact between **Ix** and **GND_ISO** | Dry-contact / open-collector only; **100 kΩ** pulldown when open. |
 | **RELAY1**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
 | **RELAY2**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
 | **RS‑485 (bottom left)**  | `B`, `A`, `COM`                    | Modbus RTU bus                         | Match A/B polarity; COM = reference GND; terminate bus ends. |
-| **1‑WIRE (top right)**    | `+5V`, `D`, `GND`                  | 1‑Wire bus (logic domain)              | For DS18B20; not isolated from logic. |
+| **1‑WIRE (top right)**    | `+5V` (pos. 9), `D` (10), `GND` (11)             | 1‑Wire bus (logic domain)              | For DS18B20 only; **not** isolated — do **not** power DI-side sensors here. |
 | **SENSOR POWER (bottom right)** | `+5 V ISO`, `+12 V ISO`, `GND_ISO` | Isolated sensor rails                  | For **sensors only**; fused; no actuators. |
 | **USB‑C (front)**         | —                                  | Web‑Serial config                      | ESD‑protected; not a field power source. |
 
