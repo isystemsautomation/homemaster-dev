@@ -347,6 +347,13 @@ If the device cannot connect to Wi-Fi, it starts a fallback Access Point.
 
 The device will restart and connect to your network.
 
+### Notes
+
+- The captive portal page may open automatically. If it does not, open `http://192.168.4.1` manually.
+- Mobile devices may continue using mobile data; disable it if the page does not load.
+- The fallback Access Point is only active when the device cannot connect to Wi-Fi.
+- Improv Wi-Fi is the preferred setup method.
+
 ### USB Serial Driver & Port Access
 
 The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for serial console, Improv Wi-Fi provisioning over USB Serial, and ESPHome USB flashing.
@@ -356,13 +363,6 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 - **Linux** — Support is **in-kernel** (`cp210x`). Add your user to the **`dialout`** group (`sudo usermod -aG dialout $USER`), then log out and back in. The port appears as `/dev/ttyUSB0` or similar.
 
 **Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
-
-### Notes
-
-- The captive portal page may open automatically. If it does not, open `http://192.168.4.1` manually.
-- Mobile devices may continue using mobile data; disable it if the page does not load.
-- The fallback Access Point is only active when the device cannot connect to Wi-Fi.
-- Improv Wi-Fi is the preferred setup method.
 
 ## Home Assistant Integration
 
