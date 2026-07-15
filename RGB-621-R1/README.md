@@ -325,7 +325,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 <a id="important-power"></a>
 
 > ⚠️ **IMPORTANT — POWER**  
-> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), within the module's **10 A** LED-rail limit. **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
+> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), within the module's LED-rail operating limit (**≤ 1 A/channel, ≤ 5 A total**; 10 A PTC is protection only). **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
 
 ## 5.1 What You Need
 
@@ -346,7 +346,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-installation--quick-start).
 
 - **LED path (LED PS → COM (LED+)):** the positive rail from the external LED PSU enters through:
-  - **PTC fuses** (10 A LED-rail limit)  
+  - **PTC fuses** (10 A LED-rail protection; operating limit ≤ 5 A total)  
   - **Reverse-polarity protection** (Schottky)  
   - **TVS surge suppression**  
   - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
@@ -358,7 +358,7 @@ Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-
 - **Current consumption (typical):**
   - Logic + RS-485: ≈ 100 mA  
   - Relay coil: ≈ 30 mA (active)  
-  - LED load: dependent on connected strips (size LED PSU within **10 A** module limit)
+  - LED load: dependent on connected strips (size LED PSU for **≤ 1 A/channel, ≤ 5 A total**)
 
 - **Module input protection (V+ / 0V):** PTC fuses (F1–F4), reverse-polarity diode (STPS340U), surge TVS (SMBJ33A).
 
@@ -850,7 +850,7 @@ For modifying or rebuilding the firmware.
 - **Relay won’t trigger:**  
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **Relay C / NO** (dry contact). Add snubber for inductive loads.
 - **LED channels do not light:**  
-  Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (≤ **10 A** total through module).
+  Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (**≤ 1 A/channel, ≤ 5 A total** through module).
 - **Inputs not detected:**  
   Wire the contact between **I1/I2** and the **GND** terminal of the **DI 24Vdc** block (not **0V** of the power input, not the LED **COM**, not the **RS-485 COM**). Use a potential-free contact — do not apply external voltage. In WebConfig check the input is **Enabled**, **Inverted** is off, and **Debounce** (default 25 ms) is not set too high.
 - **USB not detected:**  
