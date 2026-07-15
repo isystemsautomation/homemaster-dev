@@ -32,7 +32,7 @@
               "@type": "HowToStep",
               "position": 4,
               "name": "Configure Modbus",
-              "text": "Set Modbus address (1-255) and baud rate (9600-115200)."
+              "text": "Set Modbus address (1-247, default 3) and baud rate (9600-115200, default 19200)."
             },
             {
               "@type": "HowToStep",
@@ -81,7 +81,7 @@
               "@type": "HowToStep",
               "position": 4,
               "name": "Configure Modbus",
-              "text": "Set Modbus address (1-255) and baud rate (9600-115200)."
+              "text": "Set Modbus address (1-247, default 3) and baud rate (9600-115200, default 19200)."
             },
             {
               "@type": "HowToStep",
@@ -196,6 +196,7 @@
             <tr><th scope="row">LED Output Voltage</th><td>External 12–24 V DC supply</td></tr>
             <tr><th scope="row">Maximum Total LED Current</th><td>≤ 5 A total, shared across channels (short-term — keep continuous load lower); LED rail internally fused (protection only)</td></tr>
             <tr><th scope="row">Recommended Current per Channel</th><td>≤ 1000 mA per channel (recommended)</td></tr>
+            <tr><th scope="row">PWM Frequency</th><td>≈1 kHz (1000 Hz), fixed — all five channels</td></tr>
             <tr><th scope="row">Digital Inputs</th><td>2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GND), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
               <th scope="row">Relay Outputs*</th>
@@ -208,7 +209,7 @@
             <tr><th scope="row">Communication</th><td>RS-485 Modbus RTU (MAX485, half-duplex); surge protection, fail-safe biasing</td></tr>
             <tr><th scope="row">USB</th><td>USB-C, 5 V logic, ESD protected</td></tr>
             <tr><th scope="row">Typical Power Consumption</th><td>0.2–0.5 W (logic only); maximum approximately 1 W</td></tr>
-            <tr><th scope="row">Modbus Address Range</th><td>1–255 (default: 1)</td></tr>
+            <tr><th scope="row">Modbus Address Range</th><td>1–247 (default: 3); 248–255 are reserved by the Modbus specification — values outside 1–247 are clamped</td></tr>
             <tr><th scope="row">Modbus Baud Rate</th><td>9600–115200 (default: 19200)</td></tr>
           </tbody>
         </table>
@@ -410,7 +411,7 @@ packages:
         vars:
           rgb_prefix: "RGB#1"
           rgb_id: rgb_1
-          rgb_address: 1
+          rgb_address: 3
     refresh: 1d</code></pre>
 
         <p class="plc-caption">

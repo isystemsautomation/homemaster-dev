@@ -152,7 +152,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 ## 2.5 Electrical & Environmental
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** operating limits **≤ 1 A/channel**, **≤ 5 A total** (short-term — keep continuous lower); LED rail internally fused (protection only, not user-serviceable) — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
+- **PWM Drive:** 5 × low-side channels, **≈1 kHz**, 12-bit; operating limits **≤ 1 A/channel**, **≤ 5 A total** (short-term — keep continuous lower); LED rail internally fused (protection only, not user-serviceable) — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
 - **Digital inputs:** IEC 61131-2 front-end (ISO1212), **dry-contact (module-wetted)**; surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
@@ -706,6 +706,7 @@ HR **400–404** (8-bit) and HR **410–414** (12-bit) address the same PWM targ
 
 ## 6.4 Output quality (12-bit + gamma + slew)
 
+- **PWM frequency:** **≈1 kHz** (1000 Hz nominal) on all five channels — fixed, not runtime-configurable. Inherited from the arduino-pico core default; at 150 MHz `clk_sys` with a 12-bit range the core sets clkdiv ≈ 36.625 and wrap 4094, giving 1000.1 Hz.
 - **Internal resolution:** 12-bit (0–4095) on all five PWM channels (`analogWriteResolution(12)`).
 - **API:** Modbus HR **400–404** and WebConfig accept **0–255**; HR **410–414** accept **0–4095** for finer control. Both banks address the same targets; the last successful write wins. HR 400–404 scales as `hi = value × 4095 / 255` (integer division).
 - **Gamma:** configurable (default γ 2.2) via WebConfig; 4096-entry LUT applied at the final `analogWrite` stage only.
