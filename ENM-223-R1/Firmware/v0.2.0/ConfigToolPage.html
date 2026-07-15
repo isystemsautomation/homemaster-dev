@@ -198,7 +198,7 @@
 
   <div class="sectiontitle">
     <h3>Peaks &amp; Quality</h3>
-    <p class="hint">Hardware peak detect (SagPeakDetCfg), neutral current, active-power THD.</p>
+    <p class="hint">ATM90 peak registers (F1–F3 / F5–F7), neutral current, computed active-power THD (not THD+N).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -324,7 +324,7 @@
       if(!src) return;
       const setE=(idx, e)=>{
         if(!e||typeof e!=='object'){
-          ['ap','an','net-a','rp','rn','net-r','s'].forEach(p=>setElNum(`e-${p}-${idx}`, NaN, 3));
+          ['ap','an','net-a','rp','rn','net-r','s','aph'].forEach(p=>setElNum(`e-${p}-${idx}`, NaN, 3));
           return;
         }
         const imp = asNum(e.import_kWh ?? e.AP_kWh);
@@ -340,6 +340,7 @@
         setElNum(`e-rn-${idx}`, expR, 3);
         setElNum(`e-net-r-${idx}`, netR, 3);
         setElNum(`e-s-${idx}`, e.S_kVAh, 3);
+        setElNum(`e-aph-${idx}`, e.AP_harm_kWh, 3);
       };
       // Firmware JSONVar arrays arrive as {"0":…,"1":…} objects, not JS arrays.
       const Ep = toArr(src.E_phase);
@@ -357,18 +358,24 @@
       const SV = toArr(m.S_VA);
       const PF = toArr(m.PF);
       const Ang = toArr(m.Angle_deg);
+      const Pfund = toArr(m.Pfund);
+      const Pharm = toArr(m.Pharm);
       for(let i=0;i<3;i++){
         setElNum(`u${i}`, Urms[i], 2);
         setElNum(`i${i}`, Irms[i], 3);
         setElText(`p${i}`, PW[i]);
         setElText(`q${i}`, QV[i]);
         setElText(`s${i}`, SV[i]);
+        setElText(`pfund${i}`, Pfund[i]);
+        setElText(`pharm${i}`, Pharm[i]);
         setElNum(`pf${i}`, PF[i], 3);
         setElNum(`ang${i}`, Ang[i], 1);
       }
       setElText('p3', PW[3]);
       setElText('q3', QV[3]);
       setElText('s3', SV[3]);
+      setElText('pfund3', Pfund[3]);
+      setElText('pharm3', Pharm[3]);
       setElNum('pft', PF[3], 3);
       setElNum('f', m.FreqHz, 2);
       setElText('t', m.TempC);
@@ -377,6 +384,12 @@
         setElNum(`thd${i}`, THD[i], 2);
       }
       setElNum('irmsn', m.IrmsN_A, 3);
+      const Upeak = toArr(m.Upeak_V);
+      const Ipeak = toArr(m.Ipeak ?? m.Ipeak_A);
+      for(let i=0;i<3;i++){
+        setElNum(`upeak${i}`, Upeak[i], 2);
+        setElNum(`ipeak${i}`, Ipeak[i], 3);
+      }
       if (m.E_phase || m.E_tot) applyEnergies(m);
     }
 
@@ -686,11 +699,15 @@
         const bodyPhase=` <div>U (V)</div><div id="u${ch}" style="text-align:right">--</div>
           <div>I (A)</div><div id="i${ch}" style="text-align:right">--</div>
           <div>P (W)</div><div id="p${ch}" style="text-align:right">--</div>
+          <div>P<sub>fund</sub> (W)</div><div id="pfund${ch}" style="text-align:right">--</div>
+          <div>P<sub>harm</sub> (W)</div><div id="pharm${ch}" style="text-align:right">--</div>
           <div>Q (var)</div><div id="q${ch}" style="text-align:right">--</div>
           <div>S (VA)</div><div id="s${ch}" style="text-align:right">--</div>
           <div>PF</div><div id="pf${ch}" style="text-align:right">--</div>
           <div>Angle (°)</div><div id="ang${ch}" style="text-align:right">--</div>`;
         const bodyTotals=` <div>P (W)</div><div id="p3" style="text-align:right">--</div>
+          <div>P<sub>fund</sub> (W)</div><div id="pfund3" style="text-align:right">--</div>
+          <div>P<sub>harm</sub> (W)</div><div id="pharm3" style="text-align:right">--</div>
           <div>Q (var)</div><div id="q3" style="text-align:right">--</div>
           <div>S (VA)</div><div id="s3" style="text-align:right">--</div>
           <div>PF (tot)</div><div id="pft" style="text-align:right">--</div>
@@ -708,6 +725,8 @@
         const card=document.createElement('div'); card.className='live-card';
         card.innerHTML=`<div style="margin-bottom:.5rem;"><strong>${labels[i]}</strong></div>
           <div class="kv">
+            <div>U<sub>peak</sub> (V)</div><div id="upeak${i}" style="text-align:right">--</div>
+            <div>I<sub>peak</sub> (A)</div><div id="ipeak${i}" style="text-align:right">--</div>
             <div>THD (%)</div><div id="thd${i}" style="text-align:right">--</div>
           </div>`;
         grid.appendChild(card);
@@ -750,6 +769,7 @@
             <div>Reactive export (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
             <div>Reactive net (kvarh)</div><div id="e-net-r-${i}" style="text-align:right">--</div>
             <div>Apparent (kVAh)</div><div id="e-s-${i}" style="text-align:right">--</div>
+            <div>Harmonic active import (kWh)</div><div id="e-aph-${i}" style="text-align:right">--</div>
           </div>`;
         grid.appendChild(card);
       }

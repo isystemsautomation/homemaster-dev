@@ -780,14 +780,14 @@ Each LED has:
 
 ## 5.6 Firmware / Functional Overview (v0.2.0)
 
-- **Metering:** ATM90E32AS via SPI — Urms/Irms, **signed** P/Q, S, PF, angle, frequency; hardware **U/I peaks**, **neutral Irms**, **active-power THD**; energies accumulated from chip CF counters (import AP/RP, export AN/RN, apparent SA).
+- **Metering:** ATM90E32AS via SPI — Urms/Irms, **signed** P/Q, S, PF, angle, frequency; hardware **U/I peaks** (0xF1–F3 / 0xF5–F7), **neutral Irms**, **fundamental/harmonic active power**, **harmonic active energy**; **computed active-power THD** (IR 47–49); energies accumulated from chip CF counters (import AP/RP, export AN/RN, apparent SA, harmonic AP).
 - **Wiring:** WebConfig **phase mapping** (`ChannelMapU/I`) and **3P4W / 3P3W** (`MMode0`) applied on ATM re-init.
 - **Alarm engine:** Four channels (L1–L3 + Totals); slots **Alarm / Warning / Event** with min/max metrics and **hysteresis**; **Ack required** latches published Alarm bits until acknowledged.
 - **Chip PQ events:** Sag, over-voltage, phase loss, over-current (per phase), frequency and phase-sequence faults surfaced as **Event** on DI 16–27.
 - **Relay control:** `None` / `Modbus Controlled` / **`Alarm Controlled`** (local shed while alarm active); invert + enable per relay.
 - **Setup:** WebConfig over USB-C; Modbus addr/baud, meter options, calibration, alarms, relays, buttons, LEDs.
 - **Data retention (split blobs):**
-  - **`/enm_cfg.bin`** — operational settings (`CFG_VERSION` **0x0022**); migrated across compatible firmware bumps; otherwise settings defaults on boot.
+  - **`/enm_cfg.bin`** — operational settings (`CFG_VERSION` **0x0023**); migrated across compatible firmware bumps; otherwise settings defaults on boot.
   - **`/enm_meter.bin`** — `ucal`, gains/offsets, energy ticks — **preserved** across firmware updates when `METER_VERSION` is unchanged.
 
 ---
@@ -838,6 +838,8 @@ The ENM‑223‑R1 communicates over **RS‑485 (Modbus RTU)** and supports:
 
 The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome, or Home Assistant system.
 
+> Full register listing: [Modbus_Table.md](Modbus_Table.md)
+
 ---
 
 ## 6.1 Addressing & Protocol Settings
@@ -874,8 +876,14 @@ Legacy addresses **0–11** and **20–46** are unchanged. **v0.2.0** adds peaks
 | 28, 30, 32, 34 | **S32** | **Reactive power** L1 / L2 / L3 / Total | var | signed |
 | 36, 38, 40, 42 | S32 | Apparent power L1 / L2 / L3 / Total | VA | unsigned magnitude |
 | 44–46 | S16 | Phase angle L1 / L2 / L3 | ° | ×0.1 |
-| 47–49 | U16 | **THD** (active-power harmonic ratio) L1 / L2 / L3 | % | ×0.01 |
+| 47–49 | U16 | **THD** (computed active-power harmonic ratio) L1 / L2 / L3 | % | ×0.01; **not** ATM90 THD+N (chip has none) |
 | 50–59 | — | *free* | — | — |
+| 100 | U16 | Status flags | — | bit1=linkOk, bit3=cfgDirty |
+| 101–104 | U16 | Chip PQ event masks | — | L1 / L2 / L3 / Total (ATM90 event registers) |
+| 105, 107, 109, 111 | **S32** | **Fundamental active power** L1 / L2 / L3 / Total | W | signed; ATM **PmeanAF/BF/CF/TF** (D1–D3/D0 + E1–E3/E0), LSB 0.00032 W |
+| 113, 115, 117, 119 | **S32** | **Harmonic active power** L1 / L2 / L3 / Total | W | signed; ATM **PmeanAH/BH/CH/TH** (D5–D7/D4 + E5–E7/E4), LSB 0.00032 W |
+
+> **ATM90E32AS harmonics:** The chip exposes only **aggregate** fundamental/harmonic **active power** and **harmonic active import energy** — no per-order spectrum and **no THD+N registers** (0xF1–0xF7 are **UPeak/IPeak**, not THD). Datasheet guarantees **±5 %** on total harmonics (p.75). IR **47–49** remain a **computed** active-power THD: `100 × |P_harm| / |P_fund|`.
 
 > 32-bit values use **two consecutive input registers** (high word first at base address).
 
@@ -892,6 +900,7 @@ Import/export naming matches ATM90E32 forward/reverse energy accumulators:
 | 76, 78, 80, 82 | U32 | **Reactive import (RP)** | L1 / L2 / L3 / Total | varh | Import kvarh |
 | 84, 86, 88, 90 | U32 | **Reactive export (RN)** | L1 / L2 / L3 / Total | varh | Export kvarh |
 | 92, 94, 96, 98 | U32 | Apparent energy (SA) | L1 / L2 / L3 / Total | VAh | kVAh |
+| 121, 123, 125, 127 | U32 | **Harmonic active import (AP_harm)** | L1 / L2 / L3 / Total | Wh | MCU-accumulated from ATM **APenergyTH/AH/BH/CH** (A8–AB, read-clears, 0.01 CF) |
 
 > Energy values are **32-bit unsigned integers** (two 16-bit registers per value). Net active energy ≈ AP − AN (compute in master).
 
@@ -959,7 +968,9 @@ Phase mapping and 3P4W/3P3W are **WebConfig-only** in v0.2.0.
 | Frequency (Hz) | Input Register  | ÷100         |
 | Angle (°)      | Input Register  | ÷10          |
 | P / Q (W, var) | S32 Input       | 1 (signed)   |
+| P_fund / P_harm (W) | S32 Input  | 1 (signed); chip LSB 0.00032 W |
 | Energy (Wh)    | U32 Input       | 1            |
+| Harmonic AP energy (Wh) | U32 Input | 1 (MCU-accumulated R/C) |
 
 ---
 
@@ -1243,7 +1254,7 @@ See LICENSE files in each directory for full terms.
 The following key project resources are included in this repository:
 
 - 🧠 **Firmware (v0.2.0)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino)  
-  Modbus RTU, signed P/Q, peaks/neutral/THD, alarm engine, Alarm Controlled relays, phase mapping, 3P4W/3P3W, split LittleFS persistence.
+  Modbus RTU, signed P/Q, peaks/neutral/THD, **fundamental/harmonic power & energy**, alarm engine, Alarm Controlled relays, phase mapping, 3P4W/3P3W, split LittleFS persistence. Full register map: [Modbus_Table.md](Modbus_Table.md).
 
 - 🧰 **WebConfig Tool**  
   [`Firmware/v0.2.0/ConfigToolPage.html`](Firmware/v0.2.0/ConfigToolPage.html)  
@@ -1251,7 +1262,7 @@ The following key project resources are included in this repository:
 
 - 📦 **ESPHome YAML (v0.2.0)**  
   [`default_enm_223_r1_plc.yaml`](Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
-  Sensors (incl. peaks, THD, signed P/Q), alarm DI, relay/ACK switches.
+  Sensors (incl. peaks, THD, signed P/Q, **P_fund/P_harm**, harmonic energy), alarm DI, relay/ACK switches.
 
 - 🧠 **Legacy firmware (v0.1.0)** — [`Firmware/v0.1.0/`](Firmware/v0.1.0/) (frozen line)
 

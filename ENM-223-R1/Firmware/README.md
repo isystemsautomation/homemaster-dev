@@ -9,7 +9,9 @@ Arduino sketch, WebConfig page, and ESPHome package for the **ENM-223-R1** 3-pha
 | `v0.2.0/default_enm_223_r1_plc/` | ESPHome Modbus package for MicroPLC / MiniPLC |
 | `v0.1.0/` | Legacy firmware line (do not change unless maintaining v0.1.0) |
 
-**Current line:** `v0.2.0` (firmware string `0.2.0`, Modbus map v1)
+**Current line:** `v0.2.0` (firmware string `0.2.0`, Modbus map **v2** / `HM_MAP_VERSION` 2)
+
+See also: [Modbus_Table.md](../Modbus_Table.md) for the full FC04 register map.
 
 ---
 
@@ -19,16 +21,18 @@ Arduino sketch, WebConfig page, and ESPHome package for the **ENM-223-R1** 3-pha
 |------|--------|
 | **Signed P/Q** | Active and reactive power from ATM90E32AS published as **S32** Modbus values (import/export sign) |
 | **Peaks & neutral** | Hardware peak U/I (IR 12–17), neutral Irms (IR 18) |
-| **THD** | Active-power THD estimate per phase (IR 47–49, ×0.01 %) |
+| **THD** | **Computed** active-power THD per phase (IR 47–49, ×0.01 %) — not ATM90 THD+N |
+| **Fundamental / harmonic power** | ATM90 **PmeanTF/AF/BF/CF** and **PmeanTH/AH/BH/CH** (IR 105–119, S32 W) |
+| **Harmonic active energy** | MCU-accumulated from ATM **APenergyTH/AH/BH/CH** (IR 121–127, U32 Wh) |
 | **Import / export energy** | AP/RP = import, AN/RN = export; WebConfig shows import/export/net labels |
 | **Alarm engine** | Per-channel Alarm / Warning / Event rules with **hysteresis**; chip PQ events (sag, OV, phase loss, over-I, freq, phase sequence) as **Event** |
 | **Modbus alarms** | DI 16–27 (active flags); ACK coils 16–19 |
 | **Relay Alarm Controlled** | Relay follows selected alarm channel/kinds — local load shed until condition clears or **Ack** |
 | **Phase mapping** | WebConfig: L1/L2/L3 → meter phase A/B/C; written to ATM90E32 `ChannelMap` on apply |
 | **Wiring mode** | WebConfig: **3P4W** (star) or **3P3W**; sets ATM90E32 `MMode0` on apply |
-| **Persistence** | **Settings** `/enm_cfg.bin` (CFG v0x0022); **meter** `/enm_meter.bin` (calibration + energy). Meter data survives typical firmware updates; settings are migrated when possible |
+| **Persistence** | **Settings** `/enm_cfg.bin` (CFG **0x0023**); **meter** `/enm_meter.bin` (v0x0002, calibration + energy incl. harmonic AP). Meter data survives typical firmware updates; settings are migrated when possible |
 
-Legacy Modbus addresses (Urms 0–11, P/Q/S 20–42, energies from 60, coils/DI 0–9 and 16–19) are **unchanged**.
+Legacy Modbus addresses (Urms 0–11, P/Q/S 20–42, energies from 60, coils/DI 0–9 and 16–19) are **unchanged**. Map v2 adds IR **105–127** without renumbering.
 
 ---
 
@@ -37,7 +41,7 @@ Legacy Modbus addresses (Urms 0–11, P/Q/S 20–42, energies from 60, coils/DI 
 | File | Contents | On firmware update |
 |------|----------|-------------------|
 | `/enm_cfg.bin` | Modbus address/baud, line Hz, sum mode, wire mode, phase map, relay/LED/button/alarm configuration | **Migrated** when `CFG_VERSION` has a migration path (e.g. 0x0021 → 0x0022). If the blob cannot be loaded, **settings revert to firmware defaults** on next boot. |
-| `/enm_meter.bin` | `ucal`, per-phase Ugain/Igain/offsets, energy counter ticks | **Preserved** while `METER_VERSION` matches (independent of settings version). |
+| `/enm_meter.bin` | `ucal`, per-phase Ugain/Igain/offsets, energy counter ticks (incl. harmonic AP) | **Preserved** while `METER_VERSION` matches (v0x0001 → v0x0002 migration zeroes harmonic counters). |
 
 Flashing a new `.uf2` / sketch does **not** format LittleFS by itself. Recommission **alarms, relays, phase map, and bus address** after major firmware jumps if WebConfig shows defaults.
 

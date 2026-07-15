@@ -789,6 +789,90 @@ sensor:
     filters:
       - lambda: "return (float) ((int) round(x));"
 
+  # --- Fundamental / harmonic active power (S32 W) — ATM90 D0–D7 + E0–E7 ---
+  # Pfund: 105/107/109/111 (D1/D2/D3/D0 + E1/E2/E3/E0)
+  # Pharm: 113/115/117/119 (D5/D6/D7/D4 + E5/E6/E7/E4)
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Fund L1"
+    address: 105
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Fund L2"
+    address: 107
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Fund L3"
+    address: 109
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Fund Total"
+    address: 111
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Harm L1"
+    address: 113
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Harm L2"
+    address: 115
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Harm L3"
+    address: 117
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} P Harm Total"
+    address: 119
+    register_type: read
+    value_type: S_DWORD
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    filters:
+      - lambda: "return (float) ((int) round(x));"
+
   # --- Energies (u32 Wh/varh/VAh) — import=AP/RP, export=AN/RN ---
   # Energy table base = 60:
   # Active import (AP): 60/62/64/66
@@ -992,6 +1076,48 @@ sensor:
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "VAh"
+    state_class: total_increasing
+    skip_updates: 29
+
+  # Harmonic active import energy (U32 Wh) — ATM90 A8–AB, MCU-accumulated R/C
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Harmonic Active Energy Import L1"
+    address: 121
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    skip_updates: 29
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Harmonic Active Energy Import L2"
+    address: 123
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    skip_updates: 29
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Harmonic Active Energy Import L3"
+    address: 125
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    skip_updates: 29
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Harmonic Active Energy Import Total"
+    address: 127
+    register_type: read
+    value_type: U_DWORD
+    unit_of_measurement: "Wh"
+    device_class: energy
     state_class: total_increasing
     skip_updates: 29
 

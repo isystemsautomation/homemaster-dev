@@ -59,8 +59,8 @@ public:
   double   readUPeak_V(uint8_t phase);  // 0=A,1=B,2=C
   double   readIPeak_A(uint8_t phase);
   double   readIrmsN_A();
-  int32_t  readPmeanFundW(uint8_t phase);
-  int32_t  readPmeanHarmW(uint8_t phase);
+  int32_t  readPmeanFundW(uint8_t phase); // 0=A,1=B,2=C,3=Total (D0/D1 + E0/E1…)
+  int32_t  readPmeanHarmW(uint8_t phase); // 0=A,1=B,2=C,3=Total (D4/D5 + E4/E5…)
   uint16_t readThdPct_x100(uint8_t phase); // active-power THD, 0.01 % units
   int16_t  readPAngleA(); int16_t readPAngleB(); int16_t readPAngleC();
   uint16_t readFreq_x100();
@@ -72,6 +72,7 @@ public:
   uint16_t rdRP_A(); uint16_t rdRP_B(); uint16_t rdRP_C(); uint16_t rdRP_T();
   uint16_t rdRN_A(); uint16_t rdRN_B(); uint16_t rdRN_C(); uint16_t rdRN_T();
   uint16_t rdSA_A(); uint16_t rdSA_B(); uint16_t rdSA_C(); uint16_t rdSA_T();
+  uint16_t rdAPH_T(); uint16_t rdAPH_A(); uint16_t rdAPH_B(); uint16_t rdAPH_C();
 
   M90DiagRegs readDiag();
   // Debug helper (raw 16-bit register read)
@@ -102,6 +103,7 @@ private:
   uint8_t  phaseMap_[3] = {0, 1, 2};
   uint16_t ucal_   = 25256;
   uint16_t sagPeakDetCfg_ = 0x143F;
+  M90PhaseCal phaseCal_[3] = {};
 
   SPIClass &spi_;
   uint8_t cs_, pm0_, pm1_;

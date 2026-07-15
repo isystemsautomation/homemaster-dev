@@ -6,8 +6,8 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP        2
+#define HM_MAP_VERSION 2
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -104,6 +104,24 @@ struct EnmMeterCfg {
   uint64_t rp_cnt[4];
   uint64_t rn_cnt[4];
   uint64_t s_cnt[4];
+  uint64_t aph_cnt[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct EnmMeterCfgV1 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint16_t ucal;
+  uint16_t Ugain[3];
+  uint16_t Igain[3];
+  int16_t  Uoffset[3];
+  int16_t  Ioffset[3];
+  uint64_t ap_cnt[4];
+  uint64_t an_cnt[4];
+  uint64_t rp_cnt[4];
+  uint64_t rn_cnt[4];
+  uint64_t s_cnt[4];
   uint32_t crc32;
 } __attribute__((packed));
 
@@ -132,10 +150,11 @@ struct EnmPersistCfgLegacy {
 static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
 static const uint16_t CFG_VERSION_V20 = 0x0020;
 static const uint16_t CFG_VERSION_V21 = 0x0021;
-static const uint16_t CFG_VERSION     = 0x0022;
+static const uint16_t CFG_VERSION_V22 = 0x0022;
+static const uint16_t CFG_VERSION     = 0x0023;
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
-static const uint16_t METER_VERSION   = 0x0001;
+static const uint16_t METER_VERSION   = 0x0002;
 static const char*    METER_PATH      = "/enm_meter.bin";
 static const uint16_t LEGACY_CFG_VER  = 0x0001;
 static volatile bool  cfgDirty        = false;
@@ -360,7 +379,7 @@ static bool atmBusy = false;
 
 
 // Modbus V2 map (matches default_enm_223_r1_plc.yaml)
-// IR free slots used: 12-18 (peaks, IrmsN), 47-49 (THD); legacy 12-19, 47-59 still free aside from these
+// IR 105–128: fundamental/harmonic power + harmonic active energy (map v2)
 enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
@@ -388,6 +407,9 @@ enum : uint16_t {
   IR_ANG_BASE   = 44,
   IR_THD_BASE   = 47,  // U16 ×0.01 %, L1..L3 (active-power THD)
   IR_E_BASE     = 60,
+  IR_PFUND_BASE = 105, // S32 W, L1/L2/L3/Total (ATM D0/D1 + E0/E1…)
+  IR_PHARM_BASE = 113, // S32 W, L1/L2/L3/Total (ATM D4/D5 + E4/E5…)
+  IR_EHARM_AP_BASE = 121, // U32 Wh, harmonic active import L1/L2/L3/Total (ATM A8–AB)
   // New: status flags (bit1=linkOk, bit3=cfgDirty) — placed after energy block, does not shift existing IR map.
   IR_STATUS_FLAGS = 100,
   // Chip PQ event masks (U16 bitfield): 101=L1, 102=L2, 103=L3, 104=Total
@@ -405,8 +427,10 @@ enum : uint16_t {
 
 static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
 static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
+static uint32_t g_e_aph_Wh[4] = {0};
 static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
 static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
+static uint64_t g_aph_cnt[4] = {0};
 static uint32_t g_MC_imp_per_kWh = 3200;
 
 static bool mbMapBuilt = false;
@@ -548,8 +572,10 @@ static void clearEnergyCounters() {
   memset(g_rp_cnt, 0, sizeof(g_rp_cnt));
   memset(g_rn_cnt, 0, sizeof(g_rn_cnt));
   memset(g_s_cnt,  0, sizeof(g_s_cnt));
+  memset(g_aph_cnt, 0, sizeof(g_aph_cnt));
   for (int i = 0; i < 4; i++) {
     g_e_ap_Wh[i] = g_e_an_Wh[i] = g_e_rp_varh[i] = g_e_rn_varh[i] = g_e_s_VAh[i] = 0;
+    g_e_aph_Wh[i] = 0;
   }
 }
 
@@ -559,6 +585,7 @@ static void drainChipEnergyRegs() {
   (void)g_atm.rdRP_A(); (void)g_atm.rdRP_B(); (void)g_atm.rdRP_C(); (void)g_atm.rdRP_T();
   (void)g_atm.rdRN_A(); (void)g_atm.rdRN_B(); (void)g_atm.rdRN_C(); (void)g_atm.rdRN_T();
   (void)g_atm.rdSA_A(); (void)g_atm.rdSA_B(); (void)g_atm.rdSA_C(); (void)g_atm.rdSA_T();
+  (void)g_atm.rdAPH_A(); (void)g_atm.rdAPH_B(); (void)g_atm.rdAPH_C(); (void)g_atm.rdAPH_T();
 }
 
 static void setMeterDefaults() {
@@ -576,6 +603,8 @@ static void setMeterDefaults() {
 static double   g_urms[3] = {0, 0, 0};
 static double   g_irms[3] = {0, 0, 0};
 static int32_t  g_p_W[4]  = {0, 0, 0, 0};
+static int32_t  g_pfund_W[4] = {0, 0, 0, 0};
+static int32_t  g_pharm_W[4] = {0, 0, 0, 0};
 static int32_t  g_q_var[4]= {0, 0, 0, 0};
 static int32_t  g_s_VA[4] = {0, 0, 0, 0};
 static int16_t  g_pf_raw[4] = {0, 0, 0, 0};
@@ -1001,7 +1030,9 @@ static void captureSettings(EnmSettingsCfg& pc) {
 }
 
 static bool applySettings(const EnmSettingsCfg& pc) {
-  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(EnmSettingsCfg))
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(EnmSettingsCfg))
+    return false;
+  if (pc.version != CFG_VERSION && pc.version != CFG_VERSION_V22)
     return false;
   EnmSettingsCfg tmp = pc;
   const uint32_t crc = tmp.crc32;
@@ -1140,6 +1171,7 @@ static void captureMeter(EnmMeterCfg& pc) {
   memcpy(pc.rp_cnt, g_rp_cnt, sizeof(g_rp_cnt));
   memcpy(pc.rn_cnt, g_rn_cnt, sizeof(g_rn_cnt));
   memcpy(pc.s_cnt,  g_s_cnt,  sizeof(g_s_cnt));
+  memcpy(pc.aph_cnt, g_aph_cnt, sizeof(g_aph_cnt));
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmMeterCfg));
 }
@@ -1166,6 +1198,7 @@ static bool applyMeter(const EnmMeterCfg& pc) {
   memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
   memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
   memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
+  memcpy(g_aph_cnt, pc.aph_cnt, sizeof(g_aph_cnt));
 
   for (int i = 0; i < 4; i++) {
     g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
@@ -1173,6 +1206,42 @@ static bool applyMeter(const EnmMeterCfg& pc) {
     g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
+  }
+  return true;
+}
+
+static bool applyMeterV1(const EnmMeterCfgV1& pc) {
+  if (pc.magic != METER_MAGIC || pc.version != 0x0001 || pc.size != sizeof(EnmMeterCfgV1))
+    return false;
+  EnmMeterCfgV1 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmMeterCfgV1)) != crc)
+    return false;
+
+  g_atm_cfg.ucal = pc.ucal ? pc.ucal : 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
+    g_atm_cfg.cal[i].Igain   = pc.Igain[i];
+    g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
+    g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
+  }
+
+  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
+  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
+  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
+  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
+  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
+  memset(g_aph_cnt, 0, sizeof(g_aph_cnt));
+
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
+    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
+    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
+    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
+    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+    g_e_aph_Wh[i]  = 0;
   }
   return true;
 }
@@ -1260,7 +1329,9 @@ static bool loadSettingsFS() {
     const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
     f.close();
     if (n != sizeof(pc)) return false;
-    return applySettings(pc);
+    const bool ok = applySettings(pc);
+    if (ok && pc.version == CFG_VERSION_V22) markCfgDirty();
+    return ok;
   }
   if (sz == sizeof(EnmSettingsCfgV21)) {
     EnmSettingsCfgV21 pc;
@@ -1287,15 +1358,25 @@ static bool loadSettingsFS() {
 static bool loadMeterFS() {
   File f = LittleFS.open(METER_PATH, "r");
   if (!f) return false;
-  if (f.size() != sizeof(EnmMeterCfg)) {
+  const size_t sz = f.size();
+  if (sz == sizeof(EnmMeterCfg)) {
+    EnmMeterCfg pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
     f.close();
-    return false;
+    if (n != sizeof(pc)) return false;
+    return applyMeter(pc);
   }
-  EnmMeterCfg pc;
-  const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+  if (sz == sizeof(EnmMeterCfgV1)) {
+    EnmMeterCfgV1 pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applyMeterV1(pc)) return false;
+    markMeterDirty();
+    return true;
+  }
   f.close();
-  if (n != sizeof(pc)) return false;
-  return applyMeter(pc);
+  return false;
 }
 
 static bool tryMigrateLegacyCfg() {
@@ -1367,6 +1448,8 @@ static void mbPublishMeter() {
     mbPutS32Ir(IR_P_BASE + i * 2, g_p_W[i]);
     mbPutS32Ir(IR_Q_BASE + i * 2, g_q_var[i]);
     mbPutS32Ir(IR_S_BASE + i * 2, g_s_VA[i]);
+    mbPutS32Ir(IR_PFUND_BASE + i * 2, g_pfund_W[i]);
+    mbPutS32Ir(IR_PHARM_BASE + i * 2, g_pharm_W[i]);
   }
 
   for (int i = 0; i < 3; i++) {
@@ -1386,6 +1469,8 @@ static void mbPublishMeter() {
   for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_rn_varh[i]);
   o += 8;
   for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_s_VAh[i]);
+  o = IR_EHARM_AP_BASE;
+  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_aph_Wh[i]);
 }
 
 static void meter_job_begin() {
@@ -1438,6 +1523,8 @@ static void meter_job_step() {
         g_p_W[i]    = g_atm.readPmeanW((uint8_t)i);
         g_q_var[i]  = g_atm.readQmean_var((uint8_t)i);
         g_s_VA[i]   = g_atm.readSmean_VA((uint8_t)i);
+        g_pfund_W[i] = g_atm.readPmeanFundW((uint8_t)i);
+        g_pharm_W[i] = g_atm.readPmeanHarmW((uint8_t)i);
       }
       meter_step++;
       break;
@@ -1474,6 +1561,8 @@ static void sampleEnergyCounters() {
   g_rn_cnt[2] += g_atm.rdRN_C(); g_rn_cnt[3] += g_atm.rdRN_T();
   g_s_cnt[0]  += g_atm.rdSA_A(); g_s_cnt[1]  += g_atm.rdSA_B();
   g_s_cnt[2]  += g_atm.rdSA_C(); g_s_cnt[3]  += g_atm.rdSA_T();
+  g_aph_cnt[0] += g_atm.rdAPH_A(); g_aph_cnt[1] += g_atm.rdAPH_B();
+  g_aph_cnt[2] += g_atm.rdAPH_C(); g_aph_cnt[3] += g_atm.rdAPH_T();
 
   for (int i = 0; i < 4; i++) {
     g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
@@ -1481,6 +1570,7 @@ static void sampleEnergyCounters() {
     g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
   }
   markMeterDirty();
 }
@@ -1497,6 +1587,7 @@ static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
     ph["RP_kvarh"] = rp;
     ph["RN_kvarh"] = rn;
     ph["S_kVAh"]   = to_k(g_e_s_VAh[i]);
+    ph["AP_harm_kWh"] = to_k(g_e_aph_Wh[i]);
     ph["import_kWh"]    = ap;
     ph["export_kWh"]    = an;
     ph["net_kWh"]       = ap - an;
@@ -1691,9 +1782,20 @@ static JSONVar meterLiveToJson() {
     thd[i] = ((double)g_thd_x100[i]) / 100.0;
   }
   m["Upeak_V"] = uPk;
+  m["Ipeak"] = iPk;
   m["Ipeak_A"] = iPk;
   m["THD_pct"] = thd;
   m["IrmsN_A"] = g_irmsN;
+
+  JSONVar pfund, pharm;
+  for (int i = 0; i < 4; i++) {
+    pfund[i] = g_pfund_W[i];
+    pharm[i] = g_pharm_W[i];
+  }
+  m["Pfund"] = pfund;
+  m["Pharm"] = pharm;
+  m["PfundT"] = g_pfund_W[3];
+  m["PharmT"] = g_pharm_W[3];
 
   // v0.1.0 ENM_Meter carried energies in the same frame; WebConfig reads them here.
   JSONVar Ephase, Etot;

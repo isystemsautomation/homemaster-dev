@@ -82,9 +82,18 @@ static constexpr uint16_t IrmsALSB  = 0xED, IrmsBLSB  = 0xEE, IrmsCLSB  = 0xEF;
 static constexpr uint16_t IrmsN     = 0xDC;
 
 static constexpr uint16_t PmeanAF   = 0xD1, PmeanBF   = 0xD2, PmeanCF   = 0xD3;
+static constexpr uint16_t PmeanTF   = 0xD0;
 static constexpr uint16_t PmeanAH   = 0xD5, PmeanBH   = 0xD6, PmeanCH   = 0xD7;
+static constexpr uint16_t PmeanTH   = 0xD4;
 static constexpr uint16_t PmeanAFLSB= 0xE1, PmeanBFLSB= 0xE2, PmeanCFLSB= 0xE3;
+static constexpr uint16_t PmeanTFLSB= 0xE0;
 static constexpr uint16_t PmeanAHLSB= 0xE5, PmeanBHLSB= 0xE6, PmeanCHLSB= 0xE7;
+static constexpr uint16_t PmeanTHLSB= 0xE4;
+
+static constexpr uint16_t APenergyTH = 0xA8;
+static constexpr uint16_t APenergyAH = 0xA9;
+static constexpr uint16_t APenergyBH = 0xAA;
+static constexpr uint16_t APenergyCH = 0xAB;
 
 static constexpr uint16_t UPeakA    = 0xF1, UPeakB    = 0xF2, UPeakC    = 0xF3;
 static constexpr uint16_t IPeakA    = 0xF5, IPeakB    = 0xF6, IPeakC    = 0xF7;
@@ -173,17 +182,17 @@ int32_t ATM90E32::readSmean_VA(uint8_t phase) {
 double ATM90E32::readUPeak_V(uint8_t phase) {
   static const uint16_t reg[] = {UPeakA, UPeakB, UPeakC};
   if (phase > 2) return 0.0;
-  // Convert raw peak code to Vpeak. With ENM wiring the raw code is ~√3 higher
-  // than phase-to-neutral peak; scale accordingly.
   const uint16_t code = read16(reg[phase]);
-  return ((double)code) * (0.01 / sqrt(3.0));
+  const uint16_t ugain = phaseCal_[phase].Ugain ? phaseCal_[phase].Ugain : 1;
+  return ((double)code * (double)ugain) / (8192.0 * 100.0);
 }
 
 double ATM90E32::readIPeak_A(uint8_t phase) {
   static const uint16_t reg[] = {IPeakA, IPeakB, IPeakC};
   if (phase > 2) return 0.0;
-  // Same peak-domain scaling as voltage.
-  return (double)read16(reg[phase]) * (0.001 / sqrt(3.0));
+  const uint16_t code = read16(reg[phase]);
+  const uint16_t igain = phaseCal_[phase].Igain ? phaseCal_[phase].Igain : 1;
+  return ((double)code * (double)igain) / (8192.0 * 1000.0);
 }
 
 double ATM90E32::readIrmsN_A() {
@@ -191,16 +200,16 @@ double ATM90E32::readIrmsN_A() {
 }
 
 int32_t ATM90E32::readPmeanFundW(uint8_t phase) {
-  static const uint16_t regH[] = {PmeanAF, PmeanBF, PmeanCF};
-  static const uint16_t regL[] = {PmeanAFLSB, PmeanBFLSB, PmeanCFLSB};
-  if (phase > 2) return 0;
+  static const uint16_t regH[] = {PmeanAF, PmeanBF, PmeanCF, PmeanTF};
+  static const uint16_t regL[] = {PmeanAFLSB, PmeanBFLSB, PmeanCFLSB, PmeanTFLSB};
+  if (phase > 3) return 0;
   return readMeanPowerW(regH[phase], regL[phase]);
 }
 
 int32_t ATM90E32::readPmeanHarmW(uint8_t phase) {
-  static const uint16_t regH[] = {PmeanAH, PmeanBH, PmeanCH};
-  static const uint16_t regL[] = {PmeanAHLSB, PmeanBHLSB, PmeanCHLSB};
-  if (phase > 2) return 0;
+  static const uint16_t regH[] = {PmeanAH, PmeanBH, PmeanCH, PmeanTH};
+  static const uint16_t regL[] = {PmeanAHLSB, PmeanBHLSB, PmeanCHLSB, PmeanTHLSB};
+  if (phase > 3) return 0;
   return readMeanPowerW(regH[phase], regL[phase]);
 }
 
@@ -228,6 +237,7 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   wireMode_ = wireMode ? 1 : 0;
   for (int i = 0; i < 3; i++) phaseMap_[i] = phaseMap[i];
   ucal_   = ucal;
+  for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
 
   // PM pins are MCU->ATM control pins in your schematic
   pinMode(pm0_, OUTPUT);
@@ -337,6 +347,7 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
 
 void ATM90E32::applyCalibration(const M90PhaseCal cal[3]) {
   write16(CfgRegAccEn, 0x55AA);
+  for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
 
   write16(UgainA,   cal[0].Ugain);   write16(IgainA,   cal[0].Igain);
   write16(UoffsetA, (uint16_t)cal[0].Uoffset); write16(IoffsetA, (uint16_t)cal[0].Ioffset);
@@ -412,6 +423,11 @@ uint16_t ATM90E32::rdSA_A(){ return read16(SAenergyA); }
 uint16_t ATM90E32::rdSA_B(){ return read16(SAenergyB); }
 uint16_t ATM90E32::rdSA_C(){ return read16(SAenergyC); }
 uint16_t ATM90E32::rdSA_T(){ return read16(SAenergyT); }
+
+uint16_t ATM90E32::rdAPH_T(){ return read16(APenergyTH); }
+uint16_t ATM90E32::rdAPH_A(){ return read16(APenergyAH); }
+uint16_t ATM90E32::rdAPH_B(){ return read16(APenergyBH); }
+uint16_t ATM90E32::rdAPH_C(){ return read16(APenergyCH); }
 
 M90DiagRegs ATM90E32::readDiag() {
   M90DiagRegs d{};
