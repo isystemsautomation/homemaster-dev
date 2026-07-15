@@ -152,7 +152,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 ## 2.5 Electrical & Environmental
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** onboard **10 A PTC fuse** (protection only); operating **≤ 1 A/channel**, **≤ 5 A total** (short-term — keep continuous lower) — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
+- **PWM Drive:** operating limits **≤ 1 A/channel**, **≤ 5 A total** (short-term — keep continuous lower); LED rail internally fused (protection only, not user-serviceable) — LED PSU sizing: [⚠️ IMPORTANT — POWER](#important-power)
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
 - **Digital inputs:** IEC 61131-2 front-end (ISO1212), **dry-contact (module-wetted)**; surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
@@ -180,7 +180,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Supply Voltage | 21.6 V | 24 V | 26.4 V | 24 V DC ±10 % (SELV/PELV); input protected |
 | Power Use | — | 1.85 W | 3.0 W | No LED load |
 | Relay Contacts | — | — | 3 A @ 250 VAC / 30 VDC | Module/PCB limit (resistive) |
-| LED Rail Current | — | ≤ 1 A/ch | 5 A total | Recommended ≤ 1 A per channel, ≤ 5 A total (short-term; keep continuous lower); protected by onboard 10 A PTC fuse |
+| LED Rail Current | — | ≤ 1 A/ch | 5 A total | Recommended ≤ 1 A per channel, ≤ 5 A total (short-term; keep continuous lower); LED rail internally fused (protection only) |
 | RS-485 Rate | — | — | 115.2 kbps | Half-duplex |
 | USB Voltage | 4.75 V | 5 V | 5.25 V | Logic only |
 | Operating Temp | 0 °C | — | 40 °C | ≤ 95 % RH |
@@ -325,7 +325,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 <a id="important-power"></a>
 
 > ⚠️ **IMPORTANT — POWER**  
-> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), within the module's LED-rail operating limit (**≤ 1 A/channel, ≤ 5 A total**; 10 A PTC is protection only). **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
+> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), within the module's LED-rail operating limit (**≤ 1 A/channel, ≤ 5 A total**). **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
 
 ## 5.1 What You Need
 
@@ -346,12 +346,12 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-installation--quick-start).
 
 - **LED path (LED PS → COM (LED+)):** the positive rail from the external LED PSU enters through:
-  - **PTC fuses** (10 A LED-rail protection; operating limit ≤ 5 A total)  
+  - **Internal fusing** on LED rail (protection only; operating limit ≤ 5 A total)  
   - **Reverse-polarity protection** (Schottky)  
   - **TVS surge suppression**  
   - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
 
-- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF); strip must be **12/24 V common-anode**. **≤ 1 A per channel**, **≤ 5 A total** (short-term; keep continuous lower); protected by onboard 10 A PTC fuse.
+- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF); strip must be **12/24 V common-anode**. **≤ 1 A per channel**, **≤ 5 A total** (short-term; keep continuous lower); LED rail internally fused (protection only).
 
 - **Relay (Relay C / NO):** independent **SPST-NO dry-contact** rated **3 A @ 250 VAC / 30 VDC** (module/PCB limit); suitable for **230 VAC** loads when installed per [§4.1](#41-general-requirements). **Basic insulation** between SELV coil and contacts; external contactor for reinforced isolation or heavy/inductive loads. For **FOLLOW-mode** LED-PSU cut, wire **Relay C / NO** **externally in series** with the LED PSU (+) feed ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)).
 

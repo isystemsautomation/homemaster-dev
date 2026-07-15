@@ -194,7 +194,7 @@
             <tr><th scope="row">Main Logic Supply</th><td>Buck regulator 24 V → 5 V (~4.96 V nominal), 3.3 V LDO regulator</td></tr>
             <tr><th scope="row">LED Outputs</th><td>5 × low-side MOSFET outputs (R, G, B, CW, WW)</td></tr>
             <tr><th scope="row">LED Output Voltage</th><td>External 12–24 V DC supply</td></tr>
-            <tr><th scope="row">Maximum Total LED Current</th><td>≤ 5 A total, shared across channels (short-term — keep continuous load lower); protected by onboard 10 A PTC fuse (protection only)</td></tr>
+            <tr><th scope="row">Maximum Total LED Current</th><td>≤ 5 A total, shared across channels (short-term — keep continuous load lower); LED rail internally fused (protection only)</td></tr>
             <tr><th scope="row">Recommended Current per Channel</th><td>≤ 1000 mA per channel (recommended)</td></tr>
             <tr><th scope="row">Digital Inputs</th><td>2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GND), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering</td></tr>
             <tr>
@@ -638,7 +638,7 @@ packages:
 
       <h4 id="led-wiring"><strong>LED Output Wiring</strong></h4>
       <p>
-        LED channels (R, G, B, CW, WW) are <strong>low-side PWM sinks</strong>. Connect the LED strip <strong>+</strong> to <strong>COM</strong> (positive from your 12 or 24 V LED supply) and each color cathode to its channel. Supported LED strips: <strong>12/24 V DC</strong> common-anode. Current: ≤ 1 A per channel, ≤ 5 A total (short-term — keep continuous load lower). The onboard 10 A PTC fuse is protection only, not an operating rating. Size external LED PSU and fusing accordingly.
+        LED channels (R, G, B, CW, WW) are <strong>low-side PWM sinks</strong>. Connect the LED strip <strong>+</strong> to <strong>COM</strong> (positive from your 12 or 24 V LED supply) and each color cathode to its channel. Supported LED strips: <strong>12/24 V DC</strong> common-anode. Current: ≤ 1 A per channel, ≤ 5 A total (short-term — keep continuous load lower). The LED rail is internally fused (protection only, not user-serviceable). Size external LED PSU and fusing accordingly.
       </p>
 
       <h4><strong>LED Strip Connections</strong></h4>
@@ -901,7 +901,7 @@ packages:
         <li>Each module must have its own 24 V DC supply for V+ / 0V; do not bridge GND_FUSED and logic GND externally.</li>
         <li>Never connect mains voltage to any terminal.</li>
         <li>Use upstream fusing and snubbers for inductive loads on the relay.</li>
-        <li>Size LED supply and wiring for ≤ 1 A per channel, ≤ 5 A total (short-term); the onboard 10 A PTC is protection only. Use appropriate external fusing.</li>
+        <li>Size LED supply and wiring for ≤ 1 A per channel, ≤ 5 A total (short-term); use appropriate external fusing.</li>
         <li>Installation and servicing by qualified personnel only.</li>
       </ul>
     </div>
