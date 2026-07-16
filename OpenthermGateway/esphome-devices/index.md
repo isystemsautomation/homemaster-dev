@@ -32,9 +32,9 @@ For complete product documentation (connections, compliance/certifications, wiri
   [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
 - Schematics (PDF):
   - MCU Board:
-    [MCUBoard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematic/MCUBoard.pdf)
+    [MCUBoard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematics/MCUBoard.pdf)
   - Relay Board:
-    [RelayBorard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematic/RelayBorard.pdf)
+    [RelayBorard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematics/RelayBorard.pdf)
 
 - Maker: [home-master.eu](https://www.home-master.eu/)
 
