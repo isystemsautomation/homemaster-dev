@@ -1,12 +1,15 @@
 # --- Arduino / PlatformIO build output ---
+# Nothing from a build directory is ever committed. Arduino writes the UF2
+# to <sketch>/build/<fqbn>/<sketch>.ino.uf2; a rebuild wipes it.
+# A released binary is copied to Firmware/<version>/<MODULE>.uf2 and
+# committed from there — see Rule 7 in the workspace AGENTS.md.
 **/build/
 .pio/
 *.hex
 *.elf
 *.map
 *.d
-# НЕ игнорировать released UF2 (они в Firmware/<ver>/ и коммитятся намеренно)
-# (поэтому *.uf2 целиком НЕ добавляем)
+*.o
 
 # --- Editors / OS ---
 .vscode/
