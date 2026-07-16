@@ -128,7 +128,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | RS-485 data rate | — | 19.2 | 115.2 | kbps | Default 19200 8N1 |
 | Operating temp. | 0 | — | 40 | °C | ≤ 95 % RH, non-condensing |
 
-> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **12 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. Use interposing contactors for higher or inductive loads.
+> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
 
 > **Power budgeting:** logic + LEDs + relay coils + sensor rails → add ≥ 30 % PSU headroom.
 
