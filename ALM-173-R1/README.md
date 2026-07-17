@@ -620,7 +620,7 @@ button:
 
 - **FQBN:** `rp2040:rp2040:generic_rp2350:flash=2097152_1048576` (see [`sketch.yaml`](Firmware/v0.2.0/default_alm_173_r1/sketch.yaml))
 - **Libraries:** Arduino_JSON, Modbus-Serial, Simple Web Serial, PCF8574
-- **Reproducible build:** [Build environment](../../README.md#build-environment-reproducible)
+- **Reproducible build:** [Build environment](../README.md#build-environment-reproducible)
 
 ### 10.4 Firmware updates
 
