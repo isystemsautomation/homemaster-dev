@@ -375,7 +375,7 @@ void handleValues(JSONVar values) {
   // Optional: Update Modbus settings
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  if (addr) { addr = constrain(addr, 1, 255); g_mb_address = (uint8_t)addr; }
+  if (addr) { addr = constrain(addr, 1, 247); g_mb_address = (uint8_t)addr; }
   if (baud) { baud = constrain(baud, 9600, 115200); g_mb_baud = (uint32_t)baud; }
   applyModbusSettings(g_mb_address, g_mb_baud);
 

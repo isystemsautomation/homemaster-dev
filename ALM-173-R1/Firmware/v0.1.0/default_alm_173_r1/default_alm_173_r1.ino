@@ -263,11 +263,11 @@ void ackAll();
 void ackGroup(uint8_t g);
 
 // ================== Handlers ==================
-// values: { "mb_address": <1..255>, "mb_baud": <9600..115200> }
+// values: { "mb_address": <1..247>, "mb_baud": <9600..115200> }
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  addr = constrain(addr, 1, 255);
+  addr = constrain(addr, 1, 247);
   baud = constrain(baud, 9600, 115200);
 
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);

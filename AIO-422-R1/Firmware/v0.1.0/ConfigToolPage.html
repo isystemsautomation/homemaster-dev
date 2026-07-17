@@ -244,11 +244,11 @@
         logEl.scrollTop = logEl.scrollHeight;
       }
 
-      // Populate Modbus addresses 1..255
+      // Populate Modbus addresses 1..247
       (function populateAddresses() {
         const addrSelect = $("modbus-address");
         if (!addrSelect) return;
-        for (let i = 1; i <= 255; i++) {
+        for (let i = 1; i <= 247; i++) {
           const opt = document.createElement("option");
           opt.value = i;
           opt.textContent = i;
