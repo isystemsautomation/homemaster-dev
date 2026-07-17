@@ -1,5 +1,18 @@
 # ALM-173-R1 — ESPHome map (MAP v4: bit-packed Input Registers + stateful coils, uniform with DIO)
 ##
+## Include per module with unique vars (alm_id, alm_address, alm_prefix):
+##
+##   packages:
+##     alm1:
+##       url: https://github.com/isystemsautomation/homemaster-dev
+##       ref: main
+##       files:
+##         - path: ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+##           vars:
+##             alm_id: alm1
+##             alm_address: "4"
+##             alm_prefix: "ALM#1"
+##
 ## Input Registers (FC04, read) — contiguous @0..3 (one poll per cycle):
 ##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay/LED/Armed/Entry/Exit/Tamper
 ##   2 Zone1..16 latched · 3 Zone17 latched
@@ -351,51 +364,52 @@ switch:
     address: 3
 
   # Momentary command coils (internal — driven by template buttons)
+  # IDs must be prefixed with ${alm_id} so two packages do not collide (same as DIO/RGB).
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_ack_all
+    id: ${alm_id}_ack_all
     register_type: coil
     address: 4
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_ack_g1
+    id: ${alm_id}_ack_g1
     register_type: coil
     address: 5
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_ack_g2
+    id: ${alm_id}_ack_g2
     register_type: coil
     address: 6
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_ack_g3
+    id: ${alm_id}_ack_g3
     register_type: coil
     address: 7
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_pulse_g1
+    id: ${alm_id}_pulse_g1
     register_type: coil
     address: 8
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_pulse_g2
+    id: ${alm_id}_pulse_g2
     register_type: coil
     address: 9
     internal: true
     assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    id: alm_pulse_g3
+    id: ${alm_id}_pulse_g3
     register_type: coil
     address: 10
     internal: true
@@ -405,28 +419,28 @@ button:
   - platform: template
     name: "${alm_prefix} Ack All"
     on_press:
-      - switch.turn_on: alm_ack_all
+      - switch.turn_on: ${alm_id}_ack_all
   - platform: template
     name: "${alm_prefix} Ack Group 1"
     on_press:
-      - switch.turn_on: alm_ack_g1
+      - switch.turn_on: ${alm_id}_ack_g1
   - platform: template
     name: "${alm_prefix} Ack Group 2"
     on_press:
-      - switch.turn_on: alm_ack_g2
+      - switch.turn_on: ${alm_id}_ack_g2
   - platform: template
     name: "${alm_prefix} Ack Group 3"
     on_press:
-      - switch.turn_on: alm_ack_g3
+      - switch.turn_on: ${alm_id}_ack_g3
   - platform: template
     name: "${alm_prefix} Pulse Group 1"
     on_press:
-      - switch.turn_on: alm_pulse_g1
+      - switch.turn_on: ${alm_id}_pulse_g1
   - platform: template
     name: "${alm_prefix} Pulse Group 2"
     on_press:
-      - switch.turn_on: alm_pulse_g2
+      - switch.turn_on: ${alm_id}_pulse_g2
   - platform: template
     name: "${alm_prefix} Pulse Group 3"
     on_press:
-      - switch.turn_on: alm_pulse_g3
+      - switch.turn_on: ${alm_id}_pulse_g3
