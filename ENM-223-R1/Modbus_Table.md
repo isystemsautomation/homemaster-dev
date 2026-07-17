@@ -71,7 +71,7 @@ Chip energy registers are **read-clears** (0.01 CF). The MCU accumulates ticks a
 | 76, 78, 80, 82 | Reactive import (RP) | U32 | varh | RPenergyA/B/C/T |
 | 84, 86, 88, 90 | Reactive export (RN) | U32 | varh | RNenergyA/B/C/T |
 | 92, 94, 96, 98 | Apparent (SA) | U32 | VAh | SAenergyA/B/C/T |
-| **121, 123, 125, 127** | **Harmonic active import** | U32 | Wh | **APenergyTH/AH/BH/CH** (0xA8–0xAB) |
+| **121, 123, 125, 127** | **Harmonic active import** | U32 | Wh | **APenergyAH/BH/CH/TH** (0xA8–0xAB) |
 
 ---
 
