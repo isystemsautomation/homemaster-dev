@@ -41,7 +41,7 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 | **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | **Current release.** Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
 | **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-01 | Deprecated (legacy) — superseded by v0.2.0. Kept for existing installs; no longer maintained. |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
 
 # Hardware notes (current revision)
 
@@ -816,7 +816,7 @@ For modifying or rebuilding the firmware.
   - USB upload: Serial (CDC)
   - Flash layout (Arduino): e.g. 2 MB (Sketch 1 MB / FS 1 MB)
   - Libraries (Arduino examples): ModbusSerial, Arduino_JSON, LittleFS, SimpleWebSerial.
-- Build the sketch (see the [reproducible build environment](../../README.md#build-environment-reproducible) and [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)), enter BOOT mode ([§8.1](#81-updating-firmware-regular-users) step 2), then upload the new build over USB, **or** export a `.uf2` and drag-drop it onto **RPI-RP2**.
+- Build the sketch (see the [reproducible build environment](../README.md#build-environment-reproducible) and [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)), enter BOOT mode ([§8.1](#81-updating-firmware-regular-users) step 2), then upload the new build over USB, **or** export a `.uf2` and drag-drop it onto **RPI-RP2**.
 - **Reset:** power-cycle the module (remove and re-apply **24 V DC**) or use **Reset** in WebConfig — there is no reset button combo.
 
 ---

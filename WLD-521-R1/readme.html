@@ -291,7 +291,7 @@ img[src*="Images/"] {
     <tbody>
       <tr><td><strong>System Position</strong></td><td>Expansion module on RS‑485 trunk</td></tr>
       <tr><td><strong>Master Controller</strong></td><td>MiniPLC / MicroPLC or any third‑party Modbus RTU master</td></tr>
-      <tr><td><strong>Address / Baud</strong></td><td>Configurable via WebConfig (1–255, 9600–115200 baud)</td></tr>
+      <tr><td><strong>Address / Baud</strong></td><td>Configurable via WebConfig (1–247, 9600–115200 baud)</td></tr>
       <tr><td><strong>Bus Type</strong></td><td>RS‑485 multi‑drop (A/B/COM terminals)</td></tr>
       <tr><td><strong>USB‑C Port</strong></td><td>For configuration/diagnostics using Web Serial (Chrome/Edge)</td></tr>
       <tr><td><strong>Default Modbus ID</strong></td><td><code>3</code> (user‑changeable per module)</td></tr>
@@ -527,7 +527,7 @@ img[src*="Images/"] {
   <table>
     <thead><tr><th>Parameter</th><th>Default</th><th>Range</th></tr></thead>
     <tbody>
-      <tr><td><strong>Address</strong></td><td>3</td><td>1–255 (set via WebConfig)</td></tr>
+      <tr><td><strong>Address</strong></td><td>3</td><td>1–247 (set via WebConfig)</td></tr>
       <tr><td><strong>Baudrate</strong></td><td>19200</td><td>9600–115200 (WebConfig)</td></tr>
       <tr><td><strong>Format</strong></td><td>8N1</td><td>8 data bits, no parity, 1 stop bit</td></tr>
     </tbody>
@@ -561,7 +561,7 @@ img[src*="Images/"] {
 
   <h6>🧩 Modbus Address &amp; Baudrate</h6>
   <ul>
-    <li><strong>Set Address (1–255)</strong>: each module must have a unique address.</li>
+    <li><strong>Set Address (1–247)</strong>: each module must have a unique address.</li>
     <li><strong>Set Baudrate</strong>: choose between <strong>9600–115200</strong> (default: 19200).</li>
     <li>Confirm the updated settings in the banner and <strong>Serial Log</strong>.</li>
   </ul>
@@ -850,7 +850,7 @@ img[src*="Images/"] {
     <tbody>
       <tr><td><strong>Interface</strong></td><td>RS‑485 (half‑duplex)</td></tr>
       <tr><td><strong>Baudrate</strong></td><td>9600–115200 (default: <strong>19200</strong>)</td></tr>
-      <tr><td><strong>Address</strong></td><td>1–255 (default: <strong>3</strong>)</td></tr>
+      <tr><td><strong>Address</strong></td><td>1–247 (default: <strong>3</strong>)</td></tr>
       <tr><td><strong>Parity</strong></td><td>8N1</td></tr>
       <tr><td><strong>Role</strong></td><td>Slave (responds to master requests)</td></tr>
       <tr><td><strong>Supported FCs</strong></td><td><code>0x01</code> Read Coils, <code>0x02</code> Read Discrete Inputs, <code>0x03</code> Read Holding, <code>0x04</code> Read Input, <code>0x05/0x0F</code> Write Coils, <code>0x06/0x10</code> Write Holding</td></tr>

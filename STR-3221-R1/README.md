@@ -539,7 +539,7 @@ See LICENSE files in each directory for full terms.
 | **📷 Images & Diagrams** | [`Images/`](Images/) — module photos, terminal maps, and block diagrams. |
 | **📐 Schematics (PDF)** | [`Schematics/`](Schematics/) — FieldBoard and MCUBoard schematics for hardware developers. |
 | **📄 Datasheet & Manual** | [`Manuals/`](Manuals/) — module datasheet and installation guide. |
-| **📦 Pre-built Firmware** | [Releases page](../../releases) — `.bin` files when v0.1.0 ships. |
+| **📦 Pre-built Firmware** | Not yet released. STR-3221-R1 is RP2350-based — the released binary will be a `.uf2` at `Firmware/v0.1.0/STR-3221-R1.uf2`. |
 
 ---
 

@@ -819,7 +819,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 | **v0.2.0** | `DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | **Current — shipped on new modules** |
 | v0.1.0 | `DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml` | 2026-06 | Legacy (superseded by v0.2.0) |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_DIO_430_R1/sketch.yaml)
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_DIO_430_R1/sketch.yaml)
 
 ### Files
 

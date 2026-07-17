@@ -4,7 +4,9 @@
 
 > **Project status:** under active development and testing.
 > Hardware and firmware are pre-release and may change.
-> Check [Releases](../../releases) for stable versions.
+> The current firmware version for each module is listed at
+> [config.home-master.eu](https://config.home-master.eu/). All versions
+> live in this repository under `<MODULE>/Firmware/`.
 
 ## Description
 
