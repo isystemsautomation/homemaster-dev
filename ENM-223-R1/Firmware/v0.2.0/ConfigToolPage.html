@@ -558,8 +558,12 @@
           const r=obj[ak]??obj[String(ak)]??{};
           const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
           if(en&&r.enabled!==undefined) en.checked=!!r.enabled;
-          if(mn&&r.min!==undefined&&canApply('al-min-'+ch+'-'+ak)) mn.value=String(r.min);
-          if(mx&&r.max!==undefined&&canApply('al-max-'+ch+'-'+ak)) mx.value=String(r.max);
+          if(mn&&canApply('al-min-'+ch+'-'+ak)){
+            mn.value=('min' in r && r.min!==null&&r.min!=='')?String(r.min):'';
+          }
+          if(mx&&canApply('al-max-'+ch+'-'+ak)){
+            mx.value=('max' in r && r.max!==null&&r.max!=='')?String(r.max):'';
+          }
           if(met&&r.metric!==undefined) met.value=String(r.metric);
         }
       };
@@ -604,11 +608,13 @@
       for(let ak=0;ak<3;ak++){
         const minRaw=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
         const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
+        const minN=minRaw===''?null:Number(minRaw);
+        const maxN=maxRaw===''?null:Number(maxRaw);
         chO[ak]={
           enabled:!!$('al-en-'+ch+'-'+ak)?.checked,
-          // Send engineering floats (device scales via alarmDoubleToRule). Empty → 0 = unset (legacy).
-          min: minRaw==='' ? 0 : Number(minRaw),
-          max: maxRaw==='' ? 0 : Number(maxRaw),
+          // null = unset; 0 is a real engineering threshold
+          min: (minN===null||!Number.isFinite(minN)) ? null : minN,
+          max: (maxN===null||!Number.isFinite(maxN)) ? null : maxN,
           metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
         };
       }

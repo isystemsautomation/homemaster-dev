@@ -151,7 +151,8 @@ static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
 static const uint16_t CFG_VERSION_V20 = 0x0020;
 static const uint16_t CFG_VERSION_V21 = 0x0021;
 static const uint16_t CFG_VERSION_V22 = 0x0022;
-static const uint16_t CFG_VERSION     = 0x0023;
+static const uint16_t CFG_VERSION_V23 = 0x0023;
+static const uint16_t CFG_VERSION     = 0x0024;  // alarm min/max: 0 is a real limit; unset = sentinels
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
 static const uint16_t METER_VERSION   = 0x0002;
@@ -673,11 +674,34 @@ static void markMeterDirty() {
 
 static uint32_t meterEnergyCrc();  // defined with sampleEnergyCounters
 
+// Unset limits (legacy used raw 0). Real engineering 0 must be storable.
+static const int32_t ALARM_LIM_NONE_MIN = (int32_t)0x80000000L;  // INT32_MIN
+static const int32_t ALARM_LIM_NONE_MAX = (int32_t)0x7FFFFFFFL;  // INT32_MAX
+static inline bool alarmHasMin(const AlarmRuleCfg& cfg) { return cfg.minVal != ALARM_LIM_NONE_MIN; }
+static inline bool alarmHasMax(const AlarmRuleCfg& cfg) { return cfg.maxVal != ALARM_LIM_NONE_MAX; }
+
+static void alarmMigrateUnsetLimits(AlarmRuleCfg& cfg) {
+  if (cfg.minVal == 0) cfg.minVal = ALARM_LIM_NONE_MIN;
+  if (cfg.maxVal == 0) cfg.maxVal = ALARM_LIM_NONE_MAX;
+}
+
+static void alarmMigrateAllUnsetLimits() {
+  for (uint8_t ch = 0; ch < 4; ch++)
+    for (uint8_t k = 0; k < 3; k++)
+      alarmMigrateUnsetLimits(alarmCfg[ch].rules[k]);
+}
+
 static void setAlarmDefaults() {
   memset(alarmCfg, 0, sizeof(alarmCfg));
   memset(alarmRun, 0, sizeof(alarmRun));
   memset(g_chipEvMask, 0, sizeof(g_chipEvMask));
   memset(&g_chipEv, 0, sizeof(g_chipEv));
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    for (uint8_t k = 0; k < 3; k++) {
+      alarmCfg[ch].rules[k].minVal = ALARM_LIM_NONE_MIN;
+      alarmCfg[ch].rules[k].maxVal = ALARM_LIM_NONE_MAX;
+    }
+  }
 }
 
 static double alarmMetricScale(uint8_t metric) {
@@ -726,10 +750,14 @@ static double alarmMetricValue(uint8_t ch, uint8_t metric) {
 }
 
 static double alarmHystBand(const AlarmRuleCfg& rule) {
-  const double mn = alarmRuleToDouble(rule.minVal, rule.metric);
-  const double mx = alarmRuleToDouble(rule.maxVal, rule.metric);
-  double span = mx - mn;
-  if (span <= 0.0) span = fmax(fabs(mn), fabs(mx));
+  const bool hasMin = alarmHasMin(rule);
+  const bool hasMax = alarmHasMax(rule);
+  const double mn = hasMin ? alarmRuleToDouble(rule.minVal, rule.metric) : 0.0;
+  const double mx = hasMax ? alarmRuleToDouble(rule.maxVal, rule.metric) : 0.0;
+  double span = 0.0;
+  if (hasMin && hasMax) span = mx - mn;
+  else if (hasMin) span = fabs(mn);
+  else if (hasMax) span = fabs(mx);
   if (span <= 0.0) span = 1.0;
   double h = span * 0.02;
   if (rule.metric == ALARM_MET_FREQ) h = fmax(h, 0.10);
@@ -744,10 +772,10 @@ static void alarmEvalRule(const AlarmRuleCfg& cfg, AlarmRuleRun& run, double val
     run.hiSide = false;
     return;
   }
-  const double mn = alarmRuleToDouble(cfg.minVal, cfg.metric);
-  const double mx = alarmRuleToDouble(cfg.maxVal, cfg.metric);
-  const bool hasMin = cfg.minVal != 0;
-  const bool hasMax = cfg.maxVal != 0;
+  const bool hasMin = alarmHasMin(cfg);
+  const bool hasMax = alarmHasMax(cfg);
+  const double mn = hasMin ? alarmRuleToDouble(cfg.minVal, cfg.metric) : 0.0;
+  const double mx = hasMax ? alarmRuleToDouble(cfg.maxVal, cfg.metric) : 0.0;
   const double h = alarmHystBand(cfg);
 
   if (!run.active) {
@@ -936,8 +964,8 @@ static JSONVar alarmCfgToJson() {
       const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
       r["enabled"] = cfg.enabled ? 1 : 0;
       r["metric"]  = (int)cfg.metric;
-      r["min"]     = alarmRuleToDouble(cfg.minVal, cfg.metric);
-      r["max"]     = alarmRuleToDouble(cfg.maxVal, cfg.metric);
+      if (alarmHasMin(cfg)) r["min"] = alarmRuleToDouble(cfg.minVal, cfg.metric);
+      if (alarmHasMax(cfg)) r["max"] = alarmRuleToDouble(cfg.maxVal, cfg.metric);
       chO[kind] = r;
     }
     arr[ch] = chO;
@@ -954,14 +982,19 @@ static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
     AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
     if (JSON.typeof(r["enabled"]) != "undefined") cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
     if (JSON.typeof(r["metric"]) != "undefined")  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
-    if (JSON.typeof(r["min"]) != "undefined") {
-      // Engineering units (float). Do not use jvGetInt — it truncates before scale.
-      const double eng = jvGetDouble(r, "min", 0.0);
-      cfg.minVal = (eng != 0.0) ? alarmDoubleToRule(eng, cfg.metric) : 0;
+    if (r.hasOwnProperty("min")) {
+      const String ms = JSON.stringify(r["min"]);
+      if (ms == "null" || ms == "\"\"" || ms.length() == 0)
+        cfg.minVal = ALARM_LIM_NONE_MIN;
+      else
+        cfg.minVal = alarmDoubleToRule(jvGetDouble(r, "min", 0.0), cfg.metric);
     }
-    if (JSON.typeof(r["max"]) != "undefined") {
-      const double eng = jvGetDouble(r, "max", 0.0);
-      cfg.maxVal = (eng != 0.0) ? alarmDoubleToRule(eng, cfg.metric) : 0;
+    if (r.hasOwnProperty("max")) {
+      const String xs = JSON.stringify(r["max"]);
+      if (xs == "null" || xs == "\"\"" || xs.length() == 0)
+        cfg.maxVal = ALARM_LIM_NONE_MAX;
+      else
+        cfg.maxVal = alarmDoubleToRule(jvGetDouble(r, "max", 0.0), cfg.metric);
     }
   }
 }
@@ -1000,7 +1033,7 @@ static void handleAlarmsAck(JSONVar obj) {
   if (obj.hasOwnProperty("list")) {
     JSONVar list = obj["list"];
     for (uint8_t ch = 0; ch < 4; ch++) {
-      if (list[ch] || list[(int)ch]) alarmAckChannel(ch);
+      if (list[ch]) alarmAckChannel(ch);
     }
   } else if (obj.hasOwnProperty("ch")) {
     alarmAckChannel((uint8_t)constrain(jvGetInt(obj, "ch", 0), 0, 3));
@@ -1048,7 +1081,7 @@ static void captureSettings(EnmSettingsCfg& pc) {
 static bool applySettings(const EnmSettingsCfg& pc) {
   if (pc.magic != CFG_MAGIC || pc.size != sizeof(EnmSettingsCfg))
     return false;
-  if (pc.version != CFG_VERSION && pc.version != CFG_VERSION_V22)
+  if (pc.version != CFG_VERSION && pc.version != CFG_VERSION_V23 && pc.version != CFG_VERSION_V22)
     return false;
   EnmSettingsCfg tmp = pc;
   const uint32_t crc = tmp.crc32;
@@ -1346,7 +1379,10 @@ static bool loadSettingsFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     const bool ok = applySettings(pc);
-    if (ok && pc.version == CFG_VERSION_V22) markCfgDirty();
+    if (ok && (pc.version == CFG_VERSION_V22 || pc.version == CFG_VERSION_V23)) {
+      alarmMigrateAllUnsetLimits();
+      markCfgDirty();
+    }
     return ok;
   }
   if (sz == sizeof(EnmSettingsCfgV21)) {
@@ -1355,6 +1391,7 @@ static bool loadSettingsFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     if (!applySettingsV21(pc)) return false;
+    alarmMigrateAllUnsetLimits();
     markCfgDirty();
     return true;
   }
@@ -1906,12 +1943,13 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = hmValidAddress(addr);
   baud = hmValidBaud(baud);
 
-  const bool addrChanged = (addr != g_mb_address);
-  const bool baudChanged = (!g_mbSerialReady || g_mb_baud != baud);
+  const bool wasReady = g_mbSerialReady;
+  const uint8_t prevAddr = g_mb_address;
+  const uint32_t prevBaud = g_mb_baud;
 
   // Must run on first boot too — v18 called Serial2.begin() in setup(); only
   // re-initing when baud changed left UART off when loaded baud == 19200.
-  if (baudChanged) {
+  if (!g_mbSerialReady || g_mb_baud != baud) {
     Serial2.end();
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
@@ -1925,12 +1963,8 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr;
   SlaveId = (int)addr;
   mbSyncHolding();
-  // Do not mark dirty on boot/init — only when address or baud actually changed
-  // after the UART was already up (WebConfig / holding regs).
-  if (g_mbSerialReady && (addrChanged || (baudChanged && g_mb_baud == baud))) {
-    // baudChanged on first init: g_mbSerialReady was false → skip dirty.
-    // After first init, baudChanged with prior ready → dirty.
-  }
+  // Skip dirty on setup() first init; only when addr/baud actually change later.
+  if (wasReady && (addr != prevAddr || baud != prevBaud)) markCfgDirty();
 }
 
 void handleValues(JSONVar values) {
@@ -1994,8 +2028,11 @@ void handleUnifiedConfig(JSONVar obj) {
     } else {
       for (int i = 0; i < NUM_RLY && i < list.length(); i++) {
         JSONVar item = list[i];
-        rlyCfg[i].enabled  = (bool)item["enabled"];
-        rlyCfg[i].inverted = (bool)(item.hasOwnProperty("inverted") ? item["inverted"] : item["invert"]);
+        if (item.hasOwnProperty("enabled")) rlyCfg[i].enabled = (bool)item["enabled"];
+        if (item.hasOwnProperty("inverted"))
+          rlyCfg[i].inverted = (bool)item["inverted"];
+        else if (item.hasOwnProperty("invert"))
+          rlyCfg[i].inverted = (bool)item["invert"];
         if (JSON.typeof(item["mode"]) != "undefined") rlyCfg[i].mode = (uint8_t)constrain(jvGetInt(item, "mode", rlyCfg[i].mode), 0, 2);
         if (JSON.typeof(item["alarmCh"]) != "undefined") rlyCfg[i].alarmCh = (uint8_t)constrain(jvGetInt(item, "alarmCh", rlyCfg[i].alarmCh), 0, 3);
         if (JSON.typeof(item["alarmMask"]) != "undefined") rlyCfg[i].alarmMask = (uint8_t)jvGetInt(item, "alarmMask", rlyCfg[i].alarmMask);
