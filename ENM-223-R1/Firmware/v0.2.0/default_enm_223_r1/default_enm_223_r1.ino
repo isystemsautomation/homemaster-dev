@@ -166,6 +166,7 @@ static const uint32_t CFG_AUTOSAVE_MS = 1500;
 // Persist energy/cal to LittleFS at most every 5 min (poll stays at energySampleMs).
 static const uint32_t METER_SAVE_INTERVAL_MS = 300000;
 static uint32_t       meterSavedEnergyCrc = 0;
+static uint32_t       meterEnergyCrc();  // defined with sampleEnergyCounters
 
 // Types/globals used in function signatures — must be before any function (Arduino auto-prototypes).
 struct DebounceState {
@@ -671,8 +672,6 @@ static void markMeterDirty() {
   meterDirty = true;
   lastMeterTouchMs = millis();
 }
-
-static uint32_t meterEnergyCrc();  // defined with sampleEnergyCounters
 
 // Unset limits (legacy used raw 0). Real engineering 0 must be storable.
 static const int32_t ALARM_LIM_NONE_MIN = (int32_t)0x80000000L;  // INT32_MIN
