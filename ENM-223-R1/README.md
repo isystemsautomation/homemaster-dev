@@ -747,7 +747,7 @@ Each LED has:
 
 > 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
 
-> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **12 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. Use interposing contactors for higher or inductive loads.
+> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
 
 ---
 

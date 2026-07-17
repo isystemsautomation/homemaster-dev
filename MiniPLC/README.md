@@ -68,7 +68,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 - ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
 - 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
-- 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 12 A but the board/system rating governs.
+- 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 16 A but the board/system rating governs — at 3 A the contacts work far below their rating and do not burn.
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
 - 2 × RTD inputs (PT100 / PT1000 via MAX31865) with on-board DIP switch configuration for sensor type and 2/3/4-wire mode

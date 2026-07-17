@@ -285,7 +285,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 | Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
 | Contact Rating | 3 A @ 250 VAC / 30 VDC (module/PCB limit, resistive) |
 | Insulation | Basic insulation between SELV coil drive and contacts; external contactor for reinforced isolation or heavy/inductive loads |
-| Component note | HF115F relay component rated up to 12 A @ 250 VAC — **module output limited to 3 A**; use an external contactor for higher or inductive loads |
+| Component note | HF115F relay component rated up to 16 A @ 250 VAC — **module output limited to 3 A**; the margin means the contacts work far below their rating and do not burn. Use an external contactor for higher or inductive loads |
 | Protection | External RC snubber / flyback diode recommended |
 | Notes | Independent SPST-NO dry contact (**Relay C** / **NO**); not in the LED anode rail. For FOLLOW-mode LED-PSU cut, wire **Relay C / NO** externally in series with the LED driver supply. Keep field wiring separate from logic. |
 
