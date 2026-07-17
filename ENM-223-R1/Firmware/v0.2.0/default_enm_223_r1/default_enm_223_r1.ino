@@ -1416,7 +1416,12 @@ static bool loadConfigFS() {
   const bool meterOk = loadMeterFS();
   if (settingsOk && meterOk) return true;
   if (!settingsOk && !meterOk && tryMigrateLegacyCfg()) return true;
-  if (!settingsOk) return false;
+
+  // Recover independently: a bad enm_cfg.bin must not wipe a good enm_meter.bin.
+  if (!settingsOk) {
+    setSettingsDefaults();
+    markCfgDirty();
+  }
   if (!meterOk) {
     setMeterDefaults();
     markMeterDirty();
@@ -1901,9 +1906,12 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = hmValidAddress(addr);
   baud = hmValidBaud(baud);
 
+  const bool addrChanged = (addr != g_mb_address);
+  const bool baudChanged = (!g_mbSerialReady || g_mb_baud != baud);
+
   // Must run on first boot too — v18 called Serial2.begin() in setup(); only
   // re-initing when baud changed left UART off when loaded baud == 19200.
-  if (!g_mbSerialReady || g_mb_baud != baud) {
+  if (baudChanged) {
     Serial2.end();
     Serial2.setTX(TX2);
     Serial2.setRX(RX2);
@@ -1917,7 +1925,12 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr;
   SlaveId = (int)addr;
   mbSyncHolding();
-  markCfgDirty();
+  // Do not mark dirty on boot/init — only when address or baud actually changed
+  // after the UART was already up (WebConfig / holding regs).
+  if (g_mbSerialReady && (addrChanged || (baudChanged && g_mb_baud == baud))) {
+    // baudChanged on first init: g_mbSerialReady was false → skip dirty.
+    // After first init, baudChanged with prior ready → dirty.
+  }
 }
 
 void handleValues(JSONVar values) {
