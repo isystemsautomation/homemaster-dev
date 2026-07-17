@@ -346,6 +346,7 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
 }
 
 void ATM90E32::applyCalibration(const M90PhaseCal cal[3]) {
+  // Gain/offset only — no SoftReset (keeps live metering and unread energy ticks).
   write16(CfgRegAccEn, 0x55AA);
   for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
 

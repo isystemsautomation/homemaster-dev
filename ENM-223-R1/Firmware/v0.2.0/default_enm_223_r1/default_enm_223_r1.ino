@@ -383,6 +383,7 @@ static void normalizePhaseMap(uint8_t map[3]) {
 }
 
 static volatile bool atmApplyPending = false;
+static volatile bool atmCalOnlyPending = false;
 static unsigned long atmLastApplyMs = 0;
 static const unsigned long atmApplyMinIntervalMs = 300;
 static bool atmBusy = false;
@@ -1664,14 +1665,32 @@ static void setDefaults() {
 }
 
 static void atmApplyFromCfg_NOW() {
+  // Soft-reset path — drain unread energy ticks first.
+  sampleEnergyCounters();
   M90PhaseCal tmp[3];
   for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
   g_atm.begin(g_atm_cfg.lineHz, g_atm_cfg.sumAbs, g_atm_cfg.wireMode, g_atm_cfg.phaseMap,
               g_atm_cfg.ucal, tmp);
 }
 
-static void queueAtmApply() {
+static void atmApplyCalOnly_NOW() {
+  M90PhaseCal tmp[3];
+  for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
+  g_atm.applyCalibration(tmp);
+}
+
+static void queueAtmFullApply() {
   atmApplyPending = true;
+  atmCalOnlyPending = false;
+}
+
+static void queueAtmCalOnlyApply() {
+  if (atmApplyPending) return;  // full apply supersedes
+  atmCalOnlyPending = true;
+}
+
+static void queueAtmApply() {
+  queueAtmFullApply();
 }
 
 static void applyHoldingFromModbus() {
@@ -1850,6 +1869,9 @@ static JSONVar meterLiveToJson() {
 static void atmUpdateBaseFromJson(const JSONVar& obj);
 static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj);
 static void atmApplyFromJson(const JSONVar& obj);
+static void queueAtmFullApply();
+static void queueAtmCalOnlyApply();
+static bool atmJsonNeedsFullApply(const JSONVar& obj);
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = hmValidAddress(addr);
@@ -1982,9 +2004,15 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "ext.atm" || type == "atm") {
     JSONVar atmObj = list;
     if (JSON.typeof(list) == "array" && list.length() > 0) atmObj = list[0];
+    const bool full = atmJsonNeedsFullApply(atmObj);
     atmApplyFromJson(atmObj);
-    queueAtmApply();
-    wsLog("OK: ATM queued");
+    if (full) {
+      queueAtmFullApply();
+      wsLog("OK: ATM full apply queued");
+    } else {
+      queueAtmCalOnlyApply();
+      wsLog("OK: ATM calibration queued");
+    }
     changed = true;
     markMeterDirty();
 
@@ -2167,9 +2195,16 @@ static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16(jvGetInt(obj, "Ioffset", (int)g_atm_cfg.cal[phase].Ioffset));
 }
 
+static bool atmJsonNeedsFullApply(const JSONVar& obj) {
+  // Structural options require SoftReset via begin(). Calibration/offset alone do not.
+  // ucal feeds sag/OV thresholds computed inside begin() — treat as structural.
+  return obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs")
+      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")
+      || obj.hasOwnProperty("ucal");
+}
+
 static void atmApplyFromJson(const JSONVar& obj) {
-  if (obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs") || obj.hasOwnProperty("ucal")
-      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")) {
+  if (atmJsonNeedsFullApply(obj)) {
     atmUpdateBaseFromJson(obj);
   }
   if (obj.hasOwnProperty("ph")) {
@@ -2306,13 +2341,24 @@ void loop() {
 
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
     atmApplyPending = false;
+    atmCalOnlyPending = false;
     atmBusy = true;
     atmApplyFromCfg_NOW();
     atmBusy = false;
     atmLastApplyMs = now;
     markCfgDirty();
     markMeterDirty();
-    wsLog("OK: ATM applied");
+    wsLog("OK: ATM applied (full begin)");
+    sendWebCfg();
+  } else if (atmCalOnlyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
+    atmCalOnlyPending = false;
+    atmBusy = true;
+    atmApplyCalOnly_NOW();
+    atmBusy = false;
+    atmLastApplyMs = now;
+    markCfgDirty();
+    markMeterDirty();
+    wsLog("OK: ATM calibration applied");
     sendWebCfg();
   }
 
