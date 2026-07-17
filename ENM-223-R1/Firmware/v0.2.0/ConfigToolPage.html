@@ -497,7 +497,13 @@
     function applyCalibCh(ch, obj, fromDevice){
       if(!obj||typeof obj!=='object') return;
       const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
-      const ok=key=>fromDevice||canApply(key);
+      // Honor edit-lock / focus — fromDevice must not bypass (live frames ~1s).
+      const ok=key=>{
+        if(!canApply(key)) return false;
+        const el=$(key);
+        if(el && el===document.activeElement) return false;
+        return true;
+      };
       const Ug=num(obj.Ug ?? obj.Ugain), Ig=num(obj.Ig ?? obj.Igain);
       const Uo=num(obj.Uo ?? obj.Uoffset), Io=num(obj.Io ?? obj.Ioffset);
       if(Ug!==undefined&&ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
@@ -683,10 +689,10 @@
           const payload={ ph:ch }; payload[field]=v;
           sendAtmPartial(payload);
         };
-        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'), false);
-        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'), false);
-        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), false);
-        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), false);
+        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'));
+        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'));
+        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'));
+        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'));
       }
       flushPendingCalib();
     })();
