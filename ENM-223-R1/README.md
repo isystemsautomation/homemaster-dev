@@ -3,7 +3,7 @@
 
 ## 🚀 Quick Start (current version)
 
-**Current firmware line: `v0.2.0`** — see [Firmware/README.md](Firmware/README.md) for build, persistence, and publish notes.
+**Current firmware line: `v0.1.0`** — see [Firmware/README.md](Firmware/README.md) for build, persistence, and publish notes. (`v0.2.0` is beta.)
 
 ```yaml
 packages:
@@ -11,7 +11,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
           enm_address: 30
@@ -24,10 +24,10 @@ Set `enm_address` to the Modbus ID configured in WebConfig.
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.2.0** | `ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-07 | Signed P/Q, peaks/neutral/THD, import/export energy labels, alarm engine + relay Alarm Controlled, phase mapping, 3P4W/3P3W, split LittleFS persistence |
-| **v0.1.0** | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | First versioned release (legacy; do not extend) |
+| **v0.1.0** | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | **Current; shipped on new modules** |
+| v0.2.0 | `ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-07 | Beta — not released (historical). Signed P/Q, peaks/neutral/THD, import/export energy labels, alarm engine + relay Alarm Controlled, phase mapping, 3P4W/3P3W, split LittleFS persistence |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_enm_223_r1/sketch.yaml)
+> **Reproducible firmware build (v0.1.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · sketch [`default_enm_223_r1.ino`](Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino)
 
 # ENM-223-R1 — 3-Phase Power Metering & I/O Module
 
@@ -404,7 +404,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 #### Steps
 
 1. Connect USB‑C to PC (Chromium-based browser)
-2. Open `Firmware/v0.2.0/ConfigToolPage.html`  
+2. Open `Firmware/v0.1.0/ConfigToolPage.html`  
 3. Click **Connect**, select ENM serial port  
 4. Configure settings: address, relays, LEDs, alarms, calibration  
 5. Click **Save & Disconnect** when finished
@@ -467,7 +467,7 @@ The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from
 ## 4.5 Software & UI Configuration
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
-(`Firmware/v0.2.0/ConfigToolPage.html`) over **USB‑C**.  
+(`Firmware/v0.1.0/ConfigToolPage.html`) over **USB‑C**.  
 No drivers or software installation is required — configuration happens directly via **Web Serial API** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
 
 > Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
@@ -633,7 +633,7 @@ Each LED has:
 
 ### Phase 2 — Configure (WebConfig)
 
-- Open `Firmware/v0.2.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
+- Open `Firmware/v0.1.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
 - Connect via **USB‑C** → **Select port → Connect**
 - Set:
   - **Modbus Address / Baud**  
@@ -1082,7 +1082,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
           enm_address: 30
@@ -1195,7 +1195,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 - **Upload via USB-C** using Arduino IDE (see [Firmware/README.md](Firmware/README.md))
 - Enter **boot mode** (Buttons 1 + 2)
-- Open sketch `Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino`
+- Open sketch `Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino`
 
 **What is preserved:**
 
@@ -1253,18 +1253,17 @@ See LICENSE files in each directory for full terms.
 
 The following key project resources are included in this repository:
 
-- 🧠 **Firmware (v0.2.0)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino)  
-  Modbus RTU, signed P/Q, peaks/neutral/THD, **fundamental/harmonic power & energy**, alarm engine, Alarm Controlled relays, phase mapping, 3P4W/3P3W, split LittleFS persistence. Full register map: [Modbus_Table.md](Modbus_Table.md).
+- 🧠 **Firmware (v0.1.0 — current)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino)  
+  Modbus RTU power meter with relays/LEDs/buttons. Full register map: [Modbus_Table.md](Modbus_Table.md) (note: some map rows document beta additions — see version history).
 
 - 🧰 **WebConfig Tool**  
-  [`Firmware/v0.2.0/ConfigToolPage.html`](Firmware/v0.2.0/ConfigToolPage.html)  
-  USB Web Serial: meter options, calibration, alarms, relays, live import/export energy.
+  [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html)  
+  USB Web Serial: meter options, calibration, alarms, relays.
 
-- 📦 **ESPHome YAML (v0.2.0)**  
-  [`default_enm_223_r1_plc.yaml`](Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
-  Sensors (incl. peaks, THD, signed P/Q, **P_fund/P_harm**, harmonic energy), alarm DI, relay/ACK switches.
+- 📦 **ESPHome YAML (v0.1.0 — current)**  
+  [`default_enm_223_r1_plc.yaml`](Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)  
 
-- 🧠 **Legacy firmware (v0.1.0)** — [`Firmware/v0.1.0/`](Firmware/v0.1.0/) (frozen line)
+- 🧠 **Beta firmware (v0.2.0)** — [`Firmware/v0.2.0/`](Firmware/v0.2.0/) — not released; ships signed P/Q, peaks/neutral/THD, alarm engine, phase mapping, 3P4W/3P3W.
 
 - 🖼 **Images & UI Diagrams**  
   [`Images/`](Images/)  
@@ -1277,7 +1276,7 @@ The following key project resources are included in this repository:
 - 📄 **Datasheets & Manuals**  
   [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)
 
-> 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
+> 🔁 The current firmware version is stated at [config.home-master.eu](https://config.home-master.eu/ENM-223-R1/); every version is in the [`Firmware/`](Firmware/) directory.
 
 ---
 
@@ -1287,7 +1286,7 @@ If you need help using or configuring the ENM‑223‑R1 module, the following s
 
 ### 🛠 Official Resources
 
-- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)  
+- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html)  
   Configure the module directly from your browser — no drivers or software required.
 
 - 📘 [Official Support Portal](https://www.home-master.eu/support)  
@@ -1322,7 +1321,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0 (1).pdf](./Manuals/DoC-ENM-223-R1-V1.0%20%281%29.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0.pdf](./Manuals/DoC-ENM-223-R1-V1.0.pdf) |
 | Datasheet | [ENM-223-R1_Datasheet.pdf](./Manuals/ENM-223-R1_Datasheet.pdf) |
 
 ### Trademark
