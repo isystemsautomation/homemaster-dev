@@ -287,7 +287,7 @@
       el.textContent = Number.isFinite(n) ? String(v) : (v !== undefined && v !== null && v !== '' ? String(v) : '--');
     }
 
-    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i <= 247;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='30'; })();
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='30'; })();
 
     function attachLockHandlers(input, key, sendFn, lockOnFocus){
       if(!input) return;

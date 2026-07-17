@@ -24,7 +24,7 @@ packages:
 |--------|------------------------|------|-----------|
 | **v0.1.0** | `WLD-521-R1/Firmware/v0.1.0/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml` | 2026-06 | First versioned release |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_wld-521-r1/sketch.yaml)
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_wld-521-r1/sketch.yaml)
 
 # WLD-521-R1 — Water Meter & Leak Detection Module
 
@@ -98,7 +98,7 @@ The **WLD-521-R1** is a smart Modbus RTU slave. It can operate autonomously for 
 |---------------------|-------------|
 | **System Position** | Expansion module on RS-485 trunk |
 | **Master Controller** | MiniPLC / MicroPLC or any third-party Modbus RTU master |
-| **Address / Baud**  | Configurable via WebConfig (1–247, 9600–115200 baud) |
+| **Address / Baud**  | Configurable via WebConfig (1–255, 9600–115200 baud) |
 | **Bus Type**        | RS‑485 multi-drop (A/B/COM terminals) |
 | **USB‑C Port**      | For configuration/diagnostics using Web Serial (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) |
 | **Default Modbus ID** | `3` (user-changeable per module) |
@@ -347,7 +347,7 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 
 | Parameter     | Default | Range         |
 |---------------|---------|---------------|
-| **Address**   | 3       | 1–247 (set via WebConfig) |
+| **Address**   | 3       | 1–255 (set via WebConfig) |
 | **Baudrate**  | 19200   | 9600–115200 (WebConfig) |
 | **Format**    | 8N1     | 8 data bits, no parity, 1 stop bit |
 
@@ -572,7 +572,7 @@ The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C in
 
 In the **Modbus** panel:
 
-- **Set Address (1–247)**: each module must have a unique address.
+- **Set Address (1–255)**: each module must have a unique address.
 - **Set Baudrate**: choose between **9600–115200** (default: 19200).
 - Confirm the updated settings in the banner and **Serial Log**.
 
@@ -905,7 +905,7 @@ The WLD‑521‑R1 communicates as a **Modbus RTU slave** over **RS‑485**, exp
 |---------------|-------|
 | **Interface** | RS‑485 (half-duplex) |
 | **Baudrate**  | 9600–115200 (default: **19200**) |
-| **Address**   | 1–247 (default: **3**) |
+| **Address**   | 1–255 (default: **3**) |
 | **Parity**    | 8N1 |
 | **Role**      | Slave (responds to master requests) |
 | **Supported FCs** | `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input, `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding |

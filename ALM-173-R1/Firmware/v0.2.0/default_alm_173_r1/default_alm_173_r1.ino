@@ -515,7 +515,7 @@ void disarmLocal();
 static bool readEnabledInput(int i);
 
 // ================== Handlers ==================
-// values: { "mb_address": <1..247>, "mb_baud": <9600..115200> }
+// values: { "mb_address": <1..255>, "mb_baud": <9600..115200> }
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
