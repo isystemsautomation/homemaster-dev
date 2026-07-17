@@ -251,6 +251,13 @@ static int jvGetInt(const JSONVar& obj, const char* key, int fallback) {
   return parseKeyFromBlob(jsonBlob(obj), key, fallback);
 }
 
+static double jvGetDouble(const JSONVar& obj, const char* key, double fallback) {
+  if (!obj.hasOwnProperty(key)) return fallback;
+  const String s = JSON.stringify(obj[key]);
+  if (s.length() == 0 || s == "null" || s == "undefined" || s == "\"\"") return fallback;
+  return s.toDouble();
+}
+
 // JSON.stringify(value) for scalars only; avoids (int)obj["key"] bug
 static int jsonVarToInt(const JSONVar& v, int fallback) {
   if (JSON.typeof(v) == "undefined") return fallback;
@@ -947,12 +954,13 @@ static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
     if (JSON.typeof(r["enabled"]) != "undefined") cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
     if (JSON.typeof(r["metric"]) != "undefined")  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
     if (JSON.typeof(r["min"]) != "undefined") {
-      const int32_t raw = (int32_t)jvGetInt(r, "min", 0);
-      cfg.minVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+      // Engineering units (float). Do not use jvGetInt — it truncates before scale.
+      const double eng = jvGetDouble(r, "min", 0.0);
+      cfg.minVal = (eng != 0.0) ? alarmDoubleToRule(eng, cfg.metric) : 0;
     }
     if (JSON.typeof(r["max"]) != "undefined") {
-      const int32_t raw = (int32_t)jvGetInt(r, "max", 0);
-      cfg.maxVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+      const double eng = jvGetDouble(r, "max", 0.0);
+      cfg.maxVal = (eng != 0.0) ? alarmDoubleToRule(eng, cfg.metric) : 0;
     }
   }
 }

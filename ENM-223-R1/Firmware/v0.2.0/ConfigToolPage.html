@@ -602,10 +602,13 @@
     function collectChannelCfg(ch){
       const chO={ ack:!!$('al-ackreq-'+ch)?.checked };
       for(let ak=0;ak<3;ak++){
+        const minRaw=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
+        const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
         chO[ak]={
           enabled:!!$('al-en-'+ch+'-'+ak)?.checked,
-          min:+( $('al-min-'+ch+'-'+ak)?.value||0),
-          max:+( $('al-max-'+ch+'-'+ak)?.value||0),
+          // Send engineering floats (device scales via alarmDoubleToRule). Empty → 0 = unset (legacy).
+          min: minRaw==='' ? 0 : Number(minRaw),
+          max: maxRaw==='' ? 0 : Number(maxRaw),
           metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
         };
       }
