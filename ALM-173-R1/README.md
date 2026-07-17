@@ -17,7 +17,7 @@ The **ALM-173-R1** is a configurable **alarm and annunciator I/O module** for in
 
 **Key capabilities at a glance:**
 
-- **17 opto-isolated digital inputs** — 5 V DC signalling; **3.75 kVrms** optocoupler isolation per channel
+- **17 opto-isolated digital inputs** — 5 V DC signalling; **5300 VRMS** optocoupler isolation test voltage per channel
 - **3 SPDT dry-contact relays** — **3 A @ 250 VAC** (resistive); follow alarm groups, Modbus manual override, or button override
 - **4 buttons + 4 user LEDs** — acknowledge alarms, relay override (long-hold 3 s), status indication
 - **On-board alarm engine** — inputs (zones) → **Alarm Groups 1–3** → relays/LEDs; non-latched or latched-until-ack modes
@@ -106,7 +106,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 
 | Subsystem | Qty | Description |
 |-----------|-----|-------------|
-| Digital Inputs | 17 | Opto-isolated, 5 V DC; 3.75 kVrms isolation; dry contact / SELV |
+| Digital Inputs | 17 | Opto-isolated, 5 V DC; 5300 VRMS isolation test voltage; dry contact / SELV |
 | Relays | 3 | SPDT (NO/NC/COM), HF115F/005-1ZS3; **3 A @ 250 VAC** resistive (module rating) |
 | Buttons | 4 | Configurable ack / relay override |
 | User LEDs | 4 | Configurable Steady/Blink + PWR/TX/RX status |
@@ -122,13 +122,15 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 |-----------|----:|----:|----:|:----:|-------|
 | Supply voltage | 18 | 24 | 30 | V DC | SELV; 1 A time-lag fuse, reverse-polarity diode, TVS |
 | Module power | — | 1.85 | 3.0 | W | Excludes external relay load currents |
-| Digital inputs | — | 5 | — | V DC | Opto-isolated; 3.75 kVrms (optocoupler) |
+| Digital inputs | — | 5 | — | V DC | Opto-isolated; 5300 VRMS test voltage (SFH6156 optocoupler) |
 | Relay contact (module) | — | — | 3 | A | @ 250 VAC resistive |
 | Relay contact voltage | — | — | 250 | V AC | or 30 V DC max |
 | RS-485 data rate | — | 19.2 | 115.2 | kbps | Default 19200 8N1 |
 | Operating temp. | 0 | — | 40 | °C | ≤ 95 % RH, non-condensing |
 
 > **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
+
+> **Isolation figure:** 5300 VRMS is the optocoupler's **isolation test voltage** (VISO, one minute, per the SFH6156 datasheet) — the industry-standard figure to compare parts by. It is not a working voltage: continuous operation is governed by VIORM = 890 V. Neither matters in practice here, because the inputs are 5 V DC dry-contact signalling and the barrier never approaches either. The figure is there to confirm a real barrier is present, **not** to permit mains on the input terminals — see the SELV warnings in §5.3 and §6.1.
 
 > **Power budgeting:** logic + LEDs + relay coils + sensor rails → add ≥ 30 % PSU headroom.
 
@@ -163,7 +165,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 ### 4.5 Reliability & protection
 
 - Reverse-polarity diode + TVS on 24 V input; 1 A time-lag fuse.
-- Opto-isolated digital inputs (3.75 kVrms); isolated sensor rails with PTC/fuse limiting.
+- Opto-isolated digital inputs (5300 VRMS); isolated sensor rails with PTC/fuse limiting.
 - Relay drivers with onboard suppression; add external RC/MOV for inductive field loads.
 - RS-485: TVS, series protection, fail-safe biasing.
 - USB-C ESD-protected; service port only.
@@ -201,7 +203,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 ![Terminal labeling](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
-**Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **3.75 kVrms** optocoupler isolation). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
+**Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
 **Sensor rails.** **PS/1 (+12 V)** and **PS/2 (+5 V)** are isolated, fuse/PTC limited outputs for **low-power sensors only**. Do not backfeed or parallel with external supplies.
 
