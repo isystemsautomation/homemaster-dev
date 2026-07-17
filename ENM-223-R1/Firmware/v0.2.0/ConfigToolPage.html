@@ -491,7 +491,7 @@
     function applyCalibCh(ch, obj, fromDevice){
       if(!obj||typeof obj!=='object') return;
       const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
-      const ok=key=>fromDevice||canApply(key);
+      const ok=key=>canApply(key);
       const Ug=num(obj.Ug ?? obj.Ugain), Ig=num(obj.Ig ?? obj.Igain);
       const Uo=num(obj.Uo ?? obj.Uoffset), Io=num(obj.Io ?? obj.Ioffset);
       if(Ug!==undefined&&ok('cal-ugain-'+ch)){ const el=$('cal-ugain-'+ch); if(el) el.value=String(Ug); }
