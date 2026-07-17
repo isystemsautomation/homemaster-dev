@@ -1664,6 +1664,30 @@ static void setDefaults() {
   setMeterDefaults();
 }
 
+// Settings-only defaults: never clear energy/cal (those live in enm_meter.bin).
+static void setSettingsDefaults() {
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = true;
+    rlyCfg[i].inverted  = false;
+    rlyCfg[i].mode      = RLY_MODE_MODBUS;
+    rlyCfg[i].alarmCh   = 3;
+    rlyCfg[i].alarmMask = 1;
+  }
+  for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0, 0 };
+  for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
+  for (int i = 0; i < NUM_RLY; i++) desiredRelay[i] = false;
+  setAlarmDefaults();
+  g_mb_address = 30;
+  g_mb_baud    = 19200;
+  SlaveId      = (int)g_mb_address;
+  g_atm_cfg.lineHz = 50;
+  g_atm_cfg.sumAbs = 1;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
+}
+
 static void atmApplyFromCfg_NOW() {
   // Soft-reset path — drain unread energy ticks first.
   sampleEnergyCounters();
