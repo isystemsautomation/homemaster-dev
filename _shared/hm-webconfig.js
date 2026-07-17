@@ -351,7 +351,7 @@
     }
     if (fw && st.fw != null) fw.textContent = String(st.fw);
     const a = (st.addr != null) ? st.addr : st.address;
-    const b = (st.baud != null) ? st.baud : st.baud;
+    const b = (st.baud != null) ? st.baud : st.baudRate;
     if (addr && a != null) addr.textContent = String(a);
     if (baud && b != null) baud.textContent = String(b);
     const selAddr = $('modbus-address');

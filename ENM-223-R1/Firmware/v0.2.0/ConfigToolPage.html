@@ -1,4 +1,3 @@
-<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} -->
 <link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
 <script src="simple-web-serial.min.js"></script>
 <script src="../../../_shared/hm-webconfig.js"></script>
@@ -117,11 +116,6 @@
             <option value="1">3P3W (3-wire)</option>
           </select>
         </div>
-        <div>
-          <label for="opt-samplems">Sample Interval (ms)</label>
-          <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200">
-          <small class="lock-badge">editing… press Enter to send</small>
-        </div>
       </div>
       <div class="row" style="margin-top:.6rem">
         <div>
@@ -149,7 +143,7 @@
           </select>
         </div>
       </div>
-      <div class="hint" style="margin-top:.4rem">Sag reference uses Phase-A Ugain. Sample interval is UI-only on this firmware. Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
+      <div class="hint" style="margin-top:.4rem">Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
     </div>
   </section>
 
@@ -667,7 +661,6 @@
     for(let ch=0;ch<3;ch++){
       $('opt-phaseMap-'+ch)?.addEventListener('change', sendPhaseMapFromUI);
     }
-    attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>{ /* UI-only on ENM v0.2.0 */ }, true);
 
     (function buildCalibrationUI(){
       const grid=$('calib-grid'); if(!grid) return;
@@ -840,14 +833,12 @@
               <label class="check"><input type="checkbox" class="rly-kind-wa"> Warning</label>
               <label class="check"><input type="checkbox" class="rly-kind-ev"> Event</label>
             </div>
-          </div>
-          <div style="margin-top:.5rem;text-align:right;"><button type="button" class="btn rly-toggle">Toggle</button></div>`;
+          </div>`;
         c.appendChild(d);
         const root=d;
         const modeSel=root.querySelector('.rly-mode');
         const alarmBox=root.querySelector('.rly-alarm-box');
         modeSel?.addEventListener('change', ()=>{ alarmBox.style.display=modeSel.value==='2'?'block':'none'; sendRelayCfg(); });
-        root.querySelector('.rly-toggle')?.addEventListener('click', ()=>HMWebConfig.appendLog('Relay toggle: use Modbus coil or button'));
         ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{
           root.querySelector(sel)?.addEventListener('change', sendRelayCfg);
         });
