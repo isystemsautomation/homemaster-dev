@@ -162,6 +162,9 @@ static volatile bool  meterDirty      = false;
 static unsigned long  lastCfgTouchMs  = 0;
 static unsigned long  lastMeterTouchMs = 0;
 static const uint32_t CFG_AUTOSAVE_MS = 1500;
+// Persist energy/cal to LittleFS at most every 5 min (poll stays at energySampleMs).
+static const uint32_t METER_SAVE_INTERVAL_MS = 300000;
+static uint32_t       meterSavedEnergyCrc = 0;
 
 // Types/globals used in function signatures — must be before any function (Arduino auto-prototypes).
 struct DebounceState {
@@ -500,6 +503,7 @@ static void serviceModbusServiceCoils(uint32_t now) {
     if (saveConfigFS()) {
       cfgDirty = false;
       meterDirty = false;
+      meterSavedEnergyCrc = meterEnergyCrc();
       wsLog("Configuration saved");
     } else {
       wsLog("ERROR: Save failed");
@@ -508,6 +512,7 @@ static void serviceModbusServiceCoils(uint32_t now) {
   if (mb.Coil(COIL_REBOOT)) {
     mb.Coil(COIL_REBOOT, false);
     wsLog("Rebooting…");
+    (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
   }
@@ -657,6 +662,8 @@ static void markMeterDirty() {
   meterDirty = true;
   lastMeterTouchMs = millis();
 }
+
+static uint32_t meterEnergyCrc();  // defined with sampleEnergyCounters
 
 static void setAlarmDefaults() {
   memset(alarmCfg, 0, sizeof(alarmCfg));
@@ -1414,6 +1421,8 @@ static double   urms_tmp[3], irms_tmp[3];
 static unsigned long lastMeterSample = 0;
 static const unsigned long meterSampleMs = 1000;
 static unsigned long lastEnergySample = 0;
+// ATM90E32 energy regs are 16-bit read-to-clear; Total overflows ~204.8 Wh
+// (~21 s at full scale). Keep poll ≤10 s so ticks are not lost under load.
 static const unsigned long energySampleMs = 5000;
 
 static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
@@ -1550,7 +1559,19 @@ static void meter_job_step() {
   }
 }
 
+static uint32_t meterEnergyCrc() {
+  uint32_t c = 0;
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_ap_cnt),  sizeof(g_ap_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_an_cnt),  sizeof(g_an_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rp_cnt),  sizeof(g_rp_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rn_cnt),  sizeof(g_rn_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_s_cnt),   sizeof(g_s_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_aph_cnt), sizeof(g_aph_cnt));
+  return c;
+}
+
 static void sampleEnergyCounters() {
+  // Poll only — do not mark LittleFS dirty here (flash wear + Modbus FIFO overruns).
   g_ap_cnt[0] += g_atm.rdAP_A(); g_ap_cnt[1] += g_atm.rdAP_B();
   g_ap_cnt[2] += g_atm.rdAP_C(); g_ap_cnt[3] += g_atm.rdAP_T();
   g_an_cnt[0] += g_atm.rdAN_A(); g_an_cnt[1] += g_atm.rdAN_B();
@@ -1572,7 +1593,19 @@ static void sampleEnergyCounters() {
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
     g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
   }
-  markMeterDirty();
+}
+
+// Periodic LittleFS meter flush: at most every METER_SAVE_INTERVAL_MS, and only
+// when energy counters changed (CRC) or meterDirty was set (cal / explicit).
+static void serviceMeterAutosave(unsigned long now) {
+  if (now - lastMeterTouchMs < METER_SAVE_INTERVAL_MS) return;
+  lastMeterTouchMs = now;
+  const uint32_t crc = meterEnergyCrc();
+  if (!meterDirty && crc == meterSavedEnergyCrc) return;
+  if (saveMeterFS()) {
+    meterDirty = false;
+    meterSavedEnergyCrc = crc;
+  }
 }
 
 static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
@@ -1849,6 +1882,7 @@ void handleCommand(JSONVar obj) {
   String act = String(actC); act.toLowerCase();
   if (act == "reboot" || act == "reset") {
     wsLog("Rebooting…");
+    (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
   } else if (act == "factory") {
@@ -2038,6 +2072,7 @@ static void resetEnergyCounters() {
   markMeterDirty();
   if (saveMeterFS()) {
     meterDirty = false;
+    meterSavedEnergyCrc = meterEnergyCrc();
     wsLog("Energy counters reset");
   } else {
     wsLog("ERROR: Energy reset save failed");
@@ -2227,6 +2262,8 @@ void setup() {
   atmApplyFromCfg_NOW();
   atmBusy = false;
   sampleEnergyCounters();
+  meterSavedEnergyCrc = meterEnergyCrc();
+  lastMeterTouchMs = millis();
   mbPublishMeter();
 
   wsLog("Boot OK " HM_FW " (config saved to flash)");
@@ -2276,10 +2313,7 @@ void loop() {
     saveSettingsFS();
   }
 
-  if (meterDirty && (now - lastMeterTouchMs >= CFG_AUTOSAVE_MS)) {
-    meterDirty = false;
-    saveMeterFS();
-  }
+  serviceMeterAutosave(now);
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
     lastBlinkToggle = now;
