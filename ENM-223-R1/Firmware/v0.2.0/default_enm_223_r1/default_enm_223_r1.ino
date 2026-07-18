@@ -268,6 +268,9 @@ static int parseKeyFromBlob(const String& blob, const char* key, int fallback) {
   }
   while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == '\t')) pos++;
   if (pos >= (int)blob.length()) return fallback;
+  // JSON booleans: String.toInt("true") is 0 — treat explicitly.
+  if (blob[pos] == 't' || blob[pos] == 'T') return 1;
+  if (blob[pos] == 'f' || blob[pos] == 'F') return 0;
   int end = pos;
   if (blob[end] == '"') {
     end++;
@@ -294,7 +297,7 @@ static int jvGetInt(const JSONVar& obj, const char* key, int fallback) {
 }
 
 static double jvGetDouble(const JSONVar& obj, const char* key, double fallback) {
-  if (!obj.hasOwnProperty(key)) return fallback;
+  if (!jvHasKey(obj, key)) return fallback;
   const String s = JSON.stringify(obj[key]);
   if (s.length() == 0 || s == "null" || s == "undefined" || s == "\"\"") return fallback;
   return s.toDouble();
@@ -923,9 +926,8 @@ static void alarmSampleChipDiag(uint32_t now) {
 
 static bool alarmRulePublished(uint8_t ch, uint8_t kind) {
   if (ch > 3 || kind > 2) return false;
-  bool active = alarmRun[ch].rules[kind].active;
-  if (kind == ALARM_KIND_EVENT && alarmRun[ch].chipActive) active = true;
-  if (!active) return false;
+  // Threshold rules only — chip power-quality bits stay on Chip Events / Modbus IR.
+  if (!alarmRun[ch].rules[kind].active) return false;
   if (alarmCfg[ch].ackRequired && alarmRun[ch].acked) return false;
   return true;
 }
@@ -1038,23 +1040,36 @@ static JSONVar alarmCfgToJson() {
   return arr;
 }
 
+static JSONVar alarmRuleJsonAt(const JSONVar& obj, uint8_t kind) {
+  JSONVar r = obj[kind];
+  if (JSON.typeof(r) != "undefined") return r;
+  char key[2] = { (char)('0' + kind), '\0' };
+  r = obj[key];
+  if (JSON.typeof(r) != "undefined") return r;
+  if (JSON.typeof(obj["rules"]) == "array") {
+    JSONVar rules = obj["rules"];
+    if (kind < (uint8_t)rules.length()) return rules[kind];
+  }
+  return JSONVar();
+}
+
 static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
   if (ch > 3 || JSON.typeof(obj) == "undefined") return;
-  if (JSON.typeof(obj["ack"]) != "undefined") alarmCfg[ch].ackRequired = jvGetInt(obj, "ack", 0) ? 1 : 0;
+  if (jvHasKey(obj, "ack")) alarmCfg[ch].ackRequired = jvGetInt(obj, "ack", 0) ? 1 : 0;
   for (uint8_t kind = 0; kind < 3; kind++) {
-    JSONVar r = obj[kind];
+    JSONVar r = alarmRuleJsonAt(obj, kind);
     if (JSON.typeof(r) == "undefined") continue;
     AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
-    if (JSON.typeof(r["enabled"]) != "undefined") cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
-    if (JSON.typeof(r["metric"]) != "undefined")  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
-    if (r.hasOwnProperty("min")) {
+    if (jvHasKey(r, "enabled")) cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
+    if (jvHasKey(r, "metric"))  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
+    if (jvHasKey(r, "min")) {
       const String ms = JSON.stringify(r["min"]);
       if (ms == "null" || ms == "\"\"" || ms.length() == 0)
         cfg.minVal = ALARM_LIM_NONE_MIN;
       else
         cfg.minVal = alarmDoubleToRule(jvGetDouble(r, "min", 0.0), cfg.metric);
     }
-    if (r.hasOwnProperty("max")) {
+    if (jvHasKey(r, "max")) {
       const String xs = JSON.stringify(r["max"]);
       if (xs == "null" || xs == "\"\"" || xs.length() == 0)
         cfg.maxVal = ALARM_LIM_NONE_MAX;
