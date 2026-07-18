@@ -27,6 +27,9 @@
     .live-card{border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:1rem}
     .kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem;font-size:.95rem}
     @media (max-width:900px){.al-grid{grid-template-columns:1fr}}
+    .hm-advanced{margin-top:1rem}
+    .hm-advanced>summary{cursor:pointer;padding:.5rem 0;font-weight:600;user-select:none}
+    .hm-advanced[open]>summary{margin-bottom:.75rem}
   </style>
 
   <header class="appbar">
@@ -90,7 +93,7 @@
 
   <div class="sectiontitle">
     <h3>Meter Options</h3>
-    <p class="hint">Line frequency, wiring scheme, phase mapping, and sum mode (applied via ext.atm).</p>
+    <p class="hint">Line frequency, wiring scheme, and CT ratio (applied via ext.atm).</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -103,13 +106,6 @@
           </select>
         </div>
         <div>
-          <label for="opt-sumAbs">Sum Mode <span class="hint">(0=alg, 1=abs)</span></label>
-          <select id="opt-sumAbs">
-            <option value="0">0</option>
-            <option value="1" selected>1</option>
-          </select>
-        </div>
-        <div>
           <label for="opt-wireMode">Wiring Scheme</label>
           <select id="opt-wireMode">
             <option value="0" selected>3P4W (star, 4-wire)</option>
@@ -117,33 +113,6 @@
           </select>
         </div>
       </div>
-      <div class="row" style="margin-top:.6rem">
-        <div>
-          <label for="opt-phaseMap-0">L1 channel → meter phase</label>
-          <select id="opt-phaseMap-0">
-            <option value="0" selected>Phase A</option>
-            <option value="1">Phase B</option>
-            <option value="2">Phase C</option>
-          </select>
-        </div>
-        <div>
-          <label for="opt-phaseMap-1">L2 channel → meter phase</label>
-          <select id="opt-phaseMap-1">
-            <option value="0">Phase A</option>
-            <option value="1" selected>Phase B</option>
-            <option value="2">Phase C</option>
-          </select>
-        </div>
-        <div>
-          <label for="opt-phaseMap-2">L3 channel → meter phase</label>
-          <select id="opt-phaseMap-2">
-            <option value="0">Phase A</option>
-            <option value="1">Phase B</option>
-            <option value="2" selected>Phase C</option>
-          </select>
-        </div>
-      </div>
-      <div class="hint" style="margin-top:.4rem">Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
       <div class="row" style="margin-top:.8rem">
         <div>
           <label for="opt-ctPrimary">CT primary (A)</label>
@@ -153,14 +122,6 @@
           <label for="opt-ctSecondary">CT secondary (mA)</label>
           <input id="opt-ctSecondary" type="number" min="1" max="60" step="1" value="50">
         </div>
-        <div>
-          <label for="opt-pga">PGA (advanced)</label>
-          <select id="opt-pga">
-            <option value="1">1×</option>
-            <option value="2" selected>2×</option>
-            <option value="4">4×</option>
-          </select>
-        </div>
       </div>
       <div class="hint" style="margin-top:.4rem">
         N = primary / secondary_mA (software scale). Enter or leave the field to write. PGA writes the chip — change only with the input path.
@@ -168,16 +129,60 @@
         · <span id="ct-sec-util">input = — % of 60 mA</span>
         <span id="ct-overrange" style="display:none;color:#b00020;font-weight:600"> OVERRANGE</span>
       </div>
-    </div>
-  </section>
 
-  <div class="sectiontitle">
-    <h3>Calibration (Phase A / B / C)</h3>
-    <p class="hint">Press Enter in a field to send. Live refresh pauses while editing.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div id="calib-grid" class="cal-grid"></div>
+      <details class="hm-advanced">
+        <summary>Advanced settings</summary>
+        <div class="row">
+          <div>
+            <label for="opt-sumAbs">Sum Mode <span class="hint">(0=alg, 1=abs)</span></label>
+            <select id="opt-sumAbs">
+              <option value="0">0</option>
+              <option value="1" selected>1</option>
+            </select>
+          </div>
+          <div>
+            <label for="opt-pga">PGA (advanced)</label>
+            <select id="opt-pga">
+              <option value="1">1×</option>
+              <option value="2" selected>2×</option>
+              <option value="4">4×</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:.6rem">
+          <div>
+            <label for="opt-phaseMap-0">L1 channel → meter phase</label>
+            <select id="opt-phaseMap-0">
+              <option value="0" selected>Phase A</option>
+              <option value="1">Phase B</option>
+              <option value="2">Phase C</option>
+            </select>
+          </div>
+          <div>
+            <label for="opt-phaseMap-1">L2 channel → meter phase</label>
+            <select id="opt-phaseMap-1">
+              <option value="0">Phase A</option>
+              <option value="1" selected>Phase B</option>
+              <option value="2">Phase C</option>
+            </select>
+          </div>
+          <div>
+            <label for="opt-phaseMap-2">L3 channel → meter phase</label>
+            <select id="opt-phaseMap-2">
+              <option value="0">Phase A</option>
+              <option value="1">Phase B</option>
+              <option value="2" selected>Phase C</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:.4rem">Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
+
+        <div class="sectiontitle" style="margin-top:1.25rem">
+          <h3>Calibration (Phase A / B / C)</h3>
+          <p class="hint">Press Enter in a field to send. Live refresh pauses while editing.</p>
+        </div>
+        <div id="calib-grid" class="cal-grid"></div>
+      </details>
     </div>
   </section>
 
