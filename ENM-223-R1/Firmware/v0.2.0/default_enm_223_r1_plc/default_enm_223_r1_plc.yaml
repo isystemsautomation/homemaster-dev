@@ -375,10 +375,10 @@ button:
 
 # ===================== Sensors (FC04 Input Registers RO) =====================
 # NEW MAP:
-# Urms: 0..2 (0.01V) | Irms: 3..5 (0.001A)
+# Urms: 0..2 (0.01V) | Irms: 3..5 (0.01A primary)
 # Freq: 6 (0.01Hz) | Temp: 7 (int16°C)
 # PF raw: 8..11 (x0.001)
-# Upeak: 12..14 (0.01V) | Ipeak: 15..17 (0.001A) | IrmsN: 18 (0.001A)
+# Upeak: 12..14 (0.01V) | Ipeak: 15..17 (0.01A primary) | IrmsN: 18 (0.01A primary)
 # P (s32): 20/22/24/26  | Q (s32): 28/30/32/34 | S (s32): 36/38/40/42
 # Angles: 44..46 (0.1°)
 # THD: 47..49 (0.01 %, active-power harmonic ratio)
@@ -429,7 +429,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -440,7 +440,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -451,7 +451,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
 
   # --- PF (×1000) & Angle (×0.1°) ---
@@ -539,7 +539,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -550,7 +550,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -561,7 +561,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -572,7 +572,7 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
-      - multiply: 0.001
+      - multiply: 0.01
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
 
   - platform: modbus_controller

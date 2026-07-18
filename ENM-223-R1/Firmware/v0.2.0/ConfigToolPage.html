@@ -144,6 +144,30 @@
         </div>
       </div>
       <div class="hint" style="margin-top:.4rem">Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label for="opt-ctPrimary">CT primary (A)</label>
+          <input id="opt-ctPrimary" type="number" min="1" max="10000" step="1" value="100">
+        </div>
+        <div>
+          <label for="opt-ctSecondary">CT secondary (mA)</label>
+          <input id="opt-ctSecondary" type="number" min="1" max="60" step="1" value="50">
+        </div>
+        <div>
+          <label for="opt-pga">PGA (advanced)</label>
+          <select id="opt-pga">
+            <option value="1">1×</option>
+            <option value="2" selected>2×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:.4rem">
+        N = primary / secondary_mA (software scale). PGA writes the chip — change only with the input path.
+        <span id="ct-ratio-n">N = 2</span>
+        · <span id="ct-sec-util">вход = — % от 60 мА</span>
+        <span id="ct-overrange" style="display:none;color:#b00020;font-weight:600"> OVERRANGE</span>
+      </div>
     </div>
   </section>
 
@@ -343,6 +367,35 @@
       setE(3, Et);
     }
 
+    function ctRatioFromUI(){
+      const p = Math.max(1, Math.min(10000, +($('opt-ctPrimary')?.value || 100)));
+      const s = Math.max(1, Math.min(60, +($('opt-ctSecondary')?.value || 50)));
+      return p / s;
+    }
+    function updateCtHud(Irms){
+      const N = ctRatioFromUI();
+      const nEl = $('ct-ratio-n');
+      if (nEl) nEl.textContent = 'N = ' + (Number.isFinite(N) ? N.toFixed(4).replace(/\.?0+$/,'') : '—');
+      const utilEl = $('ct-sec-util');
+      const ovEl = $('ct-overrange');
+      const arr = Array.isArray(Irms) ? Irms : [];
+      let maxSec_mA = 0;
+      for (let i = 0; i < 3; i++) {
+        const ip = Number(arr[i]);
+        if (!Number.isFinite(ip) || !(N > 0)) continue;
+        const sec = (ip / N); // primary A / N → secondary mA (chip scale)
+        if (sec > maxSec_mA) maxSec_mA = sec;
+      }
+      const pct = (maxSec_mA / 60) * 100;
+      if (utilEl) {
+        utilEl.textContent = Number.isFinite(pct)
+          ? ('вход = ' + pct.toFixed(0) + ' % от 60 мА')
+          : 'вход = — % от 60 мА';
+        utilEl.style.color = pct > 90 ? '#b06000' : '';
+      }
+      if (ovEl) ovEl.style.display = (pct >= 100) ? 'inline' : 'none';
+    }
+
     function applyMeterLive(m){
       if(!m) return;
       const Urms = toArr(m.Urms);
@@ -384,6 +437,7 @@
         setElNum(`upeak${i}`, Upeak[i], 2);
         setElNum(`ipeak${i}`, Ipeak[i], 3);
       }
+      updateCtHud(Irms);
       if (m.E_phase || m.E_tot) applyEnergies(m);
     }
 
@@ -425,6 +479,10 @@
           if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
         }
       }
+      if(atm.ctPrimary!==undefined){ const el=$('opt-ctPrimary'); if(el&&el!==document.activeElement) el.value=String(atm.ctPrimary); }
+      if(atm.ctSecondary!==undefined){ const el=$('opt-ctSecondary'); if(el&&el!==document.activeElement) el.value=String(atm.ctSecondary); }
+      if(atm.pga!==undefined){ const el=$('opt-pga'); if(el&&el!==document.activeElement) el.value=String(atm.pga); }
+      updateCtHud(null);
       if(atm.cal) applyCalibFromPayload({ cal: atm.cal });
     }
 
@@ -668,6 +726,20 @@
     for(let ch=0;ch<3;ch++){
       $('opt-phaseMap-'+ch)?.addEventListener('change', sendPhaseMapFromUI);
     }
+    function sendCtFromUI(){
+      const p = Math.max(1, Math.min(10000, +($('opt-ctPrimary')?.value || 100)));
+      const s = Math.max(1, Math.min(60, +($('opt-ctSecondary')?.value || 50)));
+      if ($('opt-ctPrimary')) $('opt-ctPrimary').value = String(p);
+      if ($('opt-ctSecondary')) $('opt-ctSecondary').value = String(s);
+      sendAtmPartial({ ctPrimary: p, ctSecondary: s });
+      updateCtHud(null);
+    }
+    $('opt-ctPrimary')?.addEventListener('change', sendCtFromUI);
+    $('opt-ctSecondary')?.addEventListener('change', sendCtFromUI);
+    $('opt-pga')?.addEventListener('change', ()=>{
+      sendAtmPartial({ pga: +$('opt-pga').value });
+      HMWebConfig.appendLog('PGA change — chip apply (only with input-path change)');
+    });
 
     (function buildCalibrationUI(){
       const grid=$('calib-grid'); if(!grid) return;

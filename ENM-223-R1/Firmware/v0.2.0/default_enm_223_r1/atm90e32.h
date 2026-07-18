@@ -44,7 +44,7 @@ public:
     spiHz_(spiHz), spiMode_(spiMode), csActiveHigh_(csActiveHigh) {}
 
   void begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const uint8_t phaseMap[3],
-             uint16_t ucal, const M90PhaseCal cal[3]);
+             uint16_t ucal, uint8_t pgaGain, const M90PhaseCal cal[3]);
   void applyCalibration(const M90PhaseCal cal[3]);
   void readPhaseCal(M90PhaseCal out[3]);
 

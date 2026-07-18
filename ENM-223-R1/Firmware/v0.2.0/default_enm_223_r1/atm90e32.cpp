@@ -231,13 +231,14 @@ static uint16_t buildChannelMapReg(const uint8_t phaseMap[3]) {
 
 // ---- Public API ----
 void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const uint8_t phaseMap[3],
-                     uint16_t ucal, const M90PhaseCal cal[3]) {
+                     uint16_t ucal, uint8_t pgaGain, const M90PhaseCal cal[3]) {
   lineHz_ = (lineHz == 60) ? 60 : 50;
   sumAbs_ = sumAbs ? 1 : 0;
   wireMode_ = wireMode ? 1 : 0;
   for (int i = 0; i < 3; i++) phaseMap_[i] = phaseMap[i];
   ucal_   = ucal;
   for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
+  if (pgaGain != 1 && pgaGain != 2 && pgaGain != 4) pgaGain = 2;
 
   // PM pins are MCU->ATM control pins in your schematic
   pinMode(pm0_, OUTPUT);
@@ -316,7 +317,9 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   m0 |= static_cast<uint16_t>((sumAbs_ ? 0b11u : 0b00u) << 3);
 
   auto gainCode = [](uint8_t g)->uint8_t{ if(g==1)return 0; if(g==2)return 1; if(g==4)return 2; return 1; };
-  const uint8_t gIA=2,gIB=2,gIC=2;  // PGA=2× for ZEMCTK05 (167 mV @ 50A)
+  // PGA is configurable (default 2×). Factory Igain targets 0…60 mA secondary at PGA=2×
+  // (60 mA × 6 Ω = 360 mVrms = FS). Do not retune Igain when changing CT primary/secondary.
+  const uint8_t gIA = pgaGain, gIB = pgaGain, gIC = pgaGain;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
   write16(PLconstH, 0x0861);
