@@ -392,9 +392,11 @@ static uint8_t  g_pgaGain        = 2;
 static double   g_ctRatioN       = 2.0;
 
 static void clampCtPgaSettings() {
-  if (g_ctPrimaryA < 1) g_ctPrimaryA = 1;
+  // 0 means "unset" (fresh/migrated flash), not 1 mA — clamping 0→1 made N=100
+  // and turned one 0xFFFF SPI frame into 20.480 kWh on every channel.
+  if (g_ctPrimaryA < 1) g_ctPrimaryA = 100;
   if (g_ctPrimaryA > 10000) g_ctPrimaryA = 10000;
-  if (g_ctSecondary_mA < 1) g_ctSecondary_mA = 1;
+  if (g_ctSecondary_mA < 1) g_ctSecondary_mA = 50;
   if (g_ctSecondary_mA > 60) g_ctSecondary_mA = 60;
   if (g_pgaGain != 1 && g_pgaGain != 2 && g_pgaGain != 4) g_pgaGain = 2;
 }
@@ -1189,6 +1191,10 @@ static bool applySettings(const EnmSettingsCfg& pc) {
   g_ctPrimaryA     = pc.ctPrimaryA;
   g_ctSecondary_mA = pc.ctSecondary_mA;
   g_pgaGain        = pc.pgaGain;
+  // Uninitialized 0x0025 flash left secondary=0 → clamp to 1 → N=100 and a single
+  // 0xFFFF SPI frame became exactly 20.480 kWh on every energy channel.
+  if (g_ctPrimaryA < 1 || g_ctSecondary_mA < 1) setCtDefaults();
+  else clampCtPgaSettings();
   recomputeCtRatio();
   return true;
 }
@@ -1771,18 +1777,48 @@ static uint32_t meterEnergyCrc() {
 
 static void sampleEnergyCounters() {
   // Poll only — do not mark LittleFS dirty here (flash wear + Modbus FIFO overruns).
-  g_ap_cnt[0] += g_atm.rdAP_A(); g_ap_cnt[1] += g_atm.rdAP_B();
-  g_ap_cnt[2] += g_atm.rdAP_C(); g_ap_cnt[3] += g_atm.rdAP_T();
-  g_an_cnt[0] += g_atm.rdAN_A(); g_an_cnt[1] += g_atm.rdAN_B();
-  g_an_cnt[2] += g_atm.rdAN_C(); g_an_cnt[3] += g_atm.rdAN_T();
-  g_rp_cnt[0] += g_atm.rdRP_A(); g_rp_cnt[1] += g_atm.rdRP_B();
-  g_rp_cnt[2] += g_atm.rdRP_C(); g_rp_cnt[3] += g_atm.rdRP_T();
-  g_rn_cnt[0] += g_atm.rdRN_A(); g_rn_cnt[1] += g_atm.rdRN_B();
-  g_rn_cnt[2] += g_atm.rdRN_C(); g_rn_cnt[3] += g_atm.rdRN_T();
-  g_s_cnt[0]  += g_atm.rdSA_A(); g_s_cnt[1]  += g_atm.rdSA_B();
-  g_s_cnt[2]  += g_atm.rdSA_C(); g_s_cnt[3]  += g_atm.rdSA_T();
-  g_aph_cnt[0] += g_atm.rdAPH_A(); g_aph_cnt[1] += g_atm.rdAPH_B();
-  g_aph_cnt[2] += g_atm.rdAPH_C(); g_aph_cnt[3] += g_atm.rdAPH_T();
+  uint16_t ap[4], an[4], rp[4], rn[4], sa[4], aph[4];
+  ap[0] = g_atm.rdAP_A(); ap[1] = g_atm.rdAP_B();
+  ap[2] = g_atm.rdAP_C(); ap[3] = g_atm.rdAP_T();
+  an[0] = g_atm.rdAN_A(); an[1] = g_atm.rdAN_B();
+  an[2] = g_atm.rdAN_C(); an[3] = g_atm.rdAN_T();
+  rp[0] = g_atm.rdRP_A(); rp[1] = g_atm.rdRP_B();
+  rp[2] = g_atm.rdRP_C(); rp[3] = g_atm.rdRP_T();
+  rn[0] = g_atm.rdRN_A(); rn[1] = g_atm.rdRN_B();
+  rn[2] = g_atm.rdRN_C(); rn[3] = g_atm.rdRN_T();
+  sa[0] = g_atm.rdSA_A(); sa[1] = g_atm.rdSA_B();
+  sa[2] = g_atm.rdSA_C(); sa[3] = g_atm.rdSA_T();
+  aph[0] = g_atm.rdAPH_A(); aph[1] = g_atm.rdAPH_B();
+  aph[2] = g_atm.rdAPH_C(); aph[3] = g_atm.rdAPH_T();
+
+  // SPI-fail signature: every energy reg reads 0xFFFF. With CT N=100 that becomes
+  // exactly 20.480 kWh on import AND export on every phase (seen in the field).
+  bool allFFFF = true;
+  for (int i = 0; i < 4; i++) {
+    if (ap[i] != 0xFFFF || an[i] != 0xFFFF || rp[i] != 0xFFFF
+        || rn[i] != 0xFFFF || sa[i] != 0xFFFF || aph[i] != 0xFFFF) {
+      allFFFF = false;
+      break;
+    }
+  }
+  if (allFFFF) {
+    static uint32_t lastWarnMs = 0;
+    const uint32_t now = millis();
+    if (now - lastWarnMs > 10000) {
+      lastWarnMs = now;
+      wsLog("WARN: energy SPI all 0xFFFF — sample discarded");
+    }
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    g_ap_cnt[i] += ap[i];
+    g_an_cnt[i] += an[i];
+    g_rp_cnt[i] += rp[i];
+    g_rn_cnt[i] += rn[i];
+    g_s_cnt[i]  += sa[i];
+    g_aph_cnt[i] += aph[i];
+  }
 
   for (int i = 0; i < 4; i++) {
     g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
@@ -1874,13 +1910,16 @@ static void setSettingsDefaults() {
 }
 
 static void atmApplyFromCfg_NOW() {
-  // Soft-reset path — drain unread energy ticks first.
-  sampleEnergyCounters();
+  // Soft-reset discards unread chip ticks. Do NOT sampleEnergyCounters() here —
+  // a bad SPI frame (all 0xFFFF) was being added into flash-backed software
+  // totals and showed up as identical import/export on every phase.
+  drainChipEnergyRegs();
   M90PhaseCal tmp[3];
   for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
   clampCtPgaSettings();
   g_atm.begin(g_atm_cfg.lineHz, g_atm_cfg.sumAbs, g_atm_cfg.wireMode, g_atm_cfg.phaseMap,
               g_atm_cfg.ucal, g_pgaGain, tmp);
+  drainChipEnergyRegs();
 }
 
 static void atmApplyCalOnly_NOW() {
@@ -2572,7 +2611,7 @@ void setup() {
   atmBusy = true;
   atmApplyFromCfg_NOW();
   atmBusy = false;
-  sampleEnergyCounters();
+  // Counters come from LittleFS (loadMeterFS); do not SPI-sample into them at boot.
   meterSavedEnergyCrc = meterEnergyCrc();
   lastMeterTouchMs = millis();
   mbPublishMeter();
