@@ -688,14 +688,19 @@
         for(let ak=0;ak<3;ak++){
           const r=(Array.isArray(obj.rules)?obj.rules[ak]:null)??obj[ak]??obj[String(ak)]??{};
           const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
-          if(en&&r.enabled!==undefined) en.checked=!!r.enabled;
+          if(en&&r.enabled!==undefined) en.checked=!!(+r.enabled);
+          if(met&&r.metric!==undefined) met.value=String(r.metric);
+          const scale=alarmMetricScale(r.metric??met?.value??0);
           if(mn&&canApply('al-min-'+ch+'-'+ak)){
-            mn.value=('min' in r && r.min!==null&&r.min!=='')?String(r.min):'';
+            if(r.min!==undefined&&r.min!==null&&r.min!=='') mn.value=String(r.min);
+            else if(r.minRaw!==undefined&&r.minRaw!==null&&r.minRaw!=='') mn.value=String(Number(r.minRaw)/scale);
+            else mn.value='';
           }
           if(mx&&canApply('al-max-'+ch+'-'+ak)){
-            mx.value=('max' in r && r.max!==null&&r.max!=='')?String(r.max):'';
+            if(r.max!==undefined&&r.max!==null&&r.max!=='') mx.value=String(r.max);
+            else if(r.maxRaw!==undefined&&r.maxRaw!==null&&r.maxRaw!=='') mx.value=String(Number(r.maxRaw)/scale);
+            else mx.value='';
           }
-          if(met&&r.metric!==undefined) met.value=String(r.metric);
         }
       };
       if(Array.isArray(alarms)){
@@ -734,6 +739,15 @@
       }
     }
 
+    function alarmMetricScale(metric){
+      switch(+metric){
+        case 0: return 100;   // Urms
+        case 1: return 1000;  // Irms
+        case 5: return 100;   // Freq
+        default: return 1;    // P/Q/S
+      }
+    }
+
     function collectChannelCfg(ch){
       // enabled/ack as 0|1 — firmware parseKeyFromBlob used toInt(); JSON true→0.
       const chO={ ack: $('al-ackreq-'+ch)?.checked ? 1 : 0 };
@@ -743,12 +757,16 @@
         const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
         const minN=minRaw===''?null:Number(minRaw);
         const maxN=maxRaw===''?null:Number(maxRaw);
+        const metric=+( $('al-met-'+ch+'-'+ak)?.value||0);
+        const scale=alarmMetricScale(metric);
         const rule={
           enabled: $('al-en-'+ch+'-'+ak)?.checked ? 1 : 0,
-          // null = unset; 0 is a real engineering threshold
-          min: (minN===null||!Number.isFinite(minN)) ? null : minN,
-          max: (maxN===null||!Number.isFinite(maxN)) ? null : maxN,
-          metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
+          metric,
+          // Decimal strings + scaled int32 — nested JSON floats often arrive as null on device.
+          min: (minN===null||!Number.isFinite(minN)) ? null : String(minN),
+          max: (maxN===null||!Number.isFinite(maxN)) ? null : String(maxN),
+          minRaw: (minN===null||!Number.isFinite(minN)) ? null : Math.round(minN*scale),
+          maxRaw: (maxN===null||!Number.isFinite(maxN)) ? null : Math.round(maxN*scale)
         };
         chO[ak]=rule;
         rules.push(rule);
@@ -758,8 +776,9 @@
     }
 
     function sendChannelCfg(ch){
-      const cfg=collectChannelCfg(ch);
-      HMWebConfig.sendConfig('alarm', { ch, cfg });
+      // Flat { ch, ack, rules, … } — avoids nested list.cfg which Arduino_JSON often drops.
+      const packet=Object.assign({ ch }, collectChannelCfg(ch));
+      HMWebConfig.sendConfig('alarm', packet);
       HMWebConfig.appendLog('AlarmsCfg ch='+ch);
     }
 
@@ -979,6 +998,9 @@
           $('al-met-'+ch+'-'+ak)?.addEventListener('change', ()=>sendChannelCfg(ch));
           attachLockHandlers($('al-min-'+ch+'-'+ak), 'al-min-'+ch+'-'+ak, ()=>sendChannelCfg(ch));
           attachLockHandlers($('al-max-'+ch+'-'+ak), 'al-max-'+ch+'-'+ak, ()=>sendChannelCfg(ch));
+          // Same as CT: change/blur must write — Enter-only left thresholds unsaved.
+          $('al-min-'+ch+'-'+ak)?.addEventListener('change', ()=>sendChannelCfg(ch));
+          $('al-max-'+ch+'-'+ak)?.addEventListener('change', ()=>sendChannelCfg(ch));
         }
         $('al-ackreq-'+ch)?.addEventListener('change', ()=>sendChannelCfg(ch));
       }
