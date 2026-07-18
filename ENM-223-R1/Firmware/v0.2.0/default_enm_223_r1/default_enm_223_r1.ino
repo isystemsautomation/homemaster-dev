@@ -1811,13 +1811,17 @@ static void sampleEnergyCounters() {
     return;
   }
 
+  // Per-reg: ignore lone 0xFFFF (SPI glitch) but keep real ticks.
+  auto addTick = [](uint64_t& acc, uint16_t v) {
+    if (v != 0xFFFF) acc += v;
+  };
   for (int i = 0; i < 4; i++) {
-    g_ap_cnt[i] += ap[i];
-    g_an_cnt[i] += an[i];
-    g_rp_cnt[i] += rp[i];
-    g_rn_cnt[i] += rn[i];
-    g_s_cnt[i]  += sa[i];
-    g_aph_cnt[i] += aph[i];
+    addTick(g_ap_cnt[i], ap[i]);
+    addTick(g_an_cnt[i], an[i]);
+    addTick(g_rp_cnt[i], rp[i]);
+    addTick(g_rn_cnt[i], rn[i]);
+    addTick(g_s_cnt[i], sa[i]);
+    addTick(g_aph_cnt[i], aph[i]);
   }
 
   for (int i = 0; i < 4; i++) {
@@ -1827,6 +1831,19 @@ static void sampleEnergyCounters() {
     g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
     g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
+  }
+
+  // Heartbeat: proves whether the chip is producing CF ticks (Serial Log).
+  static uint32_t lastEnergyDiagMs = 0;
+  const uint32_t nowMs = millis();
+  if (nowMs - lastEnergyDiagMs >= 30000) {
+    lastEnergyDiagMs = nowMs;
+    char buf[160];
+    snprintf(buf, sizeof(buf),
+             "ENERGY rawAP=%u/%u/%u/%u WhT=%lu N=%.4g",
+             (unsigned)ap[0], (unsigned)ap[1], (unsigned)ap[2], (unsigned)ap[3],
+             (unsigned long)g_e_ap_Wh[3], g_ctRatioN);
+    wsLog(buf);
   }
 }
 
@@ -1910,10 +1927,9 @@ static void setSettingsDefaults() {
 }
 
 static void atmApplyFromCfg_NOW() {
-  // Soft-reset discards unread chip ticks. Do NOT sampleEnergyCounters() here —
-  // a bad SPI frame (all 0xFFFF) was being added into flash-backed software
-  // totals and showed up as identical import/export on every phase.
-  drainChipEnergyRegs();
+  // Preserve good unread ticks (sampleEnergyCounters discards all-0xFFFF poison),
+  // then SoftReset; throw away post-reset residue without adding it.
+  sampleEnergyCounters();
   M90PhaseCal tmp[3];
   for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
   clampCtPgaSettings();

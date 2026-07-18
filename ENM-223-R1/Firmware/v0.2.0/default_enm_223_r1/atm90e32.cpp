@@ -322,20 +322,20 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   const uint8_t gIA = pgaGain, gIB = pgaGain, gIC = pgaGain;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
+  // App note: PL_constant = 450e9/MC for MC=3200 → 0x08614C68 (not datasheet
+  // reset default 0x0861C468 — wrong low word stalls CF / energy).
   write16(PLconstH, 0x0861);
-  write16(PLconstL, 0xC468);
+  write16(PLconstL, 0x4C68);
 
   write16(MMode0, m0);
   write16(MMode1, m1);
 
   // Energy anti-creep / start thresholds (Atmel-46103): Reg = P[W] / 0.00032.
-  // Old 0x1D4C (=7500) ≈ 2.4 W all-phase sum (~10 mA @ 230 V) — too high for
-  // small loads on 50 A CT (e.g. ~18 W). Lower to ~3 mA equivalent:
-  //   P ≈ 230 V × 0.003 A ≈ 0.69 W → Reg ≈ 2156 (0x086C).
-  // Per-phase no-load thresholds scaled proportionally from old 0x02EE:
-  //   0x02EE × (2156/7500) ≈ 216 (0x00D8) ≈ 0.07 W/phase (~0.3 mA @ 230 V).
-  static constexpr uint16_t kPwrStartTh  = 0x086C; // ~0.69 W sum, ~3 mA @ 230 V
-  static constexpr uint16_t kPwrPhaseTh  = 0x00D8; // ~0.07 W/phase no-load
+  // High-ratio CTs (e.g. 4000 A : 4 mA → N=1000) make chip-domain power tiny
+  // even when primary kW looks large — keep thresholds near the noise floor.
+  //   ~0.032 W sum ≈ Reg 100 (0x0064); ~0.01 W/phase ≈ Reg 32 (0x0020).
+  static constexpr uint16_t kPwrStartTh  = 0x0064;
+  static constexpr uint16_t kPwrPhaseTh  = 0x0020;
   write16(PStartTh, kPwrStartTh);
   write16(QStartTh, kPwrStartTh);
   write16(SStartTh, kPwrStartTh);
