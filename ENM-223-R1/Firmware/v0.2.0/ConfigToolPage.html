@@ -549,8 +549,7 @@
     function applyCalibCh(ch, obj, fromDevice){
       if(!obj||typeof obj!=='object') return;
       const num=v=>(v===undefined||v===null||v==='')?undefined:Number(v);
-      // Honor edit-lock (and active focus) — never let live frames overwrite while editing.
-      // fromDevice is kept for call-site compatibility; it must not bypass the lock.
+      // Honor edit-lock / focus — fromDevice must not bypass (live frames ~1s).
       const ok=key=>{
         if(!canApply(key)) return false;
         const el=$(key);
@@ -764,12 +763,11 @@
           const payload={ ph:ch }; payload[field]=v;
           sendAtmPartial(payload);
         };
-        // Lock on focus (same as alarm min/max). lockOnFocus=false left a ~1s window
-        // where live cal frames overwrote the field before the first `input` event.
-        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'));
-        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'));
-        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'));
-        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'));
+        // Lock on focus (same as alarm min/max). Explicit true — PR #5 cal edit-lock.
+        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'), true);
+        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'), true);
+        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), true);
+        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), true);
       }
       flushPendingCalib();
     })();
