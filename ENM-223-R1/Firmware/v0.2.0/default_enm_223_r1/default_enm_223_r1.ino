@@ -1843,11 +1843,20 @@ static void sampleEnergyCounters() {
 
   if (energyDiagDue) {
     lastEnergyDiagMs = nowMs;
-    char buf[160];
+    // Config readback — proves MeterEn / PL / thresholds stuck after begin().
+    const uint16_t meterEn = g_atm.debugRead16(0x00);
+    const uint16_t plH = g_atm.debugRead16(0x31);
+    const uint16_t plL = g_atm.debugRead16(0x32);
+    const uint16_t pStart = g_atm.debugRead16(0x35);
+    const uint16_t m0 = g_atm.debugRead16(0x33);
+    const int32_t pChipC = g_atm.readPmeanW(2);  // chip-domain W (before ×N)
+    char buf[200];
     snprintf(buf, sizeof(buf),
-             "ENERGY rawAP=%u/%u/%u/%u WhT=%lu N=%.4g",
+             "ENERGY rawAP=%u/%u/%u/%u WhT=%lu N=%.4g | MeterEn=%04X PL=%04X%04X PStart=%04X M0=%04X PchipC=%ld",
              (unsigned)ap[0], (unsigned)ap[1], (unsigned)ap[2], (unsigned)ap[3],
-             (unsigned long)g_e_ap_Wh[3], g_ctRatioN);
+             (unsigned long)g_e_ap_Wh[3], g_ctRatioN,
+             (unsigned)meterEn, (unsigned)plH, (unsigned)plL,
+             (unsigned)pStart, (unsigned)m0, (long)pChipC);
     wsLog(buf);
   }
 }

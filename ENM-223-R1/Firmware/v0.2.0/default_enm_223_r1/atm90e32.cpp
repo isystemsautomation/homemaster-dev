@@ -240,19 +240,24 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
   if (pgaGain != 1 && pgaGain != 2 && pgaGain != 4) pgaGain = 2;
 
-  // PM pins are MCU->ATM control pins in your schematic
+  // PM1:PM0 — datasheet Table: 11=Normal (energy on), 10=Partial (energy OFF,
+  // measurement still runs). Transition via Idle (00) so SoftReset is legal
+  // (SoftReset only works in Normal mode).
   pinMode(pm0_, OUTPUT);
   pinMode(pm1_, OUTPUT);
+  digitalWrite(pm0_, LOW);
+  digitalWrite(pm1_, LOW);
+  delay(20);
   digitalWrite(pm0_, HIGH);
   digitalWrite(pm1_, HIGH);
-  delay(5);
+  delay(50);
 
   pinMode(cs_, OUTPUT);
   csRelease();
   delay(5);
 
   write16(SoftReset, 0x789A);
-  delay(5);
+  delay(10);
 
   write16(CfgRegAccEn, 0x55AA);
   write16(MeterEn, 0x0001);
@@ -330,21 +335,22 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   write16(MMode0, m0);
   write16(MMode1, m1);
 
-  // Energy anti-creep / start thresholds (Atmel-46103): Reg = P[W] / 0.00032.
-  // High-ratio CTs (e.g. 4000 A : 4 mA → N=1000) make chip-domain power tiny
-  // even when primary kW looks large — keep thresholds near the noise floor.
-  //   ~0.032 W sum ≈ Reg 100 (0x0064); ~0.01 W/phase ≈ Reg 32 (0x0020).
-  static constexpr uint16_t kPwrStartTh  = 0x0064;
-  static constexpr uint16_t kPwrPhaseTh  = 0x0020;
-  write16(PStartTh, kPwrStartTh);
-  write16(QStartTh, kPwrStartTh);
-  write16(SStartTh, kPwrStartTh);
-  write16(PPhaseTh, kPwrPhaseTh);
-  write16(QPhaseTh, kPwrPhaseTh);
-  write16(SPhaseTh, kPwrPhaseTh);
+  // Startup / no-load thresholds (datasheet §3.5): Reg = P[W] / 0.00032.
+  // 0 = accumulate whenever DSP power is non-zero (field: chip CF was stuck
+  // in no-load while Pmean still read live power).
+  write16(PStartTh, 0);
+  write16(QStartTh, 0);
+  write16(SStartTh, 0);
+  write16(PPhaseTh, 0);
+  write16(QPhaseTh, 0);
+  write16(SPhaseTh, 0);
 
   applyCalibration(cal);
 
+  // applyCalibration() closes CfgRegAccEn — reopen to force MeterEn after cal.
+  // Datasheet: CF + energy accumulators run only while any MeterEn bit is set.
+  write16(CfgRegAccEn, 0x55AA);
+  write16(MeterEn, 0x00FF);
   write16(CfgRegAccEn, 0x0000);
 }
 
@@ -402,19 +408,14 @@ int16_t  ATM90E32::readPAngleC(){ return (int16_t)read16(PAngleC); }
 uint16_t ATM90E32::readFreq_x100(){ return read16(Freq); }
 int16_t  ATM90E32::readTempC(){ return (int16_t)read16(Temp); }
 
-// Energies — read-clear; Atmel-46103: if SPI garbles the return, recover from LastSPIData.
+// Energies are read-clear. LastSPIData recovery (Atmel-46103) must NOT replace a
+// valid primary read with a mismatched echo — a 0 echo was wiping real ticks.
 uint16_t ATM90E32::readEnergy16(uint16_t reg) {
   const uint16_t v = read16(reg);
   const uint16_t echo = read16(LastSPIData);
   if (echo == v) return v;
-  // Mismatch: the cleared value is latched in LastSPIData — re-read it.
-  uint16_t last = echo;
-  for (int i = 0; i < 3; i++) {
-    const uint16_t again = read16(LastSPIData);
-    if (again == last) return last;
-    last = again;
-  }
-  return last;
+  if (v == 0xFFFF && echo != 0xFFFF) return echo;  // recover only SPI-fail primary
+  return v;  // trust primary (including legitimate 0)
 }
 
 uint16_t ATM90E32::rdAP_A(){ return readEnergy16(APenergyA); }
