@@ -287,6 +287,9 @@
       return [];
     }
     function asNum(v) {
+      // Number(null)===0 — Arduino_JSON nested doubles often arrive as null and
+      // were shown as 0.000 (Energies looked dead while live P worked).
+      if (v === null || v === undefined || v === '') return NaN;
       const n = Number(v);
       return Number.isFinite(n) ? n : NaN;
     }
@@ -340,31 +343,70 @@
 
     function applyEnergies(src){
       if(!src) return;
-      const setE=(idx, e)=>{
-        if(!e||typeof e!=='object'){
-          ['ap','an','net-a','rp','rn','net-r','s','aph'].forEach(p=>setElNum(`e-${p}-${idx}`, NaN, 3));
-          return;
+      // Preferred: flat int arrays E_ap_Wh[4] (same WebSerial path as P_W).
+      // Legacy: nested E_phase/E_tot with *_kWh doubles (often null → looked like 0.000).
+      const flatAp = toArr(src.E_ap_Wh);
+      const flatAn = toArr(src.E_an_Wh);
+      const flatRp = toArr(src.E_rp_varh);
+      const flatRn = toArr(src.E_rn_varh);
+      const flatS  = toArr(src.E_s_VAh);
+      const flatAph = toArr(src.E_aph_Wh);
+      const useFlat = flatAp.length >= 4 || flatAp.length >= 3;
+
+      const kWhFromObj = (e, keys) => {
+        if (!e || typeof e !== 'object') return NaN;
+        for (const k of keys) {
+          if (k.endsWith('_Wh') || k.endsWith('_varh') || k.endsWith('_VAh')) {
+            const wh = asNum(e[k]);
+            if (Number.isFinite(wh)) return wh / 1000;
+          } else {
+            const v = asNum(e[k]);
+            if (Number.isFinite(v)) return v;
+          }
         }
-        const imp = asNum(e.import_kWh ?? e.AP_kWh);
-        const exp = asNum(e.export_kWh ?? e.AN_kWh);
-        const netA = asNum(e.net_kWh ?? (imp - exp));
-        const impR = asNum(e.import_kvarh ?? e.RP_kvarh);
-        const expR = asNum(e.export_kvarh ?? e.RN_kvarh);
-        const netR = asNum(e.net_kvarh ?? (impR - expR));
-        setElNum(`e-ap-${idx}`, imp, 3);
-        setElNum(`e-an-${idx}`, exp, 3);
-        setElNum(`e-net-a-${idx}`, netA, 3);
-        setElNum(`e-rp-${idx}`, impR, 3);
-        setElNum(`e-rn-${idx}`, expR, 3);
-        setElNum(`e-net-r-${idx}`, netR, 3);
-        setElNum(`e-s-${idx}`, e.S_kVAh, 3);
-        setElNum(`e-aph-${idx}`, e.AP_harm_kWh, 3);
+        return NaN;
       };
-      // Firmware JSONVar arrays arrive as {"0":…,"1":…} objects, not JS arrays.
+      const kWhAt = (arr, i) => {
+        const wh = asNum(arr[i]);
+        return Number.isFinite(wh) ? wh / 1000 : NaN;
+      };
+
       const Ep = toArr(src.E_phase);
       const Et = (src.E_tot && typeof src.E_tot === 'object') ? src.E_tot : null;
-      for (let i = 0; i < 3; i++) setE(i, Ep[i]);
-      setE(3, Et);
+
+      for (let i = 0; i < 4; i++) {
+        let impN, expN, impRN, expRN, sN, aphN;
+        if (useFlat) {
+          impN = kWhAt(flatAp, i);
+          expN = kWhAt(flatAn, i);
+          impRN = kWhAt(flatRp, i);
+          expRN = kWhAt(flatRn, i);
+          sN = kWhAt(flatS, i);
+          aphN = kWhAt(flatAph, i);
+        } else {
+          const e = (i < 3) ? Ep[i] : Et;
+          if (!e || typeof e !== 'object') {
+            ['ap','an','net-a','rp','rn','net-r','s','aph'].forEach(p=>setElNum(`e-${p}-${i}`, NaN, 3));
+            continue;
+          }
+          impN = kWhFromObj(e, ['import_Wh', 'AP_Wh', 'import_kWh', 'AP_kWh']);
+          expN = kWhFromObj(e, ['export_Wh', 'AN_Wh', 'export_kWh', 'AN_kWh']);
+          impRN = kWhFromObj(e, ['import_varh', 'RP_varh', 'import_kvarh', 'RP_kvarh']);
+          expRN = kWhFromObj(e, ['export_varh', 'RN_varh', 'export_kvarh', 'RN_kvarh']);
+          sN = kWhFromObj(e, ['S_VAh', 'S_kVAh']);
+          aphN = kWhFromObj(e, ['AP_harm_Wh', 'AP_harm_kWh']);
+        }
+        const netA = (Number.isFinite(impN) && Number.isFinite(expN)) ? (impN - expN) : NaN;
+        const netR = (Number.isFinite(impRN) && Number.isFinite(expRN)) ? (impRN - expRN) : NaN;
+        setElNum(`e-ap-${i}`, impN, 3);
+        setElNum(`e-an-${i}`, expN, 3);
+        setElNum(`e-net-a-${i}`, netA, 3);
+        setElNum(`e-rp-${i}`, impRN, 3);
+        setElNum(`e-rn-${i}`, expRN, 3);
+        setElNum(`e-net-r-${i}`, netR, 3);
+        setElNum(`e-s-${i}`, sN, 3);
+        setElNum(`e-aph-${i}`, aphN, 3);
+      }
     }
 
     function ctRatioFromUI(){
@@ -438,7 +480,7 @@
         setElNum(`ipeak${i}`, Ipeak[i], 3);
       }
       updateCtHud(Irms);
-      if (m.E_phase || m.E_tot) applyEnergies(m);
+      if (m.E_ap_Wh || m.E_phase || m.E_tot) applyEnergies(m);
     }
 
     function parseEventPayload(p) {

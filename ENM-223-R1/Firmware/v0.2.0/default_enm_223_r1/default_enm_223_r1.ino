@@ -1807,32 +1807,25 @@ static void serviceMeterAutosave(unsigned long now) {
   }
 }
 
-static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
-  auto to_k = [](uint32_t Wh) -> double { return Wh / 1000.0; };
-  auto fill = [&](JSONVar& ph, int i) {
-    const double ap = to_k(g_e_ap_Wh[i]);
-    const double an = to_k(g_e_an_Wh[i]);
-    const double rp = to_k(g_e_rp_varh[i]);
-    const double rn = to_k(g_e_rn_varh[i]);
-    ph["AP_kWh"]   = ap;
-    ph["AN_kWh"]   = an;
-    ph["RP_kvarh"] = rp;
-    ph["RN_kvarh"] = rn;
-    ph["S_kVAh"]   = to_k(g_e_s_VAh[i]);
-    ph["AP_harm_kWh"] = to_k(g_e_aph_Wh[i]);
-    ph["import_kWh"]    = ap;
-    ph["export_kWh"]    = an;
-    ph["net_kWh"]       = ap - an;
-    ph["import_kvarh"]  = rp;
-    ph["export_kvarh"]  = rn;
-    ph["net_kvarh"]     = rp - rn;
-  };
-  for (int i = 0; i < 3; i++) {
-    JSONVar ph;
-    fill(ph, i);
-    Ephase[i] = ph;
+// Flat int arrays — same shape as P_W (proven over WebSerial). Nested E_phase
+// objects with doubles (and even ints) serialize as null with Arduino_JSON;
+// WebConfig Number(null)===0 hid that as 0.000 kWh.
+static void energiesToFlatJson(JSONVar& o) {
+  JSONVar ap, an, rp, rn, s, aph;
+  for (int i = 0; i < 4; i++) {
+    ap[i] = (int)g_e_ap_Wh[i];
+    an[i] = (int)g_e_an_Wh[i];
+    rp[i] = (int)g_e_rp_varh[i];
+    rn[i] = (int)g_e_rn_varh[i];
+    s[i]  = (int)g_e_s_VAh[i];
+    aph[i] = (int)g_e_aph_Wh[i];
   }
-  fill(Etot, 3);
+  o["E_ap_Wh"] = ap;
+  o["E_an_Wh"] = an;
+  o["E_rp_varh"] = rp;
+  o["E_rn_varh"] = rn;
+  o["E_s_VAh"] = s;
+  o["E_aph_Wh"] = aph;
 }
 
 static void setDefaults() {
@@ -2006,10 +1999,7 @@ static void sendWebCalib() {
 
 static JSONVar energyToJsonObj() {
   JSONVar o;
-  JSONVar Ephase, Etot;
-  energiesToJson(Ephase, Etot);
-  o["E_phase"] = Ephase;
-  o["E_tot"]   = Etot;
+  energiesToFlatJson(o);
   o["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
   return o;
 }
@@ -2078,11 +2068,8 @@ static JSONVar meterLiveToJson() {
   m["PfundT"] = g_pfund_W[3];
   m["PharmT"] = g_pharm_W[3];
 
-  // v0.1.0 ENM_Meter carried energies in the same frame; WebConfig reads them here.
-  JSONVar Ephase, Etot;
-  energiesToJson(Ephase, Etot);
-  m["E_phase"] = Ephase;
-  m["E_tot"]   = Etot;
+  // Flat E_*_Wh int arrays (Arduino_JSON-safe). See energiesToFlatJson.
+  energiesToFlatJson(m);
   return m;
 }
 
