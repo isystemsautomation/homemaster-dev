@@ -119,7 +119,28 @@ struct EnmSettingsCfg {
   uint32_t crc32;
 } __attribute__((packed));
 
+// v3: energy stored as primary-domain Wh (double). CT/N must not rescale history.
 struct EnmMeterCfg {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint16_t ucal;
+  uint16_t Ugain[3];
+  uint16_t Igain[3];
+  int16_t  Uoffset[3];
+  int16_t  Ioffset[3];
+  uint8_t  _align[6];  // doubles at offset 40 (8-byte aligned)
+  double   ap_Wh[4];
+  double   an_Wh[4];
+  double   rp_varh[4];
+  double   rn_varh[4];
+  double   s_VAh[4];
+  double   aph_Wh[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
+// v2: secondary-domain 0.01CF tick counters (migrated once → primary Wh).
+struct EnmMeterCfgV2 {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -185,7 +206,7 @@ static const uint16_t CFG_VERSION_V24 = 0x0024;  // alarm min/max: 0 is a real l
 static const uint16_t CFG_VERSION     = 0x0025;  // CT ratio + configurable PGA
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
-static const uint16_t METER_VERSION   = 0x0002;
+static const uint16_t METER_VERSION   = 0x0003;        // primary-Wh double accumulators
 static const char*    METER_PATH      = "/enm_meter.bin";
 static const uint16_t LEGACY_CFG_VER  = 0x0001;
 static volatile bool  cfgDirty        = false;
@@ -505,12 +526,13 @@ enum : uint16_t {
   // HR 2,3,6 reserved — read-only, not applied from Modbus
 };
 
+// Published integers (Modbus / WebSerial) — rounded from primary accumulators.
 static uint32_t g_e_ap_Wh[4] = {0}, g_e_an_Wh[4] = {0}, g_e_rp_varh[4] = {0};
 static uint32_t g_e_rn_varh[4] = {0}, g_e_s_VAh[4] = {0};
 static uint32_t g_e_aph_Wh[4] = {0};
-static uint64_t g_ap_cnt[4] = {0}, g_an_cnt[4] = {0}, g_rp_cnt[4] = {0};
-static uint64_t g_rn_cnt[4] = {0}, g_s_cnt[4]  = {0};
-static uint64_t g_aph_cnt[4] = {0};
+// Primary-domain energy (Wh / varh / VAh). N scales only future deltas.
+static double g_acc_ap_Wh[4] = {0}, g_acc_an_Wh[4] = {0}, g_acc_rp_varh[4] = {0};
+static double g_acc_rn_varh[4] = {0}, g_acc_s_VAh[4] = {0}, g_acc_aph_Wh[4] = {0};
 static uint32_t g_MC_imp_per_kWh = 3200;
 
 static bool mbMapBuilt = false;
@@ -643,14 +665,12 @@ static void setAtmDefaults() {
   }
 }
 
+static void publishEnergyFromAcc();
+
 static void clearEnergyCounters() {
-  memset(g_ap_cnt, 0, sizeof(g_ap_cnt));
-  memset(g_an_cnt, 0, sizeof(g_an_cnt));
-  memset(g_rp_cnt, 0, sizeof(g_rp_cnt));
-  memset(g_rn_cnt, 0, sizeof(g_rn_cnt));
-  memset(g_s_cnt,  0, sizeof(g_s_cnt));
-  memset(g_aph_cnt, 0, sizeof(g_aph_cnt));
   for (int i = 0; i < 4; i++) {
+    g_acc_ap_Wh[i] = g_acc_an_Wh[i] = g_acc_rp_varh[i] = 0.0;
+    g_acc_rn_varh[i] = g_acc_s_VAh[i] = g_acc_aph_Wh[i] = 0.0;
     g_e_ap_Wh[i] = g_e_an_Wh[i] = g_e_rp_varh[i] = g_e_rn_varh[i] = g_e_s_VAh[i] = 0;
     g_e_aph_Wh[i] = 0;
   }
@@ -709,7 +729,7 @@ static const unsigned long peakResetMs = 10000;
 static unsigned long lastAlarmEval = 0;
 static const unsigned long alarmEvalMs = 200;
 
-static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks);
+static inline double ticksToPrimaryWh(uint64_t ticks);
 
 static inline uint16_t diAlarmAddr(uint8_t ch, uint8_t kind) {
   return (uint16_t)(DI_ALARM_BASE + ch * 3 + kind);
@@ -1357,12 +1377,14 @@ static void captureMeter(EnmMeterCfg& pc) {
     pc.Uoffset[i] = g_atm_cfg.cal[i].Uoffset;
     pc.Ioffset[i] = g_atm_cfg.cal[i].Ioffset;
   }
-  memcpy(pc.ap_cnt, g_ap_cnt, sizeof(g_ap_cnt));
-  memcpy(pc.an_cnt, g_an_cnt, sizeof(g_an_cnt));
-  memcpy(pc.rp_cnt, g_rp_cnt, sizeof(g_rp_cnt));
-  memcpy(pc.rn_cnt, g_rn_cnt, sizeof(g_rn_cnt));
-  memcpy(pc.s_cnt,  g_s_cnt,  sizeof(g_s_cnt));
-  memcpy(pc.aph_cnt, g_aph_cnt, sizeof(g_aph_cnt));
+  for (int i = 0; i < 4; i++) {
+    pc.ap_Wh[i]    = g_acc_ap_Wh[i];
+    pc.an_Wh[i]    = g_acc_an_Wh[i];
+    pc.rp_varh[i]  = g_acc_rp_varh[i];
+    pc.rn_varh[i]  = g_acc_rn_varh[i];
+    pc.s_VAh[i]    = g_acc_s_VAh[i];
+    pc.aph_Wh[i]   = g_acc_aph_Wh[i];
+  }
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmMeterCfg));
 }
@@ -1383,22 +1405,44 @@ static bool applyMeter(const EnmMeterCfg& pc) {
     g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
     g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
   }
-
-  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
-  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
-  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
-  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
-  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
-  memcpy(g_aph_cnt, pc.aph_cnt, sizeof(g_aph_cnt));
-
   for (int i = 0; i < 4; i++) {
-    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
-    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
-    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
-    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
-    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
-    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
+    g_acc_ap_Wh[i]   = pc.ap_Wh[i];
+    g_acc_an_Wh[i]   = pc.an_Wh[i];
+    g_acc_rp_varh[i] = pc.rp_varh[i];
+    g_acc_rn_varh[i] = pc.rn_varh[i];
+    g_acc_s_VAh[i]   = pc.s_VAh[i];
+    g_acc_aph_Wh[i]  = pc.aph_Wh[i];
   }
+  publishEnergyFromAcc();
+  return true;
+}
+
+// Migrate v2 tick blob → primary Wh using current N (settings already applied).
+static bool applyMeterV2(const EnmMeterCfgV2& pc) {
+  if (pc.magic != METER_MAGIC || pc.version != 0x0002 || pc.size != sizeof(EnmMeterCfgV2))
+    return false;
+  EnmMeterCfgV2 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmMeterCfgV2)) != crc)
+    return false;
+
+  g_atm_cfg.ucal = pc.ucal ? pc.ucal : 36000;
+  for (int i = 0; i < 3; i++) {
+    g_atm_cfg.cal[i].Ugain   = pc.Ugain[i];
+    g_atm_cfg.cal[i].Igain   = pc.Igain[i];
+    g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
+    g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
+  }
+  for (int i = 0; i < 4; i++) {
+    g_acc_ap_Wh[i]   = ticksToPrimaryWh(pc.ap_cnt[i]);
+    g_acc_an_Wh[i]   = ticksToPrimaryWh(pc.an_cnt[i]);
+    g_acc_rp_varh[i] = ticksToPrimaryWh(pc.rp_cnt[i]);
+    g_acc_rn_varh[i] = ticksToPrimaryWh(pc.rn_cnt[i]);
+    g_acc_s_VAh[i]   = ticksToPrimaryWh(pc.s_cnt[i]);
+    g_acc_aph_Wh[i]  = ticksToPrimaryWh(pc.aph_cnt[i]);
+  }
+  publishEnergyFromAcc();
   return true;
 }
 
@@ -1418,22 +1462,15 @@ static bool applyMeterV1(const EnmMeterCfgV1& pc) {
     g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
     g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
   }
-
-  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
-  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
-  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
-  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
-  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
-  memset(g_aph_cnt, 0, sizeof(g_aph_cnt));
-
   for (int i = 0; i < 4; i++) {
-    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
-    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
-    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
-    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
-    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
-    g_e_aph_Wh[i]  = 0;
+    g_acc_ap_Wh[i]   = ticksToPrimaryWh(pc.ap_cnt[i]);
+    g_acc_an_Wh[i]   = ticksToPrimaryWh(pc.an_cnt[i]);
+    g_acc_rp_varh[i] = ticksToPrimaryWh(pc.rp_cnt[i]);
+    g_acc_rn_varh[i] = ticksToPrimaryWh(pc.rn_cnt[i]);
+    g_acc_s_VAh[i]   = ticksToPrimaryWh(pc.s_cnt[i]);
+    g_acc_aph_Wh[i]  = 0.0;
   }
+  publishEnergyFromAcc();
   return true;
 }
 
@@ -1464,18 +1501,16 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
     g_atm_cfg.cal[i].Uoffset = pc.Uoffset[i];
     g_atm_cfg.cal[i].Ioffset = pc.Ioffset[i];
   }
-  memcpy(g_ap_cnt, pc.ap_cnt, sizeof(g_ap_cnt));
-  memcpy(g_an_cnt, pc.an_cnt, sizeof(g_an_cnt));
-  memcpy(g_rp_cnt, pc.rp_cnt, sizeof(g_rp_cnt));
-  memcpy(g_rn_cnt, pc.rn_cnt, sizeof(g_rn_cnt));
-  memcpy(g_s_cnt,  pc.s_cnt,  sizeof(g_s_cnt));
+  setCtDefaults();  // N before tick→Wh migration
   for (int i = 0; i < 4; i++) {
-    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
-    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
-    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
-    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
-    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+    g_acc_ap_Wh[i]   = ticksToPrimaryWh(pc.ap_cnt[i]);
+    g_acc_an_Wh[i]   = ticksToPrimaryWh(pc.an_cnt[i]);
+    g_acc_rp_varh[i] = ticksToPrimaryWh(pc.rp_cnt[i]);
+    g_acc_rn_varh[i] = ticksToPrimaryWh(pc.rn_cnt[i]);
+    g_acc_s_VAh[i]   = ticksToPrimaryWh(pc.s_cnt[i]);
+    g_acc_aph_Wh[i]  = 0.0;
   }
+  publishEnergyFromAcc();
   for (int i = 0; i < NUM_RLY; i++) {
     rlyCfg[i].enabled   = true;
     rlyCfg[i].inverted  = false;
@@ -1484,7 +1519,6 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
     rlyCfg[i].alarmMask = 1;
   }
   setAlarmDefaults();
-  setCtDefaults();
   return true;
 }
 
@@ -1568,6 +1602,15 @@ static bool loadMeterFS() {
     if (n != sizeof(pc)) return false;
     return applyMeter(pc);
   }
+  if (sz == sizeof(EnmMeterCfgV2)) {
+    EnmMeterCfgV2 pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applyMeterV2(pc)) return false;
+    markMeterDirty();  // rewrite as v3 primary-Wh blob
+    return true;
+  }
   if (sz == sizeof(EnmMeterCfgV1)) {
     EnmMeterCfgV1 pc;
     const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
@@ -1625,26 +1668,32 @@ static unsigned long lastEnergySample = 0;
 // (~21 s at full scale). Keep poll ≤10 s so ticks are not lost under load.
 static const unsigned long energySampleMs = 5000;
 
-static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
-  if (g_MC_imp_per_kWh == 0) return 0;
-  // Chip ticks are secondary-domain; scale Wh to primary with CT ratio N.
-  double wh = (double)ticks * (10.0 / (double)g_MC_imp_per_kWh) * g_ctRatioN;
+// One-shot migration helper: secondary 0.01CF ticks → primary Wh at current N.
+static inline double ticksToPrimaryWh(uint64_t ticks) {
+  if (g_MC_imp_per_kWh == 0) return 0.0;
+  return (double)ticks * (10.0 / (double)g_MC_imp_per_kWh) * g_ctRatioN;
+}
+
+static inline uint32_t accToPubWh(double wh) {
   if (wh < 0.0) wh = 0.0;
   if (wh > 4294967295.0) wh = 4294967295.0;
-  return (uint32_t)lround(wh);
+  return (uint32_t)llround(wh);
+}
+
+static void publishEnergyFromAcc() {
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i]   = accToPubWh(g_acc_ap_Wh[i]);
+    g_e_an_Wh[i]   = accToPubWh(g_acc_an_Wh[i]);
+    g_e_rp_varh[i] = accToPubWh(g_acc_rp_varh[i]);
+    g_e_rn_varh[i] = accToPubWh(g_acc_rn_varh[i]);
+    g_e_s_VAh[i]   = accToPubWh(g_acc_s_VAh[i]);
+    g_e_aph_Wh[i]  = accToPubWh(g_acc_aph_Wh[i]);
+  }
 }
 
 static void recomputeCtRatio() {
   clampCtPgaSettings();
   g_ctRatioN = (double)g_ctPrimaryA / (double)g_ctSecondary_mA;
-  for (int i = 0; i < 4; i++) {
-    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
-    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
-    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
-    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
-    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
-    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
-  }
 }
 
 static inline int32_t scalePowerByCt(int32_t v) {
@@ -1784,12 +1833,12 @@ static void meter_job_step() {
 
 static uint32_t meterEnergyCrc() {
   uint32_t c = 0;
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_ap_cnt),  sizeof(g_ap_cnt));
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_an_cnt),  sizeof(g_an_cnt));
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rp_cnt),  sizeof(g_rp_cnt));
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rn_cnt),  sizeof(g_rn_cnt));
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_s_cnt),   sizeof(g_s_cnt));
-  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_aph_cnt), sizeof(g_aph_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_ap_Wh),   sizeof(g_acc_ap_Wh));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_an_Wh),   sizeof(g_acc_an_Wh));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_rp_varh), sizeof(g_acc_rp_varh));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_rn_varh), sizeof(g_acc_rn_varh));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_s_VAh),   sizeof(g_acc_s_VAh));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_acc_aph_Wh),  sizeof(g_acc_aph_Wh));
   return c;
 }
 
@@ -1809,8 +1858,7 @@ static void sampleEnergyCounters() {
   aph[0] = g_atm.rdAPH_A(); aph[1] = g_atm.rdAPH_B();
   aph[2] = g_atm.rdAPH_C(); aph[3] = g_atm.rdAPH_T();
 
-  // SPI-fail signature: every energy reg reads 0xFFFF. With CT N=100 that becomes
-  // exactly 20.480 kWh on import AND export on every phase (seen in the field).
+  // SPI-fail signature: every energy reg reads 0xFFFF — discard (do not poison Wh).
   bool allFFFF = true;
   for (int i = 0; i < 4; i++) {
     if (ap[i] != 0xFFFF || an[i] != 0xFFFF || rp[i] != 0xFFFF
@@ -1819,64 +1867,33 @@ static void sampleEnergyCounters() {
       break;
     }
   }
-  // Heartbeat always (incl. discard path) — proves SPI vs chip CF in Serial Log.
-  static uint32_t lastEnergyDiagMs = 0;
-  const uint32_t nowMs = millis();
-  const bool energyDiagDue = (nowMs - lastEnergyDiagMs >= 30000);
-
   if (allFFFF) {
     static uint32_t lastWarnMs = 0;
+    const uint32_t nowMs = millis();
     if (nowMs - lastWarnMs > 10000) {
       lastWarnMs = nowMs;
       wsLog("WARN: energy SPI all 0xFFFF — sample discarded");
     }
-    if (energyDiagDue) {
-      lastEnergyDiagMs = nowMs;
-      wsLog("ENERGY rawAP=FFFF/FFFF/FFFF/FFFF (discarded)");
-    }
     return;
   }
 
-  // Per-reg: ignore lone 0xFFFF (SPI glitch) but keep real ticks.
-  auto addTick = [](uint64_t& acc, uint16_t v) {
-    if (v != 0xFFFF) acc += v;
+  if (g_MC_imp_per_kWh == 0) return;
+  const double k = 10.0 / (double)g_MC_imp_per_kWh;  // Wh per 0.01CF tick (secondary)
+  const double kN = k * g_ctRatioN;                   // → primary Wh per tick
+
+  // Per-reg: ignore lone 0xFFFF (SPI glitch); convert delta immediately at current N.
+  auto addDelta = [kN](double& acc, uint16_t v) {
+    if (v != 0xFFFF) acc += (double)v * kN;
   };
   for (int i = 0; i < 4; i++) {
-    addTick(g_ap_cnt[i], ap[i]);
-    addTick(g_an_cnt[i], an[i]);
-    addTick(g_rp_cnt[i], rp[i]);
-    addTick(g_rn_cnt[i], rn[i]);
-    addTick(g_s_cnt[i], sa[i]);
-    addTick(g_aph_cnt[i], aph[i]);
+    addDelta(g_acc_ap_Wh[i], ap[i]);
+    addDelta(g_acc_an_Wh[i], an[i]);
+    addDelta(g_acc_rp_varh[i], rp[i]);
+    addDelta(g_acc_rn_varh[i], rn[i]);
+    addDelta(g_acc_s_VAh[i], sa[i]);
+    addDelta(g_acc_aph_Wh[i], aph[i]);
   }
-
-  for (int i = 0; i < 4; i++) {
-    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
-    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
-    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
-    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
-    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
-    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
-  }
-
-  if (energyDiagDue) {
-    lastEnergyDiagMs = nowMs;
-    // Config readback — proves MeterEn / PL / thresholds stuck after begin().
-    const uint16_t meterEn = g_atm.debugRead16(0x00);
-    const uint16_t plH = g_atm.debugRead16(0x31);
-    const uint16_t plL = g_atm.debugRead16(0x32);
-    const uint16_t pStart = g_atm.debugRead16(0x35);
-    const uint16_t m0 = g_atm.debugRead16(0x33);
-    const int32_t pChipC = g_atm.readPmeanW(2);  // chip-domain W (before ×N)
-    char buf[200];
-    snprintf(buf, sizeof(buf),
-             "ENERGY rawAP=%u/%u/%u/%u WhT=%lu N=%.4g | MeterEn=%04X PL=%04X%04X PStart=%04X M0=%04X PchipC=%ld",
-             (unsigned)ap[0], (unsigned)ap[1], (unsigned)ap[2], (unsigned)ap[3],
-             (unsigned long)g_e_ap_Wh[3], g_ctRatioN,
-             (unsigned)meterEn, (unsigned)plH, (unsigned)plL,
-             (unsigned)pStart, (unsigned)m0, (long)pChipC);
-    wsLog(buf);
-  }
+  publishEnergyFromAcc();
 }
 
 // Periodic LittleFS meter flush: at most every METER_SAVE_INTERVAL_MS, and only
@@ -2540,9 +2557,8 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
     g_pgaGain = (uint8_t)g;
   }
   if (ctChanged) {
-    resetEnergyCounters();   // CT change invalidates past accumulation; start clean
-    recomputeCtRatio();
-    wsLog("CT ratio changed — energy counters reset");
+    recomputeCtRatio();  // N affects future deltas only — accumulated Wh unchanged
+    wsLog("CT ratio changed");
   } else {
     clampCtPgaSettings();
   }
