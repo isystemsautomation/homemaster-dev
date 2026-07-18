@@ -764,10 +764,7 @@
     }
 
     function sendAlarmAck(ch){
-      if (HMWebConfig._compat?.blocked) {
-        HMWebConfig.appendLog('Blocked: incompatible firmware');
-        return;
-      }
+      if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
       if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
       HMWebConfig.appendLog('AlarmsAck ch='+ch);
     }
@@ -971,10 +968,7 @@
         grid.appendChild(card);
       }
       $('ack-all')?.addEventListener('click', ()=>{
-        if (HMWebConfig._compat?.blocked) {
-          HMWebConfig.appendLog('Blocked: incompatible firmware');
-          return;
-        }
+        if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
         if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[true,true,true,true] });
         HMWebConfig.appendLog('AlarmsAck all');
       });
@@ -1090,8 +1084,8 @@
     HMWebConfig.register({
       model: 2,
       modelName: 'ENM-223-R1',
-      fw: '0.2.1',
-      webconfigVersion: '0.2.1',
+      fw: '0.2.0',
+      webconfigVersion: '0.2.0',
       readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md',
       channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });

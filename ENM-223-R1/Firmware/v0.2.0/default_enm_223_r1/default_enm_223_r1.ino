@@ -4,8 +4,8 @@
 #define HM_MODEL_ID   2
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
-#define HM_FW_PATCH   1
-#define HM_FW         "0.2.1"
+#define HM_FW_PATCH   0
+#define HM_FW         "0.2.0"
 #define HM_MAP        2
 #define HM_MAP_VERSION 2
 #include <SimpleWebSerial.h>
