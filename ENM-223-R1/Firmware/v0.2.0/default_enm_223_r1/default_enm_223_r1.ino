@@ -1801,12 +1801,20 @@ static void sampleEnergyCounters() {
       break;
     }
   }
+  // Heartbeat always (incl. discard path) — proves SPI vs chip CF in Serial Log.
+  static uint32_t lastEnergyDiagMs = 0;
+  const uint32_t nowMs = millis();
+  const bool energyDiagDue = (nowMs - lastEnergyDiagMs >= 30000);
+
   if (allFFFF) {
     static uint32_t lastWarnMs = 0;
-    const uint32_t now = millis();
-    if (now - lastWarnMs > 10000) {
-      lastWarnMs = now;
+    if (nowMs - lastWarnMs > 10000) {
+      lastWarnMs = nowMs;
       wsLog("WARN: energy SPI all 0xFFFF — sample discarded");
+    }
+    if (energyDiagDue) {
+      lastEnergyDiagMs = nowMs;
+      wsLog("ENERGY rawAP=FFFF/FFFF/FFFF/FFFF (discarded)");
     }
     return;
   }
@@ -1833,10 +1841,7 @@ static void sampleEnergyCounters() {
     g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
   }
 
-  // Heartbeat: proves whether the chip is producing CF ticks (Serial Log).
-  static uint32_t lastEnergyDiagMs = 0;
-  const uint32_t nowMs = millis();
-  if (nowMs - lastEnergyDiagMs >= 30000) {
+  if (energyDiagDue) {
     lastEnergyDiagMs = nowMs;
     char buf[160];
     snprintf(buf, sizeof(buf),
