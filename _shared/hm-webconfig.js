@@ -167,6 +167,17 @@
     if (factoryBtn) factoryBtn.disabled = HMWebConfig._compat.factoryBlocked;
   }
 
+  /** Visible notice when a write is refused because of compat gate (banner + log). */
+  function notifyWriteBlocked(detail) {
+    const msg = detail || 'Setting was NOT applied: firmware/model compatibility issue.';
+    appendLog(msg);
+    const el = ensureCompatEl();
+    if (!el) return;
+    el.className = 'hm-compat-banner hm-compat-error';
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+
   function resetCompatState() {
     if (HMWebConfig._statusIdentityTimer) {
       clearTimeout(HMWebConfig._statusIdentityTimer);
@@ -544,18 +555,33 @@
     const fw = (HMWebConfig.expected && HMWebConfig.expected.fw) || '';
     const links = $('hm-links');
     if (links) {
-      const parts = [];
+      links.textContent = '';
       if (ver || fw) {
-        parts.push('<span class="hm-doc-label">WebConfig v' + ver +
-          (fw ? (' · built for firmware v' + fw) : '') + '</span>');
+        const lab = document.createElement('span');
+        lab.className = 'hm-doc-label';
+        lab.textContent = 'WebConfig v' + ver + (fw ? (' · built for firmware v' + fw) : '');
+        links.appendChild(lab);
       }
       if (a.readmeUrl) {
-        parts.push('<a class="tag hm-doc" href="' + a.readmeUrl + '" target="_blank" rel="noopener">README</a>');
+        if (links.childNodes.length) links.appendChild(document.createTextNode(' '));
+        const ra = document.createElement('a');
+        ra.className = 'tag hm-doc';
+        ra.setAttribute('href', a.readmeUrl);
+        ra.setAttribute('target', '_blank');
+        ra.setAttribute('rel', 'noopener');
+        ra.textContent = 'README';
+        links.appendChild(ra);
       }
       if (a.firmwareUrl) {
-        parts.push('<a class="tag hm-doc" href="' + a.firmwareUrl + '" target="_blank" rel="noopener">Firmware (UF2)</a>');
+        if (links.childNodes.length) links.appendChild(document.createTextNode(' '));
+        const fa = document.createElement('a');
+        fa.className = 'tag hm-doc';
+        fa.setAttribute('href', a.firmwareUrl);
+        fa.setAttribute('target', '_blank');
+        fa.setAttribute('rel', 'noopener');
+        fa.textContent = 'Firmware (UF2)';
+        links.appendChild(fa);
       }
-      links.innerHTML = parts.join(' ');
     }
   };
 
@@ -600,7 +626,7 @@
 
   HMWebConfig.sendConfig = function sendConfig(t, list) {
     if (HMWebConfig._compat.blocked) {
-      appendLog('Config write blocked: firmware/model compatibility issue.');
+      notifyWriteBlocked('Config write blocked: setting was NOT applied (firmware/model compatibility).');
       return Promise.resolve();
     }
     if (HMWebConfig._suppressCfgSend) return Promise.resolve();
@@ -613,7 +639,7 @@
 
   HMWebConfig.sendValues = function sendValues(addr, baud) {
     if (HMWebConfig._compat.blocked) {
-      appendLog('Config write blocked: firmware/model compatibility issue.');
+      notifyWriteBlocked('Modbus values write blocked: setting was NOT applied (firmware/model compatibility).');
       return Promise.resolve();
     }
     const packet = { mb_address: addr, mb_baud: baud };
@@ -624,8 +650,13 @@
   };
 
   HMWebConfig.sendCommand = function sendCommand(action) {
-    if (action === 'factory' && HMWebConfig._compat.factoryBlocked) {
-      appendLog('Factory reset blocked: firmware/model compatibility issue.');
+    const act = String(action || '').toLowerCase();
+    if (act !== 'identify' && HMWebConfig._compat.blocked) {
+      notifyWriteBlocked('Command blocked: "' + act + '" was NOT sent (firmware/model compatibility).');
+      return Promise.resolve();
+    }
+    if (act === 'factory' && HMWebConfig._compat.factoryBlocked) {
+      notifyWriteBlocked('Factory reset blocked: firmware/model compatibility issue.');
       return Promise.resolve();
     }
     const packet = { action };

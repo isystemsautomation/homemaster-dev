@@ -127,7 +127,9 @@
         N = primary / secondary_mA (software scale). Enter or leave the field to write. PGA writes the chip — change only with the input path.
         <span id="ct-ratio-n">N = 2</span>
         · <span id="ct-sec-util">input = — % of 60 mA</span>
+        <span class="hint">(indicative)</span>
         <span id="ct-overrange" style="display:none;color:#b00020;font-weight:600"> OVERRANGE</span>
+        <div id="ct-ratio-warn" style="display:none;color:#b00020;font-weight:600;margin-top:.35rem"></div>
       </div>
 
       <details class="hm-advanced">
@@ -322,6 +324,7 @@
       const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
       if(lockOnFocus!==false) input.addEventListener('focus', lock);
       input.addEventListener('input', lock);
+      input.addEventListener('blur', unlock);
       input.addEventListener('keydown', ev=>{
         if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); }
         else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); }
@@ -425,6 +428,7 @@
       if (nEl) nEl.textContent = 'N = ' + (Number.isFinite(N) ? N.toFixed(4).replace(/\.?0+$/,'') : '—');
       const utilEl = $('ct-sec-util');
       const ovEl = $('ct-overrange');
+      const warnEl = $('ct-ratio-warn');
       const arr = Array.isArray(Irms) ? Irms : [];
       let maxSec_mA = 0;
       for (let i = 0; i < 3; i++) {
@@ -441,6 +445,16 @@
         utilEl.style.color = pct > 90 ? '#b06000' : '';
       }
       if (ovEl) ovEl.style.display = (pct >= 100) ? 'inline' : 'none';
+      const badN = Number.isFinite(N) && (N > 60 || N < 0.1);
+      if (warnEl) {
+        if (badN) {
+          warnEl.style.display = 'block';
+          warnEl.textContent = 'Check CT ratio: N=' + N.toFixed(4).replace(/\.?0+$/,'') + ' looks out of range';
+        } else {
+          warnEl.style.display = 'none';
+          warnEl.textContent = '';
+        }
+      }
     }
 
     function applyMeterLive(m){
@@ -457,19 +471,19 @@
       for(let i=0;i<3;i++){
         setElNum(`u${i}`, Urms[i], 2);
         setElNum(`i${i}`, Irms[i], 3);
-        setElText(`p${i}`, PW[i]);
-        setElText(`q${i}`, QV[i]);
-        setElText(`s${i}`, SV[i]);
-        setElText(`pfund${i}`, Pfund[i]);
-        setElText(`pharm${i}`, Pharm[i]);
+        setElNum(`p${i}`, PW[i], 0);
+        setElNum(`q${i}`, QV[i], 0);
+        setElNum(`s${i}`, SV[i], 0);
+        setElNum(`pfund${i}`, Pfund[i], 0);
+        setElNum(`pharm${i}`, Pharm[i], 0);
         setElNum(`pf${i}`, PF[i], 3);
         setElNum(`ang${i}`, Ang[i], 1);
       }
-      setElText('p3', PW[3]);
-      setElText('q3', QV[3]);
-      setElText('s3', SV[3]);
-      setElText('pfund3', Pfund[3]);
-      setElText('pharm3', Pharm[3]);
+      setElNum('p3', PW[3], 0);
+      setElNum('q3', QV[3], 0);
+      setElNum('s3', SV[3], 0);
+      setElNum('pfund3', Pfund[3], 0);
+      setElNum('pharm3', Pharm[3], 0);
       setElNum('pft', PF[3], 3);
       setElNum('f', m.FreqHz, 2);
       setElText('t', m.TempC);
@@ -481,8 +495,11 @@
       const Upeak = toArr(m.Upeak_V);
       const Ipeak = toArr(m.Ipeak ?? m.Ipeak_A);
       for(let i=0;i<3;i++){
-        setElNum(`upeak${i}`, Upeak[i], 2);
-        setElNum(`ipeak${i}`, Ipeak[i], 3);
+        const up = asNum(Upeak[i]), ip = asNum(Ipeak[i]);
+        if (Number.isFinite(up) && Math.abs(up) <= 2000) setElNum(`upeak${i}`, up, 2);
+        else setElText(`upeak${i}`, '—');
+        if (Number.isFinite(ip) && Math.abs(ip) <= 20000) setElNum(`ipeak${i}`, ip, 3);
+        else setElText(`ipeak${i}`, '—');
       }
       updateCtHud(Irms);
       if (m.E_ap_Wh || m.E_phase || m.E_tot) applyEnergies(m);
@@ -747,6 +764,10 @@
     }
 
     function sendAlarmAck(ch){
+      if (HMWebConfig._compat?.blocked) {
+        HMWebConfig.appendLog('Blocked: incompatible firmware');
+        return;
+      }
       if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
       HMWebConfig.appendLog('AlarmsAck ch='+ch);
     }
@@ -796,6 +817,10 @@
       const s = Math.max(1, Math.min(60, +($('opt-ctSecondary')?.value || 50)));
       if ($('opt-ctPrimary')) $('opt-ctPrimary').value = String(p);
       if ($('opt-ctSecondary')) $('opt-ctSecondary').value = String(s);
+      const N = p / s;
+      if (N > 60 || N < 0.1) {
+        HMWebConfig.appendLog('CT ratio warning: N=' + N + ' looks out of range');
+      }
       sendAtmPartial({ ctPrimary: p, ctSecondary: s });
       updateCtHud(null);
     }
@@ -946,6 +971,10 @@
         grid.appendChild(card);
       }
       $('ack-all')?.addEventListener('click', ()=>{
+        if (HMWebConfig._compat?.blocked) {
+          HMWebConfig.appendLog('Blocked: incompatible firmware');
+          return;
+        }
         if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[true,true,true,true] });
         HMWebConfig.appendLog('AlarmsAck all');
       });
@@ -1061,8 +1090,8 @@
     HMWebConfig.register({
       model: 2,
       modelName: 'ENM-223-R1',
-      fw: '0.2.0',
-      webconfigVersion: '0.2.0',
+      fw: '0.2.1',
+      webconfigVersion: '0.2.1',
       readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/ENM-223-R1/README.md',
       channels:{ in:0, relay:NUM_RLY, btn:NUM_BTN, led:NUM_LED }, onCfg: applyEnmCfg });
     HMWebConfig.connect({ requestElement:'connect-button' });

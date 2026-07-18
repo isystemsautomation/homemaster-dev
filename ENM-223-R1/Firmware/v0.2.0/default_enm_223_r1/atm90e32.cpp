@@ -182,7 +182,7 @@ int32_t ATM90E32::readSmean_VA(uint8_t phase) {
 double ATM90E32::readUPeak_V(uint8_t phase) {
   static const uint16_t reg[] = {UPeakA, UPeakB, UPeakC};
   if (phase > 2) return 0.0;
-  const uint16_t code = read16(reg[phase]);
+  const int16_t code = (int16_t)read16(reg[phase]);
   const uint16_t ugain = phaseCal_[phase].Ugain ? phaseCal_[phase].Ugain : 1;
   return ((double)code * (double)ugain) / (8192.0 * 100.0);
 }
@@ -190,7 +190,7 @@ double ATM90E32::readUPeak_V(uint8_t phase) {
 double ATM90E32::readIPeak_A(uint8_t phase) {
   static const uint16_t reg[] = {IPeakA, IPeakB, IPeakC};
   if (phase > 2) return 0.0;
-  const uint16_t code = read16(reg[phase]);
+  const int16_t code = (int16_t)read16(reg[phase]);
   const uint16_t igain = phaseCal_[phase].Igain ? phaseCal_[phase].Igain : 1;
   return ((double)code * (double)igain) / (8192.0 * 1000.0);
 }
@@ -226,7 +226,8 @@ uint16_t ATM90E32::readThdPct_x100(uint8_t phase) {
 }
 
 static uint16_t buildChannelMapReg(const uint8_t phaseMap[3]) {
-  return (uint16_t)(phaseMap[0] | (uint16_t(phaseMap[1]) << 3) | (uint16_t(phaseMap[2]) << 6));
+  // Datasheet: IA_SRC=[2:0], IB_SRC=[6:4], IC_SRC=[10:8] (step 4); default 0x0210.
+  return (uint16_t)(phaseMap[0] | (uint16_t(phaseMap[1]) << 4) | (uint16_t(phaseMap[2]) << 8));
 }
 
 // ---- Public API ----
@@ -280,11 +281,11 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   const uint16_t vOvTh  = vRmsToVth(280.0, 1.22);
   const uint16_t vPlTh  = vRmsToVth(20.0, 0.78);
 
-  // Current thresholds: use Irms code domain (U16, 0.001A/count, max ~65.53A).
-  // (Reference: common ATM90E32 drivers expose Irms this way; OIth/INWarnTh are compared
-  // against the same internal magnitude domain.)
-  const uint16_t iOIth     = (uint16_t)lround(0.90 * 65535.0); // ~0.9 FS
-  const uint16_t iINWarnTh = (uint16_t)lround(0.20 * 65535.0); // ~0.2 FS
+  // OIth: fraction of FS per datasheet. INWarnTh unit = 1 mA (chip neutral-current domain).
+  const uint16_t iOIth = (uint16_t)lround(0.90 * 65535.0); // ~0.9 FS
+  // High default = effectively off until field-calibrated; the previous 0.2*FS value
+  // tripped a false ~13 A warning.
+  const uint16_t iINWarnTh = 0xF000;  // TODO: tune to desired neutral-current warning
 
   sagPeakDetCfg_ = 0x143F;
   write16(SagPeakDetCfg, sagPeakDetCfg_);
@@ -399,9 +400,9 @@ int16_t  ATM90E32::readPFmeanA(){ return (int16_t)read16(PFmeanA); }
 int16_t  ATM90E32::readPFmeanB(){ return (int16_t)read16(PFmeanB); }
 int16_t  ATM90E32::readPFmeanC(){ return (int16_t)read16(PFmeanC); }
 int16_t  ATM90E32::readPFmeanT(){ return (int16_t)read16(PFmeanT); }
-int16_t  ATM90E32::readPAngleA(){ return (int16_t)read16(PAngleA); }
-int16_t  ATM90E32::readPAngleB(){ return (int16_t)read16(PAngleB); }
-int16_t  ATM90E32::readPAngleC(){ return (int16_t)read16(PAngleC); }
+uint16_t ATM90E32::readPAngleA(){ return read16(PAngleA); }
+uint16_t ATM90E32::readPAngleB(){ return read16(PAngleB); }
+uint16_t ATM90E32::readPAngleC(){ return read16(PAngleC); }
 uint16_t ATM90E32::readFreq_x100(){ return read16(Freq); }
 int16_t  ATM90E32::readTempC(){ return (int16_t)read16(Temp); }
 
