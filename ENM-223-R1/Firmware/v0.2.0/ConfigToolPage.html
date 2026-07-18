@@ -1,4 +1,3 @@
-<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} -->
 <link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
 <script src="simple-web-serial.min.js"></script>
 <script src="../../../_shared/hm-webconfig.js"></script>
@@ -117,11 +116,6 @@
             <option value="1">3P3W (3-wire)</option>
           </select>
         </div>
-        <div>
-          <label for="opt-samplems">Sample Interval (ms)</label>
-          <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200">
-          <small class="lock-badge">editing… press Enter to send</small>
-        </div>
       </div>
       <div class="row" style="margin-top:.6rem">
         <div>
@@ -149,7 +143,31 @@
           </select>
         </div>
       </div>
-      <div class="hint" style="margin-top:.4rem">Sag reference uses Phase-A Ugain. Sample interval is UI-only on this firmware. Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
+      <div class="hint" style="margin-top:.4rem">Phase mapping is written to ATM90E32 ChannelMap registers on apply.</div>
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label for="opt-ctPrimary">CT primary (A)</label>
+          <input id="opt-ctPrimary" type="number" min="1" max="10000" step="1" value="100">
+        </div>
+        <div>
+          <label for="opt-ctSecondary">CT secondary (mA)</label>
+          <input id="opt-ctSecondary" type="number" min="1" max="60" step="1" value="50">
+        </div>
+        <div>
+          <label for="opt-pga">PGA (advanced)</label>
+          <select id="opt-pga">
+            <option value="1">1×</option>
+            <option value="2" selected>2×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:.4rem">
+        N = primary / secondary_mA (software scale). PGA writes the chip — change only with the input path.
+        <span id="ct-ratio-n">N = 2</span>
+        · <span id="ct-sec-util">вход = — % от 60 мА</span>
+        <span id="ct-overrange" style="display:none;color:#b00020;font-weight:600"> OVERRANGE</span>
+      </div>
     </div>
   </section>
 
@@ -349,6 +367,35 @@
       setE(3, Et);
     }
 
+    function ctRatioFromUI(){
+      const p = Math.max(1, Math.min(10000, +($('opt-ctPrimary')?.value || 100)));
+      const s = Math.max(1, Math.min(60, +($('opt-ctSecondary')?.value || 50)));
+      return p / s;
+    }
+    function updateCtHud(Irms){
+      const N = ctRatioFromUI();
+      const nEl = $('ct-ratio-n');
+      if (nEl) nEl.textContent = 'N = ' + (Number.isFinite(N) ? N.toFixed(4).replace(/\.?0+$/,'') : '—');
+      const utilEl = $('ct-sec-util');
+      const ovEl = $('ct-overrange');
+      const arr = Array.isArray(Irms) ? Irms : [];
+      let maxSec_mA = 0;
+      for (let i = 0; i < 3; i++) {
+        const ip = Number(arr[i]);
+        if (!Number.isFinite(ip) || !(N > 0)) continue;
+        const sec = (ip / N); // primary A / N → secondary mA (chip scale)
+        if (sec > maxSec_mA) maxSec_mA = sec;
+      }
+      const pct = (maxSec_mA / 60) * 100;
+      if (utilEl) {
+        utilEl.textContent = Number.isFinite(pct)
+          ? ('вход = ' + pct.toFixed(0) + ' % от 60 мА')
+          : 'вход = — % от 60 мА';
+        utilEl.style.color = pct > 90 ? '#b06000' : '';
+      }
+      if (ovEl) ovEl.style.display = (pct >= 100) ? 'inline' : 'none';
+    }
+
     function applyMeterLive(m){
       if(!m) return;
       const Urms = toArr(m.Urms);
@@ -390,6 +437,7 @@
         setElNum(`upeak${i}`, Upeak[i], 2);
         setElNum(`ipeak${i}`, Ipeak[i], 3);
       }
+      updateCtHud(Irms);
       if (m.E_phase || m.E_tot) applyEnergies(m);
     }
 
@@ -431,6 +479,10 @@
           if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
         }
       }
+      if(atm.ctPrimary!==undefined){ const el=$('opt-ctPrimary'); if(el&&el!==document.activeElement) el.value=String(atm.ctPrimary); }
+      if(atm.ctSecondary!==undefined){ const el=$('opt-ctSecondary'); if(el&&el!==document.activeElement) el.value=String(atm.ctSecondary); }
+      if(atm.pga!==undefined){ const el=$('opt-pga'); if(el&&el!==document.activeElement) el.value=String(atm.pga); }
+      updateCtHud(null);
       if(atm.cal) applyCalibFromPayload({ cal: atm.cal });
     }
 
@@ -564,8 +616,12 @@
           const r=obj[ak]??obj[String(ak)]??{};
           const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
           if(en&&r.enabled!==undefined) en.checked=!!r.enabled;
-          if(mn&&r.min!==undefined&&canApply('al-min-'+ch+'-'+ak)) mn.value=String(r.min);
-          if(mx&&r.max!==undefined&&canApply('al-max-'+ch+'-'+ak)) mx.value=String(r.max);
+          if(mn&&canApply('al-min-'+ch+'-'+ak)){
+            mn.value=('min' in r && r.min!==null&&r.min!=='')?String(r.min):'';
+          }
+          if(mx&&canApply('al-max-'+ch+'-'+ak)){
+            mx.value=('max' in r && r.max!==null&&r.max!=='')?String(r.max):'';
+          }
           if(met&&r.metric!==undefined) met.value=String(r.metric);
         }
       };
@@ -608,10 +664,15 @@
     function collectChannelCfg(ch){
       const chO={ ack:!!$('al-ackreq-'+ch)?.checked };
       for(let ak=0;ak<3;ak++){
+        const minRaw=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
+        const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
+        const minN=minRaw===''?null:Number(minRaw);
+        const maxN=maxRaw===''?null:Number(maxRaw);
         chO[ak]={
           enabled:!!$('al-en-'+ch+'-'+ak)?.checked,
-          min:+( $('al-min-'+ch+'-'+ak)?.value||0),
-          max:+( $('al-max-'+ch+'-'+ak)?.value||0),
+          // null = unset; 0 is a real engineering threshold
+          min: (minN===null||!Number.isFinite(minN)) ? null : minN,
+          max: (maxN===null||!Number.isFinite(maxN)) ? null : maxN,
           metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
         };
       }
@@ -664,7 +725,20 @@
     for(let ch=0;ch<3;ch++){
       $('opt-phaseMap-'+ch)?.addEventListener('change', sendPhaseMapFromUI);
     }
-    attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>{ /* UI-only on ENM v0.2.0 */ }, true);
+    function sendCtFromUI(){
+      const p = Math.max(1, Math.min(10000, +($('opt-ctPrimary')?.value || 100)));
+      const s = Math.max(1, Math.min(60, +($('opt-ctSecondary')?.value || 50)));
+      if ($('opt-ctPrimary')) $('opt-ctPrimary').value = String(p);
+      if ($('opt-ctSecondary')) $('opt-ctSecondary').value = String(s);
+      sendAtmPartial({ ctPrimary: p, ctSecondary: s });
+      updateCtHud(null);
+    }
+    $('opt-ctPrimary')?.addEventListener('change', sendCtFromUI);
+    $('opt-ctSecondary')?.addEventListener('change', sendCtFromUI);
+    $('opt-pga')?.addEventListener('change', ()=>{
+      sendAtmPartial({ pga: +$('opt-pga').value });
+      HMWebConfig.appendLog('PGA change — chip apply (only with input-path change)');
+    });
 
     (function buildCalibrationUI(){
       const grid=$('calib-grid'); if(!grid) return;
@@ -689,10 +763,11 @@
           const payload={ ph:ch }; payload[field]=v;
           sendAtmPartial(payload);
         };
-        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'));
-        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'));
-        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'));
-        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'));
+        // Lock on focus (same as alarm min/max). Explicit true — PR #5 cal edit-lock.
+        attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, ()=>sendField('Ugain'), true);
+        attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'), true);
+        attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), true);
+        attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), true);
       }
       flushPendingCalib();
     })();
@@ -837,14 +912,12 @@
               <label class="check"><input type="checkbox" class="rly-kind-wa"> Warning</label>
               <label class="check"><input type="checkbox" class="rly-kind-ev"> Event</label>
             </div>
-          </div>
-          <div style="margin-top:.5rem;text-align:right;"><button type="button" class="btn rly-toggle">Toggle</button></div>`;
+          </div>`;
         c.appendChild(d);
         const root=d;
         const modeSel=root.querySelector('.rly-mode');
         const alarmBox=root.querySelector('.rly-alarm-box');
         modeSel?.addEventListener('change', ()=>{ alarmBox.style.display=modeSel.value==='2'?'block':'none'; sendRelayCfg(); });
-        root.querySelector('.rly-toggle')?.addEventListener('click', ()=>HMWebConfig.appendLog('Relay toggle: use Modbus coil or button'));
         ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{
           root.querySelector(sel)?.addEventListener('change', sendRelayCfg);
         });

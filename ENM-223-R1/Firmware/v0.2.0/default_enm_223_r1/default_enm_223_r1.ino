@@ -66,6 +66,31 @@ struct EnmSettingsCfgV21 {
   uint32_t crc32;
 } __attribute__((packed));
 
+// Frozen 0x0024 layout (alarm sentinels). Migrated to EnmSettingsCfg on load.
+struct EnmSettingsCfgV24 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t lineHz;
+  uint8_t  sumAbs;
+  uint8_t  wireMode;     // 0=3P4W, 1=3P3W
+  uint8_t  phaseMap[3];  // logical L1..L3 -> physical phase 0..2 (A/B/C)
+  struct {
+    bool    enabled;
+    bool    inverted;
+    uint8_t mode;
+    uint8_t alarmCh;
+    uint8_t alarmMask;
+    uint8_t pad;
+  } rlyCfg[2];
+  struct { uint8_t mode; uint8_t source; } ledCfg[4];
+  struct { uint8_t action; } btnCfg[4];
+  AlarmChCfg alarm[4];
+  uint32_t crc32;
+} __attribute__((packed));
+
 struct EnmSettingsCfg {
   uint32_t magic;
   uint16_t version;
@@ -87,6 +112,10 @@ struct EnmSettingsCfg {
   struct { uint8_t mode; uint8_t source; } ledCfg[4];
   struct { uint8_t action; } btnCfg[4];
   AlarmChCfg alarm[4];
+  uint16_t ctPrimaryA;       // CT primary rating (A), 1..10000
+  uint16_t ctSecondary_mA;   // CT secondary rating (mA), 1..60
+  uint8_t  pgaGain;          // ATM current PGA: 1, 2, or 4
+  uint8_t  pad_ct;
   uint32_t crc32;
 } __attribute__((packed));
 
@@ -151,7 +180,9 @@ static const uint32_t CFG_MAGIC       = 0x334D4E45UL;  // 'ENM3'
 static const uint16_t CFG_VERSION_V20 = 0x0020;
 static const uint16_t CFG_VERSION_V21 = 0x0021;
 static const uint16_t CFG_VERSION_V22 = 0x0022;
-static const uint16_t CFG_VERSION     = 0x0023;
+static const uint16_t CFG_VERSION_V23 = 0x0023;
+static const uint16_t CFG_VERSION_V24 = 0x0024;  // alarm min/max: 0 is a real limit; unset = sentinels
+static const uint16_t CFG_VERSION     = 0x0025;  // CT ratio + configurable PGA
 static const char*    CFG_PATH        = "/enm_cfg.bin";
 static const uint32_t METER_MAGIC     = 0x4D4D4E45UL;  // 'ENMM'
 static const uint16_t METER_VERSION   = 0x0002;
@@ -162,6 +193,10 @@ static volatile bool  meterDirty      = false;
 static unsigned long  lastCfgTouchMs  = 0;
 static unsigned long  lastMeterTouchMs = 0;
 static const uint32_t CFG_AUTOSAVE_MS = 1500;
+// Persist energy/cal to LittleFS at most every 5 min (poll stays at energySampleMs).
+static const uint32_t METER_SAVE_INTERVAL_MS = 300000;
+static uint32_t       meterSavedEnergyCrc = 0;
+static uint32_t       meterEnergyCrc();  // defined with sampleEnergyCounters
 
 // Types/globals used in function signatures — must be before any function (Arduino auto-prototypes).
 struct DebounceState {
@@ -248,6 +283,13 @@ static int jvGetInt(const JSONVar& obj, const char* key, int fallback) {
   return parseKeyFromBlob(jsonBlob(obj), key, fallback);
 }
 
+static double jvGetDouble(const JSONVar& obj, const char* key, double fallback) {
+  if (!obj.hasOwnProperty(key)) return fallback;
+  const String s = JSON.stringify(obj[key]);
+  if (s.length() == 0 || s == "null" || s == "undefined" || s == "\"\"") return fallback;
+  return s.toDouble();
+}
+
 // JSON.stringify(value) for scalars only; avoids (int)obj["key"] bug
 static int jsonVarToInt(const JSONVar& v, int fallback) {
   if (JSON.typeof(v) == "undefined") return fallback;
@@ -331,6 +373,30 @@ static uint8_t  g_mb_address = 30;
 static uint32_t g_mb_baud    = 19200;
 static bool     g_mbSerialReady = false;
 
+// CT ratio: primary = (chip secondary reading in mA-units) × N.
+// N = ctPrimaryA / ctSecondary_mA. Factory Igain/PGA calibrate 0…60 mA secondary;
+// they are NOT derived from the CT. Defaults: 100 A : 50 mA → N = 2.
+static uint16_t g_ctPrimaryA     = 100;
+static uint16_t g_ctSecondary_mA = 50;
+static uint8_t  g_pgaGain        = 2;
+static double   g_ctRatioN       = 2.0;
+
+static void clampCtPgaSettings() {
+  if (g_ctPrimaryA < 1) g_ctPrimaryA = 1;
+  if (g_ctPrimaryA > 10000) g_ctPrimaryA = 10000;
+  if (g_ctSecondary_mA < 1) g_ctSecondary_mA = 1;
+  if (g_ctSecondary_mA > 60) g_ctSecondary_mA = 60;
+  if (g_pgaGain != 1 && g_pgaGain != 2 && g_pgaGain != 4) g_pgaGain = 2;
+}
+
+static void recomputeCtRatio();
+static void setCtDefaults() {
+  g_ctPrimaryA = 100;
+  g_ctSecondary_mA = 50;
+  g_pgaGain = 2;
+  recomputeCtRatio();
+}
+
 static bool isAllowedBaud(uint32_t b) {
   return b == 9600 || b == 19200 || b == 38400 || b == 57600 || b == 115200;
 }
@@ -373,6 +439,7 @@ static void normalizePhaseMap(uint8_t map[3]) {
 }
 
 static volatile bool atmApplyPending = false;
+static volatile bool atmCalOnlyPending = false;
 static unsigned long atmLastApplyMs = 0;
 static const unsigned long atmApplyMinIntervalMs = 300;
 static bool atmBusy = false;
@@ -394,13 +461,13 @@ enum : uint16_t {
   DI_RELAY_BASE = 8,
   DI_ALARM_BASE = 16,
   IR_URMS_BASE  = 0,
-  IR_IRMS_BASE  = 3,
+  IR_IRMS_BASE  = 3,   // U16 ×0.01 A primary (after CT ratio)
   IR_FREQ       = 6,
   IR_TEMP       = 7,
   IR_PF_BASE    = 8,
   IR_UPEAK_BASE = 12,  // U16 ×0.01 V, L1..L3
-  IR_IPEAK_BASE = 15,  // U16 ×0.001 A, L1..L3
-  IR_IRMSN      = 18,  // U16 ×0.001 A
+  IR_IPEAK_BASE = 15,  // U16 ×0.01 A, L1..L3 (primary after CT ratio)
+  IR_IRMSN      = 18,  // U16 ×0.01 A (primary after CT ratio)
   IR_P_BASE     = 20,
   IR_Q_BASE     = 28,
   IR_S_BASE     = 36,
@@ -500,6 +567,7 @@ static void serviceModbusServiceCoils(uint32_t now) {
     if (saveConfigFS()) {
       cfgDirty = false;
       meterDirty = false;
+      meterSavedEnergyCrc = meterEnergyCrc();
       wsLog("Configuration saved");
     } else {
       wsLog("ERROR: Save failed");
@@ -508,6 +576,7 @@ static void serviceModbusServiceCoils(uint32_t now) {
   if (mb.Coil(COIL_REBOOT)) {
     mb.Coil(COIL_REBOOT, false);
     wsLog("Rebooting…");
+    (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
   }
@@ -560,7 +629,7 @@ static void setAtmDefaults() {
   g_atm_cfg.ucal   = 36000;  // sag detector reference
   for (int i = 0; i < 3; i++) {
     g_atm_cfg.cal[i].Ugain   = 39500;  // divider 6×220k+1k, calibrated @ 230V
-    g_atm_cfg.cal[i].Igain   = 49000;  // ZEMCTK05 + PGA=2×, 50A full-scale
+    g_atm_cfg.cal[i].Igain   = 49000;  // factory: ~1 mA secondary → 1.000 on Irms (PGA=2×, 0…60 mA FS)
     g_atm_cfg.cal[i].Uoffset = 0;
     g_atm_cfg.cal[i].Ioffset = 0;
   }
@@ -658,11 +727,34 @@ static void markMeterDirty() {
   lastMeterTouchMs = millis();
 }
 
+// Unset limits (legacy used raw 0). Real engineering 0 must be storable.
+static const int32_t ALARM_LIM_NONE_MIN = (int32_t)0x80000000L;  // INT32_MIN
+static const int32_t ALARM_LIM_NONE_MAX = (int32_t)0x7FFFFFFFL;  // INT32_MAX
+static inline bool alarmHasMin(const AlarmRuleCfg& cfg) { return cfg.minVal != ALARM_LIM_NONE_MIN; }
+static inline bool alarmHasMax(const AlarmRuleCfg& cfg) { return cfg.maxVal != ALARM_LIM_NONE_MAX; }
+
+static void alarmMigrateUnsetLimits(AlarmRuleCfg& cfg) {
+  if (cfg.minVal == 0) cfg.minVal = ALARM_LIM_NONE_MIN;
+  if (cfg.maxVal == 0) cfg.maxVal = ALARM_LIM_NONE_MAX;
+}
+
+static void alarmMigrateAllUnsetLimits() {
+  for (uint8_t ch = 0; ch < 4; ch++)
+    for (uint8_t k = 0; k < 3; k++)
+      alarmMigrateUnsetLimits(alarmCfg[ch].rules[k]);
+}
+
 static void setAlarmDefaults() {
   memset(alarmCfg, 0, sizeof(alarmCfg));
   memset(alarmRun, 0, sizeof(alarmRun));
   memset(g_chipEvMask, 0, sizeof(g_chipEvMask));
   memset(&g_chipEv, 0, sizeof(g_chipEv));
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    for (uint8_t k = 0; k < 3; k++) {
+      alarmCfg[ch].rules[k].minVal = ALARM_LIM_NONE_MIN;
+      alarmCfg[ch].rules[k].maxVal = ALARM_LIM_NONE_MAX;
+    }
+  }
 }
 
 static double alarmMetricScale(uint8_t metric) {
@@ -711,10 +803,14 @@ static double alarmMetricValue(uint8_t ch, uint8_t metric) {
 }
 
 static double alarmHystBand(const AlarmRuleCfg& rule) {
-  const double mn = alarmRuleToDouble(rule.minVal, rule.metric);
-  const double mx = alarmRuleToDouble(rule.maxVal, rule.metric);
-  double span = mx - mn;
-  if (span <= 0.0) span = fmax(fabs(mn), fabs(mx));
+  const bool hasMin = alarmHasMin(rule);
+  const bool hasMax = alarmHasMax(rule);
+  const double mn = hasMin ? alarmRuleToDouble(rule.minVal, rule.metric) : 0.0;
+  const double mx = hasMax ? alarmRuleToDouble(rule.maxVal, rule.metric) : 0.0;
+  double span = 0.0;
+  if (hasMin && hasMax) span = mx - mn;
+  else if (hasMin) span = fabs(mn);
+  else if (hasMax) span = fabs(mx);
   if (span <= 0.0) span = 1.0;
   double h = span * 0.02;
   if (rule.metric == ALARM_MET_FREQ) h = fmax(h, 0.10);
@@ -729,10 +825,10 @@ static void alarmEvalRule(const AlarmRuleCfg& cfg, AlarmRuleRun& run, double val
     run.hiSide = false;
     return;
   }
-  const double mn = alarmRuleToDouble(cfg.minVal, cfg.metric);
-  const double mx = alarmRuleToDouble(cfg.maxVal, cfg.metric);
-  const bool hasMin = cfg.minVal != 0;
-  const bool hasMax = cfg.maxVal != 0;
+  const bool hasMin = alarmHasMin(cfg);
+  const bool hasMax = alarmHasMax(cfg);
+  const double mn = hasMin ? alarmRuleToDouble(cfg.minVal, cfg.metric) : 0.0;
+  const double mx = hasMax ? alarmRuleToDouble(cfg.maxVal, cfg.metric) : 0.0;
   const double h = alarmHystBand(cfg);
 
   if (!run.active) {
@@ -921,8 +1017,8 @@ static JSONVar alarmCfgToJson() {
       const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
       r["enabled"] = cfg.enabled ? 1 : 0;
       r["metric"]  = (int)cfg.metric;
-      r["min"]     = alarmRuleToDouble(cfg.minVal, cfg.metric);
-      r["max"]     = alarmRuleToDouble(cfg.maxVal, cfg.metric);
+      if (alarmHasMin(cfg)) r["min"] = alarmRuleToDouble(cfg.minVal, cfg.metric);
+      if (alarmHasMax(cfg)) r["max"] = alarmRuleToDouble(cfg.maxVal, cfg.metric);
       chO[kind] = r;
     }
     arr[ch] = chO;
@@ -939,13 +1035,19 @@ static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
     AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
     if (JSON.typeof(r["enabled"]) != "undefined") cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
     if (JSON.typeof(r["metric"]) != "undefined")  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
-    if (JSON.typeof(r["min"]) != "undefined") {
-      const int32_t raw = (int32_t)jvGetInt(r, "min", 0);
-      cfg.minVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+    if (r.hasOwnProperty("min")) {
+      const String ms = JSON.stringify(r["min"]);
+      if (ms == "null" || ms == "\"\"" || ms.length() == 0)
+        cfg.minVal = ALARM_LIM_NONE_MIN;
+      else
+        cfg.minVal = alarmDoubleToRule(jvGetDouble(r, "min", 0.0), cfg.metric);
     }
-    if (JSON.typeof(r["max"]) != "undefined") {
-      const int32_t raw = (int32_t)jvGetInt(r, "max", 0);
-      cfg.maxVal = (raw != 0) ? alarmDoubleToRule((double)raw, cfg.metric) : 0;
+    if (r.hasOwnProperty("max")) {
+      const String xs = JSON.stringify(r["max"]);
+      if (xs == "null" || xs == "\"\"" || xs.length() == 0)
+        cfg.maxVal = ALARM_LIM_NONE_MAX;
+      else
+        cfg.maxVal = alarmDoubleToRule(jvGetDouble(r, "max", 0.0), cfg.metric);
     }
   }
 }
@@ -984,7 +1086,7 @@ static void handleAlarmsAck(JSONVar obj) {
   if (obj.hasOwnProperty("list")) {
     JSONVar list = obj["list"];
     for (uint8_t ch = 0; ch < 4; ch++) {
-      if (list[ch] || list[(int)ch]) alarmAckChannel(ch);
+      if (list[ch]) alarmAckChannel(ch);
     }
   } else if (obj.hasOwnProperty("ch")) {
     alarmAckChannel((uint8_t)constrain(jvGetInt(obj, "ch", 0), 0, 3));
@@ -1025,6 +1127,11 @@ static void captureSettings(EnmSettingsCfg& pc) {
   for (int i = 0; i < 4; i++) {
     pc.alarm[i] = alarmCfg[i];
   }
+  clampCtPgaSettings();
+  pc.ctPrimaryA     = g_ctPrimaryA;
+  pc.ctSecondary_mA = g_ctSecondary_mA;
+  pc.pgaGain        = g_pgaGain;
+  pc.pad_ct         = 0;
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(EnmSettingsCfg));
 }
@@ -1032,7 +1139,7 @@ static void captureSettings(EnmSettingsCfg& pc) {
 static bool applySettings(const EnmSettingsCfg& pc) {
   if (pc.magic != CFG_MAGIC || pc.size != sizeof(EnmSettingsCfg))
     return false;
-  if (pc.version != CFG_VERSION && pc.version != CFG_VERSION_V22)
+  if (pc.version != CFG_VERSION)
     return false;
   EnmSettingsCfg tmp = pc;
   const uint32_t crc = tmp.crc32;
@@ -1069,6 +1176,54 @@ static bool applySettings(const EnmSettingsCfg& pc) {
   for (int i = 0; i < 4; i++) {
     alarmCfg[i] = pc.alarm[i];
   }
+  g_ctPrimaryA     = pc.ctPrimaryA;
+  g_ctSecondary_mA = pc.ctSecondary_mA;
+  g_pgaGain        = pc.pgaGain;
+  recomputeCtRatio();
+  return true;
+}
+
+static bool applySettingsV24(const EnmSettingsCfgV24& pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(EnmSettingsCfgV24))
+    return false;
+  if (pc.version != CFG_VERSION_V24 && pc.version != CFG_VERSION_V23 && pc.version != CFG_VERSION_V22)
+    return false;
+  EnmSettingsCfgV24 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(EnmSettingsCfgV24)) != crc)
+    return false;
+
+  g_mb_address = pc.mb_address;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  g_mb_baud = pc.mb_baud;
+  if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
+  SlaveId = (int)g_mb_address;
+
+  g_atm_cfg.lineHz = (pc.lineHz == 60) ? 60 : 50;
+  g_atm_cfg.sumAbs = pc.sumAbs ? 1 : 0;
+  g_atm_cfg.wireMode = pc.wireMode ? 1 : 0;
+  for (int i = 0; i < 3; i++) g_atm_cfg.phaseMap[i] = pc.phaseMap[i];
+  normalizePhaseMap(g_atm_cfg.phaseMap);
+
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = pc.rlyCfg[i].enabled;
+    rlyCfg[i].inverted  = pc.rlyCfg[i].inverted;
+    rlyCfg[i].mode      = pc.rlyCfg[i].mode;
+    rlyCfg[i].alarmCh   = (uint8_t)constrain((int)pc.rlyCfg[i].alarmCh, 0, 3);
+    rlyCfg[i].alarmMask = pc.rlyCfg[i].alarmMask ? pc.rlyCfg[i].alarmMask : 1;
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    ledCfg[i].mode   = pc.ledCfg[i].mode;
+    ledCfg[i].source = pc.ledCfg[i].source;
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    btnCfg[i].action = pc.btnCfg[i].action;
+  }
+  for (int i = 0; i < 4; i++) {
+    alarmCfg[i] = pc.alarm[i];
+  }
+  setCtDefaults();
   return true;
 }
 
@@ -1111,6 +1266,7 @@ static bool applySettingsV21(const EnmSettingsCfgV21& pc) {
   for (int i = 0; i < 4; i++) {
     alarmCfg[i] = pc.alarm[i];
   }
+  setCtDefaults();
   return true;
 }
 
@@ -1151,6 +1307,7 @@ static bool applySettingsV20(const EnmSettingsCfgV20& pc) {
     btnCfg[i].action = pc.btnCfg[i].action;
   }
   setAlarmDefaults();
+  setCtDefaults();
   return true;
 }
 
@@ -1293,6 +1450,7 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
     rlyCfg[i].alarmMask = 1;
   }
   setAlarmDefaults();
+  setCtDefaults();
   return true;
 }
 
@@ -1329,9 +1487,18 @@ static bool loadSettingsFS() {
     const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
     f.close();
     if (n != sizeof(pc)) return false;
-    const bool ok = applySettings(pc);
-    if (ok && pc.version == CFG_VERSION_V22) markCfgDirty();
-    return ok;
+    return applySettings(pc);
+  }
+  if (sz == sizeof(EnmSettingsCfgV24)) {
+    EnmSettingsCfgV24 pc;
+    const size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc));
+    f.close();
+    if (n != sizeof(pc)) return false;
+    if (!applySettingsV24(pc)) return false;
+    if (pc.version == CFG_VERSION_V22 || pc.version == CFG_VERSION_V23)
+      alarmMigrateAllUnsetLimits();
+    markCfgDirty();  // rewrite as 0x0025 with CT/PGA defaults
+    return true;
   }
   if (sz == sizeof(EnmSettingsCfgV21)) {
     EnmSettingsCfgV21 pc;
@@ -1339,6 +1506,7 @@ static bool loadSettingsFS() {
     f.close();
     if (n != sizeof(pc)) return false;
     if (!applySettingsV21(pc)) return false;
+    alarmMigrateAllUnsetLimits();
     markCfgDirty();
     return true;
   }
@@ -1400,7 +1568,12 @@ static bool loadConfigFS() {
   const bool meterOk = loadMeterFS();
   if (settingsOk && meterOk) return true;
   if (!settingsOk && !meterOk && tryMigrateLegacyCfg()) return true;
-  if (!settingsOk) return false;
+
+  // Recover independently: a bad enm_cfg.bin must not wipe a good enm_meter.bin.
+  if (!settingsOk) {
+    setSettingsDefaults();
+    markCfgDirty();
+  }
   if (!meterOk) {
     setMeterDefaults();
     markMeterDirty();
@@ -1414,11 +1587,34 @@ static double   urms_tmp[3], irms_tmp[3];
 static unsigned long lastMeterSample = 0;
 static const unsigned long meterSampleMs = 1000;
 static unsigned long lastEnergySample = 0;
+// ATM90E32 energy regs are 16-bit read-to-clear; Total overflows ~204.8 Wh
+// (~21 s at full scale). Keep poll ≤10 s so ticks are not lost under load.
 static const unsigned long energySampleMs = 5000;
 
 static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
   if (g_MC_imp_per_kWh == 0) return 0;
-  return (uint32_t)lround((double)ticks * (10.0 / (double)g_MC_imp_per_kWh));
+  // Chip ticks are secondary-domain; scale Wh to primary with CT ratio N.
+  double wh = (double)ticks * (10.0 / (double)g_MC_imp_per_kWh) * g_ctRatioN;
+  if (wh < 0.0) wh = 0.0;
+  if (wh > 4294967295.0) wh = 4294967295.0;
+  return (uint32_t)lround(wh);
+}
+
+static void recomputeCtRatio() {
+  clampCtPgaSettings();
+  g_ctRatioN = (double)g_ctPrimaryA / (double)g_ctSecondary_mA;
+  for (int i = 0; i < 4; i++) {
+    g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
+    g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
+    g_e_rp_varh[i] = ticks0p01CF_to_Wh(g_rp_cnt[i]);
+    g_e_rn_varh[i] = ticks0p01CF_to_Wh(g_rn_cnt[i]);
+    g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
+    g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
+  }
+}
+
+static inline int32_t scalePowerByCt(int32_t v) {
+  return (int32_t)lround((double)v * g_ctRatioN);
 }
 
 static void mbPublishMeter() {
@@ -1428,8 +1624,9 @@ static void mbPublishMeter() {
     long x = lround(v * 100.0);
     return (uint16_t)constrain(x, 0L, 65535L);
   };
+  // Current registers: U16 ×0.01 A primary (0…655.35 A)
   auto clampI = [](double a) -> uint16_t {
-    long x = lround(a * 1000.0);
+    long x = lround(a * 100.0);
     return (uint16_t)constrain(x, 0L, 65535L);
   };
 
@@ -1497,7 +1694,8 @@ static void meter_job_step() {
       irms_tmp[2] = g_atm.readIrmsC_A();
       for (int i = 0; i < 3; i++) {
         g_urms[i] = urms_tmp[i];
-        g_irms[i] = irms_tmp[i];
+        // Chip Irms reads secondary mA as "A"; ×N → primary amperes.
+        g_irms[i] = irms_tmp[i] * g_ctRatioN;
       }
       g_haveMeter = true;
       meter_step++;
@@ -1520,11 +1718,11 @@ static void meter_job_step() {
       g_tempC  = g_atm.readTempC();
 
       for (int i = 0; i < 4; i++) {
-        g_p_W[i]    = g_atm.readPmeanW((uint8_t)i);
-        g_q_var[i]  = g_atm.readQmean_var((uint8_t)i);
-        g_s_VA[i]   = g_atm.readSmean_VA((uint8_t)i);
-        g_pfund_W[i] = g_atm.readPmeanFundW((uint8_t)i);
-        g_pharm_W[i] = g_atm.readPmeanHarmW((uint8_t)i);
+        g_p_W[i]     = scalePowerByCt(g_atm.readPmeanW((uint8_t)i));
+        g_q_var[i]   = scalePowerByCt(g_atm.readQmean_var((uint8_t)i));
+        g_s_VA[i]    = scalePowerByCt(g_atm.readSmean_VA((uint8_t)i));
+        g_pfund_W[i] = scalePowerByCt(g_atm.readPmeanFundW((uint8_t)i));
+        g_pharm_W[i] = scalePowerByCt(g_atm.readPmeanHarmW((uint8_t)i));
       }
       meter_step++;
       break;
@@ -1532,9 +1730,9 @@ static void meter_job_step() {
     case 6:
       for (int i = 0; i < 3; i++) {
         g_upeak[i] = g_atm.readUPeak_V(i);
-        g_ipeak[i] = g_atm.readIPeak_A(i);
+        g_ipeak[i] = g_atm.readIPeak_A(i) * g_ctRatioN;
       }
-      g_irmsN = g_atm.readIrmsN_A();
+      g_irmsN = g_atm.readIrmsN_A() * g_ctRatioN;
       meter_step++;
       break;
     case 7:
@@ -1550,7 +1748,19 @@ static void meter_job_step() {
   }
 }
 
+static uint32_t meterEnergyCrc() {
+  uint32_t c = 0;
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_ap_cnt),  sizeof(g_ap_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_an_cnt),  sizeof(g_an_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rp_cnt),  sizeof(g_rp_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_rn_cnt),  sizeof(g_rn_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_s_cnt),   sizeof(g_s_cnt));
+  c = crc32_update(c, reinterpret_cast<const uint8_t*>(g_aph_cnt), sizeof(g_aph_cnt));
+  return c;
+}
+
 static void sampleEnergyCounters() {
+  // Poll only — do not mark LittleFS dirty here (flash wear + Modbus FIFO overruns).
   g_ap_cnt[0] += g_atm.rdAP_A(); g_ap_cnt[1] += g_atm.rdAP_B();
   g_ap_cnt[2] += g_atm.rdAP_C(); g_ap_cnt[3] += g_atm.rdAP_T();
   g_an_cnt[0] += g_atm.rdAN_A(); g_an_cnt[1] += g_atm.rdAN_B();
@@ -1572,7 +1782,19 @@ static void sampleEnergyCounters() {
     g_e_s_VAh[i]   = ticks0p01CF_to_Wh(g_s_cnt[i]);
     g_e_aph_Wh[i]  = ticks0p01CF_to_Wh(g_aph_cnt[i]);
   }
-  markMeterDirty();
+}
+
+// Periodic LittleFS meter flush: at most every METER_SAVE_INTERVAL_MS, and only
+// when energy counters changed (CRC) or meterDirty was set (cal / explicit).
+static void serviceMeterAutosave(unsigned long now) {
+  if (now - lastMeterTouchMs < METER_SAVE_INTERVAL_MS) return;
+  lastMeterTouchMs = now;
+  const uint32_t crc = meterEnergyCrc();
+  if (!meterDirty && crc == meterSavedEnergyCrc) return;
+  if (saveMeterFS()) {
+    meterDirty = false;
+    meterSavedEnergyCrc = crc;
+  }
 }
 
 static void energiesToJson(JSONVar& Ephase, JSONVar& Etot) {
@@ -1620,17 +1842,62 @@ static void setDefaults() {
   SlaveId      = (int)g_mb_address;
   setAtmDefaults();
   setMeterDefaults();
+  setCtDefaults();
+}
+
+// Settings-only defaults: never clear energy/cal (those live in enm_meter.bin).
+static void setSettingsDefaults() {
+  for (int i = 0; i < NUM_RLY; i++) {
+    rlyCfg[i].enabled   = true;
+    rlyCfg[i].inverted  = false;
+    rlyCfg[i].mode      = RLY_MODE_MODBUS;
+    rlyCfg[i].alarmCh   = 3;
+    rlyCfg[i].alarmMask = 1;
+  }
+  for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0, 0 };
+  for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
+  for (int i = 0; i < NUM_RLY; i++) desiredRelay[i] = false;
+  setAlarmDefaults();
+  g_mb_address = 30;
+  g_mb_baud    = 19200;
+  SlaveId      = (int)g_mb_address;
+  g_atm_cfg.lineHz = 50;
+  g_atm_cfg.sumAbs = 1;
+  g_atm_cfg.wireMode = 0;
+  g_atm_cfg.phaseMap[0] = 0;
+  g_atm_cfg.phaseMap[1] = 1;
+  g_atm_cfg.phaseMap[2] = 2;
+  setCtDefaults();
 }
 
 static void atmApplyFromCfg_NOW() {
+  // Soft-reset path — drain unread energy ticks first.
+  sampleEnergyCounters();
   M90PhaseCal tmp[3];
   for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
+  clampCtPgaSettings();
   g_atm.begin(g_atm_cfg.lineHz, g_atm_cfg.sumAbs, g_atm_cfg.wireMode, g_atm_cfg.phaseMap,
-              g_atm_cfg.ucal, tmp);
+              g_atm_cfg.ucal, g_pgaGain, tmp);
+}
+
+static void atmApplyCalOnly_NOW() {
+  M90PhaseCal tmp[3];
+  for (int i = 0; i < 3; i++) tmp[i] = g_atm_cfg.cal[i];
+  g_atm.applyCalibration(tmp);
+}
+
+static void queueAtmFullApply() {
+  atmApplyPending = true;
+  atmCalOnlyPending = false;
+}
+
+static void queueAtmCalOnlyApply() {
+  if (atmApplyPending) return;  // full apply supersedes
+  atmCalOnlyPending = true;
 }
 
 static void queueAtmApply() {
-  atmApplyPending = true;
+  queueAtmFullApply();
 }
 
 static void applyHoldingFromModbus() {
@@ -1809,10 +2076,17 @@ static JSONVar meterLiveToJson() {
 static void atmUpdateBaseFromJson(const JSONVar& obj);
 static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj);
 static void atmApplyFromJson(const JSONVar& obj);
+static void queueAtmFullApply();
+static void queueAtmCalOnlyApply();
+static bool atmJsonNeedsFullApply(const JSONVar& obj);
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = hmValidAddress(addr);
   baud = hmValidBaud(baud);
+
+  const bool wasReady = g_mbSerialReady;
+  const uint8_t prevAddr = g_mb_address;
+  const uint32_t prevBaud = g_mb_baud;
 
   // Must run on first boot too — v18 called Serial2.begin() in setup(); only
   // re-initing when baud changed left UART off when loaded baud == 19200.
@@ -1830,7 +2104,8 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr;
   SlaveId = (int)addr;
   mbSyncHolding();
-  markCfgDirty();
+  // Skip dirty on setup() first init; only when addr/baud actually change later.
+  if (wasReady && (addr != prevAddr || baud != prevBaud)) markCfgDirty();
 }
 
 void handleValues(JSONVar values) {
@@ -1849,6 +2124,7 @@ void handleCommand(JSONVar obj) {
   String act = String(actC); act.toLowerCase();
   if (act == "reboot" || act == "reset") {
     wsLog("Rebooting…");
+    (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
   } else if (act == "factory") {
@@ -1893,8 +2169,11 @@ void handleUnifiedConfig(JSONVar obj) {
     } else {
       for (int i = 0; i < NUM_RLY && i < list.length(); i++) {
         JSONVar item = list[i];
-        rlyCfg[i].enabled  = (bool)item["enabled"];
-        rlyCfg[i].inverted = (bool)(item.hasOwnProperty("inverted") ? item["inverted"] : item["invert"]);
+        if (item.hasOwnProperty("enabled")) rlyCfg[i].enabled = (bool)item["enabled"];
+        if (item.hasOwnProperty("inverted"))
+          rlyCfg[i].inverted = (bool)item["inverted"];
+        else if (item.hasOwnProperty("invert"))
+          rlyCfg[i].inverted = (bool)item["invert"];
         if (JSON.typeof(item["mode"]) != "undefined") rlyCfg[i].mode = (uint8_t)constrain(jvGetInt(item, "mode", rlyCfg[i].mode), 0, 2);
         if (JSON.typeof(item["alarmCh"]) != "undefined") rlyCfg[i].alarmCh = (uint8_t)constrain(jvGetInt(item, "alarmCh", rlyCfg[i].alarmCh), 0, 3);
         if (JSON.typeof(item["alarmMask"]) != "undefined") rlyCfg[i].alarmMask = (uint8_t)jvGetInt(item, "alarmMask", rlyCfg[i].alarmMask);
@@ -1940,11 +2219,35 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "ext.atm" || type == "atm") {
     JSONVar atmObj = list;
     if (JSON.typeof(list) == "array" && list.length() > 0) atmObj = list[0];
+    const bool full = atmJsonNeedsFullApply(atmObj);
+    const bool cal = atmObj.hasOwnProperty("cal") || atmObj.hasOwnProperty("ph")
+                  || atmObj.hasOwnProperty("Ugain") || atmObj.hasOwnProperty("Igain")
+                  || atmObj.hasOwnProperty("Uoffset") || atmObj.hasOwnProperty("Ioffset");
+    const bool ct = atmObj.hasOwnProperty("ctPrimary") || atmObj.hasOwnProperty("ctSecondary");
     atmApplyFromJson(atmObj);
-    queueAtmApply();
-    wsLog("OK: ATM queued");
+    if (full) {
+      queueAtmFullApply();
+      if (atmObj.hasOwnProperty("pga")) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "OK: PGA=%ux — chip apply queued", (unsigned)g_pgaGain);
+        wsLog(buf);
+      } else {
+        wsLog("OK: ATM full apply queued");
+      }
+    } else if (cal) {
+      queueAtmCalOnlyApply();
+      wsLog("OK: ATM calibration queued");
+      markMeterDirty();
+    } else if (ct) {
+      char buf[96];
+      snprintf(buf, sizeof(buf), "OK: CT %uA:%umA N=%.4g (no chip write)",
+               (unsigned)g_ctPrimaryA, (unsigned)g_ctSecondary_mA, g_ctRatioN);
+      wsLog(buf);
+      mbPublishMeter();
+    } else {
+      wsLog("OK: ATM options updated");
+    }
     changed = true;
-    markMeterDirty();
 
   } else {
     wsLog(String("Unknown Config type: ") + t);
@@ -2000,6 +2303,10 @@ static void sendWebCfgCore() {
   for (int i = 0; i < 3; i++) pmap[i] = (int)g_atm_cfg.phaseMap[i];
   cfg["ext"]["atm"]["phaseMap"] = pmap;
   cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
+  cfg["ext"]["atm"]["ctPrimary"] = (int)g_ctPrimaryA;
+  cfg["ext"]["atm"]["ctSecondary"] = (int)g_ctSecondary_mA;
+  cfg["ext"]["atm"]["pga"] = (int)g_pgaGain;
+  cfg["ext"]["atm"]["ctRatioN"] = g_ctRatioN;
   // cal via CalibCfg / cal / ENM_Sync / ext — keep cfg lean (alarm block is large).
   cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
@@ -2038,6 +2345,7 @@ static void resetEnergyCounters() {
   markMeterDirty();
   if (saveMeterFS()) {
     meterDirty = false;
+    meterSavedEnergyCrc = meterEnergyCrc();
     wsLog("Energy counters reset");
   } else {
     wsLog("ERROR: Energy reset save failed");
@@ -2115,6 +2423,22 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
     if (u > 65535) u = 65535;
     g_atm_cfg.ucal = (uint16_t)u;
   }
+  bool ctChanged = false;
+  if (obj.hasOwnProperty("ctPrimary")) {
+    g_ctPrimaryA = (uint16_t)constrain(jvGetInt(obj, "ctPrimary", (int)g_ctPrimaryA), 1, 10000);
+    ctChanged = true;
+  }
+  if (obj.hasOwnProperty("ctSecondary")) {
+    g_ctSecondary_mA = (uint16_t)constrain(jvGetInt(obj, "ctSecondary", (int)g_ctSecondary_mA), 1, 60);
+    ctChanged = true;
+  }
+  if (obj.hasOwnProperty("pga")) {
+    int g = jvGetInt(obj, "pga", (int)g_pgaGain);
+    if (g != 1 && g != 2 && g != 4) g = 2;
+    g_pgaGain = (uint8_t)g;
+  }
+  if (ctChanged) recomputeCtRatio();
+  else clampCtPgaSettings();
 }
 static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (phase < 0 || phase > 2) return;
@@ -2124,11 +2448,18 @@ static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (obj.hasOwnProperty("Ioffset")) g_atm_cfg.cal[phase].Ioffset = clamp_i16(jvGetInt(obj, "Ioffset", (int)g_atm_cfg.cal[phase].Ioffset));
 }
 
+static bool atmJsonNeedsFullApply(const JSONVar& obj) {
+  // Structural options require SoftReset via begin(). Calibration/offset alone do not.
+  // ucal feeds sag/OV thresholds computed inside begin() — treat as structural.
+  // pga writes MMode1 gain bits inside begin(). CT ratio is software-only.
+  return obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs")
+      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")
+      || obj.hasOwnProperty("ucal") || obj.hasOwnProperty("pga");
+}
+
 static void atmApplyFromJson(const JSONVar& obj) {
-  if (obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs") || obj.hasOwnProperty("ucal")
-      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")) {
-    atmUpdateBaseFromJson(obj);
-  }
+  // Always apply any base fields present (incl. CT) — full-apply is a separate decision.
+  atmUpdateBaseFromJson(obj);
   if (obj.hasOwnProperty("ph")) {
     const int ph = jvGetInt(obj, "ph", 0);
     if (ph >= 0 && ph <= 2) atmUpdatePhaseFromJson(ph, obj);
@@ -2227,6 +2558,8 @@ void setup() {
   atmApplyFromCfg_NOW();
   atmBusy = false;
   sampleEnergyCounters();
+  meterSavedEnergyCrc = meterEnergyCrc();
+  lastMeterTouchMs = millis();
   mbPublishMeter();
 
   wsLog("Boot OK " HM_FW " (config saved to flash)");
@@ -2261,13 +2594,24 @@ void loop() {
 
   if (atmApplyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
     atmApplyPending = false;
+    atmCalOnlyPending = false;
     atmBusy = true;
     atmApplyFromCfg_NOW();
     atmBusy = false;
     atmLastApplyMs = now;
     markCfgDirty();
     markMeterDirty();
-    wsLog("OK: ATM applied");
+    wsLog("OK: ATM applied (full begin)");
+    sendWebCfg();
+  } else if (atmCalOnlyPending && !atmBusy && (now - atmLastApplyMs >= atmApplyMinIntervalMs)) {
+    atmCalOnlyPending = false;
+    atmBusy = true;
+    atmApplyCalOnly_NOW();
+    atmBusy = false;
+    atmLastApplyMs = now;
+    markCfgDirty();
+    markMeterDirty();
+    wsLog("OK: ATM calibration applied");
     sendWebCfg();
   }
 
@@ -2276,10 +2620,7 @@ void loop() {
     saveSettingsFS();
   }
 
-  if (meterDirty && (now - lastMeterTouchMs >= CFG_AUTOSAVE_MS)) {
-    meterDirty = false;
-    saveMeterFS();
-  }
+  serviceMeterAutosave(now);
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
     lastBlinkToggle = now;

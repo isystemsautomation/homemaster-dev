@@ -31,9 +31,5 @@ inline void hmWatchdogArm(uint32_t timeout_ms = 4000) {
   watchdog_enable(timeout_ms, true);   // true = pause when debugger attached
 }
 inline void hmWatchdogFeed() { watchdog_update(); }
-// ---- USB send guard (prevents telemetry from blocking Modbus when host is not reading) ----
-inline bool hmUsbCanSend(size_t need = 64) {
-  return (bool)Serial && (Serial.availableForWrite() >= (int)need);
-}
 // ---- Power-on output policy (v0.2.0 Phase B) ----
 enum HmPowerOn : uint8_t { HM_PWR_OFF = 0, HM_PWR_ON = 1, HM_PWR_RESTORE = 2 };
