@@ -268,6 +268,70 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function copyLog() {
+    const text = (HMWebConfig._logBuf || []).join('\n');
+    const btn = $('btn-copy-log');
+    const flash = (label) => {
+      if (!btn) return;
+      const prev = btn.textContent;
+      btn.textContent = label;
+      setTimeout(() => { btn.textContent = prev; }, 1500);
+    };
+    if (!text) {
+      flash('Empty');
+      return;
+    }
+    const onOk = () => flash('Copied');
+    const onFail = () => flash('Copy failed');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onOk).catch(() => {
+        if (fallbackCopyText(text)) onOk(); else onFail();
+      });
+    } else if (fallbackCopyText(text)) {
+      onOk();
+    } else {
+      onFail();
+    }
+  }
+
+  function ensureCopyLogButton() {
+    if ($('btn-copy-log')) {
+      const existing = $('btn-copy-log');
+      if (!existing.dataset.hmWired) {
+        existing.dataset.hmWired = '1';
+        existing.addEventListener('click', copyLog);
+      }
+      return;
+    }
+    const log = $('hm-log');
+    if (!log) return;
+    const box = $('hm-log-box') || log.parentElement;
+    const header = box && box.closest ? box.closest('section.card')?.querySelector('.cardheader') : null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    btn.id = 'btn-copy-log';
+    btn.textContent = 'Copy log';
+    btn.dataset.hmWired = '1';
+    btn.addEventListener('click', copyLog);
+    if (header) header.appendChild(btn);
+    else if (box && box.parentElement) box.parentElement.insertBefore(btn, box);
+  }
+
   function logTx(channel, packet) {
     try { appendLog(`TX ${channel}: ${JSON.stringify(packet)}`); }
     catch { appendLog(`TX ${channel}`); }
@@ -496,6 +560,7 @@
   };
 
   HMWebConfig.connect = function connect(opts) {
+    ensureCopyLogButton();
     const requestElement = (opts && opts.requestElement) || 'connect-button';
     if (!('serial' in navigator)) {
       appendLog('This browser does not support Web Serial API. Use Chrome/Edge over HTTPS.');
@@ -603,6 +668,7 @@
   };
 
   HMWebConfig.appendLog = appendLog;
+  HMWebConfig.copyLog = copyLog;
   HMWebConfig.toArray = toArray;
   HMWebConfig.truthy01 = truthy01;
 
