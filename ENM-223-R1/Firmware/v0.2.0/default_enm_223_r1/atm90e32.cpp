@@ -402,36 +402,50 @@ int16_t  ATM90E32::readPAngleC(){ return (int16_t)read16(PAngleC); }
 uint16_t ATM90E32::readFreq_x100(){ return read16(Freq); }
 int16_t  ATM90E32::readTempC(){ return (int16_t)read16(Temp); }
 
-// Energies
-uint16_t ATM90E32::rdAP_A(){ return read16(APenergyA); }
-uint16_t ATM90E32::rdAP_B(){ return read16(APenergyB); }
-uint16_t ATM90E32::rdAP_C(){ return read16(APenergyC); }
-uint16_t ATM90E32::rdAP_T(){ return read16(APenergyT); }
+// Energies — read-clear; Atmel-46103: if SPI garbles the return, recover from LastSPIData.
+uint16_t ATM90E32::readEnergy16(uint16_t reg) {
+  const uint16_t v = read16(reg);
+  const uint16_t echo = read16(LastSPIData);
+  if (echo == v) return v;
+  // Mismatch: the cleared value is latched in LastSPIData — re-read it.
+  uint16_t last = echo;
+  for (int i = 0; i < 3; i++) {
+    const uint16_t again = read16(LastSPIData);
+    if (again == last) return last;
+    last = again;
+  }
+  return last;
+}
 
-uint16_t ATM90E32::rdAN_A(){ return read16(ANenergyA); }
-uint16_t ATM90E32::rdAN_B(){ return read16(ANenergyB); }
-uint16_t ATM90E32::rdAN_C(){ return read16(ANenergyC); }
-uint16_t ATM90E32::rdAN_T(){ return read16(ANenergyT); }
+uint16_t ATM90E32::rdAP_A(){ return readEnergy16(APenergyA); }
+uint16_t ATM90E32::rdAP_B(){ return readEnergy16(APenergyB); }
+uint16_t ATM90E32::rdAP_C(){ return readEnergy16(APenergyC); }
+uint16_t ATM90E32::rdAP_T(){ return readEnergy16(APenergyT); }
 
-uint16_t ATM90E32::rdRP_A(){ return read16(RPenergyA); }
-uint16_t ATM90E32::rdRP_B(){ return read16(RPenergyB); }
-uint16_t ATM90E32::rdRP_C(){ return read16(RPenergyC); }
-uint16_t ATM90E32::rdRP_T(){ return read16(RPenergyT); }
+uint16_t ATM90E32::rdAN_A(){ return readEnergy16(ANenergyA); }
+uint16_t ATM90E32::rdAN_B(){ return readEnergy16(ANenergyB); }
+uint16_t ATM90E32::rdAN_C(){ return readEnergy16(ANenergyC); }
+uint16_t ATM90E32::rdAN_T(){ return readEnergy16(ANenergyT); }
 
-uint16_t ATM90E32::rdRN_A(){ return read16(RNenergyA); }
-uint16_t ATM90E32::rdRN_B(){ return read16(RNenergyB); }
-uint16_t ATM90E32::rdRN_C(){ return read16(RNenergyC); }
-uint16_t ATM90E32::rdRN_T(){ return read16(RNenergyT); }
+uint16_t ATM90E32::rdRP_A(){ return readEnergy16(RPenergyA); }
+uint16_t ATM90E32::rdRP_B(){ return readEnergy16(RPenergyB); }
+uint16_t ATM90E32::rdRP_C(){ return readEnergy16(RPenergyC); }
+uint16_t ATM90E32::rdRP_T(){ return readEnergy16(RPenergyT); }
 
-uint16_t ATM90E32::rdSA_A(){ return read16(SAenergyA); }
-uint16_t ATM90E32::rdSA_B(){ return read16(SAenergyB); }
-uint16_t ATM90E32::rdSA_C(){ return read16(SAenergyC); }
-uint16_t ATM90E32::rdSA_T(){ return read16(SAenergyT); }
+uint16_t ATM90E32::rdRN_A(){ return readEnergy16(RNenergyA); }
+uint16_t ATM90E32::rdRN_B(){ return readEnergy16(RNenergyB); }
+uint16_t ATM90E32::rdRN_C(){ return readEnergy16(RNenergyC); }
+uint16_t ATM90E32::rdRN_T(){ return readEnergy16(RNenergyT); }
 
-uint16_t ATM90E32::rdAPH_T(){ return read16(APenergyTH); }
-uint16_t ATM90E32::rdAPH_A(){ return read16(APenergyAH); }
-uint16_t ATM90E32::rdAPH_B(){ return read16(APenergyBH); }
-uint16_t ATM90E32::rdAPH_C(){ return read16(APenergyCH); }
+uint16_t ATM90E32::rdSA_A(){ return readEnergy16(SAenergyA); }
+uint16_t ATM90E32::rdSA_B(){ return readEnergy16(SAenergyB); }
+uint16_t ATM90E32::rdSA_C(){ return readEnergy16(SAenergyC); }
+uint16_t ATM90E32::rdSA_T(){ return readEnergy16(SAenergyT); }
+
+uint16_t ATM90E32::rdAPH_T(){ return readEnergy16(APenergyTH); }
+uint16_t ATM90E32::rdAPH_A(){ return readEnergy16(APenergyAH); }
+uint16_t ATM90E32::rdAPH_B(){ return readEnergy16(APenergyBH); }
+uint16_t ATM90E32::rdAPH_C(){ return readEnergy16(APenergyCH); }
 
 M90DiagRegs ATM90E32::readDiag() {
   M90DiagRegs d{};

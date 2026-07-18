@@ -66,7 +66,7 @@ public:
   uint16_t readFreq_x100();
   int16_t  readTempC();
 
-  // Energy counters (raw chip counts)
+  // Energy counters (raw chip counts; read-clear + LastSPIData check)
   uint16_t rdAP_A(); uint16_t rdAP_B(); uint16_t rdAP_C(); uint16_t rdAP_T();
   uint16_t rdAN_A(); uint16_t rdAN_B(); uint16_t rdAN_C(); uint16_t rdAN_T();
   uint16_t rdRP_A(); uint16_t rdRP_B(); uint16_t rdRP_C(); uint16_t rdRP_T();
@@ -92,6 +92,8 @@ private:
   inline void csRelease() { digitalWrite(cs_, csActiveHigh_ ? LOW  : HIGH); }
   inline uint16_t read16(uint16_t reg) { return xfer(1, reg, 0xFFFF); }
   inline void     write16(uint16_t reg, uint16_t val) { (void)xfer(0, reg, val); }
+  // Atmel-46103: energy regs are read-clear; verify via LastSPIData[78H].
+  uint16_t readEnergy16(uint16_t reg);
 
   double readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double sLb);
   int32_t  read32Signed(uint16_t regH, uint16_t regL);
