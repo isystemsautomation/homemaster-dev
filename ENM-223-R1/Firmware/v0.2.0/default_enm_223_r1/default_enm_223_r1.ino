@@ -278,8 +278,18 @@ static int parseKeyFromBlob(const String& blob, const char* key, int fallback) {
   return blob.substring(pos, end).toInt();
 }
 
+// hasOwnProperty is unreliable on some JSONVar copies from WebSerial — also
+// probe the stringified blob (same path jvGetInt already uses for values).
+static bool jvHasKey(const JSONVar& obj, const char* key) {
+  if (obj.hasOwnProperty(key)) return true;
+  if (JSON.typeof(obj[key]) != "undefined") return true;
+  const String blob = jsonBlob(obj);
+  if (blob.length() == 0 || blob == "null" || blob == "undefined") return false;
+  return blob.indexOf(String("\"") + key + "\":") >= 0;
+}
+
 static int jvGetInt(const JSONVar& obj, const char* key, int fallback) {
-  if (!obj.hasOwnProperty(key)) return fallback;
+  if (!jvHasKey(obj, key)) return fallback;
   return parseKeyFromBlob(jsonBlob(obj), key, fallback);
 }
 
@@ -2013,6 +2023,10 @@ static JSONVar enmSyncToJson() {
   o["lineHz"]  = (int)g_atm_cfg.lineHz;
   o["sumAbs"]  = (int)g_atm_cfg.sumAbs;
   o["ucal"]    = (int)g_atm_cfg.ucal;
+  o["ctPrimary"] = (int)g_ctPrimaryA;
+  o["ctSecondary"] = (int)g_ctSecondary_mA;
+  o["pga"] = (int)g_pgaGain;
+  o["ctRatioN"] = g_ctRatioN;
   o["cal"]     = calPhasesArraySlim();
   return o;
 }
@@ -2220,14 +2234,15 @@ void handleUnifiedConfig(JSONVar obj) {
     JSONVar atmObj = list;
     if (JSON.typeof(list) == "array" && list.length() > 0) atmObj = list[0];
     const bool full = atmJsonNeedsFullApply(atmObj);
-    const bool cal = atmObj.hasOwnProperty("cal") || atmObj.hasOwnProperty("ph")
-                  || atmObj.hasOwnProperty("Ugain") || atmObj.hasOwnProperty("Igain")
-                  || atmObj.hasOwnProperty("Uoffset") || atmObj.hasOwnProperty("Ioffset");
-    const bool ct = atmObj.hasOwnProperty("ctPrimary") || atmObj.hasOwnProperty("ctSecondary");
+    const bool cal = jvHasKey(atmObj, "cal") || jvHasKey(atmObj, "ph")
+                  || jvHasKey(atmObj, "Ugain") || jvHasKey(atmObj, "Igain")
+                  || jvHasKey(atmObj, "Uoffset") || jvHasKey(atmObj, "Ioffset");
+    const bool ct = jvHasKey(atmObj, "ctPrimary") || jvHasKey(atmObj, "ctSecondary");
+    const bool pga = jvHasKey(atmObj, "pga");
     atmApplyFromJson(atmObj);
     if (full) {
       queueAtmFullApply();
-      if (atmObj.hasOwnProperty("pga")) {
+      if (pga) {
         char buf[64];
         snprintf(buf, sizeof(buf), "OK: PGA=%ux — chip apply queued", (unsigned)g_pgaGain);
         wsLog(buf);
@@ -2256,7 +2271,10 @@ void handleUnifiedConfig(JSONVar obj) {
   if (changed) {
     markCfgDirty();
     sendWebCfg();
-    if (type == "alarm" || type == "alarms" || type == "AlarmsCfg")
+    // CT/PGA live in ext.atm — push ENM_Sync so the UI sees the applied values
+    // (cfg nested atm assignment alone is fragile with Arduino_JSON).
+    if (type == "alarm" || type == "alarms" || type == "AlarmsCfg"
+        || type == "ext.atm" || type == "atm")
       sendWebExt();
   }
 }
@@ -2296,17 +2314,23 @@ static void sendWebCfgCore() {
     cfg["led"][i]["mode"]   = ledCfg[i].mode;
     cfg["led"][i]["source"] = ledCfg[i].source;
   }
-  cfg["ext"]["atm"]["lineHz"] = (int)g_atm_cfg.lineHz;
-  cfg["ext"]["atm"]["sumAbs"] = (int)g_atm_cfg.sumAbs;
-  cfg["ext"]["atm"]["wireMode"] = (int)g_atm_cfg.wireMode;
+  // Build atm locally — nested cfg["ext"]["atm"]["k"]=v often serializes as null
+  // with Arduino_JSON (same pitfall as sendWebExt).
+  JSONVar atm;
+  atm["lineHz"] = (int)g_atm_cfg.lineHz;
+  atm["sumAbs"] = (int)g_atm_cfg.sumAbs;
+  atm["wireMode"] = (int)g_atm_cfg.wireMode;
   JSONVar pmap;
   for (int i = 0; i < 3; i++) pmap[i] = (int)g_atm_cfg.phaseMap[i];
-  cfg["ext"]["atm"]["phaseMap"] = pmap;
-  cfg["ext"]["atm"]["ucal"]   = (int)g_atm_cfg.ucal;
-  cfg["ext"]["atm"]["ctPrimary"] = (int)g_ctPrimaryA;
-  cfg["ext"]["atm"]["ctSecondary"] = (int)g_ctSecondary_mA;
-  cfg["ext"]["atm"]["pga"] = (int)g_pgaGain;
-  cfg["ext"]["atm"]["ctRatioN"] = g_ctRatioN;
+  atm["phaseMap"] = pmap;
+  atm["ucal"] = (int)g_atm_cfg.ucal;
+  atm["ctPrimary"] = (int)g_ctPrimaryA;
+  atm["ctSecondary"] = (int)g_ctSecondary_mA;
+  atm["pga"] = (int)g_pgaGain;
+  atm["ctRatioN"] = g_ctRatioN;
+  JSONVar ext;
+  ext["atm"] = atm;
+  cfg["ext"] = ext;
   // cal via CalibCfg / cal / ENM_Sync / ext — keep cfg lean (alarm block is large).
   cfg["alarm"] = alarmCfgToJson();
   WebSerial.send("cfg", cfg);
@@ -2327,6 +2351,10 @@ static void sendWebExt() {
   JSONVar atm;
   JSONVar cal = calPhasesArraySlim();
   atm["cal"] = cal;
+  atm["ctPrimary"] = (int)g_ctPrimaryA;
+  atm["ctSecondary"] = (int)g_ctSecondary_mA;
+  atm["pga"] = (int)g_pgaGain;
+  atm["ctRatioN"] = g_ctRatioN;
   ext["atm"] = atm;
 
   JSONVar alarms = alarmsStateToJson();
@@ -2395,17 +2423,17 @@ void sendWebBootstrap() {
 }
 
 static void atmUpdateBaseFromJson(const JSONVar& obj) {
-  if (obj.hasOwnProperty("lineHz")) {
+  if (jvHasKey(obj, "lineHz")) {
     int hz = jvGetInt(obj, "lineHz", (int)g_atm_cfg.lineHz);
     g_atm_cfg.lineHz = (hz == 60) ? 60 : 50;
   }
-  if (obj.hasOwnProperty("sumAbs")) {
+  if (jvHasKey(obj, "sumAbs")) {
     g_atm_cfg.sumAbs = jvGetInt(obj, "sumAbs", (int)g_atm_cfg.sumAbs) ? 1 : 0;
   }
-  if (obj.hasOwnProperty("wireMode")) {
+  if (jvHasKey(obj, "wireMode")) {
     g_atm_cfg.wireMode = jvGetInt(obj, "wireMode", (int)g_atm_cfg.wireMode) ? 1 : 0;
   }
-  if (obj.hasOwnProperty("phaseMap")) {
+  if (jvHasKey(obj, "phaseMap")) {
     JSONVar pmap = obj["phaseMap"];
     uint8_t tmp[3];
     for (int i = 0; i < 3; i++) {
@@ -2417,22 +2445,22 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
       for (int i = 0; i < 3; i++) g_atm_cfg.phaseMap[i] = tmp[i];
     }
   }
-  if (obj.hasOwnProperty("ucal")) {
+  if (jvHasKey(obj, "ucal")) {
     int u = jvGetInt(obj, "ucal", (int)g_atm_cfg.ucal);
     if (u < 1) u = 1;
     if (u > 65535) u = 65535;
     g_atm_cfg.ucal = (uint16_t)u;
   }
   bool ctChanged = false;
-  if (obj.hasOwnProperty("ctPrimary")) {
+  if (jvHasKey(obj, "ctPrimary")) {
     g_ctPrimaryA = (uint16_t)constrain(jvGetInt(obj, "ctPrimary", (int)g_ctPrimaryA), 1, 10000);
     ctChanged = true;
   }
-  if (obj.hasOwnProperty("ctSecondary")) {
+  if (jvHasKey(obj, "ctSecondary")) {
     g_ctSecondary_mA = (uint16_t)constrain(jvGetInt(obj, "ctSecondary", (int)g_ctSecondary_mA), 1, 60);
     ctChanged = true;
   }
-  if (obj.hasOwnProperty("pga")) {
+  if (jvHasKey(obj, "pga")) {
     int g = jvGetInt(obj, "pga", (int)g_pgaGain);
     if (g != 1 && g != 2 && g != 4) g = 2;
     g_pgaGain = (uint8_t)g;
@@ -2452,9 +2480,9 @@ static bool atmJsonNeedsFullApply(const JSONVar& obj) {
   // Structural options require SoftReset via begin(). Calibration/offset alone do not.
   // ucal feeds sag/OV thresholds computed inside begin() — treat as structural.
   // pga writes MMode1 gain bits inside begin(). CT ratio is software-only.
-  return obj.hasOwnProperty("lineHz") || obj.hasOwnProperty("sumAbs")
-      || obj.hasOwnProperty("wireMode") || obj.hasOwnProperty("phaseMap")
-      || obj.hasOwnProperty("ucal") || obj.hasOwnProperty("pga");
+  return jvHasKey(obj, "lineHz") || jvHasKey(obj, "sumAbs")
+      || jvHasKey(obj, "wireMode") || jvHasKey(obj, "phaseMap")
+      || jvHasKey(obj, "ucal") || jvHasKey(obj, "pga");
 }
 
 static void atmApplyFromJson(const JSONVar& obj) {
