@@ -4,8 +4,8 @@
 #define HM_MODEL_ID   2
 #define HM_FW_MAJOR   0
 #define HM_FW_MINOR   2
-#define HM_FW_PATCH   0
-#define HM_FW         "0.2.0"
+#define HM_FW_PATCH   1
+#define HM_FW         "0.2.1"
 #define HM_MAP        2
 #define HM_MAP_VERSION 2
 #include <SimpleWebSerial.h>
@@ -248,8 +248,6 @@ static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 // ================== Modbus linkOk detector (DIO-compatible) ==================
 static uint32_t g_lastLinkSeenMs = 0;
 static const uint16_t g_linkTimeoutMs = 5000;
-static bool coilSnapBefore[32] = {false};
-
 // Arduino_JSON: (int)obj["key"] returns ASCII of first key char, not the numeric value.
 static inline String jsonBlob(const JSONVar& v) {
   return JSON.stringify((JSONVar&)v);
@@ -591,6 +589,7 @@ static void serviceModbusServiceCoils(uint32_t now) {
   if (mb.Coil(COIL_REBOOT)) {
     mb.Coil(COIL_REBOOT, false);
     wsLog("Rebooting…");
+    if (cfgDirty) saveSettingsFS();
     (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
@@ -602,14 +601,8 @@ static void serviceModbusServiceCoils(uint32_t now) {
 }
 
 static void updateLinkOkDetector(uint32_t now) {
+  // Only bus RX counts as a Modbus poll — local coil writes must not fake linkOk.
   if (Serial2.available() > 0) g_lastLinkSeenMs = now;
-  for (int i = 0; i < 32; i++) {
-    const bool c = mb.Coil((uint16_t)i);
-    if (c != coilSnapBefore[i]) {
-      coilSnapBefore[i] = c;
-      g_lastLinkSeenMs = now;
-    }
-  }
 }
 
 static inline bool linkOkNow(uint32_t now) {
@@ -692,7 +685,7 @@ static int32_t  g_pharm_W[4] = {0, 0, 0, 0};
 static int32_t  g_q_var[4]= {0, 0, 0, 0};
 static int32_t  g_s_VA[4] = {0, 0, 0, 0};
 static int16_t  g_pf_raw[4] = {0, 0, 0, 0};
-static int16_t  g_ang_raw[3]= {0, 0, 0};
+static uint16_t g_ang_raw[3]= {0, 0, 0};
 static uint16_t g_f_x100 = 0;
 static int16_t  g_tempC = 0;
 static double   g_upeak[3] = {0, 0, 0};
@@ -1061,7 +1054,17 @@ static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
     if (JSON.typeof(r) == "undefined") continue;
     AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
     if (jvHasKey(r, "enabled")) cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
-    if (jvHasKey(r, "metric"))  cfg.metric  = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
+    if (jvHasKey(r, "metric")) {
+      const uint8_t newMet = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
+      if (newMet != cfg.metric) {
+        cfg.metric = newMet;
+        // Old limits are in the previous metric scale — clear until client resends.
+        cfg.minVal = ALARM_LIM_NONE_MIN;
+        cfg.maxVal = ALARM_LIM_NONE_MAX;
+      } else {
+        cfg.metric = newMet;
+      }
+    }
     if (jvHasKey(r, "min")) {
       const String ms = JSON.stringify(r["min"]);
       if (ms == "null" || ms == "\"\"" || ms.length() == 0)
@@ -2209,6 +2212,7 @@ void handleCommand(JSONVar obj) {
   String act = String(actC); act.toLowerCase();
   if (act == "reboot" || act == "reset") {
     wsLog("Rebooting…");
+    if (cfgDirty) saveSettingsFS();
     (void)saveMeterFS();
     delay(50);
     rp2040.reboot();
@@ -2329,7 +2333,6 @@ void handleUnifiedConfig(JSONVar obj) {
       snprintf(buf, sizeof(buf), "OK: CT %uA:%umA N=%.4g (no chip write)",
                (unsigned)g_ctPrimaryA, (unsigned)g_ctSecondary_mA, g_ctRatioN);
       wsLog(buf);
-      mbPublishMeter();
     } else {
       wsLog("OK: ATM options updated");
     }
@@ -2536,8 +2539,13 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
     if (g != 1 && g != 2 && g != 4) g = 2;
     g_pgaGain = (uint8_t)g;
   }
-  if (ctChanged) recomputeCtRatio();
-  else clampCtPgaSettings();
+  if (ctChanged) {
+    resetEnergyCounters();   // CT change invalidates past accumulation; start clean
+    recomputeCtRatio();
+    wsLog("CT ratio changed — energy counters reset");
+  } else {
+    clampCtPgaSettings();
+  }
 }
 static void atmUpdatePhaseFromJson(int phase, const JSONVar& obj) {
   if (phase < 0 || phase > 2) return;
