@@ -188,7 +188,7 @@
 
   <div class="sectiontitle">
     <h3>Alarms (L1, L2, L3, Totals)</h3>
-    <p class="hint">Threshold rules per channel; chip power-quality events appear as Event.</p>
+    <p class="hint">Threshold rules per channel (active outside min/max). Chip power-quality bits are under Chip Events.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -669,7 +669,7 @@
         const ackEl=$('al-ackreq-'+ch);
         if(ackEl&&obj.ack!==undefined) ackEl.checked=!!obj.ack;
         for(let ak=0;ak<3;ak++){
-          const r=obj[ak]??obj[String(ak)]??{};
+          const r=(Array.isArray(obj.rules)?obj.rules[ak]:null)??obj[ak]??obj[String(ak)]??{};
           const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
           if(en&&r.enabled!==undefined) en.checked=!!r.enabled;
           if(mn&&canApply('al-min-'+ch+'-'+ak)){
@@ -718,20 +718,25 @@
     }
 
     function collectChannelCfg(ch){
-      const chO={ ack:!!$('al-ackreq-'+ch)?.checked };
+      // enabled/ack as 0|1 — firmware parseKeyFromBlob used toInt(); JSON true→0.
+      const chO={ ack: $('al-ackreq-'+ch)?.checked ? 1 : 0 };
+      const rules=[];
       for(let ak=0;ak<3;ak++){
         const minRaw=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
         const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
         const minN=minRaw===''?null:Number(minRaw);
         const maxN=maxRaw===''?null:Number(maxRaw);
-        chO[ak]={
-          enabled:!!$('al-en-'+ch+'-'+ak)?.checked,
+        const rule={
+          enabled: $('al-en-'+ch+'-'+ak)?.checked ? 1 : 0,
           // null = unset; 0 is a real engineering threshold
           min: (minN===null||!Number.isFinite(minN)) ? null : minN,
           max: (maxN===null||!Number.isFinite(maxN)) ? null : maxN,
           metric:+( $('al-met-'+ch+'-'+ak)?.value||0)
         };
+        chO[ak]=rule;
+        rules.push(rule);
       }
+      chO.rules=rules;
       return chO;
     }
 
