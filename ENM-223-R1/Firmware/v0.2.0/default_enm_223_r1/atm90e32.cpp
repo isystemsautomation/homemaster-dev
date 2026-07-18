@@ -240,24 +240,20 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   for (int i = 0; i < 3; i++) phaseCal_[i] = cal[i];
   if (pgaGain != 1 && pgaGain != 2 && pgaGain != 4) pgaGain = 2;
 
-  // PM1:PM0 — datasheet Table: 11=Normal (energy on), 10=Partial (energy OFF,
-  // measurement still runs). Transition via Idle (00) so SoftReset is legal
-  // (SoftReset only works in Normal mode).
+  // PM1:PM0 = 11 → Normal (energy + measurement). Do NOT bounce through Idle:
+  // Idle disables VDD18 and field boards lost U/I/Freq after that POR dance.
   pinMode(pm0_, OUTPUT);
   pinMode(pm1_, OUTPUT);
-  digitalWrite(pm0_, LOW);
-  digitalWrite(pm1_, LOW);
-  delay(20);
   digitalWrite(pm0_, HIGH);
   digitalWrite(pm1_, HIGH);
-  delay(50);
+  delay(5);
 
   pinMode(cs_, OUTPUT);
   csRelease();
   delay(5);
 
   write16(SoftReset, 0x789A);
-  delay(10);
+  delay(5);
 
   write16(CfgRegAccEn, 0x55AA);
   write16(MeterEn, 0x0001);
@@ -336,14 +332,15 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   write16(MMode1, m1);
 
   // Startup / no-load thresholds (datasheet §3.5): Reg = P[W] / 0.00032.
-  // 0 = accumulate whenever DSP power is non-zero (field: chip CF was stuck
-  // in no-load while Pmean still read live power).
-  write16(PStartTh, 0);
-  write16(QStartTh, 0);
-  write16(SStartTh, 0);
-  write16(PPhaseTh, 0);
-  write16(QPhaseTh, 0);
-  write16(SPhaseTh, 0);
+  // Low floor so high-N CT chip-domain watts still pass; keep non-zero anti-creep.
+  static constexpr uint16_t kPwrStartTh = 0x0064; // ~0.032 W sum
+  static constexpr uint16_t kPwrPhaseTh = 0x0020; // ~0.01 W/phase
+  write16(PStartTh, kPwrStartTh);
+  write16(QStartTh, kPwrStartTh);
+  write16(SStartTh, kPwrStartTh);
+  write16(PPhaseTh, kPwrPhaseTh);
+  write16(QPhaseTh, kPwrPhaseTh);
+  write16(SPhaseTh, kPwrPhaseTh);
 
   applyCalibration(cal);
 
