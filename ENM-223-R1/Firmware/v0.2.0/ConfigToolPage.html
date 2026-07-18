@@ -163,9 +163,9 @@
         </div>
       </div>
       <div class="hint" style="margin-top:.4rem">
-        N = primary / secondary_mA (software scale). PGA writes the chip — change only with the input path.
+        N = primary / secondary_mA (software scale). Enter or leave the field to write. PGA writes the chip — change only with the input path.
         <span id="ct-ratio-n">N = 2</span>
-        · <span id="ct-sec-util">вход = — % от 60 мА</span>
+        · <span id="ct-sec-util">input = — % of 60 mA</span>
         <span id="ct-overrange" style="display:none;color:#b00020;font-weight:600"> OVERRANGE</span>
       </div>
     </div>
@@ -389,8 +389,8 @@
       const pct = (maxSec_mA / 60) * 100;
       if (utilEl) {
         utilEl.textContent = Number.isFinite(pct)
-          ? ('вход = ' + pct.toFixed(0) + ' % от 60 мА')
-          : 'вход = — % от 60 мА';
+          ? ('input = ' + pct.toFixed(0) + ' % of 60 mA')
+          : 'input = — % of 60 mA';
         utilEl.style.color = pct > 90 ? '#b06000' : '';
       }
       if (ovEl) ovEl.style.display = (pct >= 100) ? 'inline' : 'none';
@@ -479,8 +479,12 @@
           if(v!==undefined&&el&&el!==document.activeElement) el.value=String(v);
         }
       }
-      if(atm.ctPrimary!==undefined){ const el=$('opt-ctPrimary'); if(el&&el!==document.activeElement) el.value=String(atm.ctPrimary); }
-      if(atm.ctSecondary!==undefined){ const el=$('opt-ctSecondary'); if(el&&el!==document.activeElement) el.value=String(atm.ctSecondary); }
+      if(atm.ctPrimary!==undefined && canApply('opt-ctPrimary')){
+        const el=$('opt-ctPrimary'); if(el&&el!==document.activeElement) el.value=String(atm.ctPrimary);
+      }
+      if(atm.ctSecondary!==undefined && canApply('opt-ctSecondary')){
+        const el=$('opt-ctSecondary'); if(el&&el!==document.activeElement) el.value=String(atm.ctSecondary);
+      }
       if(atm.pga!==undefined){ const el=$('opt-pga'); if(el&&el!==document.activeElement) el.value=String(atm.pga); }
       updateCtHud(null);
       if(atm.cal) applyCalibFromPayload({ cal: atm.cal });
@@ -519,12 +523,17 @@
       try {
         o = parseEventPayload(o);
         if (!o) return;
-        if (o.lineHz !== undefined || o.sumAbs !== undefined || o.wireMode !== undefined || o.phaseMap || o.cal) {
+        if (o.lineHz !== undefined || o.sumAbs !== undefined || o.wireMode !== undefined
+            || o.phaseMap || o.cal || o.ctPrimary !== undefined || o.ctSecondary !== undefined
+            || o.pga !== undefined) {
           applyAtmFromDevice({
             lineHz: o.lineHz,
             sumAbs: o.sumAbs,
             wireMode: o.wireMode,
             phaseMap: o.phaseMap,
+            ctPrimary: o.ctPrimary,
+            ctSecondary: o.ctSecondary,
+            pga: o.pga,
             cal: o.cal
           });
         }
@@ -698,6 +707,11 @@
 
     function sendAtmPartial(partial){
       HMWebConfig.sendConfig('ext.atm', partial);
+      try {
+        HMWebConfig.appendLog('TX ext.atm ' + JSON.stringify(partial));
+      } catch (e) {
+        HMWebConfig.appendLog('TX ext.atm');
+      }
     }
     function readPhaseMapFromUI(){
       const map=[];
@@ -733,6 +747,9 @@
       sendAtmPartial({ ctPrimary: p, ctSecondary: s });
       updateCtHud(null);
     }
+    // Lock while editing — live ENM_Sync/cfg refresh was overwriting before blur/change.
+    attachLockHandlers($('opt-ctPrimary'), 'opt-ctPrimary', sendCtFromUI, true);
+    attachLockHandlers($('opt-ctSecondary'), 'opt-ctSecondary', sendCtFromUI, true);
     $('opt-ctPrimary')?.addEventListener('change', sendCtFromUI);
     $('opt-ctSecondary')?.addEventListener('change', sendCtFromUI);
     $('opt-pga')?.addEventListener('change', ()=>{
