@@ -518,8 +518,9 @@ static const unsigned long atmApplyMinIntervalMs = 300;
 static bool atmBusy = false;
 
 
-// Modbus V2 map (matches default_enm_223_r1_plc.yaml)
-// IR 105–128: fundamental/harmonic power + harmonic active energy (map v2)
+// Contiguous Input Register map (FC04) — beta; no Discrete Inputs.
+// Order: digital/status → scalars → currents S32 → powers S32 → energy U32.
+// Matches default_enm_223_r1_plc.yaml. Coils/Holding unchanged.
 enum : uint16_t {
   COIL_RELAY1 = 0,
   COIL_RELAY2 = 1,
@@ -529,34 +530,46 @@ enum : uint16_t {
   COIL_REBOOT       = 7,
   COIL_RESET_ENERGY = 8,
   COIL_ACK_BASE = 16,
-  DI_LED_BASE   = 0,
-  DI_BTN_BASE   = 4,
-  DI_RELAY_BASE = 8,
-  DI_ALARM_BASE = 16,
-  IR_URMS_BASE  = 0,
-  IR_IRMS_BASE  = 3,   // U16 ×0.01 A primary (after CT ratio)
-  IR_FREQ       = 6,
-  IR_TEMP       = 7,
-  IR_PF_BASE    = 8,
-  IR_UPEAK_BASE = 12,  // U16 ×0.01 V, L1..L3
-  IR_IPEAK_BASE = 15,  // U16 ×0.01 A, L1..L3 (primary after CT ratio)
-  IR_IRMSN      = 18,  // U16 ×0.01 A (primary after CT ratio)
-  IR_P_BASE     = 20,
-  IR_Q_BASE     = 28,
-  IR_S_BASE     = 36,
-  IR_ANG_BASE   = 44,
-  IR_THD_BASE   = 47,  // U16 ×0.01 %, L1..L3 (active-power THD)
-  IR_E_BASE     = 60,
-  IR_PFUND_BASE = 105, // S32 W, L1/L2/L3/Total (ATM D0/D1 + E0/E1…)
-  IR_PHARM_BASE = 113, // S32 W, L1/L2/L3/Total (ATM D4/D5 + E4/E5…)
-  IR_EHARM_AP_BASE = 121, // U32 Wh, harmonic active import L1/L2/L3/Total (ATM A8–AB)
-  // New: status flags (bit1=linkOk, bit3=cfgDirty) — placed after energy block, does not shift existing IR map.
-  IR_STATUS_FLAGS = 100,
-  // Chip PQ event masks (U16 bitfield): 101=L1, 102=L2, 103=L3, 104=Total
-  IR_CHIP_EV_L1   = 101,
-  IR_CHIP_EV_L2   = 102,
-  IR_CHIP_EV_L3   = 103,
-  IR_CHIP_EV_TOT  = 104,
+
+  // --- A. Digital / status (U16 bitfields) ---
+  IR_IO_MASK      = 0,   // b0-3 LED1-4, b4-7 BTN1-4, b8 Relay1, b9 Relay2 (logical)
+  IR_STATUS_FLAGS = 1,   // b1 linkOk, b3 cfgDirty
+  IR_ALARM_FLAGS  = 2,   // bit = 3*ch + kind (ch0-3, kind0-2)
+  IR_CHIP_EV_L1   = 3,   // sag1/ov2/phaseloss4/overI8/freq16/rev32
+  IR_CHIP_EV_L2   = 4,
+  IR_CHIP_EV_L3   = 5,
+  IR_CHIP_EV_TOT  = 6,
+
+  // --- B. Instantaneous scalars ---
+  IR_URMS_BASE  = 7,     // U16 ×0.01 V, L1..L3
+  IR_FREQ       = 10,    // U16 ×0.01 Hz
+  IR_TEMP       = 11,    // S16 °C
+  IR_PF_BASE    = 12,    // S16 ×0.001, L1..L3..Total
+  IR_ANG_BASE   = 16,    // S16 ×0.1°, L1..L3
+  IR_THD_BASE   = 19,    // U16 ×0.01 %, L1..L3
+  IR_UPEAK_BASE = 22,    // U16 ×0.01 V, L1..L3
+
+  // --- C. Currents S32 ×0.001 A primary (hi-word first) ---
+  IR_IRMS_BASE  = 25,    // L1,L2,L3 — 2 regs each
+  IR_IRMSN      = 31,    // Neutral
+  IR_IPEAK_BASE = 33,    // L1,L2,L3
+
+  // --- D. Powers S32 (hi-word first) ---
+  IR_P_BASE     = 39,    // W, L1..L3..Total
+  IR_Q_BASE     = 47,    // var
+  IR_S_BASE     = 55,    // VA
+  IR_PFUND_BASE = 63,    // W fundamental
+  IR_PHARM_BASE = 71,    // W harmonic
+
+  // --- E. Energy U32 (slow; hi-word first) ---
+  IR_E_AP_BASE  = 79,    // AP import Wh, L1..Total
+  IR_E_AN_BASE  = 87,    // AP export Wh
+  IR_E_RP_BASE  = 95,    // RP import varh
+  IR_E_RN_BASE  = 103,   // RN export varh
+  IR_E_SA_BASE  = 111,   // SA VAh
+  IR_E_APH_BASE = 119,   // Harmonic AP import Wh
+  IR_COUNT      = 127,   // contiguous 0..126
+
   HR_MB_ADDR    = 0,
   HR_MB_BAUD_L  = 1,
   HR_LINE_HZ    = 4,
@@ -583,8 +596,8 @@ static void mbBuildRegisterMap() {
     mb.addCoil(a);
     mb.Coil(a, false);
   }
-  for (uint16_t a = 0; a < 128; ++a) mb.addIsts(a);
-  for (uint16_t r = 0; r < 160; ++r) mb.addIreg(r);
+  // No Discrete Inputs — digital state is bit-packed into IR_IO_MASK / IR_ALARM_FLAGS.
+  for (uint16_t r = 0; r < IR_COUNT; ++r) mb.addIreg(r);
   for (uint16_t r = 0; r < 200; ++r) mb.addHreg(r);
 }
 
@@ -774,9 +787,6 @@ static const unsigned long alarmEvalMs = 200;
 
 static inline double ticksToPrimaryWh(uint64_t ticks);
 
-static inline uint16_t diAlarmAddr(uint8_t ch, uint8_t kind) {
-  return (uint16_t)(DI_ALARM_BASE + ch * 3 + kind);
-}
 
 static uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   crc = ~crc;
@@ -1043,11 +1053,28 @@ static void alarmEvalThresholds() {
 }
 
 static void alarmPublishModbus() {
+  uint16_t m = 0;
   for (uint8_t ch = 0; ch < 4; ch++) {
     for (uint8_t kind = 0; kind < 3; kind++) {
-      mb.setIsts(diAlarmAddr(ch, kind), alarmRulePublished(ch, kind));
+      if (alarmRulePublished(ch, kind))
+        m |= (uint16_t)(1u << (3u * ch + kind));
     }
   }
+  mb.Ireg(IR_ALARM_FLAGS, m);
+}
+
+static void mbPublishIoMask(const bool* ledPhys, const bool* btn, const bool* relayLogical) {
+  uint16_t m = 0;
+  for (int i = 0; i < NUM_LED; i++) {
+    if (ledPhys[i]) m |= (uint16_t)(1u << i);
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    if (btn[i]) m |= (uint16_t)(1u << (4 + i));
+  }
+  for (int i = 0; i < NUM_RLY; i++) {
+    if (relayLogical[i]) m |= (uint16_t)(1u << (8 + i));
+  }
+  mb.Ireg(IR_IO_MASK, m);
 }
 
 static void alarmAckChannel(uint8_t ch) {
@@ -1820,6 +1847,11 @@ static inline int32_t scalePowerByCt(int32_t v) {
   return (int32_t)lround((double)v * g_ctRatioN);
 }
 
+static inline int32_t mbCurrent_mA(double a) {
+  // Primary amperes → S32 ×0.001 A (no U16 saturation).
+  return (int32_t)lround(a * 1000.0);
+}
+
 static void mbPublishMeter() {
   if (!g_haveMeter) return;
 
@@ -1827,50 +1859,36 @@ static void mbPublishMeter() {
     long x = lround(v * 100.0);
     return (uint16_t)constrain(x, 0L, 65535L);
   };
-  // Current registers: U16 ×0.01 A primary (0…655.35 A)
-  auto clampI = [](double a) -> uint16_t {
-    long x = lround(a * 100.0);
-    return (uint16_t)constrain(x, 0L, 65535L);
-  };
 
   mb.Ireg(IR_URMS_BASE + 0, clampU(g_urms[0]));
   mb.Ireg(IR_URMS_BASE + 1, clampU(g_urms[1]));
   mb.Ireg(IR_URMS_BASE + 2, clampU(g_urms[2]));
-  mb.Ireg(IR_IRMS_BASE + 0, clampI(g_irms[0]));
-  mb.Ireg(IR_IRMS_BASE + 1, clampI(g_irms[1]));
-  mb.Ireg(IR_IRMS_BASE + 2, clampI(g_irms[2]));
   mb.Ireg(IR_FREQ, g_f_x100);
   mb.Ireg(IR_TEMP, (uint16_t)g_tempC);
 
   for (int i = 0; i < 4; i++) {
     mb.Ireg(IR_PF_BASE + i, (uint16_t)g_pf_raw[i]);
-    if (i < 3) mb.Ireg(IR_ANG_BASE + i, (uint16_t)g_ang_raw[i]);
     mbPutS32Ir(IR_P_BASE + i * 2, g_p_W[i]);
     mbPutS32Ir(IR_Q_BASE + i * 2, g_q_var[i]);
     mbPutS32Ir(IR_S_BASE + i * 2, g_s_VA[i]);
     mbPutS32Ir(IR_PFUND_BASE + i * 2, g_pfund_W[i]);
     mbPutS32Ir(IR_PHARM_BASE + i * 2, g_pharm_W[i]);
   }
-
   for (int i = 0; i < 3; i++) {
-    mb.Ireg(IR_UPEAK_BASE + i, clampU(g_upeak[i]));
-    mb.Ireg(IR_IPEAK_BASE + i, clampI(g_ipeak[i]));
+    mb.Ireg(IR_ANG_BASE + i, (uint16_t)g_ang_raw[i]);
     mb.Ireg(IR_THD_BASE + i, g_thd_x100[i]);
+    mb.Ireg(IR_UPEAK_BASE + i, clampU(g_upeak[i]));
+    mbPutS32Ir(IR_IRMS_BASE + i * 2, mbCurrent_mA(g_irms[i]));
+    mbPutS32Ir(IR_IPEAK_BASE + i * 2, mbCurrent_mA(g_ipeak[i]));
   }
-  mb.Ireg(IR_IRMSN, clampI(g_irmsN));
+  mbPutS32Ir(IR_IRMSN, mbCurrent_mA(g_irmsN));
 
-  uint16_t o = IR_E_BASE;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_ap_Wh[i]);
-  o += 8;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_an_Wh[i]);
-  o += 8;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_rp_varh[i]);
-  o += 8;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_rn_varh[i]);
-  o += 8;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_s_VAh[i]);
-  o = IR_EHARM_AP_BASE;
-  for (int i = 0; i < 4; i++) mbPutU32Ir(o + i * 2, g_e_aph_Wh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_AP_BASE + i * 2, g_e_ap_Wh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_AN_BASE + i * 2, g_e_an_Wh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_RP_BASE + i * 2, g_e_rp_varh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_RN_BASE + i * 2, g_e_rn_varh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_SA_BASE + i * 2, g_e_s_VAh[i]);
+  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_APH_BASE + i * 2, g_e_aph_Wh[i]);
 }
 
 static void meter_job_begin() {
@@ -2923,7 +2941,6 @@ void loop() {
         if (r >= 0 && r < NUM_RLY) desiredRelay[r] = !desiredRelay[r];
       }
     }
-    mb.setIsts(DI_BTN_BASE + i, pressed);
   }
 
   for (int i = 0; i < NUM_RLY; i++) {
@@ -2941,7 +2958,6 @@ void loop() {
     if (rlyCfg[i].inverted) phys = !phys;
     digitalWrite(RELAY_PINS[i], phys ? HIGH : LOW);
     relayLogical[i] = logical;
-    mb.setIsts(DI_RELAY_BASE + i, logical);
   }
   if (rlyCfg[0].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
   if (rlyCfg[1].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
@@ -2963,8 +2979,8 @@ void loop() {
     }
     ledPhysState[i] = physLed;
     digitalWrite(LED_PINS[i], physLed ? HIGH : LOW);
-    mb.setIsts(DI_LED_BASE + i, physLed);
   }
+  mbPublishIoMask(ledPhysState, buttonState, relayLogical);
 
   if (!meter_job && !atmBusy && (now - lastMeterSample >= meterSampleMs)) {
     lastMeterSample = now;
