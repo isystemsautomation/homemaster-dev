@@ -11,34 +11,35 @@ Notes:
 - IDs **70–91** are the OpenTherm **Ventilation/Heat-Recovery** application block (irrelevant to a plain boiler).
 - Reserved/manufacturer IDs vary between vendors and spec revisions; treat those rows as indicative.
 - The boiler column is one specific unit — **your boiler will differ**. Run the scanner (`opentherm-SCAN.yaml`) to map your own.
+- **Write-only IDs (R/W = `W`)** answer `Unknown-DataId` to this READ scan — that is **expected, not missing support**. They are written, not read (e.g. **ID 1 CH Setpoint** works perfectly as a write; a read of it just returns Unknown). Such rows are marked `n/a (write-only, read not expected)`.
 
 | ID | OpenTherm 2.2 standard | Type | R/W | ESPHome component | This Vitodens 100 |
 |---:|---|---|:--:|---|---|
 | 0 | Status (master/slave status bits) | `flag8/flag8` | R | STATUS | ✓ HB2/LB4 |
-| 1 | Control setpoint — CH water temp (TSet) | `f8.8` | W | CH_SETPOINT | ✗ Unknown-DataId |
-| 2 | Master config / MemberID | `flag8/u8` | W | CONTROLLER_CONFIG | ✗ Unknown-DataId |
+| 1 | Control setpoint — CH water temp (TSet) | `f8.8` | W | CH_SETPOINT | n/a (write-only, read not expected) |
+| 2 | Master config / MemberID | `flag8/u8` | W | CONTROLLER_CONFIG | n/a (write-only, read not expected) |
 | 3 | Slave config / MemberID | `flag8/u8` | R | DEVICE_CONFIG | ✓ HB81/LB33 |
-| 4 | Remote command | `u8/u8` | W | COMMAND_CODE | ✗ Unknown-DataId |
+| 4 | Remote command | `u8/u8` | W | COMMAND_CODE | n/a (write-only, read not expected) |
 | 5 | Application-specific fault flags / OEM fault code | `flag8/u8` | R | FAULT_FLAGS | ✓ HB0/LB255 |
 | 6 | Remote boiler parameter flags | `flag8/flag8` | R | REMOTE | ✓ HB3/LB3 |
-| 7 | Cooling control signal | `f8.8` | W | COOLING_CONTROL | ✗ Unknown-DataId |
+| 7 | Cooling control signal | `f8.8` | W | COOLING_CONTROL | n/a (write-only, read not expected) |
 | 8 | Control setpoint CH2 (TSetCH2) | `f8.8` | W | CH2_SETPOINT | — no reply |
 | 9 | Remote override room setpoint | `f8.8` | R | CH_SETPOINT_OVERRIDE | ✓ 0.00 |
 | 10 | Number of Transparent Slave Parameters (TSP) | `u8/u8` | R | TSP_COUNT | — no reply |
 | 11 | TSP index / value | `u8/u8` | RW | TSP_COMMAND | ✗ Unknown-DataId |
 | 12 | Fault History Buffer size | `u8/u8` | R | FHB_SIZE | ✗ Unknown-DataId |
 | 13 | Fault History Buffer index / value | `u8/u8` | R | FHB_COMMAND | ✗ Unknown-DataId |
-| 14 | Max relative modulation level setting | `f8.8` | W | MAX_MODULATION_LEVEL | ✗ Unknown-DataId |
+| 14 | Max relative modulation level setting | `f8.8` | W | MAX_MODULATION_LEVEL | n/a (write-only, read not expected) |
 | 15 | Max boiler capacity / min modulation level | `u8/u8` | R | MAX_BOILER_CAPACITY | — no reply |
-| 16 | Room setpoint (TrSet) | `f8.8` | W | ROOM_SETPOINT | ✗ Unknown-DataId |
+| 16 | Room setpoint (TrSet) | `f8.8` | W | ROOM_SETPOINT | n/a (write-only, read not expected) |
 | 17 | Relative modulation level | `f8.8` | R | MODULATION_LEVEL | ✓ 0.00 |
 | 18 | CH water pressure | `f8.8` | R | CH_WATER_PRESSURE | ✓ 1.70 |
 | 19 | DHW flow rate (l/min) | `f8.8` | R | DHW_FLOW_RATE | ✓ 0.00 |
 | 20 | Day of week & time | `special` | RW | DAY_TIME | ✗ Unknown-DataId |
 | 21 | Date (month/day) | `u8/u8` | RW | DATE | ✗ Unknown-DataId |
 | 22 | Year | `u16` | RW | YEAR | ✗ Unknown-DataId |
-| 23 | Room setpoint CH2 (TrSetCH2) | `f8.8` | W | ROOM_SETPOINT_CH2 | ✗ Unknown-DataId |
-| 24 | Room temperature (Tr) | `f8.8` | W | ROOM_TEMP | ✗ Unknown-DataId |
+| 23 | Room setpoint CH2 (TrSetCH2) | `f8.8` | W | ROOM_SETPOINT_CH2 | n/a (write-only, read not expected) |
+| 24 | Room temperature (Tr) | `f8.8` | W | ROOM_TEMP | n/a (write-only, read not expected) |
 | 25 | Boiler flow water temperature | `f8.8` | R | FEED_TEMP | ✓ 63.00 |
 | 26 | DHW temperature | `f8.8` | R | DHW_TEMP | ✓ 55.20 |
 | 27 | Outside temperature | `f8.8` | R | OUTSIDE_TEMP | — no reply |
@@ -51,7 +52,7 @@ Notes:
 | 34 | Boiler heat exchanger temperature | `f8.8` | R | — (not mapped) | ✗ Unknown-DataId |
 | 35 | Boiler fan speed setpoint & actual | `u8/u8 (integer!)` | R | FAN_SPEED | ✓ 13107  (HB51/LB51) |
 | 36 | Electrical current through burner flame (µA) | `f8.8` | R | FLAME_CURRENT | ✗ Unknown-DataId |
-| 37 | Room temperature CH2 (TrCH2) | `f8.8` | W | ROOM_TEMP_CH2 | ✗ Unknown-DataId |
+| 37 | Room temperature CH2 (TrCH2) | `f8.8` | W | ROOM_TEMP_CH2 | n/a (write-only, read not expected) |
 | 38 | Relative humidity | `u8/u8` | R | REL_HUMIDITY | ✗ Unknown-DataId |
 | 39 | Reserved / manufacturer-specific | `—` | — | — (not mapped) | ✗ Unknown-DataId |
 | 40 | Reserved / manufacturer-specific | `—` | — | — (not mapped) | ✗ Unknown-DataId |
@@ -85,7 +86,7 @@ Notes:
 | 68 | Reserved / manufacturer-specific | `—` | — | — (not mapped) | ✗ Unknown-DataId |
 | 69 | Reserved / manufacturer-specific | `—` | — | — (not mapped) | — no reply |
 | 70 | V/H status | `flag8/flag8` | R | HVAC_STATUS | ✗ Unknown-DataId |
-| 71 | V/H control setpoint | `u8/-` | W | REL_VENT_SETPOINT | ✗ Unknown-DataId |
+| 71 | V/H control setpoint | `u8/-` | W | REL_VENT_SETPOINT | n/a (write-only, read not expected) |
 | 72 | V/H fault flags/code | `flag8/u8` | R | — (not mapped) | ✗ Unknown-DataId |
 | 73 | V/H OEM diagnostic code | `u16` | R | — (not mapped) | ✗ Unknown-DataId |
 | 74 | V/H config/MemberID | `flag8/u8` | R | DEVICE_VENT | ✗ Unknown-DataId |
@@ -140,7 +141,7 @@ Notes:
 | 123 | DHW burner operation hours | `u16` | RW | DHW_BURNER_HOURS | ✗ Unknown-DataId |
 | 124 | OpenTherm version — Master | `f8.8` | W | OT_VERSION_CONTROLLER | — no reply |
 | 125 | OpenTherm version — Slave | `f8.8` | R | OT_VERSION_DEVICE | ✓ 4.10 |
-| 126 | Master product type/version | `u8/u8` | W | VERSION_CONTROLLER | ✗ Unknown-DataId |
+| 126 | Master product type/version | `u8/u8` | W | VERSION_CONTROLLER | n/a (write-only, read not expected) |
 | 127 | Slave product type/version | `u8/u8` | R | VERSION_DEVICE | ✓ HB37/LB123 |
 
 ## Summary for this boiler
@@ -148,3 +149,4 @@ Notes:
 - **Supported (answered READ_ACK): 23 IDs** — 0, 3, 5, 6, 9, 17, 18, 19, 25, 26, 33, 35, 48, 49, 56, 57, 93, 94, 99, 100, 115, 125, 127
 - **Extra beyond the component:** IDs **93, 94** answered with data but the ESPHome component has **no entity** for them (labelled `<INVALID>`). Only a raw scan/lambda can read them — likely Viessmann OEM registers.
 - **Not exposed:** all operating-hours / start counters (116–123), return temp (28), outside temp (27) → the boiler keeps these off the bus (ViCare cloud only). There is **no gas-volume Data-ID in the standard at all**.
+- **Read-scan caveat:** write-only IDs (R/W = `W`) return `Unknown-DataId` to a read — that is normal. Control of them still works (the CH setpoint, ID 1, is written and works even though it reads back as Unknown).
