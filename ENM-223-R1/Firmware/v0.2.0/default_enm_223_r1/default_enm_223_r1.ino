@@ -250,12 +250,13 @@ enum : uint8_t {
 
 struct AlarmRuleRun {
   bool active;
+  bool prevActive;  // rising-edge detect for latch
   bool hiSide;
+  bool latched;     // stays set after trip until Ack (when ackRequired)
 };
 
 struct AlarmChRun {
   AlarmRuleRun rules[3];
-  bool acked;
   bool chipActive;
 };
 
@@ -884,6 +885,8 @@ static void alarmEvalRule(const AlarmRuleCfg& cfg, AlarmRuleRun& run, double val
   if (!cfg.enabled) {
     run.active = false;
     run.hiSide = false;
+    // Keep latched until Ack when channel uses ackRequired (handled in publish).
+    run.prevActive = false;
     return;
   }
   const bool hasMin = alarmHasMin(cfg);
@@ -900,18 +903,17 @@ static void alarmEvalRule(const AlarmRuleCfg& cfg, AlarmRuleRun& run, double val
       run.active = true;
       run.hiSide = true;
     }
-    return;
-  }
-
-  bool clear = false;
-  if (!run.hiSide) {
-    clear = !hasMin || value >= (mn + h);
   } else {
-    clear = !hasMax || value <= (mx - h);
-  }
-  if (clear) {
-    run.active = false;
-    run.hiSide = false;
+    bool clear = false;
+    if (!run.hiSide) {
+      clear = !hasMin || value >= (mn + h);
+    } else {
+      clear = !hasMax || value <= (mx - h);
+    }
+    if (clear) {
+      run.active = false;
+      run.hiSide = false;
+    }
   }
 }
 
@@ -973,9 +975,9 @@ static void alarmSampleChipDiag(uint32_t now) {
 static bool alarmRulePublished(uint8_t ch, uint8_t kind) {
   if (ch > 3 || kind > 2) return false;
   // Threshold rules only — chip power-quality bits stay on Chip Events / Modbus IR.
-  if (!alarmRun[ch].rules[kind].active) return false;
-  if (alarmCfg[ch].ackRequired && alarmRun[ch].acked) return false;
-  return true;
+  if (alarmCfg[ch].ackRequired)
+    return alarmRun[ch].rules[kind].latched;  // latched until Ack
+  return alarmRun[ch].rules[kind].active;     // live follow
 }
 
 static bool alarmChannelActive(uint8_t ch, uint8_t mask) {
@@ -997,21 +999,25 @@ static void alarmEvalThresholds() {
   if (!g_haveMeter) return;
   for (uint8_t ch = 0; ch < 4; ch++) {
     for (uint8_t kind = 0; kind < 3; kind++) {
+      AlarmRuleRun& run = alarmRun[ch].rules[kind];
       const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
       if (!cfg.enabled) {
-        alarmRun[ch].rules[kind].active = false;
-        alarmRun[ch].rules[kind].hiSide = false;
+        run.active = false;
+        run.hiSide = false;
+        run.prevActive = false;
+        if (!alarmCfg[ch].ackRequired) run.latched = false;
         continue;
       }
       const double v = alarmMetricValue(ch, cfg.metric);
-      alarmEvalRule(cfg, alarmRun[ch].rules[kind], v);
+      alarmEvalRule(cfg, run, v);
+      // Rising edge of active → latch (Ack required). Stays after condition clears.
+      if (alarmCfg[ch].ackRequired) {
+        if (run.active && !run.prevActive) run.latched = true;
+      } else {
+        run.latched = false;
+      }
+      run.prevActive = run.active;
     }
-    bool any = false;
-    for (uint8_t kind = 0; kind < 3; kind++) {
-      if (alarmRun[ch].rules[kind].active) any = true;
-    }
-    if (alarmRun[ch].chipActive) any = true;
-    if (!any) alarmRun[ch].acked = false;
   }
 }
 
@@ -1025,7 +1031,12 @@ static void alarmPublishModbus() {
 
 static void alarmAckChannel(uint8_t ch) {
   if (ch > 3) return;
-  alarmRun[ch].acked = true;
+  // Clear latches. If condition is still true, re-latch only on next rising edge
+  // (after the value returns to normal and trips again).
+  for (uint8_t kind = 0; kind < 3; kind++) {
+    alarmRun[ch].rules[kind].latched = false;
+    alarmRun[ch].rules[kind].prevActive = alarmRun[ch].rules[kind].active;
+  }
 }
 
 static void alarmAckAll() {
@@ -1093,7 +1104,16 @@ static void alarmCfgEmitFlat(JSONVar& cfg) {
 // Flat per-channel Config list: { ch, ack, e0,m0,lo0,hi0, e1,... } — no nesting.
 static void alarmApplyFlatChannel(uint8_t ch, const JSONVar& list) {
   if (ch > 3) return;
-  if (jvHasKey(list, "ack")) alarmCfg[ch].ackRequired = jvGetInt(list, "ack", 0) ? 1 : 0;
+  if (jvHasKey(list, "ack")) {
+    const uint8_t newAck = jvGetInt(list, "ack", 0) ? 1 : 0;
+    if (!newAck && alarmCfg[ch].ackRequired) {
+      for (uint8_t kind = 0; kind < 3; kind++) {
+        alarmRun[ch].rules[kind].latched = false;
+        alarmRun[ch].rules[kind].prevActive = false;
+      }
+    }
+    alarmCfg[ch].ackRequired = newAck;
+  }
   for (uint8_t kind = 0; kind < 3; kind++) {
     char ek[4], mk[4], lk[5], hk[5];
     snprintf(ek, sizeof(ek), "e%u", (unsigned)kind);
