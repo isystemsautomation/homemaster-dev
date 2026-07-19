@@ -8,6 +8,10 @@
 #define HM_FW         "0.2.0"
 #define HM_MAP        2
 #define HM_MAP_VERSION 2
+// Ack/config frames are small; raise before include so large cfg/ext JSON is safer.
+#ifndef BufferSize
+#define BufferSize 1024
+#endif
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
@@ -253,6 +257,7 @@ struct AlarmRuleRun {
   bool prevActive;  // rising-edge detect for latch
   bool hiSide;
   bool latched;     // stays set after trip until Ack (when ackRequired)
+  bool heldOff;     // Ack while still active — stay off until condition clears
 };
 
 struct AlarmChRun {
@@ -975,9 +980,11 @@ static void alarmSampleChipDiag(uint32_t now) {
 static bool alarmRulePublished(uint8_t ch, uint8_t kind) {
   if (ch > 3 || kind > 2) return false;
   // Threshold rules only — chip power-quality bits stay on Chip Events / Modbus IR.
-  if (alarmCfg[ch].ackRequired)
-    return alarmRun[ch].rules[kind].latched;  // latched until Ack
-  return alarmRun[ch].rules[kind].active;     // live follow
+  if (!alarmCfg[ch].ackRequired)
+    return alarmRun[ch].rules[kind].active;  // live follow
+  const AlarmRuleRun& run = alarmRun[ch].rules[kind];
+  if (run.heldOff) return false;
+  return run.latched;
 }
 
 static bool alarmChannelActive(uint8_t ch, uint8_t mask) {
@@ -1010,11 +1017,16 @@ static void alarmEvalThresholds() {
       }
       const double v = alarmMetricValue(ch, cfg.metric);
       alarmEvalRule(cfg, run, v);
-      // Rising edge of active → latch (Ack required). Stays after condition clears.
       if (alarmCfg[ch].ackRequired) {
-        if (run.active && !run.prevActive) run.latched = true;
+        // Rising edge → latch. Ack can clear; re-trip needs a new rising edge.
+        if (run.active && !run.prevActive) {
+          run.latched = true;
+          run.heldOff = false;
+        }
+        if (!run.active) run.heldOff = false;  // re-arm after condition clears
       } else {
         run.latched = false;
+        run.heldOff = false;
       }
       run.prevActive = run.active;
     }
@@ -1031,11 +1043,32 @@ static void alarmPublishModbus() {
 
 static void alarmAckChannel(uint8_t ch) {
   if (ch > 3) return;
-  // Clear latches. If condition is still true, re-latch only on next rising edge
-  // (after the value returns to normal and trips again).
   for (uint8_t kind = 0; kind < 3; kind++) {
-    alarmRun[ch].rules[kind].latched = false;
-    alarmRun[ch].rules[kind].prevActive = alarmRun[ch].rules[kind].active;
+    AlarmRuleRun& run = alarmRun[ch].rules[kind];
+    run.latched = false;
+    run.prevActive = run.active;
+    // If still in alarm, keep LED/DI off until value returns to normal, then allow re-trip.
+    run.heldOff = run.active;
+  }
+}
+
+static void alarmAckFromJson(const JSONVar& obj) {
+  // Prefer flat { ch: N }. "list" of 0/1 also accepted (Ack All).
+  if (jvHasKey(obj, "ch")) {
+    const int ch = jvGetInt(obj, "ch", -1);
+    if (ch >= 0 && ch < 4) alarmAckChannel((uint8_t)ch);
+    else alarmAckAll();
+  } else if (jvHasKey(obj, "list")) {
+    int32_t flags[4];
+    const int n = parseJsonIntArray(jsonBlob(obj), "list", flags, 4);
+    if (n >= 4) {
+      for (uint8_t ch = 0; ch < 4; ch++)
+        if (flags[ch]) alarmAckChannel(ch);
+    } else {
+      alarmAckAll();
+    }
+  } else {
+    alarmAckAll();
   }
 }
 
@@ -1212,19 +1245,18 @@ static void handleAlarmsCfg(JSONVar obj) {
 
 static void handleAlarmsAck(JSONVar obj) {
   markWebHostRx();
-  if (jvHasKey(obj, "list")) {
-    JSONVar list = obj["list"];
-    for (uint8_t ch = 0; ch < 4; ch++) {
-      if (list[ch]) alarmAckChannel(ch);
-    }
-  } else if (jvHasKey(obj, "ch")) {
-    alarmAckChannel((uint8_t)constrain(jvGetInt(obj, "ch", 0), 0, 3));
-  } else {
-    alarmAckAll();
-  }
+  alarmAckFromJson(obj);
   alarmPublishModbus();
   sendWebExt();
-  wsLog("Alarms acknowledged");
+  {
+    const int ch = jvGetInt(obj, "ch", -1);
+    char buf[64];
+    if (ch >= 0 && ch < 4)
+      snprintf(buf, sizeof(buf), "OK: ack ch%u (latched cleared)", (unsigned)ch);
+    else
+      snprintf(buf, sizeof(buf), "OK: ack all (latched cleared)");
+    wsLog(buf);
+  }
 }
 
 static void captureSettings(EnmSettingsCfg& pc) {
@@ -2382,6 +2414,22 @@ void handleUnifiedConfig(JSONVar obj) {
     }
     changed = true;
 
+  } else if (type == "alarmAck" || type == "ack") {
+    // Same path as Config writes — AlarmsAck named event is easy to miss in the UI log.
+    alarmAckFromJson(list);
+    alarmPublishModbus();
+    {
+      const int ch = jvGetInt(list, "ch", -1);
+      char buf[64];
+      if (ch >= 0 && ch < 4)
+        snprintf(buf, sizeof(buf), "OK: ack ch%u (latched cleared)", (unsigned)ch);
+      else
+        snprintf(buf, sizeof(buf), "OK: ack all (latched cleared)");
+      wsLog(buf);
+    }
+    sendWebExt();
+    return;  // already published; skip generic changed path
+
   } else if (type == "btn" || type == "buttons" || type == "btnCfg") {
     JSONVar a = (type == "btnCfg") ? list["action"] : list;
     for (int i = 0; i < NUM_BTN; i++) {
@@ -2454,6 +2502,7 @@ void handleUnifiedConfig(JSONVar obj) {
     // CT/PGA live in ext.atm — push ENM_Sync so the UI sees the applied values
     // (cfg nested atm assignment alone is fragile with Arduino_JSON).
     if (type == "alarm" || type == "alarms" || type == "AlarmsCfg"
+        || type == "alarmAck" || type == "ack"
         || type == "ext.atm" || type == "atm")
       sendWebExt();
   }
@@ -2537,6 +2586,13 @@ static void sendWebExt() {
   atm["ctRatioN"] = g_ctRatioN;
   ext["atm"] = atm;
 
+  // Flat LED bits (12) — nested alarms[ch][kind].active often serializes null.
+  JSONVar alarmLed;
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    for (uint8_t kind = 0; kind < 3; kind++)
+      alarmLed[(int)ch * 3 + (int)kind] = alarmRulePublished(ch, kind) ? 1 : 0;
+  }
+  ext["alarmLed"] = alarmLed;
   JSONVar alarms = alarmsStateToJson();
   ext["alarms"] = alarms;
 

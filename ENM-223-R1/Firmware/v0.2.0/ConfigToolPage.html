@@ -570,7 +570,10 @@
       catch (e) { HMWebConfig.appendLog('ext.meter parse: ' + (e?.message || e)); }
       try { if(ext.energy) applyEnergies(ext.energy); }
       catch (e) { HMWebConfig.appendLog('ext.energy parse: ' + (e?.message || e)); }
-      try { if(ext.alarms) updateAlarmsState(ext.alarms); } catch (e) {}
+      try {
+        if (ext.alarmLed) updateAlarmsStateFlat(ext.alarmLed);
+        else if (ext.alarms) updateAlarmsState(ext.alarms);
+      } catch (e) {}
       try { if(ext.atm) applyAtmFromDevice(ext.atm); }
       catch (e) { HMWebConfig.appendLog('ext.atm parse: ' + (e?.message || e)); }
       if(ext.alarmsCfg && ext.alarmsCfg.ch!==undefined && ext.alarmsCfg.cfg)
@@ -739,6 +742,17 @@
       }
     }
 
+    function updateAlarmsStateFlat(led){
+      const a=toArr(led);
+      for(let ch=0;ch<4;ch++){
+        for(let ak=0;ak<3;ak++){
+          const dot=$('al-led-'+ch+'-'+ak);
+          const on=!!(+a[ch*3+ak]);
+          if(dot) dot.style.background=on?(ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0'):'#ccc';
+        }
+      }
+    }
+
     function updateAlarmsState(state){
       for(let ch=0;ch<4;ch++){
         for(let ak=0;ak<3;ak++){
@@ -799,8 +813,10 @@
 
     function sendAlarmAck(ch){
       if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
+      // Config path (same as alarm writes) — named AlarmsAck alone was unreliable.
+      HMWebConfig.sendConfig('alarmAck', { ch });
       if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
-      HMWebConfig.appendLog('AlarmsAck ch='+ch);
+      HMWebConfig.appendLog('AlarmsAck ch='+ch+' (via Config)');
     }
 
     function pushModbus(){
@@ -1003,8 +1019,9 @@
       }
       $('ack-all')?.addEventListener('click', ()=>{
         if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
-        if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[true,true,true,true] });
-        HMWebConfig.appendLog('AlarmsAck all');
+        HMWebConfig.sendConfig('alarmAck', { list:[1,1,1,1] });
+        if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[1,1,1,1] });
+        HMWebConfig.appendLog('AlarmsAck all (via Config)');
       });
       for(let ch=0;ch<4;ch++){
         $('al-ack-'+ch)?.addEventListener('click', ()=>sendAlarmAck(ch));
