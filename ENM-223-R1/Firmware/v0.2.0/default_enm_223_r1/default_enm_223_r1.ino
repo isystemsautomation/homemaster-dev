@@ -372,7 +372,7 @@ static int jsonVarToInt(const JSONVar& v, int fallback) {
 #define TX2 4
 #define RX2 5
 static const int TxenPin = -1;
-static int SlaveId = 30;
+static int SlaveId = 3;
 static ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 static inline void setSlaveIdIfAvailable(ModbusSerial& m, uint8_t id) {
@@ -440,7 +440,7 @@ static bool blinkPhase = false;
 static uint32_t g_identifyUntilMs = 0;
 static const uint32_t IDENTIFY_MS = 5000;
 
-static uint8_t  g_mb_address = 30;
+static uint8_t  g_mb_address = 3;
 static uint32_t g_mb_baud    = 19200;
 static bool     g_mbSerialReady = false;
 
@@ -626,8 +626,12 @@ static void serviceModbusRelays() {
     const bool c = mb.Coil((uint16_t)i);
     if (c != desiredRelay[i]) desiredRelay[i] = c;
   }
-  if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
-  if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
+  // Only mirror Modbus-mode coils. Forcing COIL_RELAYn from stale desiredRelay
+  // while in Alarm/None mode made the coil image disagree with the physical relay.
+  if (rlyCfg[0].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY1) != desiredRelay[0])
+    mb.Coil(COIL_RELAY1, desiredRelay[0]);
+  if (rlyCfg[1].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY2) != desiredRelay[1])
+    mb.Coil(COIL_RELAY2, desiredRelay[1]);
 }
 
 static void serviceModbusServiceCoils(uint32_t now) {
@@ -789,9 +793,13 @@ static void markCfgDirty() {
   lastCfgTouchMs = millis();
 }
 
+static unsigned long lastMeterSaveMs = 0;
+static const uint32_t METER_SAVE_MIN_MS = 2000;  // floor between cal/explicit saves
+
 static void markMeterDirty() {
   meterDirty = true;
-  lastMeterTouchMs = millis();
+  // Do not bump lastMeterSaveMs — that was delaying the next flash write by a full
+  // METER_SAVE_INTERVAL_MS window after every cal touch.
 }
 
 // Unset limits (legacy used raw 0). Real engineering 0 must be storable.
@@ -1012,7 +1020,8 @@ static void alarmEvalThresholds() {
         run.active = false;
         run.hiSide = false;
         run.prevActive = false;
-        if (!alarmCfg[ch].ackRequired) run.latched = false;
+        run.latched = false;   // disabling the rule always drops latch/DI
+        run.heldOff = false;
         continue;
       }
       const double v = alarmMetricValue(ch, cfg.metric);
@@ -1309,7 +1318,7 @@ static bool applySettings(const EnmSettingsCfg& pc) {
     return false;
 
   g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 3;
   g_mb_baud = pc.mb_baud;
   if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
   SlaveId = (int)g_mb_address;
@@ -1360,7 +1369,7 @@ static bool applySettingsV24(const EnmSettingsCfgV24& pc) {
     return false;
 
   g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 3;
   g_mb_baud = pc.mb_baud;
   if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
   SlaveId = (int)g_mb_address;
@@ -1402,7 +1411,7 @@ static bool applySettingsV21(const EnmSettingsCfgV21& pc) {
     return false;
 
   g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 3;
   g_mb_baud = pc.mb_baud;
   if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
   SlaveId = (int)g_mb_address;
@@ -1445,7 +1454,7 @@ static bool applySettingsV20(const EnmSettingsCfgV20& pc) {
     return false;
 
   g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 3;
   g_mb_baud = pc.mb_baud;
   if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
   SlaveId = (int)g_mb_address;
@@ -1595,7 +1604,7 @@ static bool applyLegacyPersist(const EnmPersistCfgLegacy& pc) {
     return false;
 
   g_mb_address = pc.mb_address;
-  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 30;
+  if (g_mb_address < 1 || g_mb_address > 247) g_mb_address = 3;
   g_mb_baud = pc.mb_baud;
   if (!isAllowedBaud(g_mb_baud)) g_mb_baud = 19200;
   SlaveId = (int)g_mb_address;
@@ -2007,16 +2016,20 @@ static void sampleEnergyCounters() {
   publishEnergyFromAcc();
 }
 
-// Periodic LittleFS meter flush: at most every METER_SAVE_INTERVAL_MS, and only
-// when energy counters changed (CRC) or meterDirty was set (cal / explicit).
+// Periodic LittleFS meter flush.
+// - Explicit meterDirty (cal / CT blob rewrite): after METER_SAVE_MIN_MS from last save.
+// - Energy CRC change alone: after METER_SAVE_INTERVAL_MS from last save (wear limit).
 static void serviceMeterAutosave(unsigned long now) {
-  if (now - lastMeterTouchMs < METER_SAVE_INTERVAL_MS) return;
-  lastMeterTouchMs = now;
   const uint32_t crc = meterEnergyCrc();
-  if (!meterDirty && crc == meterSavedEnergyCrc) return;
+  const bool energyChanged = (crc != meterSavedEnergyCrc);
+  if (!meterDirty && !energyChanged) return;
+  const uint32_t gap = meterDirty ? METER_SAVE_MIN_MS : METER_SAVE_INTERVAL_MS;
+  if (now - lastMeterSaveMs < gap) return;
   if (saveMeterFS()) {
+    lastMeterSaveMs = now;
+    lastMeterTouchMs = now;
     meterDirty = false;
-    meterSavedEnergyCrc = crc;
+    meterSavedEnergyCrc = meterEnergyCrc();
   }
 }
 
@@ -2053,7 +2066,7 @@ static void setDefaults() {
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
   for (int i = 0; i < NUM_RLY; i++) desiredRelay[i] = false;
   setAlarmDefaults();
-  g_mb_address = 30;
+  g_mb_address = 3;
   g_mb_baud    = 19200;
   SlaveId      = (int)g_mb_address;
   setAtmDefaults();
@@ -2074,7 +2087,7 @@ static void setSettingsDefaults() {
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
   for (int i = 0; i < NUM_RLY; i++) desiredRelay[i] = false;
   setAlarmDefaults();
-  g_mb_address = 30;
+  g_mb_address = 3;
   g_mb_baud    = 19200;
   SlaveId      = (int)g_mb_address;
   g_atm_cfg.lineHz = 50;
@@ -2348,6 +2361,7 @@ void handleCommand(JSONVar obj) {
     setDefaults();
     if (saveConfigFS()) {
       wsLog("Factory defaults restored & saved");
+      queueAtmFullApply();  // push factory cal/options into the chip now
       sendWebBootstrap();
       applyModbusSettings(g_mb_address, g_mb_baud);
     } else {
