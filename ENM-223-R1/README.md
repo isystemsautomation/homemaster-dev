@@ -73,7 +73,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 The **ENM‑223‑R1** is a modular **3‑phase energy metering + I/O** device for power monitoring, automation, and local control. It features **3 voltage channels (L1/L2/L3‑N)**, **3 current channels (external CTs)**, **2 SPDT relays**, **4 user LEDs**, and **4 buttons**—all driven by an **RP2350** MCU with QSPI flash and a dedicated **ATM90E32AS** metering IC.
 
-It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master over **RS‑485**, and it’s configured in‑browser via **USB‑C Web Serial** (no drivers). Typical uses include **energy dashboards, demand response, alarm‑driven relay control, and building automation**. First‑boot firmware default is **Modbus address 30 @ 19200 8N1** (changeable in WebConfig; assign a unique plant ID on each RS‑485 segment).
+It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master over **RS‑485**, and it’s configured in‑browser via **USB‑C Web Serial** (no drivers). Typical uses include **energy dashboards, demand response, alarm‑driven relay control, and building automation**. First‑boot firmware default is **Modbus address 3 @ 19200 8N1** (changeable in WebConfig; assign a unique plant ID on each RS‑485 segment).
 
 > Quick device flow:  
 > **Wire Lx/N/PE + CTs → set address/baud, line Hz, 3P4W/3P3W, phase mapping in WebConfig → calibrate → alarms (L1/L2/L3/Totals) → relay Alarm Controlled or Modbus → RS‑485 → poll Modbus.**
@@ -111,7 +111,7 @@ The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm 
 |----------------------|-------------|
 | System Position      | Expansion meter+I/O on the **RS‑485** trunk (A/B/GND) |
 | Master Controller    | MiniPLC / MicroPLC or any third‑party Modbus RTU **master** (polling) |
-| Address / Baud       | Configurable 1…247 / **9600–115200**; **first-boot default: ID 30 @ 19200 8N1** |
+| Address / Baud       | Configurable 1…247 / **9600–115200**; **first-boot default: ID 3 @ 19200 8N1** |
 | Bus Type             | RS‑485 half‑duplex; termination/bias per bus rules; share **GND** if separate PSUs |
 | USB‑C Port           | Setup/diagnostics via Chromium browser (Web Serial); native USB D+/D− to MCU |
 | Default Modbus ID    | **30** on fresh flash (set per site in WebConfig) |
@@ -486,7 +486,7 @@ No drivers or software installation is required — configuration happens direct
 - Click **Connect** and select the USB serial port.
 - The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
 - You can configure:
-  - **Modbus Address**: `1–247` (first-boot default = `30`)
+  - **Modbus Address**: `1–247` (first-boot default = `3`)
   - **Baud Rate**: `9600 / 19200 / 38400 / 57600 / 115200` (default = `19200`)
 - Changes are live and applied on selection.
 - If you change baud or address, remember to reconnect the controller with updated settings.

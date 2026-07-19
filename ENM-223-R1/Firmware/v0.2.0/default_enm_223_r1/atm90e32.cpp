@@ -225,9 +225,15 @@ uint16_t ATM90E32::readThdPct_x100(uint8_t phase) {
   return (uint16_t)x;
 }
 
-static uint16_t buildChannelMapReg(const uint8_t phaseMap[3]) {
-  // Datasheet: IA_SRC=[2:0], IB_SRC=[6:4], IC_SRC=[10:8] (step 4); default 0x0210.
+static uint16_t buildChannelMapI(const uint8_t phaseMap[3]) {
+  // Datasheet ChannelMapI: IA/IB/IC_SRC in nibbles step 4; identity → 0x0210.
   return (uint16_t)(phaseMap[0] | (uint16_t(phaseMap[1]) << 4) | (uint16_t(phaseMap[2]) << 8));
+}
+
+static uint16_t buildChannelMapU(const uint8_t phaseMap[3]) {
+  // ChannelMapU uses voltage source codes (I-code + 4): U0=4…U2=6; identity → 0x0654.
+  // Do not reuse ChannelMapI encoding — that routes U channels onto I0/I1/I2.
+  return (uint16_t)((phaseMap[0] + 4) | (uint16_t(phaseMap[1] + 4) << 4) | (uint16_t(phaseMap[2] + 4) << 8));
 }
 
 // ---- Public API ----
@@ -264,22 +270,20 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   if (lineHz_ == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
   else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
 
-  // Threshold conversion per ATM90E32AS datasheet + Atmel-46103 appnote:
-  // ThresholdCode = Vrms·100·√2·k / (4 · (Ugain/32768))
-  // k = 0.78 for sag, k = 1.22 for OV.
+  // Threshold code from target Vrms (Atmel-46103 / ATM90E32AS). Apply the
+  // engineering target once — do not stack extra 0.78/1.22 derates on top.
   const double UgainRatio = (cal && cal[0].Ugain) ? ((double)cal[0].Ugain / 32768.0) : 1.0;
-  auto vRmsToVth = [&](double vRms, double k) -> uint16_t {
-    const double code = (vRms * 100.0 * sqrt(2.0) * k) / (4.0 * UgainRatio);
+  auto vRmsToVth = [&](double vRms) -> uint16_t {
+    const double code = (vRms * 100.0 * sqrt(2.0)) / (4.0 * UgainRatio);
     long x = lround(code);
     if (x < 0) x = 0;
     if (x > 65535) x = 65535;
     return (uint16_t)x;
   };
 
-  const uint16_t vSagTh = vRmsToVth((double)sagV, 0.78);
-  // Reasonable defaults (field): OV≈280 Vrms, phase-loss≈20 Vrms.
-  const uint16_t vOvTh  = vRmsToVth(280.0, 1.22);
-  const uint16_t vPlTh  = vRmsToVth(20.0, 0.78);
+  const uint16_t vSagTh = vRmsToVth((double)sagV);       // 190 Vrms (50 Hz) / 90 (60 Hz)
+  const uint16_t vOvTh  = vRmsToVth(280.0);               // field OV default
+  const uint16_t vPlTh  = vRmsToVth(20.0);                // phase-loss floor
 
   // OIth: fraction of FS per datasheet. INWarnTh unit = 1 mA (chip neutral-current domain).
   const uint16_t iOIth = (uint16_t)lround(0.90 * 65535.0); // ~0.9 FS
@@ -304,9 +308,8 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
 
   write16(ZXConfig, 0xD654);
 
-  const uint16_t chMap = buildChannelMapReg(phaseMap_);
-  write16(ChannelMapU, chMap);
-  write16(ChannelMapI, chMap);
+  write16(ChannelMapI, buildChannelMapI(phaseMap_));
+  write16(ChannelMapU, buildChannelMapU(phaseMap_));
 
   // Modes: 0x0087 = 3P4W (EnPA/B/C); 3P3W sets bit8 and clears EnPB (bit1)
   uint16_t m0 = 0x0087;
@@ -324,10 +327,9 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
   const uint8_t gIA = pgaGain, gIB = pgaGain, gIC = pgaGain;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
-  // App note: PL_constant = 450e9/MC for MC=3200 → 0x08614C68 (not datasheet
-  // reset default 0x0861C468 — wrong low word stalls CF / energy).
+  // Datasheet / MC=3200: PL_constant = 0x0861C468 (low word was wrongly 0x4C68).
   write16(PLconstH, 0x0861);
-  write16(PLconstL, 0x4C68);
+  write16(PLconstL, 0xC468);
 
   write16(MMode0, m0);
   write16(MMode1, m1);

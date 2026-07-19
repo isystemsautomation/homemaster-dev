@@ -177,6 +177,7 @@
     el.style.display = 'block';
     el.textContent = msg;
   }
+  HMWebConfig.notifyWriteBlocked = notifyWriteBlocked;
 
   function resetCompatState() {
     if (HMWebConfig._statusIdentityTimer) {
@@ -431,8 +432,9 @@
     if (baud && b != null) baud.textContent = String(b);
     const selAddr = $('modbus-address');
     const selBaud = $('modbus-baud');
-    if (selAddr && a != null) selAddr.value = String(a);
-    if (selBaud && b != null) selBaud.value = String(b);
+    // Do not clobber an open dropdown / focused control with ~1 Hz status echo.
+    if (selAddr && a != null && selAddr !== document.activeElement) selAddr.value = String(a);
+    if (selBaud && b != null && selBaud !== document.activeElement) selBaud.value = String(b);
     applyLinkStatus(st);
     applyLocalLogicStatus(st);
     checkCompatFromStatus(st);

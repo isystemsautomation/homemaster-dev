@@ -315,7 +315,7 @@
       el.textContent = Number.isFinite(n) ? String(v) : (v !== undefined && v !== null && v !== '' ? String(v) : '--');
     }
 
-    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i <= 247;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='30'; })();
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i <= 247;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
     function attachLockHandlers(input, key, sendFn, lockOnFocus){
       if(!input) return;
@@ -812,7 +812,12 @@
     }
 
     function sendAlarmAck(ch){
-      if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
+      if (HMWebConfig._compat.blocked) {
+        if (typeof HMWebConfig.notifyWriteBlocked === 'function')
+          HMWebConfig.notifyWriteBlocked('Ack blocked: firmware/model compatibility.');
+        else HMWebConfig.appendLog('Blocked: incompatible firmware');
+        return;
+      }
       // Config path (same as alarm writes) — named AlarmsAck alone was unreliable.
       HMWebConfig.sendConfig('alarmAck', { ch });
       if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { ch });
@@ -820,7 +825,7 @@
     }
 
     function pushModbus(){
-      HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'30',10), parseInt($('modbus-baud')?.value||'19200',10));
+      HMWebConfig.sendValues(parseInt($('modbus-address')?.value||'3',10), parseInt($('modbus-baud')?.value||'19200',10));
     }
     $('modbus-address')?.addEventListener('input', pushModbus);
     $('modbus-baud')?.addEventListener('input', pushModbus);
@@ -909,6 +914,11 @@
         attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, ()=>sendField('Igain'), true);
         attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  ()=>sendField('Uoffset'), true);
         attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  ()=>sendField('Ioffset'), true);
+        // change/blur must write — Enter-only left calibration silently unsaved (audit W-1).
+        $('cal-ugain-'+ch)?.addEventListener('change', ()=>sendField('Ugain'));
+        $('cal-igain-'+ch)?.addEventListener('change', ()=>sendField('Igain'));
+        $('cal-uoff-'+ch)?.addEventListener('change', ()=>sendField('Uoffset'));
+        $('cal-ioff-'+ch)?.addEventListener('change', ()=>sendField('Ioffset'));
       }
       flushPendingCalib();
     })();
@@ -1018,7 +1028,12 @@
         grid.appendChild(card);
       }
       $('ack-all')?.addEventListener('click', ()=>{
-        if (HMWebConfig._compat.blocked) { HMWebConfig.appendLog('Blocked: incompatible firmware'); return; }
+        if (HMWebConfig._compat.blocked) {
+          if (typeof HMWebConfig.notifyWriteBlocked === 'function')
+            HMWebConfig.notifyWriteBlocked('Ack All blocked: firmware/model compatibility.');
+          else HMWebConfig.appendLog('Blocked: incompatible firmware');
+          return;
+        }
         HMWebConfig.sendConfig('alarmAck', { list:[1,1,1,1] });
         if(window.HMWebConfig?.conn) HMWebConfig.conn.send('AlarmsAck', { list:[1,1,1,1] });
         HMWebConfig.appendLog('AlarmsAck all (via Config)');
