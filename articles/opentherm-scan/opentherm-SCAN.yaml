@@ -1,0 +1,107 @@
+# =============================================================================
+#  HomeMaster OpenTherm Gateway — RAW DATA-ID SCANNER (0..127)
+#
+#  This does a REAL sweep of every OpenTherm Data-ID, not just the ones the
+#  component knows about. Mechanism:
+#    - the opentherm component keeps sending frames (Status + a couple of
+#      repeating reads);
+#    - before_send hijacks EVERY outgoing frame and rewrites x.id to the next
+#      number in a 0..127 sweep (kept as a READ request);
+#    - before_process_response inspects the boiler's reply:
+#         type 4 (READ_ACK)      -> that Data-ID IS supported
+#         type 7 (UNKNOWN_DATAID) -> that Data-ID is NOT supported
+#         (no line at all)        -> boiler ignored it / timed out
+#
+#  Each frame takes ~1 s, so a full 0..127 sweep is ~2 min. Let it run
+#  5..10 min (a few sweeps) to catch IDs that only answer intermittently.
+#
+#  NOTE: this is a READ-only probe. It does not enable heating and does not
+#  run your normal logic. It's a throwaway diagnostic — flash it, grab the
+#  log, then flash your real config back.
+#
+#  Grep the log for "otscan" to get the map. Example:
+#     otscan: id=  0 supported (type=4)
+#     otscan: id=  3 supported (type=4)
+#     otscan: id= 27 NOT supported (Unknown-DataId)
+# =============================================================================
+
+esphome:
+  name: homemaster-opentherm-934ca0     # keep the adopted name (OTA needs it)
+  name_add_mac_suffix: false
+  friendly_name: HomeMaster OpenTherm Gateway (SCAN)
+
+esp32:
+  variant: esp32
+  board: esp32dev
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG                          # component also prints each frame itself
+
+api:
+
+wifi:
+  ap:
+    ssid: "HomeMaster OT Fallback"
+
+captive_portal:
+
+ota:
+  - platform: esphome
+
+# Sweep counter: which Data-ID we probe next (0..127).
+globals:
+  - id: scan_id
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# ---------------------------------------------------------------------------
+# OpenTherm hub. We keep a couple of repeating reads just so the component
+# has frames to send; before_send then rewrites the id of every frame to
+# sweep the whole 0..127 range.
+# ---------------------------------------------------------------------------
+opentherm:
+  id: ot_bus
+  in_pin: GPIO21
+  out_pin: GPIO26
+  sync_mode: true
+
+  before_send:
+    then:
+      - lambda: |-
+          // Hijack every outgoing frame and turn it into a READ of the next id.
+          x.id = (uint8_t) id(scan_id);
+          // advance here (not in the response) so a timeout can't stall the sweep
+          id(scan_id) = (id(scan_id) + 1) % 128;
+          if (id(scan_id) == 0) {
+            ESP_LOGI("otscan", "================ full sweep 0..127 done ================");
+          }
+
+  before_process_response:
+    then:
+      - lambda: |-
+          // Classify the boiler's reply. Message type is the low 3 bits:
+          //   4 = READ_ACK  (supported, returned data)
+          //   5 = WRITE_ACK
+          //   6 = DATA_INVALID
+          //   7 = UNKNOWN_DATAID (not supported)
+          int t = (int) x.type;
+          if (t == 7) {
+            ESP_LOGW("otscan", "id=%3d  NOT supported (Unknown-DataId)", (int) x.id);
+          } else if (t == 4 || t == 5) {
+            ESP_LOGI("otscan", "id=%3d  supported (type=%d)", (int) x.id, t);
+          } else {
+            ESP_LOGI("otscan", "id=%3d  reply type=%d", (int) x.id, t);
+          }
+
+# A couple of plain reads just to keep the send loop busy. Their values are
+# meaningless here (every frame's id gets rewritten by the sweep above).
+sensor:
+  - platform: opentherm
+    t_boiler:
+      name: "SCAN keepalive t_boiler"
+    rel_mod_level:
+      name: "SCAN keepalive modulation"
