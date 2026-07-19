@@ -1067,127 +1067,110 @@ static JSONVar alarmsStateToJson() {
   return st;
 }
 
-static JSONVar alarmCfgToJson() {
-  JSONVar arr;
+// Flat int arrays — same proven shape as energy counters. Nested alarm objects
+// (and packets with numeric keys "0"/"1"/"2") break on Arduino_JSON / WebSerial:
+// list becomes an array of rules, apply no-ops, cfg.alarm echoes as null.
+static void alarmCfgEmitFlat(JSONVar& cfg) {
+  JSONVar ack, en, met, lo, hi;
   for (uint8_t ch = 0; ch < 4; ch++) {
-    JSONVar chO;
-    chO["ack"] = alarmCfg[ch].ackRequired ? 1 : 0;
-    JSONVar rules;
+    ack[ch] = alarmCfg[ch].ackRequired ? 1 : 0;
     for (uint8_t kind = 0; kind < 3; kind++) {
-      JSONVar r;
-      const AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
-      r["enabled"] = cfg.enabled ? 1 : 0;
-      r["metric"]  = (int)cfg.metric;
-      // Nested doubles serialize as null over WebSerial — decimal strings round-trip.
-      if (alarmHasMin(cfg)) r["min"] = String(alarmRuleToDouble(cfg.minVal, cfg.metric), 4);
-      if (alarmHasMax(cfg)) r["max"] = String(alarmRuleToDouble(cfg.maxVal, cfg.metric), 4);
-      // Scaled int32 twin — same units as flash; ints in arrays are reliable.
-      if (alarmHasMin(cfg)) r["minRaw"] = (long)cfg.minVal;
-      if (alarmHasMax(cfg)) r["maxRaw"] = (long)cfg.maxVal;
-      rules[kind] = r;
-      chO[kind] = r;
+      const int i = (int)ch * 3 + (int)kind;
+      const AlarmRuleCfg& r = alarmCfg[ch].rules[kind];
+      en[i]  = r.enabled ? 1 : 0;
+      met[i] = (int)r.metric;
+      lo[i]  = (long)r.minVal;
+      hi[i]  = (long)r.maxVal;
     }
-    chO["rules"] = rules;
-    arr[ch] = chO;
   }
-  return arr;
+  cfg["alarmAck"] = ack;
+  cfg["alarmEn"]  = en;
+  cfg["alarmMet"] = met;
+  cfg["alarmLo"]  = lo;
+  cfg["alarmHi"]  = hi;
 }
 
-static JSONVar alarmRuleJsonAt(const JSONVar& obj, uint8_t kind) {
-  JSONVar r = obj[kind];
-  if (JSON.typeof(r) != "undefined") return r;
-  char key[2] = { (char)('0' + kind), '\0' };
-  r = obj[key];
-  if (JSON.typeof(r) != "undefined") return r;
-  if (JSON.typeof(obj["rules"]) == "array") {
-    JSONVar rules = obj["rules"];
-    if (kind < (uint8_t)rules.length()) return rules[kind];
+// Flat per-channel Config list: { ch, ack, e0,m0,lo0,hi0, e1,... } — no nesting.
+static void alarmApplyFlatChannel(uint8_t ch, const JSONVar& list) {
+  if (ch > 3) return;
+  if (jvHasKey(list, "ack")) alarmCfg[ch].ackRequired = jvGetInt(list, "ack", 0) ? 1 : 0;
+  for (uint8_t kind = 0; kind < 3; kind++) {
+    char ek[4], mk[4], lk[5], hk[5];
+    snprintf(ek, sizeof(ek), "e%u", (unsigned)kind);
+    snprintf(mk, sizeof(mk), "m%u", (unsigned)kind);
+    snprintf(lk, sizeof(lk), "lo%u", (unsigned)kind);
+    snprintf(hk, sizeof(hk), "hi%u", (unsigned)kind);
+    AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
+    if (jvHasKey(list, ek)) cfg.enabled = jvGetInt(list, ek, 0) ? 1 : 0;
+    if (jvHasKey(list, mk))
+      cfg.metric = (uint8_t)constrain(jvGetInt(list, mk, (int)cfg.metric), 0, 5);
+    if (jvHasKey(list, lk)) cfg.minVal = (int32_t)jvGetInt(list, lk, (int)cfg.minVal);
+    if (jvHasKey(list, hk)) cfg.maxVal = (int32_t)jvGetInt(list, hk, (int)cfg.maxVal);
   }
-  return JSONVar();
 }
 
-static bool alarmJsonLimitIsUnset(const JSONVar& r, const char* key) {
-  if (!jvHasKey(r, key)) return true;
-  const String blob = jsonBlob(r);
+// Parse JSON array of ints from blob: "[1,0,0,1,...]" → out[i]
+static int parseJsonIntArray(const String& blob, const char* key, int32_t* out, int maxn) {
   String pat = String("\"") + key + "\":";
   int pos = blob.indexOf(pat);
-  if (pos < 0) return true;
+  if (pos < 0) return 0;
   pos += pat.length();
   while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == '\t')) pos++;
-  if (pos >= (int)blob.length()) return true;
-  if (blob[pos] == 'n' || blob[pos] == 'N') return true;  // null
-  if (blob[pos] == '"' && pos + 1 < (int)blob.length() && blob[pos + 1] == '"') return true;
-  const String ms = JSON.stringify(r[key]);
-  return (ms == "null" || ms == "\"\"" || ms.length() == 0);
+  if (pos >= (int)blob.length() || blob[pos] != '[') return 0;
+  pos++;
+  int n = 0;
+  while (n < maxn && pos < (int)blob.length()) {
+    while (pos < (int)blob.length() && (blob[pos] == ' ' || blob[pos] == '\t' || blob[pos] == ',')) pos++;
+    if (pos >= (int)blob.length() || blob[pos] == ']') break;
+    int end = pos;
+    if (blob[end] == '-' || blob[end] == '+') end++;
+    while (end < (int)blob.length() && blob[end] >= '0' && blob[end] <= '9') end++;
+    if (end == pos || (end == pos + 1 && (blob[pos] == '-' || blob[pos] == '+'))) break;
+    out[n++] = (int32_t)blob.substring(pos, end).toInt();
+    pos = end;
+  }
+  return n;
 }
 
-static void alarmApplyChannelFromJson(uint8_t ch, const JSONVar& obj) {
-  if (ch > 3 || JSON.typeof(obj) == "undefined") return;
-  if (jvHasKey(obj, "ack")) alarmCfg[ch].ackRequired = jvGetInt(obj, "ack", 0) ? 1 : 0;
-  for (uint8_t kind = 0; kind < 3; kind++) {
-    JSONVar r = alarmRuleJsonAt(obj, kind);
-    if (JSON.typeof(r) == "undefined") continue;
-    AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
-    if (jvHasKey(r, "enabled")) cfg.enabled = jvGetInt(r, "enabled", 0) ? 1 : 0;
-    if (jvHasKey(r, "metric")) {
-      const uint8_t newMet = (uint8_t)constrain(jvGetInt(r, "metric", cfg.metric), 0, 5);
-      if (newMet != cfg.metric) {
-        cfg.metric = newMet;
-        // Old limits are in the previous metric scale — clear until client resends.
-        cfg.minVal = ALARM_LIM_NONE_MIN;
-        cfg.maxVal = ALARM_LIM_NONE_MAX;
-      } else {
-        cfg.metric = newMet;
-      }
-    }
-    // Prefer minRaw/maxRaw (scaled int32) — nested floats are unreliable on Arduino_JSON.
-    if (jvHasKey(r, "minRaw")) {
-      if (alarmJsonLimitIsUnset(r, "minRaw"))
-        cfg.minVal = ALARM_LIM_NONE_MIN;
-      else
-        cfg.minVal = (int32_t)jvGetInt(r, "minRaw", (int)cfg.minVal);
-    } else if (jvHasKey(r, "min")) {
-      if (alarmJsonLimitIsUnset(r, "min"))
-        cfg.minVal = ALARM_LIM_NONE_MIN;
-      else
-        cfg.minVal = alarmDoubleToRule(jvGetDouble(r, "min", 0.0), cfg.metric);
-    }
-    if (jvHasKey(r, "maxRaw")) {
-      if (alarmJsonLimitIsUnset(r, "maxRaw"))
-        cfg.maxVal = ALARM_LIM_NONE_MAX;
-      else
-        cfg.maxVal = (int32_t)jvGetInt(r, "maxRaw", (int)cfg.maxVal);
-    } else if (jvHasKey(r, "max")) {
-      if (alarmJsonLimitIsUnset(r, "max"))
-        cfg.maxVal = ALARM_LIM_NONE_MAX;
-      else
-        cfg.maxVal = alarmDoubleToRule(jvGetDouble(r, "max", 0.0), cfg.metric);
+static void alarmApplyFlatSnapshotFromBlob(const JSONVar& list) {
+  const String blob = jsonBlob(list);
+  int32_t ack[4], en[12], met[12], lo[12], hi[12];
+  const int na = parseJsonIntArray(blob, "alarmAck", ack, 4);
+  const int ne = parseJsonIntArray(blob, "alarmEn", en, 12);
+  const int nm = parseJsonIntArray(blob, "alarmMet", met, 12);
+  const int nl = parseJsonIntArray(blob, "alarmLo", lo, 12);
+  const int nh = parseJsonIntArray(blob, "alarmHi", hi, 12);
+  if (ne < 12 && nl < 12) return;
+  for (uint8_t ch = 0; ch < 4; ch++) {
+    if (na == 4) alarmCfg[ch].ackRequired = ack[ch] ? 1 : 0;
+    for (uint8_t kind = 0; kind < 3; kind++) {
+      const int i = (int)ch * 3 + (int)kind;
+      AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
+      if (ne == 12) cfg.enabled = en[i] ? 1 : 0;
+      if (nm == 12) cfg.metric = (uint8_t)constrain((int)met[i], 0, 5);
+      if (nl == 12) cfg.minVal = lo[i];
+      if (nh == 12) cfg.maxVal = hi[i];
     }
   }
 }
 
 static void alarmApplyFromJson(const JSONVar& list) {
-  if (JSON.typeof(list) == "array") {
-    for (uint8_t ch = 0; ch < 4 && ch < (uint8_t)list.length(); ch++)
-      alarmApplyChannelFromJson(ch, list[ch]);
-    return;
-  }
-  // hasOwnProperty is unreliable on WebSerial JSONVar copies (same bug as CT keys).
-  if (jvHasKey(list, "ch")) {
+  // 1) Preferred flat per-channel write from WebConfig.
+  if (jvHasKey(list, "e0") || jvHasKey(list, "lo0")) {
     const int ch = jvGetInt(list, "ch", -1);
-    if (ch < 0 || ch > 3) return;
-    // Prefer nested cfg; also accept flat { ch, ack, rules/0/1/2 } (no cfg wrapper).
-    JSONVar cfgObj = list["cfg"];
-    if (JSON.typeof(cfgObj) != "undefined")
-      alarmApplyChannelFromJson((uint8_t)ch, cfgObj);
-    else
-      alarmApplyChannelFromJson((uint8_t)ch, list);
+    if (ch >= 0 && ch < 4) {
+      alarmApplyFlatChannel((uint8_t)ch, list);
+      return;
+    }
+  }
+  // 2) Full flat snapshot (cfg echo / bootstrap).
+  if (jvHasKey(list, "alarmEn") || jvHasKey(list, "alarmLo")) {
+    alarmApplyFlatSnapshotFromBlob(list);
     return;
   }
-  for (uint8_t ch = 0; ch < 4; ch++) {
-    char key[2] = { (char)('0' + ch), '\0' };
-    if (jvHasKey(list, key)) alarmApplyChannelFromJson(ch, list[key]);
-  }
+  // Legacy nested paths intentionally omitted: numeric keys "0"/"1"/"2" made
+  // Arduino_JSON treat the packet as an array of rules and silently no-op.
+  (void)list;
 }
 
 static void handleAlarmsCfg(JSONVar obj) {
@@ -1196,7 +1179,15 @@ static void handleAlarmsCfg(JSONVar obj) {
   markCfgDirty();
   sendWebCfg();
   sendWebExt();
-  wsLog("Alarm configuration updated");
+  const int ch = jvGetInt(obj, "ch", 0);
+  const uint8_t c = (uint8_t)constrain(ch, 0, 3);
+  char buf[112];
+  snprintf(buf, sizeof(buf), "OK: alarm ch%u e0=%u lo0=%ld hi0=%ld",
+           (unsigned)c,
+           (unsigned)alarmCfg[c].rules[0].enabled,
+           (long)alarmCfg[c].rules[0].minVal,
+           (long)alarmCfg[c].rules[0].maxVal);
+  wsLog(buf);
 }
 
 static void handleAlarmsAck(JSONVar obj) {
@@ -2358,7 +2349,17 @@ void handleUnifiedConfig(JSONVar obj) {
 
   } else if (type == "alarm" || type == "alarms" || type == "AlarmsCfg") {
     alarmApplyFromJson(list);
-    wsLog("Alarm configuration updated");
+    {
+      const int ch = jvGetInt(list, "ch", 0);
+      const uint8_t c = (uint8_t)constrain(ch, 0, 3);
+      char buf[112];
+      snprintf(buf, sizeof(buf), "OK: alarm ch%u e0=%u lo0=%ld hi0=%ld",
+               (unsigned)c,
+               (unsigned)alarmCfg[c].rules[0].enabled,
+               (long)alarmCfg[c].rules[0].minVal,
+               (long)alarmCfg[c].rules[0].maxVal);
+      wsLog(buf);
+    }
     changed = true;
 
   } else if (type == "btn" || type == "buttons" || type == "btnCfg") {
@@ -2490,8 +2491,8 @@ static void sendWebCfgCore() {
   JSONVar ext;
   ext["atm"] = atm;
   cfg["ext"] = ext;
-  // cal via CalibCfg / cal / ENM_Sync / ext — keep cfg lean (alarm block is large).
-  cfg["alarm"] = alarmCfgToJson();
+  // Flat int arrays only — nested cfg.alarm serialized as null on Arduino_JSON.
+  alarmCfgEmitFlat(cfg);
   WebSerial.send("cfg", cfg);
   yield();
 }

@@ -190,7 +190,7 @@
 
   <div class="sectiontitle">
     <h3>Alarms (L1, L2, L3, Totals)</h3>
-    <p class="hint">Threshold rules per channel (active outside min/max). Chip power-quality bits are under Chip Events.</p>
+    <p class="hint">Active when value is below min and/or above max (leave a side empty to disable that bound). Chip PQ bits are under Chip Events.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -654,8 +654,8 @@
       applyAtmFromDevice(atm);
       const energy=(ext&&ext.energy)||(cfg.ext&&cfg.ext.energy);
       if(energy) applyEnergies(energy);
-      const alarms=cfg.alarm;
-      if(alarms) applyAlarmCfg(alarms);
+      if(cfg.alarmEn || cfg.alarmLo) applyAlarmFlat(cfg);
+      else if(cfg.alarm) applyAlarmCfg(cfg.alarm);
       if(rlyArr) applyRelayModes(rlyArr);
     }
 
@@ -680,7 +680,36 @@
       }
     }
 
+    // Match firmware ALARM_LIM_NONE_* sentinels (scaled int32).
+    const ALARM_UNSET_MIN = -2147483648;
+    const ALARM_UNSET_MAX = 2147483647;
+
+    function applyAlarmFlat(cfg){
+      const ack=toArr(cfg.alarmAck), en=toArr(cfg.alarmEn), met=toArr(cfg.alarmMet);
+      const lo=toArr(cfg.alarmLo), hi=toArr(cfg.alarmHi);
+      for(let ch=0;ch<4;ch++){
+        const ackEl=$('al-ackreq-'+ch);
+        if(ackEl&&ack[ch]!==undefined) ackEl.checked=!!(+ack[ch]);
+        for(let ak=0;ak<3;ak++){
+          const i=ch*3+ak;
+          const enEl=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), metEl=$('al-met-'+ch+'-'+ak);
+          if(enEl&&en[i]!==undefined) enEl.checked=!!(+en[i]);
+          if(metEl&&met[i]!==undefined) metEl.value=String(met[i]);
+          const scale=alarmMetricScale(met[i]??metEl?.value??0);
+          if(mn&&canApply('al-min-'+ch+'-'+ak)){
+            const v=+lo[i];
+            mn.value=(lo[i]===undefined||lo[i]===null||v===ALARM_UNSET_MIN||!Number.isFinite(v))?'':String(v/scale);
+          }
+          if(mx&&canApply('al-max-'+ch+'-'+ak)){
+            const v=+hi[i];
+            mx.value=(hi[i]===undefined||hi[i]===null||v===ALARM_UNSET_MAX||!Number.isFinite(v))?'':String(v/scale);
+          }
+        }
+      }
+    }
+
     function applyAlarmCfg(alarms){
+      // Legacy nested shape (pre flat-wire). Prefer applyAlarmFlat when alarmEn present.
       const applyCh=(ch,obj)=>{
         if(!obj||typeof obj!=='object') return;
         const ackEl=$('al-ackreq-'+ch);
@@ -748,38 +777,24 @@
       }
     }
 
-    function collectChannelCfg(ch){
-      // enabled/ack as 0|1 — firmware parseKeyFromBlob used toInt(); JSON true→0.
-      const chO={ ack: $('al-ackreq-'+ch)?.checked ? 1 : 0 };
-      const rules=[];
+    function sendChannelCfg(ch){
+      // Flat named keys only — numeric keys "0"/"1"/"2" make Arduino_JSON treat
+      // the Config list as an array of rules and silently skip the apply.
+      const packet={ ch, ack: $('al-ackreq-'+ch)?.checked ? 1 : 0 };
       for(let ak=0;ak<3;ak++){
-        const minRaw=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
-        const maxRaw=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
-        const minN=minRaw===''?null:Number(minRaw);
-        const maxN=maxRaw===''?null:Number(maxRaw);
+        const minS=($('al-min-'+ch+'-'+ak)?.value ?? '').trim();
+        const maxS=($('al-max-'+ch+'-'+ak)?.value ?? '').trim();
+        const minN=minS===''?null:Number(minS);
+        const maxN=maxS===''?null:Number(maxS);
         const metric=+( $('al-met-'+ch+'-'+ak)?.value||0);
         const scale=alarmMetricScale(metric);
-        const rule={
-          enabled: $('al-en-'+ch+'-'+ak)?.checked ? 1 : 0,
-          metric,
-          // Decimal strings + scaled int32 — nested JSON floats often arrive as null on device.
-          min: (minN===null||!Number.isFinite(minN)) ? null : String(minN),
-          max: (maxN===null||!Number.isFinite(maxN)) ? null : String(maxN),
-          minRaw: (minN===null||!Number.isFinite(minN)) ? null : Math.round(minN*scale),
-          maxRaw: (maxN===null||!Number.isFinite(maxN)) ? null : Math.round(maxN*scale)
-        };
-        chO[ak]=rule;
-        rules.push(rule);
+        packet['e'+ak]=$('al-en-'+ch+'-'+ak)?.checked ? 1 : 0;
+        packet['m'+ak]=metric;
+        packet['lo'+ak]=(minN===null||!Number.isFinite(minN)) ? ALARM_UNSET_MIN : Math.round(minN*scale);
+        packet['hi'+ak]=(maxN===null||!Number.isFinite(maxN)) ? ALARM_UNSET_MAX : Math.round(maxN*scale);
       }
-      chO.rules=rules;
-      return chO;
-    }
-
-    function sendChannelCfg(ch){
-      // Flat { ch, ack, rules, … } — avoids nested list.cfg which Arduino_JSON often drops.
-      const packet=Object.assign({ ch }, collectChannelCfg(ch));
       HMWebConfig.sendConfig('alarm', packet);
-      HMWebConfig.appendLog('AlarmsCfg ch='+ch);
+      HMWebConfig.appendLog('AlarmsCfg flat ch='+ch+' e0='+packet.e0+' lo0='+packet.lo0);
     }
 
     function sendAlarmAck(ch){
