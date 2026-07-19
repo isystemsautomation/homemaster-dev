@@ -303,8 +303,8 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint8_t wireMode, const ui
 
   write16(EMMIntEn0, 0xB76F);
   write16(EMMIntEn1, 0xDDFD);
-  write16(EMMIntState0, 0x0001);
-  write16(EMMIntState1, 0x0001);
+  write16(EMMIntState0, 0xFFFF);  // R/W1C: clear all latched interrupt bits
+  write16(EMMIntState1, 0xFFFF);
 
   write16(ZXConfig, 0xD654);
 
@@ -485,8 +485,8 @@ void decodeM90ChipEv(const M90DiagRegs& d, M90ChipEv& out) {
 }
 
 void ATM90E32::clearDiagInterrupts() {
-  write16(EMMIntState0, 0x0001);
-  write16(EMMIntState1, 0x0001);
+  write16(EMMIntState0, 0xFFFF);  // R/W1C: clear all latched interrupt bits
+  write16(EMMIntState1, 0xFFFF);
 }
 
 void ATM90E32::resetPeakRegisters() {
