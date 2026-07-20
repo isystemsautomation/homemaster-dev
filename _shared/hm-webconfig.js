@@ -30,7 +30,7 @@
     _lastDataMs: 0,
     _connTimer: null,
     _suppressCfgSend: false,
-    _compat: { level: 'idle', blocked: false, factoryBlocked: false },
+    _compat: { level: 'idle', blocked: false, factoryBlocked: false, lastBlockedMsg: '' },
     _statusIdentityTimer: null,
     _toolsIds: { identify: null, factory: null, reboot: null },
     _localLogic: false,
@@ -142,11 +142,20 @@
     const el = ensureCompatEl();
     if (!el) return;
     if (!identityExpected()) {
+      HMWebConfig._compat.lastBlockedMsg = '';
       el.innerHTML = '';
       el.style.display = 'none';
       return;
     }
+    // Sticky write-blocked notice: do not let ~1 Hz status wipe it while still gated.
+    if (HMWebConfig._compat.lastBlockedMsg && result.blocked) {
+      el.className = 'hm-compat-banner hm-compat-error';
+      el.style.display = 'block';
+      el.textContent = HMWebConfig._compat.lastBlockedMsg;
+      return;
+    }
     if (result.level === 'ok') {
+      HMWebConfig._compat.lastBlockedMsg = '';
       el.innerHTML = '';
       el.style.display = 'none';
       return;
@@ -170,6 +179,7 @@
   /** Visible notice when a write is refused because of compat gate (banner + log). */
   function notifyWriteBlocked(detail) {
     const msg = detail || 'Setting was NOT applied: firmware/model compatibility issue.';
+    HMWebConfig._compat.lastBlockedMsg = msg;
     appendLog(msg);
     const el = ensureCompatEl();
     if (!el) return;
@@ -631,6 +641,7 @@
       notifyWriteBlocked('Config write blocked: setting was NOT applied (firmware/model compatibility).');
       return Promise.resolve();
     }
+    HMWebConfig._compat.lastBlockedMsg = '';  // next user write clears sticky blocked notice
     if (HMWebConfig._suppressCfgSend) return Promise.resolve();
     const packet = { t, list };
     logTx('Config', packet);
@@ -644,6 +655,7 @@
       notifyWriteBlocked('Modbus values write blocked: setting was NOT applied (firmware/model compatibility).');
       return Promise.resolve();
     }
+    HMWebConfig._compat.lastBlockedMsg = '';
     const packet = { mb_address: addr, mb_baud: baud };
     logTx('values', packet);
     return HMWebConfig.conn.send('values', packet).catch(() => {
@@ -661,6 +673,7 @@
       notifyWriteBlocked('Factory reset blocked: firmware/model compatibility issue.');
       return Promise.resolve();
     }
+    if (act !== 'identify') HMWebConfig._compat.lastBlockedMsg = '';
     const packet = { action };
     logTx('command', packet);
     return HMWebConfig.conn.send('command', packet).catch(err => {
