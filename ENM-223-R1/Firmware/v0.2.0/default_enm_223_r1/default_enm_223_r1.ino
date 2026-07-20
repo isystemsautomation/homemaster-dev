@@ -533,7 +533,8 @@ static bool atmBusy = false;
 
 
 // Contiguous Input Register map (FC04) — beta; no Discrete Inputs.
-// Order: digital/status → scalars → currents S32 → powers S32 → energy U32.
+// Order: status → scalars → currents S32 → powers S32 → energy U32 (0..85).
+// Trimmed: peaks / Pfund / Pharm / VAh / harmonic energy stay on WebSerial only.
 // Matches default_enm_223_r1_plc.yaml. Coils/Holding unchanged.
 enum : uint16_t {
   COIL_RELAY1 = 0,
@@ -545,44 +546,34 @@ enum : uint16_t {
   COIL_RESET_ENERGY = 8,
   COIL_ACK_BASE = 16,
 
-  // --- A. Digital / status (U16 bitfields) ---
-  IR_IO_MASK      = 0,   // b0-3 LED1-4, b4-7 BTN1-4, b8 Relay1, b9 Relay2 (logical)
-  IR_STATUS_FLAGS = 1,   // b1 linkOk, b3 cfgDirty
-  IR_ALARM_FLAGS  = 2,   // bit = 3*ch + kind (ch0-3, kind0-2)
-  IR_CHIP_EV_L1   = 3,   // sag1/ov2/phaseloss4/overI8/freq16/rev32
+  // --- A. Status / flags (U16 bitmaps) ---
+  IR_IO_MASK      = 0,
+  IR_STATUS_FLAGS = 1,
+  IR_ALARM_FLAGS  = 2,
+  IR_CHIP_EV_L1   = 3,
   IR_CHIP_EV_L2   = 4,
   IR_CHIP_EV_L3   = 5,
   IR_CHIP_EV_TOT  = 6,
-
-  // --- B. Instantaneous scalars ---
+  // --- B. Instantaneous scalars (U16/S16) ---
   IR_URMS_BASE  = 7,     // U16 ×0.01 V, L1..L3
   IR_FREQ       = 10,    // U16 ×0.01 Hz
   IR_TEMP       = 11,    // S16 °C
   IR_PF_BASE    = 12,    // S16 ×0.001, L1..L3..Total
   IR_ANG_BASE   = 16,    // S16 ×0.1°, L1..L3
   IR_THD_BASE   = 19,    // U16 ×0.01 %, L1..L3
-  IR_UPEAK_BASE = 22,    // U16 ×0.01 V, L1..L3
-
   // --- C. Currents S32 ×0.001 A primary (hi-word first) ---
-  IR_IRMS_BASE  = 25,    // L1,L2,L3 — 2 regs each
-  IR_IRMSN      = 31,    // Neutral
-  IR_IPEAK_BASE = 33,    // L1,L2,L3
-
+  IR_IRMS_BASE  = 22,    // L1,L2,L3 — 2 regs each (22,24,26)
+  IR_IRMSN      = 28,    // Neutral (28,29)
   // --- D. Powers S32 (hi-word first) ---
-  IR_P_BASE     = 39,    // W, L1..L3..Total
-  IR_Q_BASE     = 47,    // var
-  IR_S_BASE     = 55,    // VA
-  IR_PFUND_BASE = 63,    // W fundamental
-  IR_PHARM_BASE = 71,    // W harmonic
-
+  IR_P_BASE     = 30,    // W,   L1..L3..Total (30,32,34,36)
+  IR_Q_BASE     = 38,    // var  (38,40,42,44)
+  IR_S_BASE     = 46,    // VA   (46,48,50,52)
   // --- E. Energy U32 (slow; hi-word first) ---
-  IR_E_AP_BASE  = 79,    // AP import Wh, L1..Total
-  IR_E_AN_BASE  = 87,    // AP export Wh
-  IR_E_RP_BASE  = 95,    // RP import varh
-  IR_E_RN_BASE  = 103,   // RN export varh
-  IR_E_SA_BASE  = 111,   // SA VAh
-  IR_E_APH_BASE = 119,   // Harmonic AP import Wh
-  IR_COUNT      = 127,   // contiguous 0..126
+  IR_E_AP_BASE  = 54,    // AP import  Wh,   L1..Total (54,56,58,60)
+  IR_E_AN_BASE  = 62,    // AP export  Wh    (62,64,66,68)
+  IR_E_RP_BASE  = 70,    // RP import  varh  (70,72,74,76)
+  IR_E_RN_BASE  = 78,    // RN export  varh  (78,80,82,84)
+  IR_COUNT      = 86,    // contiguous 0..85
 
   HR_MB_ADDR    = 0,
   HR_MB_BAUD_L  = 1,
@@ -1903,15 +1894,11 @@ static void mbPublishMeter() {
     mbPutS32Ir(IR_P_BASE + i * 2, g_p_W[i]);
     mbPutS32Ir(IR_Q_BASE + i * 2, g_q_var[i]);
     mbPutS32Ir(IR_S_BASE + i * 2, g_s_VA[i]);
-    mbPutS32Ir(IR_PFUND_BASE + i * 2, g_pfund_W[i]);
-    mbPutS32Ir(IR_PHARM_BASE + i * 2, g_pharm_W[i]);
   }
   for (int i = 0; i < 3; i++) {
     mb.Ireg(IR_ANG_BASE + i, (uint16_t)g_ang_raw[i]);
     mb.Ireg(IR_THD_BASE + i, g_thd_x100[i]);
-    mb.Ireg(IR_UPEAK_BASE + i, clampU(g_upeak[i]));
     mbPutS32Ir(IR_IRMS_BASE + i * 2, mbCurrent_mA(g_irms[i]));
-    mbPutS32Ir(IR_IPEAK_BASE + i * 2, mbCurrent_mA(g_ipeak[i]));
   }
   mbPutS32Ir(IR_IRMSN, mbCurrent_mA(g_irmsN));
 
@@ -1919,8 +1906,6 @@ static void mbPublishMeter() {
   for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_AN_BASE + i * 2, g_e_an_Wh[i]);
   for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_RP_BASE + i * 2, g_e_rp_varh[i]);
   for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_RN_BASE + i * 2, g_e_rn_varh[i]);
-  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_SA_BASE + i * 2, g_e_s_VAh[i]);
-  for (int i = 0; i < 4; i++) mbPutU32Ir(IR_E_APH_BASE + i * 2, g_e_aph_Wh[i]);
 }
 
 static void meter_job_begin() {
