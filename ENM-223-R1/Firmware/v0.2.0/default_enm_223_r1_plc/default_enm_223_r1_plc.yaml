@@ -1,15 +1,16 @@
 ##
 ## ENM-223-R1 — ESPHome Modbus package (v0.2.0 beta)
 ##
-## Contiguous Input Registers FC04 @0..126 (no Discrete Inputs / FC02):
+## Contiguous Input Registers FC04 @0..85 (no Discrete Inputs / FC02):
 ##   A  0 IO_MASK (LED0-3, BTN4-7, RLY8-9)
 ##      1 STATUS_FLAGS (b1 linkOk, b3 cfgDirty)
 ##      2 ALARM_FLAGS (bit=3*ch+kind)
 ##      3..6 CHIP_EV L1/L2/L3/Total (sag1/ov2/loss4/oci8/freq16/rev32)
-##   B  7..9 Urms · 10 Freq · 11 Temp · 12..15 PF · 16..18 Angle · 19..21 THD · 22..24 Upeak
-##   C  25..38 Currents S32 ×0.001 A (Irms L1-3, IrmsN, Ipeak L1-3)
-##   D  39..78 Powers S32 (P/Q/S/Pfund/Pharm × L1-3-T)
-##   E  79..126 Energy U32 (AP/AN/RP/RN/SA/APH × L1-3-T)
+##   B  7..9 Urms · 10 Freq · 11 Temp · 12..15 PF · 16..18 Angle · 19..21 THD
+##   C  22..29 Currents S32 ×0.001 A (Irms L1-3, IrmsN)
+##   D  30..53 Powers S32 (P/Q/S × L1-3-T)
+##   E  54..85 Energy U32 (AP/AN/RP/RN × L1-3-T)
+## Peaks / Pfund / Pharm / VAh / harmonic energy: WebSerial only (not on Modbus).
 ##
 ## Coils / Holding unchanged (relays 0-1, service 5-8, ack 16-19, HR addr/baud/…).
 ## Parent must supply enm_id / enm_address / enm_prefix (and global modbus_bus).
@@ -537,41 +538,8 @@ sensor:
       - lambda: "return round(x * 100.0f) / 100.0f;"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Upeak L1"
-    address: 22
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
-      - lambda: "return round(x * 100.0f) / 100.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Upeak L2"
-    address: 23
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
-      - lambda: "return round(x * 100.0f) / 100.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Upeak L3"
-    address: 24
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
-      - lambda: "return round(x * 100.0f) / 100.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L1"
-    address: 25
+    address: 22
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "A"
@@ -582,7 +550,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L2"
-    address: 27
+    address: 24
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "A"
@@ -593,7 +561,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L3"
-    address: 29
+    address: 26
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "A"
@@ -604,40 +572,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms Neutral"
-    address: 31
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "A"
-    accuracy_decimals: 3
-    filters:
-      - multiply: 0.001
-      - lambda: "return round(x * 1000.0f) / 1000.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Ipeak L1"
-    address: 33
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "A"
-    accuracy_decimals: 3
-    filters:
-      - multiply: 0.001
-      - lambda: "return round(x * 1000.0f) / 1000.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Ipeak L2"
-    address: 35
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "A"
-    accuracy_decimals: 3
-    filters:
-      - multiply: 0.001
-      - lambda: "return round(x * 1000.0f) / 1000.0f;"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Ipeak L3"
-    address: 37
+    address: 28
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "A"
@@ -648,7 +583,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L1"
-    address: 39
+    address: 30
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
@@ -658,7 +593,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L2"
-    address: 41
+    address: 32
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
@@ -668,7 +603,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L3"
-    address: 43
+    address: 34
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
@@ -678,7 +613,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P Total"
-    address: 45
+    address: 36
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
@@ -688,7 +623,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L1"
-    address: 47
+    address: 38
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
@@ -698,7 +633,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L2"
-    address: 49
+    address: 40
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
@@ -708,7 +643,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L3"
-    address: 51
+    address: 42
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
@@ -718,7 +653,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q Total"
-    address: 53
+    address: 44
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
@@ -728,7 +663,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L1"
-    address: 55
+    address: 46
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
@@ -738,7 +673,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L2"
-    address: 57
+    address: 48
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
@@ -748,7 +683,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L3"
-    address: 59
+    address: 50
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
@@ -758,7 +693,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S Total"
-    address: 61
+    address: 52
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
@@ -767,89 +702,9 @@ sensor:
       - lambda: "return (float) ((int) round(x));"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Fund L1"
-    address: 63
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Fund L2"
-    address: 65
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Fund L3"
-    address: 67
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Fund Total"
-    address: 69
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Harm L1"
-    address: 71
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Harm L2"
-    address: 73
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Harm L3"
-    address: 75
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} P Harm Total"
-    address: 77
-    register_type: read
-    value_type: S_DWORD
-    unit_of_measurement: "W"
-    accuracy_decimals: 0
-    filters:
-      - lambda: "return (float) ((int) round(x));"
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_ap_l1
     name: "${enm_prefix} Active Energy Import L1"
-    address: 79
+    address: 54
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -859,7 +714,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L2"
-    address: 81
+    address: 56
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -869,7 +724,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L3"
-    address: 83
+    address: 58
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -880,7 +735,7 @@ sensor:
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_ap_total
     name: "${enm_prefix} Active Energy Import Total"
-    address: 85
+    address: 60
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -890,7 +745,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L1"
-    address: 87
+    address: 62
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -900,7 +755,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L2"
-    address: 89
+    address: 64
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -910,7 +765,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L3"
-    address: 91
+    address: 66
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -921,7 +776,7 @@ sensor:
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_an_total
     name: "${enm_prefix} Active Energy Export Total"
-    address: 93
+    address: 68
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -931,7 +786,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L1"
-    address: 95
+    address: 70
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -940,7 +795,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L2"
-    address: 97
+    address: 72
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -949,7 +804,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L3"
-    address: 99
+    address: 74
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -959,7 +814,7 @@ sensor:
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rp_total
     name: "${enm_prefix} Reactive Energy Import Total"
-    address: 101
+    address: 76
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -968,7 +823,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L1"
-    address: 103
+    address: 78
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -977,7 +832,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L2"
-    address: 105
+    address: 80
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -986,7 +841,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L3"
-    address: 107
+    address: 82
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -996,90 +851,12 @@ sensor:
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rn_total
     name: "${enm_prefix} Reactive Energy Export Total"
-    address: 109
+    address: 84
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
     skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} VAh L1"
-    address: 111
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "VAh"
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} VAh L2"
-    address: 113
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "VAh"
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} VAh L3"
-    address: 115
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "VAh"
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} VAh Total"
-    address: 117
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "VAh"
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Harmonic Active Energy Import L1"
-    address: 119
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "Wh"
-    device_class: energy
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Harmonic Active Energy Import L2"
-    address: 121
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "Wh"
-    device_class: energy
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Harmonic Active Energy Import L3"
-    address: 123
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "Wh"
-    device_class: energy
-    state_class: total_increasing
-    skip_updates: 29
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Harmonic Active Energy Import Total"
-    address: 125
-    register_type: read
-    value_type: U_DWORD
-    unit_of_measurement: "Wh"
-    device_class: energy
-    state_class: total_increasing
-    skip_updates: 29
-
-  # --- Net energy (import − export), derived ---
   - platform: template
     name: "${enm_prefix} Active Energy Net Total"
     unit_of_measurement: "Wh"
