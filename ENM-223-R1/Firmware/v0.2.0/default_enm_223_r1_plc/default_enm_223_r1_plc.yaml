@@ -22,8 +22,8 @@ modbus_controller:
   - id: ${enm_id}
     address: ${enm_address}
     modbus_id: modbus_bus
-    update_interval: 3s
-    command_throttle: 50ms
+    update_interval: 1s
+    command_throttle: 0ms
     allow_duplicate_commands: false
 
 binary_sensor:
