@@ -681,8 +681,12 @@ static void serviceModbusServiceCoils(uint32_t now) {
 }
 
 static void updateLinkOkDetector(uint32_t now) {
-  // Only bus RX counts as a Modbus poll — local coil writes must not fake linkOk.
-  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
+  // Peek BEFORE mb.task() drains RX. Only frames addressed to us (or broadcast)
+  // count as link — shared RS-485 traffic to other slaves must not set linkOk.
+  if (Serial2.available() < 1) return;
+  const int addr = Serial2.peek();
+  if (addr < 0) return;
+  if (addr == 0 || addr == (int)g_mb_address) g_lastLinkSeenMs = now;
 }
 
 static inline bool linkOkNow(uint32_t now) {
@@ -2033,9 +2037,10 @@ static void sampleEnergyCounters() {
   const double k = 10.0 / (double)g_MC_imp_per_kWh;  // Wh per 0.01CF tick (secondary)
   const double kN = k * g_ctRatioN;                   // → primary Wh per tick
 
-  // Per-reg: ignore lone 0xFFFF (SPI glitch); convert delta immediately at current N.
+  // Frame-level all-0xFFFF already discarded above. Accept every per-reg delta
+  // (including 0xFFFF) so a saturated counter is not silently dropped.
   auto addDelta = [kN](double& acc, uint16_t v) {
-    if (v != 0xFFFF) acc += (double)v * kN;
+    acc += (double)v * kN;
   };
   for (int i = 0; i < 4; i++) {
     addDelta(g_acc_ap_Wh[i], ap[i]);
@@ -2065,18 +2070,18 @@ static void serviceMeterAutosave(unsigned long now) {
   }
 }
 
-// Flat int arrays — same shape as P_W (proven over WebSerial). Nested E_phase
-// objects with doubles (and even ints) serialize as null with Arduino_JSON;
-// WebConfig Number(null)===0 hid that as 0.000 kWh.
+// Flat numeric arrays — same shape as P_W (proven over WebSerial). Nested E_phase
+// objects with doubles (and even ints) serialize as null with Arduino_JSON.
+// Use double (not int) so uint32 Wh above INT_MAX stays positive in the browser.
 static void energiesToFlatJson(JSONVar& o) {
   JSONVar ap, an, rp, rn, s, aph;
   for (int i = 0; i < 4; i++) {
-    ap[i] = (int)g_e_ap_Wh[i];
-    an[i] = (int)g_e_an_Wh[i];
-    rp[i] = (int)g_e_rp_varh[i];
-    rn[i] = (int)g_e_rn_varh[i];
-    s[i]  = (int)g_e_s_VAh[i];
-    aph[i] = (int)g_e_aph_Wh[i];
+    ap[i] = (double)g_e_ap_Wh[i];
+    an[i] = (double)g_e_an_Wh[i];
+    rp[i] = (double)g_e_rp_varh[i];
+    rn[i] = (double)g_e_rn_varh[i];
+    s[i]  = (double)g_e_s_VAh[i];
+    aph[i] = (double)g_e_aph_Wh[i];
   }
   o["E_ap_Wh"] = ap;
   o["E_an_Wh"] = an;
@@ -2174,15 +2179,15 @@ static void applyHoldingFromModbus() {
 
   const uint32_t baud = ((uint32_t)mb.Hreg(HR_MB_BAUD_L) << 16) | (uint32_t)mb.Hreg(HR_MB_BAUD_L + 1);
   const uint32_t vBaud = hmValidBaud(baud);
-  if (vBaud != g_mb_baud) {
-    g_mb_baud = vBaud;
-    changed = true;
-  }
+  // Do not assign g_mb_baud here — applyModbusSettings compares baud against the
+  // live g_mb_baud to decide whether to re-open Serial2. Premature mutation made
+  // the re-init guard false and left UART on the old speed.
+  if (vBaud != g_mb_baud) changed = true;
 
   static uint8_t  lastAddr = 0;
   static uint32_t lastBaud = 0;
-  if (g_mb_address != lastAddr || g_mb_baud != lastBaud) {
-    applyModbusSettings(g_mb_address, g_mb_baud);
+  if (g_mb_address != lastAddr || vBaud != lastBaud) {
+    applyModbusSettings(g_mb_address, vBaud);
     lastAddr = g_mb_address;
     lastBaud = g_mb_baud;
   }
@@ -2328,7 +2333,7 @@ static JSONVar meterLiveToJson() {
   m["PfundT"] = g_pfund_W[3];
   m["PharmT"] = g_pharm_W[3];
 
-  // Flat E_*_Wh int arrays (Arduino_JSON-safe). See energiesToFlatJson.
+  // Flat E_*_Wh numeric arrays (Arduino_JSON-safe doubles). See energiesToFlatJson.
   energiesToFlatJson(m);
   return m;
 }
@@ -2893,6 +2898,8 @@ void loop() {
   hmWatchdogFeed();
   const unsigned long now = millis();
 
+  // Link detector must run before mb.task() — task drains the RX buffer.
+  updateLinkOkDetector((uint32_t)now);
   mb.task();
   WebSerial.check();
   yield();
@@ -2902,7 +2909,6 @@ void loop() {
     g_atm.resetPeakRegisters();
   }
 
-  updateLinkOkDetector((uint32_t)now);
   mbUpdateStatusFlags((uint32_t)now);
 
   serviceModbusAck();
