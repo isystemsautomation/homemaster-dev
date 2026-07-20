@@ -397,6 +397,20 @@ struct RlyCfg {
 struct LedCfg { uint8_t mode; uint8_t source; };
 struct BtnCfg { uint8_t action; };
 
+// LED source: 0=None, 5/6=Override R1/R2, 10..21=Alarm/Warning/Event × L1..Total
+static inline uint8_t sanitizeLedSource(int s) {
+  if (s == 0 || s == 5 || s == 6) return (uint8_t)s;
+  if (s >= 10 && s <= 21) return (uint8_t)s;
+  return 0;
+}
+
+// Button action: 0=None, 5/6=Toggle R1/R2, 7=Ack All, 8..11=Ack L1..Total
+static inline uint8_t sanitizeBtnAction(int v) {
+  if (v == 0 || v == 5 || v == 6) return (uint8_t)v;
+  if (v >= 7 && v <= 11) return (uint8_t)v;
+  return 0;
+}
+
 static RlyCfg rlyCfg[NUM_RLY];
 static LedCfg ledCfg[NUM_LED];
 static BtnCfg btnCfg[NUM_BTN];
@@ -2487,7 +2501,7 @@ void handleUnifiedConfig(JSONVar obj) {
       int v = a[i].hasOwnProperty("action")
                 ? jvGetInt(a[i], "action", 0)
                 : jsonVarToInt(a[i], 0);
-      btnCfg[i].action = (uint8_t)((v==0 || v==5 || v==6) ? v : 0);
+      btnCfg[i].action = sanitizeBtnAction(v);
     }
     wsLog("Buttons Configuration updated");
     changed = true;
@@ -2501,12 +2515,12 @@ void handleUnifiedConfig(JSONVar obj) {
           ledCfg[i].mode = (uint8_t)constrain(jsonVarToInt(m[i], (int)ledCfg[i].mode), 0, 1);
         if (JSON.typeof(s[i]) != "undefined") {
           int sv = jsonVarToInt(s[i], 0);
-          ledCfg[i].source = (uint8_t)((sv==0 || sv==5 || sv==6) ? sv : 0);
+          ledCfg[i].source = sanitizeLedSource(sv);
         }
       } else if (i < list.length()) {
         ledCfg[i].mode   = (uint8_t)constrain(jvGetInt(list[i], "mode", (int)ledCfg[i].mode), 0, 1);
         int src          = jvGetInt(list[i], "source", 0);
-        ledCfg[i].source = (uint8_t)((src==0 || src==5 || src==6) ? src : 0);
+        ledCfg[i].source = sanitizeLedSource(src);
       }
     }
     wsLog("LEDs Configuration updated");
@@ -2963,6 +2977,12 @@ void loop() {
       if (act == 5 || act == 6) {
         int r = act - 5;
         if (r >= 0 && r < NUM_RLY) desiredRelay[r] = !desiredRelay[r];
+      } else if (act == 7) {
+        for (uint8_t ch = 0; ch < 4; ch++) alarmAckChannel(ch);  // Ack All
+        wsLog("Button: ack all");
+      } else if (act >= 8 && act <= 11) {
+        alarmAckChannel((uint8_t)(act - 8));  // Ack L1/L2/L3/Total
+        wsLog("Button: ack channel");
       }
     }
   }
@@ -2998,6 +3018,10 @@ void loop() {
       if (src == 5 || src == 6) {
         int r = src - 5;
         srcActive = (r >= 0 && r < NUM_RLY) ? relayLogical[r] : false;
+      } else if (src >= 10 && src <= 21) {
+        const uint8_t kind = (uint8_t)((src - 10) / 4);  // 0=Alarm,1=Warning,2=Event
+        const uint8_t ch   = (uint8_t)((src - 10) % 4);  // 0..3 = L1,L2,L3,Total
+        srcActive = alarmRulePublished(ch, kind);        // latched if ackRequired, else live
       }
       physLed = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
     }

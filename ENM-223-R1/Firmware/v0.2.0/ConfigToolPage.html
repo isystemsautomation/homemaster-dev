@@ -266,7 +266,7 @@
 
   <div class="sectiontitle">
     <h3>User LEDs (4)</h3>
-    <p class="hint">Source 5/6 = relay 1/2 logical state.</p>
+    <p class="hint">Source 5/6 = relay 1/2 logical state. Alarm/Warning/Event L1..Total = latched alarm state per channel.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -660,6 +660,24 @@
       if(cfg.alarmEn || cfg.alarmLo) applyAlarmFlat(cfg);
       else if(cfg.alarm) applyAlarmCfg(cfg.alarm);
       if(rlyArr) applyRelayModes(rlyArr);
+      const btnArr = cfg && cfg.btn;
+      if (btnArr) {
+        for (let i = 0; i < NUM_BTN; i++) {
+          const o = btnArr[i] ?? btnArr[String(i)] ?? {};
+          const el = $('action-btn' + (i + 1));
+          if (o.action !== undefined && el && el !== document.activeElement) el.value = String(o.action);
+        }
+      }
+      const ledArr = cfg && cfg.led;
+      if (ledArr) {
+        for (let i = 0; i < NUM_LED; i++) {
+          const o = ledArr[i] ?? ledArr[String(i)] ?? {};
+          const modeEl = $('mode-led' + (i + 1));
+          const srcEl = $('source-led' + (i + 1));
+          if (o.mode !== undefined && modeEl && modeEl !== document.activeElement) modeEl.value = String(o.mode);
+          if (o.source !== undefined && srcEl && srcEl !== document.activeElement) srcEl.value = String(o.source);
+        }
+      }
     }
 
     function applyRelayModes(rlyArr){
@@ -1111,7 +1129,12 @@
 
     (function buildButtons(){
       const c=$('io-buttons'); if(!c) return;
-      const ACTIONS=[{v:0,l:'None'},{v:5,l:'Toggle Relay 1'},{v:6,l:'Toggle Relay 2'}];
+      const ACTIONS=[
+        {v:0,l:'None'},
+        {v:5,l:'Toggle Relay 1'},{v:6,l:'Toggle Relay 2'},
+        {v:7,l:'Ack All'},
+        {v:8,l:'Ack L1'},{v:9,l:'Ack L2'},{v:10,l:'Ack L3'},{v:11,l:'Ack Total'},
+      ];
       for(let i=1;i<=NUM_BTN;i++){
         const d=document.createElement('div'); d.className='iocard tint-button';
         d.innerHTML=`<div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
@@ -1130,7 +1153,11 @@
     (function buildLEDs(){
       const c=$('io-leds'); if(!c) return;
       const modeOpts=[{v:0,l:'Steady'},{v:1,l:'Blink'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
-      const srcOpts=[{v:0,l:'None'},{v:5,l:'Override R1'},{v:6,l:'Override R2'}].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+      const KINDS=[{k:0,l:'Alarm'},{k:1,l:'Warning'},{k:2,l:'Event'}];
+      const CHS=[{c:0,l:'L1'},{c:1,l:'L2'},{c:2,l:'L3'},{c:3,l:'Total'}];
+      const srcList=[{v:0,l:'None'},{v:5,l:'Override R1'},{v:6,l:'Override R2'}];
+      KINDS.forEach(k=>CHS.forEach(c=>srcList.push({v:10+k.k*4+c.c,l:`${k.l} ${c.l}`})));
+      const srcOpts=srcList.map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       for(let i=1;i<=NUM_LED;i++){
         const d=document.createElement('div'); d.className='iocard tint-led';
         d.innerHTML=`<div class="iotop"><span class="ioid">User LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
