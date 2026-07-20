@@ -6,8 +6,9 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        2
-#define HM_MAP_VERSION 2
+// Rule 13: the module has ONE version; the Modbus map is not versioned separately.
+// MAP_VERSION echoes the firmware version so there is a single consistent number.
+#define HM_MAP_VERSION ((HM_FW_MAJOR << 8) | (HM_FW_MINOR << 4) | HM_FW_PATCH)  // 0x0020 = v0.2.0
 // Ack/config frames are small; raise before include so large cfg/ext JSON is safer.
 #ifndef BufferSize
 #define BufferSize 1024
@@ -2551,7 +2552,7 @@ void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
-  st["map"]   = HM_MAP;
+  st["map"]   = HM_FW;   // "0.2.0" — one version, matches st["fw"]
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   st["linkOk"] = linkOk ? 1 : 0;
