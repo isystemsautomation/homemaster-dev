@@ -639,17 +639,14 @@ static void serviceDebounce(DebounceState& st, bool raw, uint32_t now) {
 }
 
 static void serviceModbusRelays() {
+  // Command intake only: a master-written coil sets desired, and only in Modbus mode
+  // (Alarm/None relays are owned by internal logic). The coil image itself is refreshed
+  // to the real relay state by the honest-mirror write in the IO service loop.
   for (int i = 0; i < NUM_RLY; i++) {
     if (rlyCfg[i].mode != RLY_MODE_MODBUS) continue;
     const bool c = mb.Coil((uint16_t)i);
     if (c != desiredRelay[i]) desiredRelay[i] = c;
   }
-  // Only mirror Modbus-mode coils. Forcing COIL_RELAYn from stale desiredRelay
-  // while in Alarm/None mode made the coil image disagree with the physical relay.
-  if (rlyCfg[0].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY1) != desiredRelay[0])
-    mb.Coil(COIL_RELAY1, desiredRelay[0]);
-  if (rlyCfg[1].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY2) != desiredRelay[1])
-    mb.Coil(COIL_RELAY2, desiredRelay[1]);
 }
 
 static void serviceModbusServiceCoils(uint32_t now) {
@@ -2988,8 +2985,11 @@ void loop() {
     digitalWrite(RELAY_PINS[i], phys ? HIGH : LOW);
     relayLogical[i] = logical;
   }
-  if (rlyCfg[0].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
-  if (rlyCfg[1].mode == RLY_MODE_MODBUS && mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
+  // Coil image is an honest mirror of the ACTUAL relay state (all modes), like DIO's
+  // syncCoilsFromState. In Modbus mode coil==desired==logical; in Alarm/None mode the
+  // coil follows relayLogical so HA shows the real relay and a manual toggle bounces back.
+  for (int i = 0; i < NUM_RLY; i++)
+    if (mb.Coil((uint16_t)i) != relayLogical[i]) mb.Coil((uint16_t)i, relayLogical[i]);
 
   bool ledPhysState[NUM_LED];
   for (int i = 0; i < NUM_LED; i++) {
