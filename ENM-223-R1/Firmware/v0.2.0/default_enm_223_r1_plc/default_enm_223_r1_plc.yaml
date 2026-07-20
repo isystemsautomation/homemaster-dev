@@ -12,7 +12,9 @@
 ##   E  54..85 Energy U32 (AP/AN/RP/RN × L1-3-T)
 ## Peaks / Pfund / Pharm / VAh / harmonic energy: WebSerial only (not on Modbus).
 ##
-## Coils / Holding unchanged (relays 0-1, service 5-8, ack 16-19, HR addr/baud/…).
+## Coils (DIO-style): write-only — no FC01 read-back.
+##   Relay cmds 0-1 · Identify 5 · ACK 16-19. Save/Reboot/Reset-energy NOT on Modbus.
+##   Public relays = template (state from IO_MASK FC04). Measurements = one FC04 0..53.
 ## Parent must supply enm_id / enm_address / enm_prefix (and global modbus_bus).
 ##
 
@@ -20,8 +22,8 @@ modbus_controller:
   - id: ${enm_id}
     address: ${enm_address}
     modbus_id: modbus_bus
-    update_interval: 3s
-    command_throttle: 50ms
+    update_interval: 1s
+    command_throttle: 0ms
     allow_duplicate_commands: false
 
 binary_sensor:
@@ -87,13 +89,17 @@ binary_sensor:
     bitmask: 0x0080
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_relay1_state
     name: "${enm_prefix} Relay 1 State"
+    internal: true
     register_type: read
     address: 0
     bitmask: 0x0100
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_relay2_state
     name: "${enm_prefix} Relay 2 State"
+    internal: true
     register_type: read
     address: 0
     bitmask: 0x0200
@@ -278,87 +284,77 @@ binary_sensor:
     address: 6
     bitmask: 0x0020
 
-# ===================== Coils (FC01/05) — unchanged =====================
+# ===================== Coils — write-only (DIO pattern, no FC01 read-back) =====================
 switch:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 1"
+    id: ${enm_id}_relay1_coil
+    register_type: coil
     address: 0
-    register_type: coil
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 2"
+    id: ${enm_id}_relay2_coil
+    register_type: coil
     address: 1
-    register_type: coil
-
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_ack_l1
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L1"
-    address: 16
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l1
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_l2
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L2"
-    address: 17
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l2
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_l3
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L3"
-    address: 18
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l3
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_total
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK Total"
-    address: 19
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_total
-
-  - platform: modbus_controller
     id: ${enm_id}_cmd_identify
-    modbus_controller_id: ${enm_id}
     register_type: coil
     address: 5
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_save_cfg
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l1_coil
     register_type: coil
-    address: 6
+    address: 16
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_reboot
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l2_coil
     register_type: coil
-    address: 7
+    address: 17
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_reset_energy
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l3_coil
     register_type: coil
-    address: 8
+    address: 18
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_total_coil
+    register_type: coil
+    address: 19
+    internal: true
+    assumed_state: true
+
+  # Public relays: state from IO_MASK (FC04), command via write-only coils
+  - platform: template
+    name: "${enm_prefix} Relay 1"
+    id: ${enm_id}_relay1
+    lambda: |-
+      return id(${enm_id}_relay1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${enm_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${enm_id}_relay1_coil
+  - platform: template
+    name: "${enm_prefix} Relay 2"
+    id: ${enm_id}_relay2
+    lambda: |-
+      return id(${enm_id}_relay2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${enm_id}_relay2_coil
+    turn_off_action:
+      - switch.turn_off: ${enm_id}_relay2_coil
 
 button:
   - platform: template
@@ -366,17 +362,21 @@ button:
     on_press:
       - switch.turn_on: ${enm_id}_cmd_identify
   - platform: template
-    name: "${enm_prefix} Save config"
+    name: "${enm_prefix} ACK L1"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_save_cfg
+      - switch.turn_on: ${enm_id}_ack_l1_coil
   - platform: template
-    name: "${enm_prefix} Reboot"
+    name: "${enm_prefix} ACK L2"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_reboot
+      - switch.turn_on: ${enm_id}_ack_l2_coil
   - platform: template
-    name: "${enm_prefix} Reset energy counters"
+    name: "${enm_prefix} ACK L3"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_reset_energy
+      - switch.turn_on: ${enm_id}_ack_l3_coil
+  - platform: template
+    name: "${enm_prefix} ACK Total"
+    on_press:
+      - switch.turn_on: ${enm_id}_ack_total_coil
 
 sensor:
   - platform: modbus_controller
@@ -710,7 +710,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L2"
@@ -720,7 +720,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L3"
@@ -730,7 +730,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_ap_total
@@ -741,7 +741,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L1"
@@ -751,7 +751,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L2"
@@ -761,7 +761,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L3"
@@ -771,7 +771,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_an_total
@@ -782,7 +782,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L1"
@@ -791,7 +791,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L2"
@@ -800,7 +800,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L3"
@@ -809,7 +809,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rp_total
@@ -819,7 +819,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L1"
@@ -828,7 +828,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L2"
@@ -837,7 +837,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L3"
@@ -846,7 +846,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rn_total
@@ -856,7 +856,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 2
   - platform: template
     name: "${enm_prefix} Active Energy Net Total"
     unit_of_measurement: "Wh"
