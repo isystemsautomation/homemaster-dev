@@ -597,13 +597,17 @@ static bool mbMapBuilt = false;
 static void mbBuildRegisterMap() {
   if (mbMapBuilt) return;
   mbMapBuilt = true;
-  for (uint16_t a = 0; a < 32; ++a) {
-    mb.addCoil(a);
-    mb.Coil(a, false);
+  // Coils actually used: relays 0-1, identify 5, ACK 16-19. (save/reboot/reset dropped — A1)
+  static const uint16_t kCoils[] = {0, 1, 5, 16, 17, 18, 19};
+  for (uint16_t i = 0; i < (uint16_t)(sizeof(kCoils) / sizeof(kCoils[0])); ++i) {
+    mb.addCoil(kCoils[i]);
+    mb.Coil(kCoils[i], false);
   }
   // No Discrete Inputs — digital state is bit-packed into IR_IO_MASK / IR_ALARM_FLAGS.
   for (uint16_t r = 0; r < IR_COUNT; ++r) mb.addIreg(r);
-  for (uint16_t r = 0; r < 200; ++r) mb.addHreg(r);
+  // Holding regs used by applyHoldingFromModbus/mbSyncHolding:
+  //   addr(0), baud(1-2), lineHz(4), sumAbs(5), relay-en(7-8). Register 0..8.
+  for (uint16_t r = 0; r <= 8; ++r) mb.addHreg(r);
 }
 
 static inline void mbPutU32Ir(uint16_t reg, uint32_t v) {
@@ -655,29 +659,8 @@ static void serviceModbusServiceCoils(uint32_t now) {
     g_identifyUntilMs = now + IDENTIFY_MS;
     wsLog("Identify: LEDs active for 5 s");
   }
-  if (mb.Coil(COIL_SAVE_CFG)) {
-    mb.Coil(COIL_SAVE_CFG, false);
-    if (saveConfigFS()) {
-      cfgDirty = false;
-      meterDirty = false;
-      meterSavedEnergyCrc = meterEnergyCrc();
-      wsLog("Configuration saved");
-    } else {
-      wsLog("ERROR: Save failed");
-    }
-  }
-  if (mb.Coil(COIL_REBOOT)) {
-    mb.Coil(COIL_REBOOT, false);
-    wsLog("Rebooting…");
-    if (cfgDirty) saveSettingsFS();
-    (void)saveMeterFS();
-    delay(50);
-    rp2040.reboot();
-  }
-  if (mb.Coil(COIL_RESET_ENERGY)) {
-    mb.Coil(COIL_RESET_ENERGY, false);
-    resetEnergyCounters();
-  }
+  // Save/Reboot/Reset-energy are NOT exposed over Modbus (shared-bus safety).
+  // Config autosaves; reboot / energy-reset / factory remain via WebConfig commands.
 }
 
 static void updateLinkOkDetector(uint32_t now) {
