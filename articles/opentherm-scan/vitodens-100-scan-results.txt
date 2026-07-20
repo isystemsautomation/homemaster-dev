@@ -1,0 +1,138 @@
+# Viessmann E3 Vitodens 100 (BHC 0122) — OpenTherm 0..127 scan results
+# Source: opentherm-SCAN.yaml on a HomeMaster OpenTherm Gateway (ESPHome).
+# verdict: YES=READ_ACK (supported)  NO=Unknown-DataId  TIMEOUT=no reply
+# component: name in the ESPHome opentherm component  (<INVALID> = not mapped)
+#
+#  ID  verdict  component                value(raw)
+    0  YES      STATUS                   HB2/LB4  u16=516  f8.8=2.02
+    1  NO       CH_SETPOINT              (write-only: read not expected)
+    2  NO       CONTROLLER_CONFIG        (write-only: read not expected)
+    3  YES      DEVICE_CONFIG            HB81/LB33  u16=20769  f8.8=81.13
+    4  NO       COMMAND_CODE             (write-only: read not expected)
+    5  YES      FAULT_FLAGS              HB0/LB255  u16=255  f8.8=1.00
+    6  YES      REMOTE                   HB3/LB3  u16=771  f8.8=3.01
+    7  NO       COOLING_CONTROL          (write-only: read not expected)
+    8  TIMEOUT  CH2_SETPOINT
+    9  YES      CH_SETPOINT_OVERRIDE     HB0/LB0  u16=0  f8.8=0.00
+   10  TIMEOUT  TSP_COUNT
+   11  NO       TSP_COMMAND
+   12  NO       FHB_SIZE
+   13  NO       FHB_COMMAND
+   14  NO       MAX_MODULATION_LEVEL     (write-only: read not expected)
+   15  TIMEOUT  MAX_BOILER_CAPACITY
+   16  NO       ROOM_SETPOINT            (write-only: read not expected)
+   17  YES      MODULATION_LEVEL         HB0/LB0  u16=0  f8.8=0.00
+   18  YES      CH_WATER_PRESSURE        HB1/LB179  u16=435  f8.8=1.70
+   19  YES      DHW_FLOW_RATE            HB0/LB0  u16=0  f8.8=0.00
+   20  NO       DAY_TIME
+   21  NO       DATE
+   22  NO       YEAR
+   23  NO       ROOM_SETPOINT_CH2        (write-only: read not expected)
+   24  NO       ROOM_TEMP                (write-only: read not expected)
+   25  YES      FEED_TEMP                HB63/LB0  u16=16128  f8.8=63.00
+   26  YES      DHW_TEMP                 HB55/LB51  u16=14131  f8.8=55.20
+   27  TIMEOUT  OUTSIDE_TEMP
+   28  NO       RETURN_WATER_TEMP
+   29  NO       SOLAR_STORE_TEMP
+   30  NO       SOLAR_COLLECT_TEMP
+   31  NO       FEED_TEMP_CH2
+   32  NO       DHW2_TEMP
+   33  YES      EXHAUST_TEMP             HB0/LB55  u16=55  (integer: 55 C; f8.8 misreads as 0.21)
+   34  NO       <INVALID>
+   35  YES      FAN_SPEED                HB51/LB51  u16=13107  (integer bytes 51/51)
+   36  NO       FLAME_CURRENT
+   37  NO       ROOM_TEMP_CH2            (write-only: read not expected)
+   38  NO       REL_HUMIDITY
+   39  NO       <INVALID>
+   40  NO       <INVALID>
+   41  NO       <INVALID>
+   42  NO       <INVALID>
+   43  NO       <INVALID>
+   44  NO       <INVALID>
+   45  NO       <INVALID>
+   46  NO       <INVALID>
+   47  NO       <INVALID>
+   48  YES      DHW_BOUNDS               HB60/LB30  (upper 60 / lower 30)
+   49  YES      CH_BOUNDS                HB82/LB5  (upper 82 / lower 5)
+   50  TIMEOUT  OTC_CURVE_BOUNDS
+   51  TIMEOUT  <INVALID>
+   52  NO       <INVALID>
+   53  NO       <INVALID>
+   54  NO       <INVALID>
+   55  TIMEOUT  <INVALID>
+   56  YES      DHW_SETPOINT             HB50/LB0  u16=12800  f8.8=50.00
+   57  YES      MAX_CH_SETPOINT          HB20/LB0  u16=5120  f8.8=20.00
+   58  NO       OTC_CURVE_RATIO
+   59  NO       <INVALID>
+   60  NO       <INVALID>
+   61  NO       <INVALID>
+   62  NO       <INVALID>
+   63  NO       <INVALID>
+   64  NO       <INVALID>
+   65  TIMEOUT  <INVALID>
+   66  NO       <INVALID>
+   67  NO       <INVALID>
+   68  NO       <INVALID>
+   69  TIMEOUT  <INVALID>
+   70  NO       HVAC_STATUS
+   71  NO       REL_VENT_SETPOINT        (write-only: read not expected)
+   72  NO       <INVALID>
+   73  NO       <INVALID>
+   74  NO       DEVICE_VENT
+   75  NO       HVAC_VER_ID
+   76  NO       <INVALID>
+   77  NO       REL_VENTILATION
+   78  TIMEOUT  REL_HUMID_EXHAUST
+   79  TIMEOUT  EXHAUST_CO2
+   80  NO       SUPPLY_INLET_TEMP
+   81  NO       SUPPLY_OUTLET_TEMP
+   82  NO       EXHAUST_INLET_TEMP
+   83  NO       EXHAUST_OUTLET_TEMP
+   84  NO       EXHAUST_FAN_SPEED
+   85  NO       SUPPLY_FAN_SPEED
+   86  NO       REMOTE_VENTILATION_PARAM
+   87  NO       NOM_REL_VENTILATION
+   88  TIMEOUT  HVAC_NUM_TSP
+   89  NO       HVAC_IDX_TSP
+   90  NO       HVAC_FHB_SIZE
+   91  NO       HVAC_FHB_IDX
+   92  NO       <INVALID>
+   93  YES      <INVALID>                HB9/LB69  u16=2373  f8.8=9.27   <-- OEM, no component entity
+   94  YES      <INVALID>                HB23/LB48  u16=5936  f8.8=23.19  <-- OEM, no component entity
+   95  TIMEOUT  <INVALID>
+   96  NO       <INVALID>
+   97  NO       <INVALID>
+   98  NO       RF_SIGNAL
+   99  YES      DHW_MODE                 HB0/LB0  u16=0  f8.8=0.00
+  100  YES      OVERRIDE_FUNC            HB0/LB0  u16=0  f8.8=0.00
+  101  NO       SOLAR_MODE_FLAGS
+  102  NO       SOLAR_ASF
+  103  TIMEOUT  SOLAR_VERSION_ID
+  104  TIMEOUT  SOLAR_PRODUCT_ID
+  105  NO       SOLAR_NUM_TSP
+  106  TIMEOUT  SOLAR_IDX_TSP
+  107  NO       SOLAR_FHB_SIZE
+  108  NO       SOLAR_FHB_IDX
+  109  NO       SOLAR_STARTS
+  110  NO       SOLAR_HOURS
+  111  NO       SOLAR_ENERGY
+  112  NO       SOLAR_TOTAL_ENERGY
+  113  NO       FAILED_BURNER_STARTS
+  114  NO       BURNER_FLAME_LOW
+  115  YES      OEM_DIAGNOSTIC           HB0/LB0  u16=0  f8.8=0.00
+  116  NO       BURNER_STARTS
+  117  NO       CH_PUMP_STARTS
+  118  NO       DHW_PUMP_STARTS
+  119  NO       DHW_BURNER_STARTS
+  120  NO       BURNER_HOURS
+  121  NO       CH_PUMP_HOURS
+  122  NO       DHW_PUMP_HOURS
+  123  NO       DHW_BURNER_HOURS
+  124  TIMEOUT  OT_VERSION_CONTROLLER    (write-only: read not expected)
+  125  YES      OT_VERSION_DEVICE        HB4/LB26  u16=1050  f8.8=4.10
+  126  NO       VERSION_CONTROLLER       (write-only: read not expected)
+  127  YES      VERSION_DEVICE           HB37/LB123  u16=9595  (product code)
+
+# SUPPORTED (23): 0, 3, 5, 6, 9, 17, 18, 19, 25, 26, 33, 35, 48, 49, 56, 57, 93, 94, 99, 100, 115, 125, 127
+# EXTRA beyond component (raw-only): 93, 94
+# NOTE: write-only IDs (R/W=W) answer Unknown to a read scan; that is expected, not missing support.
