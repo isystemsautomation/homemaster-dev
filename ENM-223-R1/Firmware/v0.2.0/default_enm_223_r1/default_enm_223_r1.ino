@@ -712,7 +712,7 @@ static void setAtmDefaults() {
   g_atm_cfg.phaseMap[0] = 0;
   g_atm_cfg.phaseMap[1] = 1;
   g_atm_cfg.phaseMap[2] = 2;
-  g_atm_cfg.ucal   = 36000;  // sag detector reference
+  g_atm_cfg.ucal   = 36000;  // ucal: reserved calibration reference; sag/OV thresholds currently scale off Ugain
   for (int i = 0; i < 3; i++) {
     g_atm_cfg.cal[i].Ugain   = 39500;  // divider 6×220k+1k, calibrated @ 230V
     g_atm_cfg.cal[i].Igain   = 49000;  // factory: ~1 mA secondary → 1.000 on Irms (PGA=2×, 0…60 mA FS)
@@ -761,7 +761,7 @@ static int32_t  g_pharm_W[4] = {0, 0, 0, 0};
 static int32_t  g_q_var[4]= {0, 0, 0, 0};
 static int32_t  g_s_VA[4] = {0, 0, 0, 0};
 static int16_t  g_pf_raw[4] = {0, 0, 0, 0};
-static uint16_t g_ang_raw[3]= {0, 0, 0};
+static int16_t  g_ang_raw[3]= {0, 0, 0};
 static uint16_t g_f_x100 = 0;
 static int16_t  g_tempC = 0;
 static double   g_upeak[3] = {0, 0, 0};
@@ -1231,11 +1231,29 @@ static void alarmApplyFlatSnapshotFromBlob(const JSONVar& list) {
   const int nh = parseJsonIntArray(blob, "alarmHi", hi, 12);
   if (ne < 12 && nl < 12) return;
   for (uint8_t ch = 0; ch < 4; ch++) {
-    if (na == 4) alarmCfg[ch].ackRequired = ack[ch] ? 1 : 0;
+    if (na == 4) {
+      const uint8_t newAck = ack[ch] ? 1 : 0;
+      if (!newAck && alarmCfg[ch].ackRequired) {
+        for (uint8_t kind = 0; kind < 3; kind++) {
+          alarmRun[ch].rules[kind].latched = false;
+          alarmRun[ch].rules[kind].prevActive = false;
+          alarmRun[ch].rules[kind].heldOff = false;
+        }
+      }
+      alarmCfg[ch].ackRequired = newAck;
+    }
     for (uint8_t kind = 0; kind < 3; kind++) {
       const int i = (int)ch * 3 + (int)kind;
       AlarmRuleCfg& cfg = alarmCfg[ch].rules[kind];
-      if (ne == 12) cfg.enabled = en[i] ? 1 : 0;
+      if (ne == 12) {
+        const uint8_t newEn = en[i] ? 1 : 0;
+        if (!newEn && cfg.enabled) {
+          alarmRun[ch].rules[kind].latched = false;
+          alarmRun[ch].rules[kind].prevActive = false;
+          alarmRun[ch].rules[kind].heldOff = false;
+        }
+        cfg.enabled = newEn;
+      }
       if (nm == 12) cfg.metric = (uint8_t)constrain((int)met[i], 0, 5);
       if (nl == 12) cfg.minVal = lo[i];
       if (nh == 12) cfg.maxVal = hi[i];
@@ -2466,7 +2484,9 @@ void handleUnifiedConfig(JSONVar obj) {
     JSONVar a = (type == "btnCfg") ? list["action"] : list;
     for (int i = 0; i < NUM_BTN; i++) {
       if (JSON.typeof(a[i]) == "undefined") continue;
-      int v = a[i].hasOwnProperty("action") ? (int)a[i]["action"] : (int)a[i];
+      int v = a[i].hasOwnProperty("action")
+                ? jvGetInt(a[i], "action", 0)
+                : jsonVarToInt(a[i], 0);
       btnCfg[i].action = (uint8_t)((v==0 || v==5 || v==6) ? v : 0);
     }
     wsLog("Buttons Configuration updated");
@@ -2477,14 +2497,15 @@ void handleUnifiedConfig(JSONVar obj) {
     JSONVar s = (type == "ledCfg") ? list["source"] : JSONVar();
     for (int i = 0; i < NUM_LED; i++) {
       if (type == "ledCfg") {
-        if (JSON.typeof(m[i]) != "undefined") ledCfg[i].mode = (uint8_t)constrain((int)m[i], 0, 1);
+        if (JSON.typeof(m[i]) != "undefined")
+          ledCfg[i].mode = (uint8_t)constrain(jsonVarToInt(m[i], (int)ledCfg[i].mode), 0, 1);
         if (JSON.typeof(s[i]) != "undefined") {
-          int sv = (int)s[i];
+          int sv = jsonVarToInt(s[i], 0);
           ledCfg[i].source = (uint8_t)((sv==0 || sv==5 || sv==6) ? sv : 0);
         }
       } else if (i < list.length()) {
-        ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-        int src          = (int)list[i]["source"];
+        ledCfg[i].mode   = (uint8_t)constrain(jvGetInt(list[i], "mode", (int)ledCfg[i].mode), 0, 1);
+        int src          = jvGetInt(list[i], "source", 0);
         ledCfg[i].source = (uint8_t)((src==0 || src==5 || src==6) ? src : 0);
       }
     }
@@ -2530,6 +2551,7 @@ void handleUnifiedConfig(JSONVar obj) {
 
   if (changed) {
     markCfgDirty();
+    mbSyncHolding();  // keep HR shadow in step so applyHoldingFromModbus does not revert web edits
     sendWebCfg();
     // CT/PGA live in ext.atm — push ENM_Sync so the UI sees the applied values
     // (cfg nested atm assignment alone is fragile with Arduino_JSON).
@@ -2734,7 +2756,8 @@ static void atmUpdateBaseFromJson(const JSONVar& obj) {
     g_pgaGain = (uint8_t)g;
   }
   if (ctChanged) {
-    recomputeCtRatio();  // N affects future deltas only — accumulated Wh unchanged
+    sampleEnergyCounters();  // drain ticks accrued at the OLD ratio before N changes
+    recomputeCtRatio();      // N affects future deltas only — accumulated Wh unchanged
     wsLog("CT ratio changed");
   } else {
     clampCtPgaSettings();
@@ -2775,6 +2798,7 @@ static void atmApplyFromJson(const JSONVar& obj) {
 }
 
 static void wsDiagPrintRawAtm(uint32_t now) {
+  if (!webHostConnected) return;  // quiet USB when no WebConfig host
   if (now - lastWsDiagPrint < wsDiagPrintMs) return;
   lastWsDiagPrint = now;
   if (atmBusy || meter_job) return;
@@ -2916,8 +2940,8 @@ void loop() {
   }
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    cfgDirty = false;
-    saveSettingsFS();
+    if (saveSettingsFS()) cfgDirty = false;
+    else                  lastCfgTouchMs = now;  // save failed — retry after another interval
   }
 
   serviceMeterAutosave(now);

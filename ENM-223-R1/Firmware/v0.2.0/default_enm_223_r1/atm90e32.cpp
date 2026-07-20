@@ -402,9 +402,9 @@ int16_t  ATM90E32::readPFmeanA(){ return (int16_t)read16(PFmeanA); }
 int16_t  ATM90E32::readPFmeanB(){ return (int16_t)read16(PFmeanB); }
 int16_t  ATM90E32::readPFmeanC(){ return (int16_t)read16(PFmeanC); }
 int16_t  ATM90E32::readPFmeanT(){ return (int16_t)read16(PFmeanT); }
-uint16_t ATM90E32::readPAngleA(){ return read16(PAngleA); }
-uint16_t ATM90E32::readPAngleB(){ return read16(PAngleB); }
-uint16_t ATM90E32::readPAngleC(){ return read16(PAngleC); }
+int16_t ATM90E32::readPAngleA(){ return (int16_t)read16(PAngleA); }
+int16_t ATM90E32::readPAngleB(){ return (int16_t)read16(PAngleB); }
+int16_t ATM90E32::readPAngleC(){ return (int16_t)read16(PAngleC); }
 uint16_t ATM90E32::readFreq_x100(){ return read16(Freq); }
 int16_t  ATM90E32::readTempC(){ return (int16_t)read16(Temp); }
 

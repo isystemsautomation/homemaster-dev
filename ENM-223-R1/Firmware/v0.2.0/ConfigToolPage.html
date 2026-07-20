@@ -326,7 +326,7 @@
       input.addEventListener('input', lock);
       input.addEventListener('blur', unlock);
       input.addEventListener('keydown', ev=>{
-        if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); }
+        if(ev.key==='Enter'){ ev.preventDefault(); input.blur(); }  // blur→change sends once (no Enter+change double)
         else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); }
       });
     }
@@ -359,7 +359,7 @@
       const flatRn = toArr(src.E_rn_varh);
       const flatS  = toArr(src.E_s_VAh);
       const flatAph = toArr(src.E_aph_Wh);
-      const useFlat = flatAp.length >= 4 || flatAp.length >= 3;
+      const useFlat = flatAp.length >= 3;
 
       const kWhFromObj = (e, keys) => {
         if (!e || typeof e !== 'object') return NaN;
@@ -486,7 +486,7 @@
       setElNum('pharm3', Pharm[3], 0);
       setElNum('pft', PF[3], 3);
       setElNum('f', m.FreqHz, 2);
-      setElText('t', m.TempC);
+      setElNum('t', m.TempC, 1);
       const THD = toArr(m.THD_pct);
       for(let i=0;i<3;i++){
         setElNum(`thd${i}`, THD[i], 2);
@@ -674,9 +674,9 @@
           if(alarmBox) alarmBox.style.display=String(o.mode)==='2'?'block':'none';
         }
         const chSel=card.querySelector('.rly-ch');
-        if(o.alarmCh!==undefined&&chSel) chSel.value=String(o.alarmCh);
+        if(o.alarmCh!==undefined&&chSel&&chSel!==document.activeElement) chSel.value=String(o.alarmCh);
         const mask=(o.alarmMask??1)|0;
-        const setKind=(cls,bit)=>{ const el=card.querySelector(cls); if(el) el.checked=!!(mask&bit); };
+        const setKind=(cls,bit)=>{ const el=card.querySelector(cls); if(el&&el!==document.activeElement) el.checked=!!(mask&bit); };
         setKind('.rly-kind-al',1);
         setKind('.rly-kind-wa',2);
         setKind('.rly-kind-ev',4);
@@ -692,12 +692,12 @@
       const lo=toArr(cfg.alarmLo), hi=toArr(cfg.alarmHi);
       for(let ch=0;ch<4;ch++){
         const ackEl=$('al-ackreq-'+ch);
-        if(ackEl&&ack[ch]!==undefined) ackEl.checked=!!(+ack[ch]);
+        if(ackEl&&ack[ch]!==undefined&&ackEl!==document.activeElement) ackEl.checked=!!(+ack[ch]);
         for(let ak=0;ak<3;ak++){
           const i=ch*3+ak;
           const enEl=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), metEl=$('al-met-'+ch+'-'+ak);
-          if(enEl&&en[i]!==undefined) enEl.checked=!!(+en[i]);
-          if(metEl&&met[i]!==undefined) metEl.value=String(met[i]);
+          if(enEl&&en[i]!==undefined&&enEl!==document.activeElement) enEl.checked=!!(+en[i]);
+          if(metEl&&met[i]!==undefined&&metEl!==document.activeElement) metEl.value=String(met[i]);
           const scale=alarmMetricScale(met[i]??metEl?.value??0);
           if(mn&&canApply('al-min-'+ch+'-'+ak)){
             const v=+lo[i];
@@ -716,12 +716,12 @@
       const applyCh=(ch,obj)=>{
         if(!obj||typeof obj!=='object') return;
         const ackEl=$('al-ackreq-'+ch);
-        if(ackEl&&obj.ack!==undefined) ackEl.checked=!!obj.ack;
+        if(ackEl&&obj.ack!==undefined&&ackEl!==document.activeElement) ackEl.checked=!!obj.ack;
         for(let ak=0;ak<3;ak++){
           const r=(Array.isArray(obj.rules)?obj.rules[ak]:null)??obj[ak]??obj[String(ak)]??{};
           const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
-          if(en&&r.enabled!==undefined) en.checked=!!(+r.enabled);
-          if(met&&r.metric!==undefined) met.value=String(r.metric);
+          if(en&&r.enabled!==undefined&&en!==document.activeElement) en.checked=!!(+r.enabled);
+          if(met&&r.metric!==undefined&&met!==document.activeElement) met.value=String(r.metric);
           const scale=alarmMetricScale(r.metric??met?.value??0);
           if(mn&&canApply('al-min-'+ch+'-'+ak)){
             if(r.min!==undefined&&r.min!==null&&r.min!=='') mn.value=String(r.min);
@@ -765,10 +765,12 @@
     }
 
     const CHIP_EV_BITS = [
-      { id: 'sag',  bit: 1, label: 'Sag',           color: '#6f42c1' },
-      { id: 'ov',   bit: 2, label: 'Overvoltage',   color: '#dc3545' },
-      { id: 'loss', bit: 4, label: 'Phase loss',    color: '#fd7e14' },
-      { id: 'oci',  bit: 8, label: 'Overcurrent',   color: '#ffc107' }
+      { id: 'sag',  bit: 1,  label: 'Sag',           color: '#6f42c1' },
+      { id: 'ov',   bit: 2,  label: 'Overvoltage',   color: '#dc3545' },
+      { id: 'loss', bit: 4,  label: 'Phase loss',    color: '#fd7e14' },
+      { id: 'oci',  bit: 8,  label: 'Overcurrent',   color: '#ffc107' },
+      { id: 'freq', bit: 16, label: 'Frequency',     color: '#0dcaf0' },
+      { id: 'rev',  bit: 32, label: 'Rev Phase',     color: '#6c757d' },
     ];
 
     function updateChipEv(chipEv){
