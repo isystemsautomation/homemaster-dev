@@ -12,7 +12,9 @@
 ##   E  54..85 Energy U32 (AP/AN/RP/RN × L1-3-T)
 ## Peaks / Pfund / Pharm / VAh / harmonic energy: WebSerial only (not on Modbus).
 ##
-## Coils / Holding unchanged (relays 0-1, service 5-8, ack 16-19, HR addr/baud/…).
+## Coils (DIO-style): write-only command coils — no FC01 read-back.
+##   Relay cmds 0-1 · Identify 5 · ACK 16-19. Save/Reboot/Reset-energy NOT on Modbus.
+##   Public relays = template switches (state from IO_MASK FC04).
 ## Parent must supply enm_id / enm_address / enm_prefix (and global modbus_bus).
 ##
 
@@ -87,13 +89,17 @@ binary_sensor:
     bitmask: 0x0080
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_relay1_state
     name: "${enm_prefix} Relay 1 State"
+    internal: true
     register_type: read
     address: 0
     bitmask: 0x0100
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_relay2_state
     name: "${enm_prefix} Relay 2 State"
+    internal: true
     register_type: read
     address: 0
     bitmask: 0x0200
@@ -103,262 +109,282 @@ binary_sensor:
     register_type: read
     address: 2
     bitmask: 0x0001
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Warning)"
     register_type: read
     address: 2
     bitmask: 0x0002
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Event)"
     register_type: read
     address: 2
     bitmask: 0x0004
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Alarm)"
     register_type: read
     address: 2
     bitmask: 0x0008
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Warning)"
     register_type: read
     address: 2
     bitmask: 0x0010
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Event)"
     register_type: read
     address: 2
     bitmask: 0x0020
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Alarm)"
     register_type: read
     address: 2
     bitmask: 0x0040
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Warning)"
     register_type: read
     address: 2
     bitmask: 0x0080
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Event)"
     register_type: read
     address: 2
     bitmask: 0x0100
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Alarm)"
     register_type: read
     address: 2
     bitmask: 0x0200
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Warning)"
     register_type: read
     address: 2
     bitmask: 0x0400
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Event)"
     register_type: read
     address: 2
     bitmask: 0x0800
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Sag L1"
     register_type: read
     address: 3
     bitmask: 0x0001
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overvoltage L1"
     register_type: read
     address: 3
     bitmask: 0x0002
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Phase Loss L1"
     register_type: read
     address: 3
     bitmask: 0x0004
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overcurrent L1"
     register_type: read
     address: 3
     bitmask: 0x0008
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Sag L2"
     register_type: read
     address: 4
     bitmask: 0x0001
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overvoltage L2"
     register_type: read
     address: 4
     bitmask: 0x0002
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Phase Loss L2"
     register_type: read
     address: 4
     bitmask: 0x0004
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overcurrent L2"
     register_type: read
     address: 4
     bitmask: 0x0008
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Sag L3"
     register_type: read
     address: 5
     bitmask: 0x0001
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overvoltage L3"
     register_type: read
     address: 5
     bitmask: 0x0002
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Phase Loss L3"
     register_type: read
     address: 5
     bitmask: 0x0004
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overcurrent L3"
     register_type: read
     address: 5
     bitmask: 0x0008
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Sag Total"
     register_type: read
     address: 6
     bitmask: 0x0001
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overvoltage Total"
     register_type: read
     address: 6
     bitmask: 0x0002
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Phase Loss Total"
     register_type: read
     address: 6
     bitmask: 0x0004
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Overcurrent Total"
     register_type: read
     address: 6
     bitmask: 0x0008
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Frequency Total"
     register_type: read
     address: 6
     bitmask: 0x0010
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Chip Reverse Phase Sequence"
     register_type: read
     address: 6
     bitmask: 0x0020
+    skip_updates: 2
 
-# ===================== Coils (FC01/05) — unchanged =====================
+# ===================== Coils — write-only (DIO pattern, no FC01 read-back) =====================
 switch:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 1"
+    id: ${enm_id}_relay1_coil
+    register_type: coil
     address: 0
-    register_type: coil
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 2"
+    id: ${enm_id}_relay2_coil
+    register_type: coil
     address: 1
-    register_type: coil
-
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_ack_l1
     modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L1"
-    address: 16
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l1
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_l2
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L2"
-    address: 17
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l2
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_l3
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK L3"
-    address: 18
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_l3
-
-  - platform: modbus_controller
-    id: ${enm_id}_ack_total
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} ACK Total"
-    address: 19
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${enm_id}_ack_total
-
-  - platform: modbus_controller
     id: ${enm_id}_cmd_identify
-    modbus_controller_id: ${enm_id}
     register_type: coil
     address: 5
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_save_cfg
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l1_coil
     register_type: coil
-    address: 6
+    address: 16
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_reboot
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l2_coil
     register_type: coil
-    address: 7
+    address: 17
     internal: true
     assumed_state: true
   - platform: modbus_controller
-    id: ${enm_id}_cmd_reset_energy
     modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_l3_coil
     register_type: coil
-    address: 8
+    address: 18
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    id: ${enm_id}_ack_total_coil
+    register_type: coil
+    address: 19
+    internal: true
+    assumed_state: true
+
+  # Public relays: state from IO_MASK (FC04), command via write-only coils
+  - platform: template
+    name: "${enm_prefix} Relay 1"
+    id: ${enm_id}_relay1
+    lambda: |-
+      return id(${enm_id}_relay1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${enm_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${enm_id}_relay1_coil
+  - platform: template
+    name: "${enm_prefix} Relay 2"
+    id: ${enm_id}_relay2
+    lambda: |-
+      return id(${enm_id}_relay2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${enm_id}_relay2_coil
+    turn_off_action:
+      - switch.turn_off: ${enm_id}_relay2_coil
 
 button:
   - platform: template
@@ -366,17 +392,21 @@ button:
     on_press:
       - switch.turn_on: ${enm_id}_cmd_identify
   - platform: template
-    name: "${enm_prefix} Save config"
+    name: "${enm_prefix} ACK L1"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_save_cfg
+      - switch.turn_on: ${enm_id}_ack_l1_coil
   - platform: template
-    name: "${enm_prefix} Reboot"
+    name: "${enm_prefix} ACK L2"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_reboot
+      - switch.turn_on: ${enm_id}_ack_l2_coil
   - platform: template
-    name: "${enm_prefix} Reset energy counters"
+    name: "${enm_prefix} ACK L3"
     on_press:
-      - switch.turn_on: ${enm_id}_cmd_reset_energy
+      - switch.turn_on: ${enm_id}_ack_l3_coil
+  - platform: template
+    name: "${enm_prefix} ACK Total"
+    on_press:
+      - switch.turn_on: ${enm_id}_ack_total_coil
 
 sensor:
   - platform: modbus_controller
@@ -430,6 +460,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
+    skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L1"
@@ -437,6 +468,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
+    skip_updates: 2
     filters:
       - multiply: 0.001
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
@@ -447,6 +479,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
+    skip_updates: 2
     filters:
       - multiply: 0.001
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
@@ -457,6 +490,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
+    skip_updates: 2
     filters:
       - multiply: 0.001
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
@@ -467,6 +501,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
+    skip_updates: 2
     filters:
       - multiply: 0.001
       - lambda: "return round(x * 1000.0f) / 1000.0f;"
@@ -478,6 +513,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
+    skip_updates: 2
     filters:
       - multiply: 0.1
       - lambda: "return round(x * 10.0f) / 10.0f;"
@@ -489,6 +525,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
+    skip_updates: 2
     filters:
       - multiply: 0.1
       - lambda: "return round(x * 10.0f) / 10.0f;"
@@ -500,6 +537,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°"
     accuracy_decimals: 1
+    skip_updates: 2
     filters:
       - multiply: 0.1
       - lambda: "return round(x * 10.0f) / 10.0f;"
@@ -511,6 +549,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "%"
     accuracy_decimals: 2
+    skip_updates: 2
     filters:
       - multiply: 0.01
       - lambda: "return round(x * 100.0f) / 100.0f;"
@@ -522,6 +561,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "%"
     accuracy_decimals: 2
+    skip_updates: 2
     filters:
       - multiply: 0.01
       - lambda: "return round(x * 100.0f) / 100.0f;"
@@ -533,6 +573,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "%"
     accuracy_decimals: 2
+    skip_updates: 2
     filters:
       - multiply: 0.01
       - lambda: "return round(x * 100.0f) / 100.0f;"
@@ -710,7 +751,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L2"
@@ -720,7 +761,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L3"
@@ -730,7 +771,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_ap_total
@@ -741,7 +782,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L1"
@@ -751,7 +792,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L2"
@@ -761,7 +802,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L3"
@@ -771,7 +812,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_an_total
@@ -782,7 +823,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L1"
@@ -791,7 +832,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L2"
@@ -800,7 +841,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L3"
@@ -809,7 +850,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rp_total
@@ -819,7 +860,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L1"
@@ -828,7 +869,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L2"
@@ -837,7 +878,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L3"
@@ -846,7 +887,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rn_total
@@ -856,7 +897,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-    skip_updates: 29
+    skip_updates: 1
   - platform: template
     name: "${enm_prefix} Active Energy Net Total"
     unit_of_measurement: "Wh"

@@ -655,29 +655,8 @@ static void serviceModbusServiceCoils(uint32_t now) {
     g_identifyUntilMs = now + IDENTIFY_MS;
     wsLog("Identify: LEDs active for 5 s");
   }
-  if (mb.Coil(COIL_SAVE_CFG)) {
-    mb.Coil(COIL_SAVE_CFG, false);
-    if (saveConfigFS()) {
-      cfgDirty = false;
-      meterDirty = false;
-      meterSavedEnergyCrc = meterEnergyCrc();
-      wsLog("Configuration saved");
-    } else {
-      wsLog("ERROR: Save failed");
-    }
-  }
-  if (mb.Coil(COIL_REBOOT)) {
-    mb.Coil(COIL_REBOOT, false);
-    wsLog("Rebooting…");
-    if (cfgDirty) saveSettingsFS();
-    (void)saveMeterFS();
-    delay(50);
-    rp2040.reboot();
-  }
-  if (mb.Coil(COIL_RESET_ENERGY)) {
-    mb.Coil(COIL_RESET_ENERGY, false);
-    resetEnergyCounters();
-  }
+  // Save/Reboot/Reset-energy are NOT exposed over Modbus (shared-bus safety):
+  // config autosaves; reboot and energy-reset remain available via WebConfig only.
 }
 
 static void updateLinkOkDetector(uint32_t now) {
