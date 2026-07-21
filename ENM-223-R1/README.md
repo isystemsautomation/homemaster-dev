@@ -1,75 +1,21 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Quick Start (current version)
-
-**Current firmware line: `v0.2.0`** — see [Firmware/README.md](Firmware/README.md) for build, persistence, and publish notes. (`v0.1.0` is legacy.)
-
-```yaml
-packages:
-  enm223_1:
-    url: https://github.com/isystemsautomation/homemaster-dev
-    ref: main
-    files:
-      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
-        vars:
-          enm_id: enm223_1
-          enm_address: 3
-          enm_prefix: "ENM #1"
-```
-
-Set `enm_address` to the Modbus ID configured in WebConfig (first-boot default **3** @ 19200 8N1).
-
-## 📦 Version History
-
-| Version | Config path (`path:`) | Date | Changes |
-|--------|------------------------|------|-----------|
-| **v0.2.0** | `ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-07 | **Current; shipped on new modules.** Contiguous FC04 `0..85`, primary-Wh energy, CT ratio + PGA, alarm engine, relay modes, LED/button Ack, write-only coils, no FC02 |
-| v0.1.0 | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | **Legacy** — previous map/layout; kept for existing units |
-
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino)
-
 # ENM-223-R1 — 3-Phase Power Metering & I/O Module
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-**Document map:** [§1 Introduction](#1-introduction) · [§4 Installation & WebConfig](#4-installation--quick-start) · [§5 Technical Specification](#5-module-code--technical-specification) · [§6 Modbus map](#6-modbus-rtu-communication) · [§7 ESPHome](#7-esphome-integration-guide) · [§8 Programming](#8-programming--customization) · [Firmware folder](Firmware/README.md)
+![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png)
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+**Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
-### Module Description
+---
+
+## 1. Overview
 
 The **ENM-223-R1** is a configurable smart I/O module designed for **3-phase power quality and energy metering**.  
 It includes **3 voltage inputs, 3 current channels**, **2 relays**, and optional **4 buttons / 4 LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
 It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **energy monitoring, automation, and smart building applications**.
-
----
-
-
-## Table of Contents
-
-* [1. Introduction](#1-introduction)
-* [2. Use Cases](#2-use-cases)
-* [3. Safety Information](#3-safety-information)
-* [4. Installation & Quick Start](#4-installation-quick-start)
-* [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
-* [6. Modbus RTU Communication](#6-modbus-rtu-communication)
-* [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
-* [8. Programming & Customization](#8-programming--customization)
-* [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
-* [10. Open Source & Licensing](#10-open-source--licensing)
-* [11. Downloads](#11-downloads)
-* [12. Support](#12-support)
-
-<br clear="left"/>
-
----
-
-<a id="1-introduction"></a>
-
-# 1. Introduction
-
-## 1.1 Overview of the ENM‑223‑R1 Module ⚡
 
 The **ENM‑223‑R1** is a modular **3‑phase energy metering + I/O** device for power monitoring, automation, and local control. It features **3 voltage channels (L1/L2/L3‑N)**, **3 current channels (external CTs)**, **2 SPDT relays**, **4 user LEDs**, and **4 buttons**—all driven by an **RP2350** MCU with QSPI flash and a dedicated **ATM90E32AS** metering IC.
 
@@ -78,11 +24,33 @@ It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master
 > Quick device flow:  
 > **Wire Lx/N/PE + CTs → set address/baud, line Hz, 3P4W/3P3W, phase mapping in WebConfig → calibrate → alarms (L1/L2/L3/Totals) → relay Alarm Controlled or Modbus → RS‑485 → poll Modbus.**
 
+The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm logic (thresholds & acks) and mirrors states/values to a PLC or SCADA via registers/coils. Configuration (meter options, calibration, relay/LED logic, button actions, Modbus address/baud) is done via **USB‑C WebConfig**, stored to non‑volatile memory.
+
+**Key capabilities at a glance:**
+
+- **3-phase metering** — Urms/Irms (+neutral), signed P/Q, S, PF, angle, frequency, temperature, THD; primary Wh/varh energy on Modbus FC04 `0..85`
+- **2 SPDT relays** — None / Modbus / Alarm modes; state on IR0 bits 8/9
+- **4 buttons / 4 LEDs** — toggle / Ack actions; LED alarm-kind sources
+- **Alarm engine** — L1–L3/Total × Alarm/Warning/Event; chip PQ in IR 3–6; ACK coils 16–19
+- **CT ratio + PGA** — primary-side reporting; energy decoupled from settings changes
+- **Driverless WebConfig** — USB-C + Chromium browser; persistent LittleFS settings
+- **ESPHome / HA** — ready-made YAML package
+
+| Role                 | Description |
+|----------------------|-------------|
+| System Position      | Expansion meter+I/O on the **RS‑485** trunk (A/B/GND) |
+| Master Controller    | MiniPLC / MicroPLC or any third‑party Modbus RTU **master** (polling) |
+| Address / Baud       | Configurable 1…247 / **9600–115200**; **first-boot default: ID 3 @ 19200 8N1** |
+| Bus Type             | RS‑485 half‑duplex; termination/bias per bus rules; share **GND** if separate PSUs |
+| USB‑C Port           | Setup/diagnostics via Chromium browser (Web Serial); native USB D+/D− to MCU |
+| Default Modbus ID    | **3** on fresh flash (set per site in WebConfig) |
+| Daisy‑Chaining       | Multi‑drop on shared A/B; ensure unique IDs and end‑of‑line termination |
+
+> **Note:** Per-channel **Alarm / Warning / Event** rules, **Ack required**, **Alarm Controlled** relays, **phase mapping**, **CT ratio / PGA**, and **3P4W/3P3W** are configured in WebConfig. Modbus exposes alarm flags in IR2, chip events in IR3–6, and write-only ACK coils 16–19.
+
 ---
 
-## 1.2 Features & Architecture
-
-### Core Capabilities
+## 2. Features
 
 | Subsystem       | Qty | Description |
 |-----------------|-----|-------------|
@@ -102,122 +70,196 @@ It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master
 | Power           | 24 VDC | Buck to 5 V → 3.3 V LDO; **isolated analog domain** via B0505S DC‑DC + ISO7761 |
 | Protection      | TVS, PTC, fuses | Surge/ESD on USB & RS‑485; resettable fuses on field I/O; reverse‑polarity protection |
 
+### Firmware / functional overview (v0.2.0)
+
+- **Identity:** Firmware **`0.2.0`** · Model ID **`2`** · `HM_MAP_VERSION` **`0x0020`** · `CFG_VERSION` **`0x0025`** · `METER_VERSION` **`0x0003`**.
+- **Metering (Modbus):** ATM90E32AS — Urms/Irms (+neutral), **signed** P/Q, S, PF, angle, frequency, temperature, THD; **primary Wh/varh** import/export energy (per phase + totals). Contiguous FC04 **`0..85`**.
+- **WebConfig-only live metrics:** U/I peaks, fundamental/harmonic power, apparent energy (VAh), harmonic active energy (kept off the bus map for a single-sweep 86-register read).
+- **CT / PGA:** Configurable CT ratio (primary A : secondary mA) and PGA ×1/×2/×4; currents, power and energy reported on the **primary** side. Energy counters are **decoupled** from CT/calibration changes.
+- **Wiring:** WebConfig **phase mapping** and **3P4W / 3P3W** applied on ATM re-init; line frequency; sum-abs mode.
+- **Alarm engine:** Four channels (L1–L3 + Total) × **Alarm / Warning / Event**; min/max metrics; optional **ack-required** latch. Chip PQ bits in IR 3–6; ACK coils 16–19.
+- **Relay control:** `None` / `Modbus` / **`Alarm`**; state read from IR0 bits 8/9 (coils 0/1 are write-only commands).
+- **LEDs / buttons:** LED sources include alarm-kind per channel; buttons can toggle relays or Ack.
+- **Setup:** WebConfig over USB-C (Chromium); reboot / save / energy-reset are WebConfig-only (not on Modbus).
+- **Data retention (split blobs):**
+  - **`/enm_cfg.bin`** — operational settings (`CFG_VERSION` **0x0025**).
+  - **`/enm_meter.bin`** — calibration + energy (`METER_VERSION` **0x0003**) — **preserved** across settings changes and compatible firmware updates.
+
+### Applications
+
+Typical uses for the ENM-223-R1:
+
+- **Overcurrent alarm with manual reset** — trip a relay on overcurrent and hold until Ack (WebConfig alarm rules + ACK coils 16–19).
+- **Manual relay toggle via button** — front-panel button toggles a relay when that relay is Modbus-controlled.
+- **Voltage / frequency environmental alarm** — detect sag/swell/frequency drift, trip a relay, auto-clear when back in range.
+- **Staged load shedding via Modbus** — a PLC sheds loads as consumption rises by writing relay coils over RS-485.
+
+Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-webconfig-reference).
+
 ---
 
-## 1.3 System Role & Communication 🍰
+## 3. Specifications
 
-The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm logic (thresholds & acks) and mirrors states/values to a PLC or SCADA via registers/coils. Configuration (meter options, calibration, relay/LED logic, button actions, Modbus address/baud) is done via **USB‑C WebConfig**, stored to non‑volatile memory.
+### 3.1 I/O summary
 
-| Role                 | Description |
+| Interface         | Qty | Description |
+|-------------------|-----|-------------|
+| **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
+| **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
+| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
+| **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
+| **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
+| **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
+| **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
+| **Power Input** | 1 | 24 V DC (22–28 V) logic supply, reverse & surge protected |
+
+### 3.2 Electrical ratings
+
+| Parameter | Min | Typ | Max | Unit | Notes |
+|------------|-----|-----|-----|------|-------|
+| **Supply Voltage (V+)** | 22 | 24 | 28 | V DC | SELV; reverse / surge protected input |
+| **Power Consumption** | – | 1.85 | 3.0 | W | Module only, no external loads |
+| **Logic Rails** | – | 3.3 / 5 | – | V | Buck (AP64501) + LDO (AMS1117-3.3) |
+| **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
+| **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
+| **Current Inputs** | – | 1 / 0.333 | – | V RMS | External CTs |
+| **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
+| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
+| **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
+| **Operating Temp.** | 0 | – | 40 | °C | ≤ 95 % RH non-condensing |
+| **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
+| **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
+
+> 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
+
+> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
+
+### 3.3 Mechanical & environmental
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" width="320"><br>
+</div>
+
+| Property | Specification |
+|-----------|---------------|
+| **Mounting** | DIN rail EN 50022 (35 mm) |
+| **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
+| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm (9 division units) |
+| **Weight** | ~420 g |
+| **Terminals** | 300 V / 20 A / 26–12 AWG (2.5 mm²) / torque 0.5–0.6 Nm / pitch 5.08 mm |
+| **Ingress Protection** | IP20 (EN 60529) |
+| **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
+<em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
+</div>
+
+### 3.4 Communication defaults
+
+Factory settings applied to every new module:
+
+| Parameter | Default |
+|-----------|---------|
+| **Modbus Address** | `3` |
+| **Baud Rate** | `19200` |
+| **Parity** | `None` |
+| **Stop Bits** | `1` |
+
+Address **1–247**; baud 9600 / 19200 / 38400 / 57600 / 115200. **Set via [WebConfig](#6-webconfig-reference) over USB-C — recommended.**
+
+> 🧷 Reversed A/B will cause CRC errors — check if no response.
+
+The module communicates over **RS-485 Modbus RTU** (A/B differential + shared COM/GND). Configuration is stored persistently in **LittleFS** and can be changed live through **USB-C + WebConfig**.
+
+### 3.5 Reliability & protection
+
+- **Primary Protection:** Reverse-path diode + MOSFET high-side switch; distributed inline fuses  
+- **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
+- **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
+- **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
+- **RS-485:** TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  
+- **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
+- **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
+
+### Standards & compliance
+
+| Standard / Directive | Description |
 |----------------------|-------------|
-| System Position      | Expansion meter+I/O on the **RS‑485** trunk (A/B/GND) |
-| Master Controller    | MiniPLC / MicroPLC or any third‑party Modbus RTU **master** (polling) |
-| Address / Baud       | Configurable 1…247 / **9600–115200**; **first-boot default: ID 3 @ 19200 8N1** |
-| Bus Type             | RS‑485 half‑duplex; termination/bias per bus rules; share **GND** if separate PSUs |
-| USB‑C Port           | Setup/diagnostics via Chromium browser (Web Serial); native USB D+/D− to MCU |
-| Default Modbus ID    | **3** on fresh flash (set per site in WebConfig) |
-| Daisy‑Chaining       | Multi‑drop on shared A/B; ensure unique IDs and end‑of‑line termination |
-
-> **Note:** Per-channel **Alarm / Warning / Event** rules, **Ack required**, **Alarm Controlled** relays, **phase mapping**, **CT ratio / PGA**, and **3P4W/3P3W** are configured in WebConfig. Modbus exposes alarm flags in IR2, chip events in IR3–6, and write-only ACK coils 16–19.
-
-
-<a id="2-use-cases"></a>
-
-# 2. Use Cases
-
-This section outlines practical application examples for the **ENM‑223‑R1** module. Each use case includes a functional goal and a clear configuration procedure using the WebConfig tool and/or Modbus RTU integration.
-
-These templates are applicable in energy management, automation, industrial control, and building infrastructure deployments.
+| **Ingress Rating** | IP20 (panel mount only) |
+| **Altitude Limit** | ≤ 2000 m |
+| **Environment** | RoHS / REACH compliant |
 
 ---
 
-## 2.1 Overcurrent Alarm with Manual Reset
+## 4. Hardware & Interface
 
-**Purpose:** Activate **Relay 1** when current exceeds a configured threshold and hold it until manually acknowledged.
+### 4.1 Diagrams & pinouts
 
-### Configuration:
-- **Alarms** → Channel: `Totals`  
-  - Enable **Alarm**  
-  - Metric: `Current (Irms)`  
-  - Max threshold: e.g. `> 5000` (for 5 A)  
-  - Enable **Ack required**
-- **Relays** → Relay 1  
-  - Mode: `Alarm Controlled`  
-  - Channel: `Totals`, Kinds: `Alarm`
-- **LEDs** → LED 1  
-  - Source: `Relay 1` (shows trip), Mode: `Steady`
-- **Acknowledge**: via Web UI, Modbus coils `16–19` (L1/L2/L3/Total), or front panel button (if assigned)
+<div align="center">
 
----
+<table>
+<tr>
+<td align="center">
+<strong>System Diagram</strong><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
+</td>
+<td align="center">
+<strong>MCU Pinout</strong><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
+</td>
+</tr>
+<tr>
+<td align="center">
+<strong>Field Board Terminal Map</strong><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
+</td>
+<td align="center">
+<strong>MCU Board Layout</strong><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
+</td>
+</tr>
+</table>
 
-## 2.2 Manual Relay Toggle via Button
+</div>
 
-**Purpose:** Allow field operators to toggle **Relay 2** with a front-panel button when the relay is **Modbus Controlled**.
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (26–12 AWG, torque 0.5–0.6 Nm).
 
-### Configuration:
-- **Relays** → Relay 2  
-  - Mode: `Modbus Controlled`  
-  - Enabled at power-on
-- **Buttons** → Button 2  
-  - Action: `Toggle Relay 2`
-- **LEDs** → LED 2  
-  - Source: `Relay 2`, Mode: `Steady` or `Blink`
+### 4.2 Connectors & terminal map
 
-> Button actions apply only in **Modbus Controlled** mode. Use **Alarm Controlled** when the relay must follow meter alarms (local load shed).
+| Block / Label | Pin(s) (left→right) | Function / Signal | Limits / Notes |
+|----------------|--------------------|------------------|----------------|
+| **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
+| **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
+| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External CT (333 mV / 1 V RMS) | Shielded pairs recommended |
+| **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
+| **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
+| **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
+| **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
+| **LED / BTN Interface** | – | Internal header MCU ↔ Field Board | Service only |
 
----
+### 4.3 Front panel — buttons & LEDs
 
-## 2.3 Environmental Voltage/Frequency Alarm with Auto-Clear
+1. Connect USB-C to your PC.
+2. Enter boot/flash mode if required.
+3. Upload the provided firmware/source.
 
-**Purpose:** Detect power quality faults (sag/swell or freq drift), activate **Relay 1** as an output, and auto-reset when back in range.
+**Boot/Reset combinations:**
 
-### Configuration:
-- **Alarms** → Channel: `L1`  
-  - Enable **Alarm**  
-  - Metric: `Voltage (Urms)`  
-  - Min: `21000` (210 V), Max: `25000` (250 V)  
-  - Leave **Ack required** unchecked
-- **Relays** → Relay 1  
-  - Mode: `Alarm Controlled`, Channel: `L1`, Kinds: `Alarm`
-- **LEDs** → LED 1  
-  - Source: `Relay 1`, Mode: `Steady` (or poll Modbus DI **16** for Alarm L1 in PLC/HA)
+- **Buttons 1 + 2** → forces the module into **BOOT mode**
+- **Buttons 3 + 4** → triggers a hardware **RESET**
 
----
+These combinations are handled in hardware. Use them when flashing or manually rebooting the module.
 
-## 2.4 Staged Load Shedding via Modbus Scenes
+**🧭 Button layout reference:**
 
-**Purpose:** Use a controller to shed non-critical loads as power consumption increases.
-
-### Configuration:
-- **Relays** → Relay 1 and Relay 2  
-  - Mode: `Modbus Controlled`
-- In PLC logic:
-  - Monitor `Totals S (VA)` via Input Register
-  - If `S > 8000`, write coil `0 = OFF` (Relay 1)
-  - If `S > 10000`, write coil `1 = OFF` (Relay 2)
-  - Restore relays when values drop below defined hysteresis limits
-
-> Ideal for HVAC or lighting where priority-based power shedding is needed.
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
 
 ---
 
-### Summary Table
+## 5. Getting Started
 
-| Use Case                               | Feature Used                | Reset Method         | Relay Mode         |
-|----------------------------------------|-----------------------------|----------------------|--------------------|
-| Overcurrent Alarm + Ack                | Alarms, Ack, Relay 1        | Manual (Ack)         | Alarm Controlled   |
-| Manual relay toggle via button       | Button → relay              | Button toggle        | Modbus Controlled  |
-| Voltage/Frequency Fault Auto-Reset     | Alarm (no ack), Relay       | Auto (value returns) | Alarm Controlled   |
-| Load Shedding (Staged Scenes)          | PLC Modbus, Relay 1 & 2     | PLC-controlled       | Modbus Controlled  |
-
-> 🛠 All parameters are configurable via USB‑C WebConfig. Modbus control assumes master-side logic (PLC, SCADA, or MicroPLC/MiniPLC).
-
----
-
-
-<a id="3-safety-information"></a>
-
-# 3. Safety Information
+### 5.1 Safety *(read before wiring)*
 
 These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O module**. Ignoring them may result in **equipment damage, system failure, or personal injury**.
 
@@ -225,7 +267,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 ---
 
-## 3.1 General Requirements
+#### General requirements
 
 | Requirement           | Detail |
 |-----------------------|--------|
@@ -237,7 +279,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 ---
 
-## 3.2 Installation Practices
+#### Installation practices
 
 | Task                | Guidance |
 |---------------------|----------|
@@ -249,9 +291,9 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 ---
 
-## 3.3 I/O & Interface Warnings
+#### I/O & interface warnings
 
-### ⚡ Power
+#### ⚡ Power
 
 | Area             | Warning |
 |------------------|---------|
@@ -259,27 +301,27 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 | **Voltage Input** | Connect **L1/L2/L3/N/PE** only within rated range (85–265 V AC). Use circuit protection upstream. |
 | **Sensor Domain** | Use **CTs with 1 V or 333 mV RMS** output. Never apply 5 A directly. Observe polarity and shielding. |
 
-### 🧲 Inputs & Relays
+#### 🧲 Inputs & Relays
 
 | Area              | Warning |
 |-------------------|---------|
 | **CT Inputs**      | Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference. |
-| **Relay Outputs**  | Dry contacts only. Rated: **5 A @ 250 VAC or 30 VDC**. Use snubber (RC/TVS) for inductive loads. |
+| **Relay Outputs**  | Dry contacts only. Rated: **3 A @ 250 VAC or 30 VDC** (module limit). Use snubber (RC/TVS) for inductive loads. |
 
-### 🖧 Communication & USB
+#### 🖧 Communication & USB
 
 | Area            | Warning |
 |-----------------|---------|
 | **RS‑485 Bus**   | Use **twisted pair**. Terminate at both ends. Match A/B polarity. Share GND if powered from different PSUs. |
 | **USB-C (Front)**| For **setup only**. Not for permanent field connection. Disconnect during storms or long idle periods. |
 
-### 🎛 Front Panel
+#### 🎛 Front Panel
 
 | Area               | Warning |
 |--------------------|---------|
 | **Buttons & LEDs** | Buttons toggle relays in Modbus mode only. Use **Alarm Controlled** relays for safety interlocks. |
 
-### 🛡 Shielding & EMC
+#### 🛡 Shielding & EMC
 
 | Area             | Recommendation |
 |------------------|----------------|
@@ -287,30 +329,19 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 ---
 
-### ✅ Pre‑Power Checklist
+#### ✅ Pre‑Power Checklist
 
 - [x] All wiring is torqued, labeled, and strain-relieved  
 - [x] **No bridge between logic GND and GND_ISO**  
 - [x] PE and N are wired to terminals  
 - [x] RS‑485 A/B polarity and 120 Ω termination confirmed  
-- [x] Relay loads do **not** exceed 5 A or contact voltage rating  
+- [x] Relay loads do **not** exceed 3 A or contact voltage rating  
 - [x] CTs installed with correct polarity and securely landed  
 - [x] Voltage inputs fused, protected, and within spec (85–265 V AC)
 
 > 🧷 **Tip:** In single-phase installations, energize **L1** and tie **L2/L3 → N** to prevent phantom voltages.
 
-
-
-<a id="4-installation-quick-start"></a>
-
-# 4. Installation & Quick Start
-
-The **ENM‑223‑R1** connects to your system over **RS‑485 (Modbus RTU)** and supports configuration via **USB‑C WebConfig**. Setup involves:  
-**1) Physical wiring**, **2) Digital setup** (WebConfig → Modbus or PLC/ESPHome control).
-
----
-
-## 4.1 What You Need
+### 5.2 What you need
 
 | Category     | Item / Notes |
 |--------------|--------------|
@@ -325,15 +356,11 @@ The **ENM‑223‑R1** connects to your system over **RS‑485 (Modbus RTU)** an
 | **Isolation Domains** | GND (logic) ≠ GND_ISO (metering); never bond these directly |
 | **Tools** | Torque screwdriver, ferrules, USB-capable PC, 120 Ω terminators if needed |
 
----
-
 > **Quick Path**  
 > ① Mount → ② wire **24 VDC + RS‑485 (A/B/COM)** → ③ connect **USB‑C** → ④ launch WebConfig →  
 > Set **Address/Baud** → assign **Inputs/Relays/LEDs** → confirm data → ⑤ disconnect USB → hand control to Modbus master.
 
----
-
-## 4.2 Power
+### 5.3 Power notes
 
 The ENM‑223‑R1 uses **24 V DC** input for its interface domain and internally isolates metering circuits.
 
@@ -343,7 +370,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 - **Protection:** Internally fused, reverse-polarity protected
 - **Logic domain:** Powers MCU, RS‑485, LEDs, buttons, relays
 
-### 4.2.1 Sensor Isolation
+#### Sensor isolation
 
 - **Metering IC** (ATM90E32AS) is powered from an isolated 5 V rail
 - Analog domain uses **GND_ISO**, fully isolated from GND
@@ -353,18 +380,75 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 ---
 
-### 4.2.2 Power Tips
+#### Power tips
 
 - **Do not power relays or outputs** from metering-side inputs
 - Use separate fusing on L1–L3
 - Tie **L2, L3 → N** if using single-phase only (prevents phantom voltage)
 - Confirm PE is wired — improves stability & safety
 
----
+### 5.4 Step-by-step
 
-## 4.3 Networking & Communication
+#### Wire
 
-### 4.3.1 RS‑485 (Modbus RTU)
+- **24 V DC** to `V+ / GND` (top left terminals)
+- **Voltage inputs**: `PE / N / L1 / L2 / L3`  
+  - For single-phase: energize **L1 only**, tie **L2/L3 → N**
+- **CTs** to `CT1/CT2/CT3` with correct ± polarity (1 V or 333 mV RMS)  
+  - Arrow → load; shielded pairs preferred
+- **RS‑485 A/B/COM**  
+  - Use shielded twisted pair; terminate bus ends with **120 Ω**
+- (Optional) **Relay outputs**: `COM/NO/NC`  
+  - Add **snubber** on inductive loads (RC/TVS)
+- Ground panel PE and avoid bridging **GND ↔ GND_ISO**
+
+Mount the module on a **35 mm DIN rail** inside a suitable enclosure; only qualified personnel may wire **mains voltage**, **CT**, or relay load circuits. Do **not** bond **GND** (logic) to **GND_ISO** (metering domain).
+
+#### Power (24 V DC)
+
+Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relays, and status LEDs (reverse-polarity protected; typical 50–150 mA).
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+
+*Regulated **24 V DC** to **V+** / **0V** — fuse the feed upstream per local rules.*
+
+#### 3-phase voltage inputs
+
+Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals for your **3P4W** or **3P3W** installation — these terminals can carry hazardous mains voltage.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
+
+*Phase and neutral sensing inputs per terminal map; set wiring scheme and phase mapping in WebConfig.*
+
+#### Current transformers (CT)
+
+Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity and the rated output level (333 mV or 1 V RMS).
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
+
+*Shielded CT leads recommended; observe arrow polarity for correct signed power readings.*
+
+#### Relays (2× SPDT)
+
+Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
+
+*Dry contacts only — external load supply and overcurrent protection are mandatory.*
+
+#### RS-485 (Modbus RTU)
+
+Wire **A**, **B**, and **COM** on twisted-pair cable in a daisy-chain bus; place **120 Ω** termination at the physical ends of the segment.
+
+<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
+
+***A** → A, **B** → B, **COM** → reference ground as required by the network.*
+
+#### USB-C
+
+The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from the host PC, logic domain); it is **not** a field power or runtime data bus — disconnect USB before energising the installation and before handing control to RS-485.
+
+#### RS‑485 (Modbus RTU)
 
 #### Physical
 
@@ -383,7 +467,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 | Setting       | Value        |
 |---------------|--------------|
-| Modbus Address | `30` (first boot; set per site in WebConfig) |
+| Modbus Address | `3` (first boot; set per site in WebConfig) |
 | Baud Rate      | `19200` |
 | Format         | `8N1` |
 | Address Range  | 1–247 |
@@ -392,7 +476,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 ---
 
-### 4.3.2 USB‑C (WebConfig)
+#### USB‑C (WebConfig)
 
 **Purpose:** Web-based configuration tool over native USB Serial. Supports:
 - Live readings
@@ -412,60 +496,66 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 > ⚠️ If **Connect** is greyed out: check browser support, OS permissions, and close any other apps using the port.
 
+#### Configure (WebConfig)
 
-<a id="installation-wiring"></a>
 
-## 4.4 Installation & Wiring
+- Open `Firmware/v0.2.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
+- Connect via **USB‑C** → **Select port → Connect**
+- Set:
+  - **Modbus Address / Baud**  
+  - **Line frequency, sum mode, 3P4W/3P3W, phase mapping**
+  - **Alarm thresholds** per L1/L2/L3/Totals
+  - **Relay modes**: Alarm or Modbus Controlled
+  - Map **Buttons & LEDs** (relay toggle / status)
+  - (Optional) Adjust **U/I gains**, save calibration
 
-Mount the module on a **35 mm DIN rail** inside a suitable enclosure; only qualified personnel may wire **mains voltage**, **CT**, or relay load circuits. Do **not** bond **GND** (logic) to **GND_ISO** (metering domain).
+👉 See: [WebConfig UI](#6-webconfig-reference)
 
-### Power (24 V DC)
+#### Integrate (Controller)
 
-Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relays, and status LEDs (reverse-polarity protected; typical 50–150 mA).
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+- Connect controller via **RS‑485**
+- Match **Modbus address / baud**
+- Poll:
+  - **Input registers**: meter values (U, I, P, Q, S, PF, angle, kWh, etc.)
+  - **Coils**: relays (0/1), Ack (16–19), button state
+- Send:
+  - **Coil writes**: toggle relays, acknowledge alarms
+- Use with:
+  - HomeMaster MicroPLC / MiniPLC
+  - SCADA / ESPHome
 
-*Regulated **24 V DC** to **V+** / **0V** — fuse the feed upstream per local rules.*
+👉 See: [Modbus RTU Communication](#7-modbus-register-map) & [Integration Guide](#8-esphome--home-assistant-integration)
 
-### 3-phase voltage inputs
+ESPHome package import (current firmware):
 
-Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals for your **3P4W** or **3P3W** installation — these terminals can carry hazardous mains voltage.
+```yaml
+packages:
+  enm223_1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+        vars:
+          enm_id: enm223_1
+          enm_address: 3
+          enm_prefix: "ENM #1"
+```
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
+Set `enm_address` to the Modbus ID configured in WebConfig (first-boot default **3** @ 19200 8N1).
 
-*Phase and neutral sensing inputs per terminal map; set wiring scheme and phase mapping in WebConfig.*
+### 5.5 Verify
 
-### Current transformers (CT)
 
-Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity and the rated output level (333 mV or 1 V RMS).
+| Area           | What to Check |
+|----------------|---------------|
+| **LEDs**       | `PWR = ON`; `TX/RX = blink` during comms |
+| **Voltage**    | L1–L3 read ~230 V (or phase-neutral voltage) |
+| **Current**
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
+---
 
-*Shielded CT leads recommended; observe arrow polarity for correct signed power readings.*
-
-### Relays (2× SPDT)
-
-Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits.
-
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
-
-*Dry contacts only — external load supply and overcurrent protection are mandatory.*
-
-### RS-485 (Modbus RTU)
-
-Wire **A**, **B**, and **COM** on twisted-pair cable in a daisy-chain bus; place **120 Ω** termination at the physical ends of the segment.
-
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
-
-***A** → A, **B** → B, **COM** → reference ground as required by the network.*
-
-### USB-C
-
-The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from the host PC, logic domain); it is **not** a field power or runtime data bus — disconnect USB before energising the installation and before handing control to RS-485.
-
-<a id="software-ui-configuration"></a>
-
-## 4.5 Software & UI Configuration
+## 6. WebConfig Reference
 
 The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
 (`Firmware/v0.2.0/ConfigToolPage.html`) over **USB‑C**.  
@@ -478,8 +568,6 @@ No drivers or software installation is required — configuration happens direct
 - **Press Enter** to apply a change.
 - All settings are stored in non‑volatile flash.
 
----
-
 ### 1) Modbus Setup (Address & Baud)
 
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig1.png" width="440" alt="WebConfig — Modbus address & baud" width="100%"/>
@@ -491,8 +579,6 @@ No drivers or software installation is required — configuration happens direct
   - **Baud Rate**: `9600 / 19200 / 38400 / 57600 / 115200` (default = `19200`)
 - Changes are live and applied on selection.
 - If you change baud or address, remember to reconnect the controller with updated settings.
-
----
 
 ### 2) Meter Options & Calibration
 
@@ -511,8 +597,6 @@ No drivers or software installation is required — configuration happens direct
 - **Ugain / Igain**: scaling gains (16-bit, 0–65535)
 - **Uoffset / Ioffset**: calibration offsets (signed)
 - Press **Enter** after editing to write the value to the module.
-
----
 
 ### 3) Alarms / Inputs (Per‑Channel Rules)
 
@@ -555,8 +639,6 @@ Threshold **Alarm** and **Warning** rules use **2 % hysteresis** on the configur
 
 > 💡 ENM has no digital inputs (DIs). Alarm rules are virtual inputs driven by live metering and the metering IC status registers.
 
----
-
 ### 4) Relay Logic Modes
 
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig6.png" width="440" alt="Relay logic options" width="100%"/>
@@ -575,8 +657,6 @@ Options:
 
 In **`Alarm Controlled`** mode the relay **energizes while the selected alarm condition is active** — typical use: **local load shed / trip** on overcurrent or PQ fault. The relay releases when the rule clears (with hysteresis) or after **Ack** when **Ack required** is set. Modbus coils **0/1** do not drive the relay in this mode.
 
----
-
 ### 5) Button & LED Mapping
 
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig5.png" width="440" alt="Buttons and LED mapping" width="100%"/>
@@ -591,8 +671,6 @@ Each button can be mapped to:
 Each LED has:
 - **Mode**: `Steady` or `Blink`
 - **Source**: `None`, or logical state of **Relay 1 / Relay 2** (useful to show Alarm Controlled trip)
-
----
 
 ### 6) Live Meter & Energies
 
@@ -611,227 +689,9 @@ Each LED has:
 
 > Use this screen to verify CT orientation, load phase mapping, and live alarm behavior during commissioning.
 
-<a id="4-6-getting-started"></a>
-
-## 4.6 Getting Started (3 Phases)
-
-### Phase 1 — Wire
-
-- **24 V DC** to `V+ / GND` (top left terminals)
-- **Voltage inputs**: `PE / N / L1 / L2 / L3`  
-  - For single-phase: energize **L1 only**, tie **L2/L3 → N**
-- **CTs** to `CT1/CT2/CT3` with correct ± polarity (1 V or 333 mV RMS)  
-  - Arrow → load; shielded pairs preferred
-- **RS‑485 A/B/COM**  
-  - Use shielded twisted pair; terminate bus ends with **120 Ω**
-- (Optional) **Relay outputs**: `COM/NO/NC`  
-  - Add **snubber** on inductive loads (RC/TVS)
-- Ground panel PE and avoid bridging **GND ↔ GND_ISO**
-
-👉 See: [Installation & Quick Start](#4-installation--quick-start)
-
 ---
 
-### Phase 2 — Configure (WebConfig)
-
-- Open `Firmware/v0.2.0/ConfigToolPage.html` in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi)
-- Connect via **USB‑C** → **Select port → Connect**
-- Set:
-  - **Modbus Address / Baud**  
-  - **Line frequency, sum mode, 3P4W/3P3W, phase mapping**
-  - **Alarm thresholds** per L1/L2/L3/Totals
-  - **Relay modes**: Alarm or Modbus Controlled
-  - Map **Buttons & LEDs** (relay toggle / status)
-  - (Optional) Adjust **U/I gains**, save calibration
-
-👉 See: [WebConfig UI](#45-software--ui-configuration)
-
----
-
-### Phase 3 — Integrate (Controller)
-
-- Connect controller via **RS‑485**
-- Match **Modbus address / baud**
-- Poll:
-  - **Input registers**: meter values (U, I, P, Q, S, PF, angle, kWh, etc.)
-  - **Coils**: relays (0/1), Ack (16–19), button state
-- Send:
-  - **Coil writes**: toggle relays, acknowledge alarms
-- Use with:
-  - HomeMaster MicroPLC / MiniPLC
-  - SCADA / ESPHome
-
-👉 See: [Modbus RTU Communication](#modbus-rtu) & [Integration Guide](#integration)
-
----
-
-### ✅ Verify
-
-| Area           | What to Check |
-|----------------|---------------|
-| **LEDs**       | `PWR = ON`; `TX/RX = blink` during comms |
-| **Voltage**    | L1–L3 read ~230 V (or phase-neutral voltage) |
-| **Current**   
-
----
-
-<a id="5-module-code--technical-specification"></a>
-
-# 5. ENM-223-R1 — Technical Specification
-
----
-
-## 5.1 Diagrams & Pinouts
-
-<div align="center">
-
-<table>
-<tr>
-<td align="center">
-<strong>System Diagram</strong><br>
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
-</td>
-<td align="center">
-<strong>MCU Pinout</strong><br>
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
-</td>
-</tr>
-<tr>
-<td align="center">
-<strong>Field Board Terminal Map</strong><br>
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
-</td>
-<td align="center">
-<strong>MCU Board Layout</strong><br>
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
-</td>
-</tr>
-</table>
-
-</div>
-
-> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (26–12 AWG, torque 0.5–0.6 Nm).
-
----
-
-## 5.2 I/O Summary
-
-| Interface         | Qty | Description |
-|-------------------|-----|-------------|
-| **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
-| **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
-| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
-| **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
-| **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
-| **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
-| **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
-| **Power Input** | 1 | 24 V DC (22–28 V) logic supply, reverse & surge protected |
-
----
-
-## 5.3 Absolute Electrical Specifications
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|------------|-----|-----|-----|------|-------|
-| **Supply Voltage (V+)** | 22 | 24 | 28 | V DC | SELV; reverse / surge protected input |
-| **Power Consumption** | – | 1.85 | 3.0 | W | Module only, no external loads |
-| **Logic Rails** | – | 3.3 / 5 | – | V | Buck (AP64501) + LDO (AMS1117-3.3) |
-| **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
-| **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
-| **Current Inputs** | – | 1 / 0.333 | – | V RMS | External CTs |
-| **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
-| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
-| **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
-| **Operating Temp.** | 0 | – | 40 | °C | ≤ 95 % RH non-condensing |
-| **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
-| **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
-
-> 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
-
-> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
-
----
-
-## 5.4 Connector / Terminal Map (Field Side)
-
-| Block / Label | Pin(s) (left→right) | Function / Signal | Limits / Notes |
-|----------------|--------------------|------------------|----------------|
-| **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
-| **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
-| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External CT (333 mV / 1 V RMS) | Shielded pairs recommended |
-| **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
-| **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
-| **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
-| **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
-| **LED / BTN Interface** | – | Internal header MCU ↔ Field Board | Service only |
-
----
-
-## 5.5 Reliability & Protection Specifics
-
-- **Primary Protection:** Reverse-path diode + MOSFET high-side switch; distributed inline fuses  
-- **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
-- **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
-- **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
-- **RS-485:** TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  
-- **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
-- **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
-
----
-
-## 5.6 Firmware / Functional Overview (v0.2.0)
-
-- **Identity:** Firmware **`0.2.0`** · Model ID **`2`** · `HM_MAP_VERSION` **`0x0020`** · `CFG_VERSION` **`0x0025`** · `METER_VERSION` **`0x0003`**.
-- **Metering (Modbus):** ATM90E32AS — Urms/Irms (+neutral), **signed** P/Q, S, PF, angle, frequency, temperature, THD; **primary Wh/varh** import/export energy (per phase + totals). Contiguous FC04 **`0..85`**.
-- **WebConfig-only live metrics:** U/I peaks, fundamental/harmonic power, apparent energy (VAh), harmonic active energy (kept off the bus map for a single-sweep 86-register read).
-- **CT / PGA:** Configurable CT ratio (primary A : secondary mA) and PGA ×1/×2/×4; currents, power and energy reported on the **primary** side. Energy counters are **decoupled** from CT/calibration changes.
-- **Wiring:** WebConfig **phase mapping** and **3P4W / 3P3W** applied on ATM re-init; line frequency; sum-abs mode.
-- **Alarm engine:** Four channels (L1–L3 + Total) × **Alarm / Warning / Event**; min/max metrics; optional **ack-required** latch. Chip PQ bits in IR 3–6; ACK coils 16–19.
-- **Relay control:** `None` / `Modbus` / **`Alarm`**; state read from IR0 bits 8/9 (coils 0/1 are write-only commands).
-- **LEDs / buttons:** LED sources include alarm-kind per channel; buttons can toggle relays or Ack.
-- **Setup:** WebConfig over USB-C (Chromium); reboot / save / energy-reset are WebConfig-only (not on Modbus).
-- **Data retention (split blobs):**
-  - **`/enm_cfg.bin`** — operational settings (`CFG_VERSION` **0x0025**).
-  - **`/enm_meter.bin`** — calibration + energy (`METER_VERSION` **0x0003**) — **preserved** across settings changes and compatible firmware updates.
-
----
-
-## 5.7 Mechanical Details
-
-<div align="center">
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/photo1.png" width="320"><br>
-</div>
-
-| Property | Specification |
-|-----------|---------------|
-| **Mounting** | DIN rail EN 50022 (35 mm) |
-| **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
-| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm (9 division units) |
-| **Weight** | ~420 g |
-| **Terminals** | 300 V / 20 A / 26–12 AWG (2.5 mm²) / torque 0.5–0.6 Nm / pitch 5.08 mm |
-| **Ingress Protection** | IP20 (EN 60529) |
-| **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
-
-<div align="center">
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
-<em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
-</div>
-
----
-
-## 5.8 Standards & Compliance
-
-| Standard / Directive | Description |
-|----------------------|-------------|
-| **Ingress Rating** | IP20 (panel mount only) |
-| **Altitude Limit** | ≤ 2000 m |
-| **Environment** | RoHS / REACH compliant |
-
----
-
-<a id="6-modbus-rtu-communication"></a>
-
-# 6. Modbus RTU Communication
+## 7. Modbus Register Map
 
 The ENM‑223‑R1 is a **Modbus RTU slave** on RS‑485. Firmware **v0.2.0** exposes a **contiguous** map designed for **one FC04 sweep**:
 
@@ -850,7 +710,7 @@ The ENM‑223‑R1 is a **Modbus RTU slave** on RS‑485. Firmware **v0.2.0** ex
 
 > Full addresses, types, scales and bit layouts: **[Modbus_Table.md](Modbus_Table.md)**.
 
-### 6.1 Map summary (FC04)
+### 7.1 Map summary (FC04)
 
 | Addr | Content |
 |------|---------|
@@ -863,7 +723,7 @@ The ENM‑223‑R1 is a **Modbus RTU slave** on RS‑485. Firmware **v0.2.0** ex
 | 30–52 | P / Q / S L1–Total (**S32**) |
 | 54–84 | Active/reactive import & export energy (**U32** Wh/varh, primary) |
 
-### 6.2 Coils (write-only)
+### 7.2 Coils (write-only)
 
 | Addr | Coil |
 |------|------|
@@ -873,7 +733,7 @@ The ENM‑223‑R1 is a **Modbus RTU slave** on RS‑485. Firmware **v0.2.0** ex
 
 Reboot, save-config and energy-reset are **not** on Modbus — use WebConfig.
 
-### 6.3 Holding registers
+### 7.3 Holding registers
 
 | Addr | Field |
 |------|-------|
@@ -883,13 +743,13 @@ Reboot, save-config and energy-reset are **not** on Modbus — use WebConfig.
 | 5 | Sum-abs mode |
 | 7–8 | Relay 1 / 2 enable |
 
-### 6.4 Polling
+### 7.4 Polling
 
 - Prefer **one FC04** of `0..85` at ~1 s for live data.
 - Energy (54–84) may be polled less often; the ESPHome package uses `skip_updates: 2` on energy sensors.
 - Stagger multiple ENMs on a shared bus (unique IDs, end-of-line termination).
 
-### 6.5 Integrator note (upgrading from v0.1.0)
+### 7.5 Integrator note (upgrading from v0.1.0)
 
 The map is **not** a drop-in for masters that still poll discrete inputs, peaks on Modbus, or addresses above 85. Point ESPHome at the v0.2.0 package and regenerate entities.
 
@@ -901,9 +761,9 @@ modbus_controller:
     update_interval: 1s
 ```
 
-<a id="7-esphome-integration-guide"></a>
+---
 
-# 7. ESPHome Integration Guide (MicroPLC/MiniPLC + ENM‑223‑R1)
+## 8. ESPHome / Home Assistant Integration
 
 The HomeMaster controller (MiniPLC or MicroPLC) running **ESPHome** acts as the **Modbus RTU master** over RS‑485. It polls one or more ENM‑223‑R1 modules and publishes all sensors, relays, LEDs, and alarms into **Home Assistant**.
 
@@ -911,7 +771,7 @@ No Home Assistant add-ons are required — all logic runs on the ESPHome control
 
 ---
 
-## 7.1 Architecture & Data Flow
+### 8.1 Architecture & Data Flow
 
 - **Topology**: Home Assistant → ESPHome (MicroPLC) → RS‑485 → ENM‑223‑R1
 - **Roles**:
@@ -923,19 +783,19 @@ No Home Assistant add-ons are required — all logic runs on the ESPHome control
 
 ---
 
-## 7.2 Prerequisites (Power, Bus, I/O)
+### 8.2 Prerequisites (Power, Bus, I/O)
 
-### 1. Power
+#### Power
 - **ENM**: 24 V DC → V+ / 0V
 - **Controller**: per spec
 - If separate PSUs: share COM/GND between controller and ENM
 
-### 2. RS‑485 Bus
+#### RS‑485 Bus
 - A—A, B—B (twisted pair), COM shared
 - Terminate with 120 Ω resistors at both ends
 - Default speed: **19200 baud**, set in WebConfig
 
-### 3. Field I/O
+#### Field I/O
 - Voltage inputs: L1, L2, L3, N, PE
 - CTs: CT1–CT3 (1 V or 333 mV)
 - Relays: dry contact, driven by internal logic or Modbus
@@ -943,7 +803,7 @@ No Home Assistant add-ons are required — all logic runs on the ESPHome control
 
 ---
 
-## 7.3 ESPHome Minimal Config (Enable Modbus + Import ENM Package)
+### 8.3 ESPHome Minimal Config (Enable Modbus + Import ENM Package)
 
 ```yaml
 uart:
@@ -977,23 +837,23 @@ packages:
 
 ---
 
-## 7.4 Entities Exposed by the Package
+### 8.4 Entities Exposed by the Package
 
 Package path: [`Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml`](Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml).
 
-### Binary Sensors (from IR bitmasks)
+#### Binary Sensors (from IR bitmasks)
 - Link OK, config dirty
 - LED 1–4, Button 1–4, Relay 1–2 **state** (IR0)
 - Alarm / Warning / Event per L1–L3 / Total (IR2)
 - Chip PQ events (IR3–6)
 
-### Sensors
+#### Sensors
 - **Urms** L1–L3, **frequency**, **temperature** (integer °C), **PF**, **angle**, **THD**
 - **Irms** L1–L3 + **neutral** (S32, primary A)
 - **Signed P / Q / S** per phase + totals
 - **Energies** (U32 Wh/varh, `accuracy_decimals: 0`): active/reactive import & export L1–L3 + totals; template **net** active/reactive totals
 
-### Switches / Buttons
+#### Switches / Buttons
 - **Switches:** Relay 1/2 → coils 0/1 (commands; state from IR)
 - **Buttons:** Identify (coil 5), ACK L1–Total (coils 16–19)
 
@@ -1001,7 +861,7 @@ Holding registers are not mirrored as HA entities in the package (configure bus 
 
 ---
 
-## 7.6 Using Your MiniPLC YAML with ENM
+### 8.6 Using Your MiniPLC YAML with ENM
 
 1. Keep existing `uart:` and `modbus:` blocks  
 2. Add the `packages:` block (as shown) and set `enm_address` from WebConfig  
@@ -1010,7 +870,7 @@ Holding registers are not mirrored as HA entities in the package (configure bus 
 
 ---
 
-## 7.7 Home Assistant Setup & Automations
+### 8.7 Home Assistant Setup & Automations
 
 - Go to: **Settings → Devices & Services → ESPHome → Add** by hostname or IP
 - Dashboard auto-discovers:
@@ -1024,13 +884,9 @@ Holding registers are not mirrored as HA entities in the package (configure bus 
 
 ---
 
+## 9. Programming & Build
 
-
-<a id="8-programming--customization"></a>
-
-# 8. Programming & Customization
-
-## 8.1 Supported Languages
+### 9.1 Supported Languages
 
 - **MicroPython**
 - **C/C++**
@@ -1038,7 +894,7 @@ Holding registers are not mirrored as HA entities in the package (configure bus 
 
 ---
 
-## 8.2 Flashing via USB-C
+### 9.2 Flashing via USB-C
 
 1. Connect USB-C to your PC.
 2. Enter boot/flash mode if required.
@@ -1057,7 +913,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 ---
 
-## 8.3 Arduino IDE Setup
+### 9.3 Arduino IDE Setup
 
 - **Board Profile:** Generic RP2350
 - **Flash Size:** 2MB (Sketch: 1MB, FS: 1MB)
@@ -1081,7 +937,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 ---
 
-## 8.4 Firmware Updates
+### 9.4 Firmware Updates
 
 - **Upload via USB-C** using Arduino IDE (see [Firmware/README.md](Firmware/README.md))
 - Enter **boot mode** (Buttons 1 + 2)
@@ -1096,12 +952,9 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 Recommission alarms, relay modes, bus address, and phase mapping in WebConfig after major firmware upgrades if the module boots with factory settings.
 
-
 ---
 
-<a id="9-maintenance--troubleshooting"></a>
-
-# 9. Maintenance & Troubleshooting
+## 10. Maintenance & Troubleshooting
 
 | Symptom               | Fix or Explanation                            |
 |------------------------|-----------------------------------------------|
@@ -1114,34 +967,18 @@ Recommission alarms, relay modes, bus address, and phase mapping in WebConfig af
 
 ---
 
-<a id="10-open-source--licensing"></a>
+## 11. Downloads & Resources
 
-# 10. Open Source & Licensing
+### Version history
 
-Licensing
+| Version | Config path (`path:`) | Date | Changes |
+|--------|------------------------|------|-----------|
+| **v0.2.0** | `ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-07 | **Current; shipped on new modules.** Contiguous FC04 `0..85`, primary-Wh energy, CT ratio + PGA, alarm engine, relay modes, LED/button Ack, write-only coils, no FC02 |
+| v0.1.0 | `ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` | 2026-06 | **Legacy** — previous map/layout; kept for existing units |
 
-This project uses a hybrid licensing model.
+> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino)
 
-Hardware
-
-Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
-CERN-OHL-W v2
-
-Firmware & ESPHome Integration
-
-All firmware, ESPHome configurations, and software components are licensed under:
-MIT License
-
-This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
-
-See LICENSE files in each directory for full terms.
-
-
----
-
-# 11. Downloads
-
-The following key project resources are included in this repository:
+### Files
 
 - 🧠 **Firmware (v0.2.0 — current)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino) · UF2 [`ENM-223-R1.uf2`](Firmware/v0.2.0/ENM-223-R1.uf2)  
   Contiguous Modbus map FC04 `0..85`, primary-Wh energy, CT/PGA, alarm engine. Full register map: [Modbus_Table.md](Modbus_Table.md).
@@ -1169,30 +1006,29 @@ The following key project resources are included in this repository:
 
 ---
 
-# 12. Support
+## Open Source & Licensing
 
-If you need help using or configuring the ENM‑223‑R1 module, the following support options are available:
+Licensing
 
-### 🛠 Official Resources
+This project uses a hybrid licensing model.
 
-- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)  
-  Configure the module directly from your browser — no drivers or software required.
+Hardware
 
-- 📘 [Official Support Portal](https://www.home-master.eu/support)  
-  Includes setup guides, firmware help, diagnostics, and contact form.
+Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
+CERN-OHL-W v2
+
+Firmware & ESPHome Integration
+
+All firmware, ESPHome configurations, and software components are licensed under:
+MIT License
+
+This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
+
+See LICENSE files in each directory for full terms.
 
 ---
 
-### 📡 Community & Updates
-
-- 🔧 [Hackster Projects](https://hackster.io/homemaster) — System integration, code samples, wiring  
-- 📺 [YouTube Channel](https://youtube.com/@HomeMaster) — Module demos, walkthroughs, and tutorials  
-- 💬 [Reddit Community](https://reddit.com/r/HomeMaster) — Questions, answers, contributions  
-- 📸 [Instagram](https://instagram.com/home_master.eu) — Visual updates and field applications
-
----
-
-## Compliance & Certifications
+## 12. Compliance & Certifications
 
 The ENM-223-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
@@ -1227,3 +1063,26 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 **EUID:** ROONRC.J2007000919293
 **Telephone:** +40 747 757 798
 **Website:** [https://www.home-master.eu](https://www.home-master.eu)
+
+---
+
+## 13. Support
+
+If you need help using or configuring the ENM‑223‑R1 module, the following support options are available:
+
+### Official resources
+
+- 🧰 [WebConfig Tool (USB-C)](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)  
+  Configure the module directly from your browser — no drivers or software required.
+
+- 📘 [Official Support Portal](https://www.home-master.eu/support)  
+  Includes setup guides, firmware help, diagnostics, and contact form.
+
+---
+
+### Community & updates
+
+- 🔧 [Hackster Projects](https://hackster.io/homemaster) — System integration, code samples, wiring  
+- 📺 [YouTube Channel](https://youtube.com/@HomeMaster) — Module demos, walkthroughs, and tutorials  
+- 💬 [Reddit Community](https://reddit.com/r/HomeMaster) — Questions, answers, contributions  
+- 📸 [Instagram](https://instagram.com/home_master.eu) — Visual updates and field applications
