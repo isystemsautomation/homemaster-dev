@@ -157,16 +157,18 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 ### 3.4 Communication defaults
 
-| Setting       | Value        |
-|---------------|--------------|
-| Modbus Address | `30` (first boot; set per site in WebConfig) |
-| Baud Rate      | `19200` |
-| Format         | `8N1` |
-| Address Range  | 1–247 |
+Factory settings applied to every new module:
+
+| Parameter | Default |
+|-----------|---------|
+| **Modbus Address** | `3` |
+| **Baud Rate** | `19200` |
+| **Parity** | `None` |
+| **Stop Bits** | `1` |
+
+Address **1–247**; baud 9600 / 19200 / 38400 / 57600 / 115200. **Set via [WebConfig](#6-webconfig-reference) over USB-C — recommended.**
 
 > 🧷 Reversed A/B will cause CRC errors — check if no response.
-
-Address **1–247**; baud **9600–115200**. **Set via [WebConfig](#6-webconfig-reference) over USB-C — recommended.**
 
 The module communicates over **RS-485 Modbus RTU** (A/B differential + shared COM/GND). Configuration is stored persistently in **LittleFS** and can be changed live through **USB-C + WebConfig**.
 
@@ -304,7 +306,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 | Area              | Warning |
 |-------------------|---------|
 | **CT Inputs**      | Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference. |
-| **Relay Outputs**  | Dry contacts only. Rated: **5 A @ 250 VAC or 30 VDC**. Use snubber (RC/TVS) for inductive loads. |
+| **Relay Outputs**  | Dry contacts only. Rated: **3 A @ 250 VAC or 30 VDC** (module limit). Use snubber (RC/TVS) for inductive loads. |
 
 #### 🖧 Communication & USB
 
@@ -333,7 +335,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 - [x] **No bridge between logic GND and GND_ISO**  
 - [x] PE and N are wired to terminals  
 - [x] RS‑485 A/B polarity and 120 Ω termination confirmed  
-- [x] Relay loads do **not** exceed 5 A or contact voltage rating  
+- [x] Relay loads do **not** exceed 3 A or contact voltage rating  
 - [x] CTs installed with correct polarity and securely landed  
 - [x] Voltage inputs fused, protected, and within spec (85–265 V AC)
 
@@ -465,7 +467,7 @@ The **USB-C** port is for **WebConfig** setup and firmware update only (5 V from
 
 | Setting       | Value        |
 |---------------|--------------|
-| Modbus Address | `30` (first boot; set per site in WebConfig) |
+| Modbus Address | `3` (first boot; set per site in WebConfig) |
 | Baud Rate      | `19200` |
 | Format         | `8N1` |
 | Address Range  | 1–247 |

@@ -257,18 +257,19 @@ blockquote table{background:transparent}
 <em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
 </div>
 <h3 id="34-communication-defaults">3.4 Communication defaults</h3>
+<p>Factory settings applied to every new module:</p>
 <table>
-<thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
-<tr><td>Modbus Address</td><td><code>30</code> (first boot; set per site in WebConfig)</td></tr>
-<tr><td>Baud Rate</td><td><code>19200</code></td></tr>
-<tr><td>Format</td><td><code>8N1</code></td></tr>
-<tr><td>Address Range</td><td>1–247</td></tr>
+<thead><tr><th>Parameter</th><th>Default</th></tr></thead><tbody>
+<tr><td><strong>Modbus Address</strong></td><td><code>3</code></td></tr>
+<tr><td><strong>Baud Rate</strong></td><td><code>19200</code></td></tr>
+<tr><td><strong>Parity</strong></td><td><code>None</code></td></tr>
+<tr><td><strong>Stop Bits</strong></td><td><code>1</code></td></tr>
 </tbody>
 </table>
+<p>Address <strong>1–247</strong>; baud 9600 / 19200 / 38400 / 57600 / 115200. <strong>Set via <a href="#6-webconfig-reference">WebConfig</a> over USB-C — recommended.</strong></p>
 <blockquote>
 <p>🧷 Reversed A/B will cause CRC errors — check if no response.</p>
 </blockquote>
-<p>Address <strong>1–247</strong>; baud <strong>9600–115200</strong>. <strong>Set via <a href="#6-webconfig-reference">WebConfig</a> over USB-C — recommended.</strong></p>
 <p>The module communicates over <strong>RS-485 Modbus RTU</strong> (A/B differential + shared COM/GND). Configuration is stored persistently in <strong>LittleFS</strong> and can be changed live through <strong>USB-C + WebConfig</strong>.</p>
 <h3 id="35-reliability--protection">3.5 Reliability & protection</h3>
 <ul>
@@ -388,7 +389,7 @@ blockquote table{background:transparent}
 <table>
 <thead><tr><th>Area</th><th>Warning</th></tr></thead><tbody>
 <tr><td><strong>CT Inputs</strong></td><td>Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference.</td></tr>
-<tr><td><strong>Relay Outputs</strong></td><td>Dry contacts only. Rated: <strong>5 A @ 250 VAC or 30 VDC</strong>. Use snubber (RC/TVS) for inductive loads.</td></tr>
+<tr><td><strong>Relay Outputs</strong></td><td>Dry contacts only. Rated: <strong>3 A @ 250 VAC or 30 VDC</strong> (module limit). Use snubber (RC/TVS) for inductive loads.</td></tr>
 </tbody>
 </table>
 <h4 id="communication--usb">🖧 Communication & USB</h4>
@@ -417,7 +418,7 @@ blockquote table{background:transparent}
 <li>[x] <strong>No bridge between logic GND and GND_ISO</strong>  </li>
 <li>[x] PE and N are wired to terminals  </li>
 <li>[x] RS‑485 A/B polarity and 120 Ω termination confirmed  </li>
-<li>[x] Relay loads do <strong>not</strong> exceed 5 A or contact voltage rating  </li>
+<li>[x] Relay loads do <strong>not</strong> exceed 3 A or contact voltage rating  </li>
 <li>[x] CTs installed with correct polarity and securely landed  </li>
 <li>[x] Voltage inputs fused, protected, and within spec (85–265 V AC)</li>
 </ul>
@@ -524,7 +525,7 @@ Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong>
 <h4 id="defaults">Defaults</h4>
 <table>
 <thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
-<tr><td>Modbus Address</td><td><code>30</code> (first boot; set per site in WebConfig)</td></tr>
+<tr><td>Modbus Address</td><td><code>3</code> (first boot; set per site in WebConfig)</td></tr>
 <tr><td>Baud Rate</td><td><code>19200</code></td></tr>
 <tr><td>Format</td><td><code>8N1</code></td></tr>
 <tr><td>Address Range</td><td>1–247</td></tr>
