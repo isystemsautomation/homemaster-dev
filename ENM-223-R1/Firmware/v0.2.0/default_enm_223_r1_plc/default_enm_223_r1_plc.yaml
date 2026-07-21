@@ -430,6 +430,7 @@ sensor:
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
+    accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L1"
@@ -710,6 +711,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -720,6 +722,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -730,6 +733,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -741,6 +745,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -751,6 +756,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -761,6 +767,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -771,6 +778,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -782,6 +790,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -791,6 +800,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -800,6 +810,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -809,6 +820,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -819,6 +831,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -828,6 +841,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -837,6 +851,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -846,6 +861,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -856,6 +872,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    accuracy_decimals: 0
     skip_updates: 2
   - platform: template
     name: "${enm_prefix} Active Energy Net Total"
