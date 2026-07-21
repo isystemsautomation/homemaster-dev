@@ -5,32 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HomeMaster — Configurator, Firmware &amp; Documentation</title>
 <meta name="description" content="USB-C WebConfig, ESPHome firmware, datasheets and schematics for HomeMaster DIN-rail PLCs and I/O modules.">
+<link rel="icon" type="image/png" href="_shared/brand/homemaster-mark.png">
 <style>
+  /* Visual language aligned with www.home-master.eu: white chrome, charcoal CTAs, soft blue wash */
   :root{
-    --page:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569; --muted2:#64748b;
-    --border:#e2e8f0; --borderStrong:#cbd5e1; --brand:#2563eb; --brandHover:#1d4ed8;
-    --ok:#16a34a; --warn:#f59e0b; --shadow:0 1px 0 rgba(15,23,42,.05), 0 10px 22px rgba(15,23,42,.08);
-    --shadowHover:0 2px 0 rgba(15,23,42,.06), 0 18px 40px rgba(15,23,42,.14);
-    --r:16px; --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --page:#ffffff; --card:#ffffff; --text:#111111; --muted:#4b5563; --muted2:#6b7280;
+    --border:#e5e7eb; --borderStrong:#d1d5db; --brand:#2b2f36; --brandHover:#111827;
+    --accent:#2563eb; --accentSoft:#e8f1fb; --accentBorder:#cfe0f5;
+    --ok:#16a34a; --warn:#f59e0b; --shadow:0 1px 0 rgba(17,17,17,.04), 0 10px 24px rgba(17,17,17,.06);
+    --r:14px; --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
   body{margin:0;font-family:var(--font);color:var(--text);background:var(--page);line-height:1.5}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
   a{color:inherit}
 
-  header{border-bottom:1px solid var(--border);background:#fff}
-  .head-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:-.01em}
-  .brand .mark{width:30px;height:30px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px}
-  .brand small{display:block;font-weight:650;font-size:11px;color:var(--muted2);letter-spacing:.04em;text-transform:uppercase}
-  .head-link{font-size:13px;font-weight:700;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:7px 12px;border-radius:999px;background:#fff;white-space:nowrap}
-  .head-link:hover{color:var(--brand);border-color:var(--borderStrong)}
+  header{border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:20}
+  .head-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;min-height:64px}
+  .brand{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
+  .brand img{height:34px;width:auto;display:block}
+  .head-nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:flex-end}
+  .head-nav a{font-size:14px;font-weight:600;color:var(--text);text-decoration:none}
+  .head-nav a:hover{color:var(--muted)}
+  .head-cta{padding:8px 14px;border-radius:10px;background:var(--brand);color:#fff !important;font-weight:700}
+  .head-cta:hover{background:var(--brandHover);color:#fff !important}
 
-  .intro{padding:40px 0 8px}
-  .intro h1{margin:0 0 10px;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:800}
-  .intro p{margin:0;max-width:680px;font-size:15px;color:var(--muted)}
+  .intro{margin:28px 0 8px;padding:28px 28px 24px;border-radius:18px;background:var(--accentSoft)}
+  .intro h1{margin:0 0 10px;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:800;color:var(--text)}
+  .intro p{margin:0;max-width:720px;font-size:15px;color:var(--text)}
   .note{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:8px 13px;border-radius:999px;font-size:12.5px;font-weight:650;color:#92510a;background:#fff7ed;border:1px solid #fed7aa}
   .note .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:18px;font-size:12.5px;color:var(--muted)}
@@ -44,18 +48,18 @@
   .section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted2);padding:26px 0 0;margin:0}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:14px 0 8px}
   .mod{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:80px}
-  .mod:target{border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.18), var(--shadow)}
-  .thumb{height:180px;padding:14px;background:#f1f5f9;display:grid;place-items:center;border-bottom:1px solid var(--border);overflow:hidden}
+  .mod:target{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.16), var(--shadow)}
+  .thumb{height:180px;padding:14px;background:#f3f6f9;display:grid;place-items:center;border-bottom:1px solid var(--border);overflow:hidden}
   .thumb img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
   .body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
-  .pn{align-self:flex-start;font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e40af;background:#eef6ff;border:1px solid #cfe2ff;padding:3px 9px;border-radius:999px}
+  .pn{align-self:flex-start;font-family:var(--mono);font-size:11.5px;font-weight:650;color:#1e3a8a;background:var(--accentSoft);border:1px solid var(--accentBorder);padding:3px 9px;border-radius:999px}
   .mod h3{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em}
   .mod .desc{margin:0;font-size:13px;color:var(--muted);flex:1}
 
-  .open-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;padding:10px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-size:13.5px;font-weight:750;transition:background .15s ease}
+  .open-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;padding:10px 14px;border-radius:10px;background:var(--brand);color:#fff;text-decoration:none;font-size:13.5px;font-weight:750;transition:background .15s ease}
   .open-btn:hover{background:var(--brandHover)}
-  .open-btn.alt{background:#fff;color:var(--brand);border:1px solid #cfe2ff}
-  .open-btn.alt:hover{background:#eef6ff}
+  .open-btn.alt{background:#fff;color:var(--brand);border:1px solid var(--borderStrong)}
+  .open-btn.alt:hover{background:#f3f4f6}
   .open-btn svg{transition:transform .15s ease}
   .open-btn:hover svg{transform:translateX(3px)}
   .ver-note{font-size:11.5px;color:var(--muted2);text-align:center}
@@ -65,7 +69,7 @@
   details.disc>summary::-webkit-details-marker{display:none}
   details.disc>summary .chev{transition:transform .15s ease}
   details.disc[open]>summary .chev{transform:rotate(90deg)}
-  details.disc>summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}
+  details.disc>summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
   .vlist{margin-top:10px;display:flex;flex-direction:column;gap:10px}
   .vrow{border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:#fcfdfe}
@@ -75,16 +79,23 @@
   .glabel{font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;color:var(--muted2);margin:2px 0 6px}
   .vlink{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;text-decoration:none;padding:5px 9px;border-radius:999px;border:1px solid var(--borderStrong);background:#fff;color:var(--text);white-space:nowrap}
   .vlink:hover{border-color:var(--brand);color:var(--brand)}
-  .vlink.primary{background:#eef6ff;border-color:#cfe2ff;color:#1e40af}
+  .vlink.primary{background:var(--accentSoft);border-color:var(--accentBorder);color:#1e3a8a}
   .vlink svg{flex:none}
 
   footer{margin-top:32px;border-top:1px solid var(--border);background:#fff}
   .foot-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:20px 0;font-size:12.5px;color:var(--muted2)}
   .foot-inner a{color:var(--muted);text-decoration:none;font-weight:650}
-  .foot-inner a:hover{color:var(--brand)}
+  .foot-inner a:hover{color:var(--text)}
   .foot-links{display:flex;gap:18px;flex-wrap:wrap}
 
-  @media (max-width:520px){ .intro h1{font-size:25px} .head-inner{padding:14px 0} }
+  @media (max-width:640px){
+    .intro{padding:22px 18px}
+    .intro h1{font-size:25px}
+    .head-inner{padding:12px 0}
+    .brand img{height:28px}
+    .head-nav{gap:12px}
+    .head-nav a:not(.head-cta){display:none}
+  }
   @media (prefers-reduced-motion:reduce){ *{transition:none !important;scroll-behavior:auto} }
 </style>
 <link rel="canonical" href="https://config.home-master.eu/">
@@ -104,8 +115,15 @@
 
 <header>
   <div class="wrap head-inner">
-    <div class="brand"><span class="mark">HM</span><span>HomeMaster<small>Devices</small></span></div>
-    <a class="head-link" href="https://www.home-master.eu" target="_blank" rel="noopener">home-master.eu</a>
+    <a class="brand" href="https://www.home-master.eu/" aria-label="HomeMaster">
+      <img src="_shared/brand/homemaster-logo.webp" width="177" height="54" alt="HomeMaster" decoding="async">
+    </a>
+    <nav class="head-nav" aria-label="Primary">
+      <a href="https://www.home-master.eu/shop">Products</a>
+      <a href="https://www.home-master.eu/support">Support</a>
+      <a href="https://github.com/isystemsautomation/homemaster-dev">GitHub</a>
+      <a class="head-cta" href="https://www.home-master.eu/" target="_blank" rel="noopener">home-master.eu</a>
+    </nav>
   </div>
 </header>
 
