@@ -557,137 +557,166 @@ Set `enm_address` to the Modbus ID configured in WebConfig (first-boot default *
 
 ## 6. WebConfig Reference
 
-The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
-(`Firmware/v0.2.0/ConfigToolPage.html`) over **USB‑C**.  
-No drivers or software installation is required — configuration happens directly via **Web Serial API** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
+Open **https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+), connect via **USB-C**, and click **Connect**. Changes apply immediately and are saved to flash (no Save button). Live meter / energy panels refresh about once per second; click into a field to pause refresh for that field. **Press Enter** (or leave a numeric field) to write calibration and CT values.
 
 > Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
-- WebConfig refreshes live data every 1 s.
-- Click into a field to pause refresh for that field.
-- **Press Enter** to apply a change.
-- All settings are stored in non‑volatile flash.
+Field names and dropdown options below match `Firmware/v0.2.0/ConfigToolPage.html`.
 
-### 1) Modbus Setup (Address & Baud)
+### Status & Tools
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig1.png" width="440" alt="WebConfig — Modbus address & baud" width="100%"/>
+![ENM-223-R1 WebConfig — status pills and Tools](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig1.png)
 
-- Click **Connect** and select the USB serial port.
-- The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
-- You can configure:
-  - **Modbus Address**: `1–247` (first-boot default = `3`)
-  - **Baud Rate**: `9600 / 19200 / 38400 / 57600 / 115200` (default = `19200`)
-- Changes are live and applied on selection.
-- If you change baud or address, remember to reconnect the controller with updated settings.
+Status pills (read-only): **Connection** (USB), **Bus** (RS-485 link), **Model**, **FW**, **WebConfig**, **Modbus ID**, **Baud**. A compatibility banner (`hm-compat`) blocks writes if the connected firmware/model does not match this configurator.
 
-### 2) Meter Options & Calibration
+| Button | What it does |
+|--------|--------------|
+| **Identify (~5 s)** | Blinks user LEDs to locate the module (`identify` command). |
+| **Factory reset** | Restores settings to defaults (`factory` command — confirm dialog). |
+| **Reboot** | Soft-restarts the module. |
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig2.png" width="440" alt="Meter options and calibration" width="100%"/>
+### Device Setup
 
-#### Meter Options
-- **Line Frequency**: 50 / 60 Hz (ATM90E32 `MMode0` + sag thresholds)
-- **Sum Mode**:  
-  - `0 = algorithmic` (vector sum)  
-  - `1 = absolute` (|P1| + |P2| + |P3|)
-- **Wiring scheme**: **3P4W** (star, four-wire) or **3P3W** (three-wire) — sets ATM90E32 `MMode0` on apply
-- **Phase mapping**: assign each logical channel **L1 / L2 / L3** to incoming meter **phase A / B / C** (written to ATM90E32 `ChannelMapU` / `ChannelMapI` on apply; use when field wiring does not match labels)
-- **Sample Interval (ms)**: UI refresh hint only on v0.2.0 (meter poll ~1 s on device)
+| Field | Values | Meaning |
+|-------|--------|---------|
+| **Modbus Address** | 1–247 (default **3**) | Modbus RTU slave address; must be unique on the bus. |
+| **Baud Rate** | 9600 / 19200 / 38400 / 57600 / 115200 (default **19200**) | RS-485 speed **8N1**; must match the controller. |
 
-#### Calibration (per phase A/B/C — maps to L1/L2/L3 after phase mapping)
-- **Ugain / Igain**: scaling gains (16-bit, 0–65535)
-- **Uoffset / Ioffset**: calibration offsets (signed)
-- Press **Enter** after editing to write the value to the module.
+### Serial Log
 
-### 3) Alarms / Inputs (Per‑Channel Rules)
+Live USB serial log (communication messages and status). **Copy log** copies the buffer to the clipboard.
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig3.png" width="440" alt="Alarms per channel" width="100%"/>
+### Meter Options
 
-The ENM has **4 measurement channels**: L1, L2, L3, and Totals.
+![ENM-223-R1 WebConfig — Meter Options and Calibration](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig2.png)
 
-Each channel supports:
-- **3 rule slots**: Alarm, Warning, Event
-- **Metric types**:
-  - Voltage (Urms)
-  - Current (Irms)
-  - Active Power P
-  - Reactive Power Q
-  - Apparent Power S
-  - Frequency
+| Field | Values | Meaning |
+|-------|--------|---------|
+| **Line Frequency (Hz)** | 50 / 60 | Line frequency for the ATM90E32 (`MMode0` / sag thresholds). |
+| **Wiring Scheme** | **3P4W (star, 4-wire)** / **3P3W (3-wire)** | Installation topology; applied on ATM re-init. |
+| **CT primary (A)** | number, 1–10000 (UI default 100) | CT primary rating in amperes. |
+| **CT secondary (mA)** | number, 1–60 (UI default 50) | CT secondary rating in milliamperes. Software scale **N = primary / secondary_mA**; currents, power and energy are reported on the **primary** side. |
+| **Sum Mode** *(Advanced settings)* | **0** = algorithmic (vector) / **1** = absolute (\|P1\|+\|P2\|+\|P3\|) | How phase powers are summed for totals. |
+| **PGA (advanced)** *(Advanced settings)* | **1×** / **2×** / **4×** (UI default **2×**) | ATM90 analog gain — written to the chip; change only together with the CT/input path. |
+| **L1 / L2 / L3 channel → meter phase** *(Advanced settings)* | Phase A / B / C | Maps each logical channel to ATM90 phase A/B/C (`ChannelMapU` / `ChannelMapI`). |
 
-You can configure:
-- **Enable** toggle
-- **Metric**, **Min**, and **Max** thresholds
-- **Ack required** — latches the Alarm state until acknowledged
+There is **no** Sample Interval field in this tool.
 
-Acknowledgment:
-- **Ack L1–L3 / Totals** in WebConfig
-- Modbus coils **16–19** (write `1`; device auto-clears)
-- Front-panel button mapped to toggle relay (optional local ack workflow via PLC)
+### Calibration (Phase A / B / C)
 
-**Chip power-quality events** (always published as **Event**, kind = 2 on Modbus DI):
+Per metering phase (A/B/C — after phase mapping these correspond to L1/L2/L3):
 
-| Event source (ATM90E32) | Channels |
-|-------------------------|----------|
-| Voltage **sag** | L1, L2, L3 (+ rolled into Total) |
-| **Over-voltage** | L1, L2, L3 (+ Total) |
-| **Phase loss** | L1, L2, L3 (+ Total) |
-| **Over-current** | L1, L2, L3 (+ Total) |
-| **Frequency** high/low | Total only |
-| **Phase sequence** error | Total only |
+| Field | Meaning |
+|-------|---------|
+| **Ugain** / **Igain** | Scaling gains (press **Enter** to write). |
+| **Uoffset** / **Ioffset** | Calibration offsets (press **Enter** to write). |
 
-Threshold **Alarm** and **Warning** rules use **2 % hysteresis** on the configured min/max band (with metric-specific minimum deadband for voltage, current, and frequency).
+Live refresh pauses while a calibration field is being edited.
 
-> 💡 ENM has no digital inputs (DIs). Alarm rules are virtual inputs driven by live metering and the metering IC status registers.
+### Alarms (L1, L2, L3, Totals)
 
-### 4) Relay Logic Modes
+![ENM-223-R1 WebConfig — Alarms](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig3.png)
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig6.png" width="440" alt="Relay logic options" width="100%"/>
+Four channels (**L1**, **L2**, **L3**, **Totals**), each with three rule slots (**Alarm** / **Warning** / **Event**).
 
-Each of the two onboard **SPDT relays** can be configured independently.
+| Control | Values / behaviour |
+|---------|-------------------|
+| **Enabled** | Per rule slot. |
+| **Metric** | Voltage (Urms) / Current (Irms) / Active power P / Reactive power Q / Apparent power S / Frequency |
+| **Min** / **Max** | Thresholds; empty side = unused. Active below min and/or above max. |
+| **Ack required** | Latches the channel state after the condition clears until Ack. |
+| **Ack L1 / Ack L2 / Ack L3 / Ack Totals** | Per-channel acknowledge buttons. |
+| **Ack All** | Acknowledges all four channels. |
 
-Options:
+Threshold **Alarm** and **Warning** rules use **2 % hysteresis** on the configured min/max band (firmware). Chip PQ faults are shown under [Chip Events](#chip-events-atm90), not as threshold metrics.
 
-| Setting               | Description |
-|-----------------------|-------------|
-| **Enabled at Power-On** | Relay state after boot (on/off) |
-| **Inverted (active-low)** | Affects **both** relays; sets low = ON |
-| **Mode**              | `None`, `Modbus Controlled`, or **`Alarm Controlled`** |
-| **Toggle**            | Manually toggle the relay from the UI (Modbus mode only) |
-| **Alarm Control Options** | Channel: `L1–L3` or `Totals`; kinds: **Alarm** / **Warning** / **Event** (bitmask) |
+Ack is also available from front-panel **Buttons** (Ack All / Ack L1–L3 / Ack Total) and over Modbus coils **16–19**.
 
-In **`Alarm Controlled`** mode the relay **energizes while the selected alarm condition is active** — typical use: **local load shed / trip** on overcurrent or PQ fault. The relay releases when the rule clears (with hysteresis) or after **Ack** when **Ack required** is set. Modbus coils **0/1** do not drive the relay in this mode.
+> ENM has no digital inputs (DIs). Alarm rules are virtual channels driven by live metering.
 
-### 5) Button & LED Mapping
+### Relays (2)
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig5.png" width="440" alt="Buttons and LED mapping" width="100%"/>
+![ENM-223-R1 WebConfig — Relays and Live Meter](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig4.png)
 
-#### Buttons (1–4)
-Each button can be mapped to:
-- `None`
-- `Toggle Relay 1` / `Toggle Relay 2` (only when relay is **Modbus Controlled**)
+Each relay is configured **independently** (including invert).
 
-#### User LEDs (1–4)
+| Field | Values | Meaning |
+|-------|--------|---------|
+| **Enabled** | on / off | Relay output active. |
+| **Inverted** | on / off | **Per relay** — invert drive polarity (`rlyCfg[i].inverted` in firmware). |
+| **Mode** | None / Modbus Controlled / Alarm Controlled | How the relay is driven. |
+| **Channel** *(Alarm Controlled)* | L1 / L2 / L3 / Totals | Alarm channel to follow. |
+| **Alarm / Warning / Event** *(Alarm Controlled)* | checkboxes | Which rule kinds trip the relay. |
 
-Each LED has:
-- **Mode**: `Steady` or `Blink`
-- **Source**: `None`, or logical state of **Relay 1 / Relay 2** (useful to show Alarm Controlled trip)
+In **Alarm Controlled** mode the relay follows the selected channel/kinds; Modbus coils **0/1** do not drive it in that mode. Relay **state** is shown on the card and on Modbus IR0 bits 8/9.
 
-### 6) Live Meter & Energies
+### Live Meter
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig4.png" width="440" alt="Live meter values" width="100%"/>
+Updated from `ENM_Meter` / `ext.meter` (~1 s).
 
-**Live Meter View**:
-- U (V), I (A), **signed P (W)**, **signed Q (var)**, S (VA)
-- PF, angle, frequency, temperature
-- **Upeak / Ipeak**, **Irms neutral**, **THD** (per phase)
-- Per-channel tiles L1–L3 + Totals
+| Channel cards | Values shown |
+|---------------|--------------|
+| **L1 / L2 / L3** | U (V), I (A), P (W), P<sub>fund</sub> (W), P<sub>harm</sub> (W), Q (var), S (VA), PF, Angle (°) |
+| **Totals** | P / P<sub>fund</sub> / P<sub>harm</sub> / Q / S, PF (tot), **Freq (Hz)**, **Temp (°C)** |
 
-**Energies** (import / export labels in WebConfig):
-- **Active**: import (AP) / export (AN) / net kWh
-- **Reactive**: import (RP) / export (RN) / net kvarh
-- **Apparent**: kVAh (S)
+P and Q are **signed**. Peaks, THD and neutral current are on the next screen — not here.
 
-> Use this screen to verify CT orientation, load phase mapping, and live alarm behavior during commissioning.
+### Peaks & Quality
+
+![ENM-223-R1 WebConfig — Peaks, Chip Events, Energies](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig5.png)
+
+Dedicated screen (ATM90 peak registers F1–F3 / F5–F7; computed active-power THD, **not** THD+N):
+
+| Card | Values |
+|------|--------|
+| **L1 / L2 / L3** | U<sub>peak</sub> (V), I<sub>peak</sub> (A), THD (%) |
+| **Neutral** | I<sub>N</sub> (A) |
+
+### Chip Events (ATM90)
+
+Live metering-IC PQ fault panel per **L1 / L2 / L3 / Total**:
+
+| Indicator |
+|-----------|
+| Sag / Overvoltage / Phase loss / Overcurrent / Frequency / Rev Phase |
+
+> The WebConfig hint text mentions Modbus IR 101–104; firmware **v0.2.0** publishes these chip PQ masks at input registers **3–6** — see [§7 Modbus Register Map](#7-modbus-register-map).
+
+### Energies
+
+Accumulators from `ENM_Sync` / `ext.energy` (saved in flash), cards **Phase A / B / C** and **Totals**:
+
+| Field |
+|-------|
+| Active import (kWh) / Active export (kWh) / Active net (kWh) |
+| Reactive import (kvarh) / Reactive export (kvarh) / Reactive net (kvarh) |
+| Apparent (kVAh) |
+| Harmonic active import (kWh) |
+
+**Reset counters** sends the `reset_energy` command (confirm dialog). Energy reset is **WebConfig-only** — not on Modbus.
+
+### Buttons (4)
+
+![ENM-223-R1 WebConfig — Buttons and User LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/webconfig6.png)
+
+Each button has a live state indicator and one **Action**:
+
+| Action |
+|--------|
+| None |
+| Toggle Relay 1 / Toggle Relay 2 |
+| **Ack All** / **Ack L1** / **Ack L2** / **Ack L3** / **Ack Total** |
+
+Toggle actions apply when the target relay is **Modbus Controlled**. Ack actions acknowledge alarm latches directly on the module (same path as the Alarms **Ack** buttons / coils 16–19).
+
+### User LEDs (4)
+
+| Field | Values |
+|-------|--------|
+| **Mode** | Steady / Blink |
+| **Source** | **None** / **Override R1** / **Override R2** / **Alarm** L1\|L2\|L3\|Total / **Warning** L1\|L2\|L3\|Total / **Event** L1\|L2\|L3\|Total |
+
+**Override R1 / Override R2** follow relay 1/2 logical state. Alarm / Warning / Event sources follow latched alarm state per channel (as labelled in the tool).
 
 ---
 
