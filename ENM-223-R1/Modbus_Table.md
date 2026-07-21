@@ -79,7 +79,7 @@ Read-and-hold accumulators (not read-clear on the Modbus side). Reset only via t
 | 54 / 56 / 58 / 60 | Active energy **import** — L1 / L2 / L3 / Total | U32 | Wh |
 | 62 / 64 / 66 / 68 | Active energy **export** — L1 / L2 / L3 / Total | U32 | Wh |
 | 70 / 72 / 74 / 76 | Reactive energy **import** — L1 / L2 / L3 / Total | U32 | varh |
-| 78 / 80 / 82 / 84 | Reactive energy **export** L1 / L2 / L3, and **net** Total @84 | U32 | varh |
+| 78 / 80 / 82 / 84 | Reactive energy **export** — L1 / L2 / L3 / Total | U32 | varh |
 
 ---
 
