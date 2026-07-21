@@ -708,7 +708,7 @@ blockquote table{background:transparent}
 <h4>Steps</h4>
 <ol>
 <li>Connect USB‑C to PC (Chrome/Edge)</li>
-<li>Open <code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html</code>  </li>
+<li>Open <code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html</code>  </li>
 <li>Click <strong>Connect</strong>, select ENM serial port  </li>
 <li>Configure settings: address, relays, LEDs, alarms, calibration  </li>
 <li>Click <strong>Save &amp; Disconnect</strong> when finished</li>
@@ -728,7 +728,7 @@ blockquote table{background:transparent}
 </ul>
 <p><a id="software-ui-configuration"></a></p>
 <h5>4.5 Software &amp; UI Configuration</h5>
-<p>The <strong>ENM‑223‑R1</strong> is configured using the browser‑based <strong>WebConfig Tool</strong><br>(<code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html</code>) over <strong>USB‑C</strong>.<br>No drivers or software installation is required — configuration happens directly via <strong>Web Serial API</strong> (Chrome/Edge).</p>
+<p>The <strong>ENM‑223‑R1</strong> is configured using the browser‑based <strong>WebConfig Tool</strong><br>(<code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html</code>) over <strong>USB‑C</strong>.<br>No drivers or software installation is required — configuration happens directly via <strong>Web Serial API</strong> (Chrome/Edge).</p>
 <ul>
 <li>WebConfig refreshes live data every 1 s.</li>
 <li>Click into a field to pause refresh for that field.</li>
@@ -921,7 +921,7 @@ blockquote table{background:transparent}
 <hr>
 <h6>Phase 2 — Configure (WebConfig)</h6>
 <ul>
-<li>Open <code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html</code> in Chrome/Edge</li>
+<li>Open <code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html</code> in Chrome/Edge</li>
 <li>Connect via <strong>USB‑C</strong> → <strong>Select port → Connect</strong></li>
 <li>Set:<ul>
 <li><strong>Modbus Address / Baud</strong>  </li>
@@ -1332,373 +1332,53 @@ blockquote table{background:transparent}
 <hr>
 <p><a id="6-modbus-rtu-communication"></a></p>
 <h4>6. Modbus RTU Communication</h4>
-<p>The ENM‑223‑R1 communicates over <strong>RS‑485 (Modbus RTU)</strong> and supports:</p>
+<p>The ENM‑223‑R1 is a <strong>Modbus RTU slave</strong> on RS‑485. Firmware <strong>v0.2.0</strong> exposes a <strong>contiguous</strong> map for <strong>one FC04 sweep</strong>:</p>
+<table>
+<thead><tr><th>Area</th><th>Detail</th></tr></thead>
+<tbody>
+<tr><td><strong>FC04</strong> Input Registers</td><td><code>0..85</code> (86 registers) — I/O mask, status, alarms, chip events, scalars, S32 currents/powers, U32 energies</td></tr>
+<tr><td><strong>FC01 / FC05</strong> Coils</td><td>Write-only: relays <code>0/1</code>, Identify <code>5</code>, ACK <code>16–19</code></td></tr>
+<tr><td><strong>FC03 / FC06 / FC16</strong> Holding</td><td>Address, baud, line frequency, sum-abs, relay enable (HR <code>0..8</code>)</td></tr>
+<tr><td><strong>FC02</strong> Discrete Inputs</td><td><strong>Not used</strong> — digital state is bit-packed into input registers</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Setting</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Default address</td><td><strong>3</strong> first boot (configurable 1–247)</td></tr>
+<tr><td>Default baud</td><td><strong>19200 8N1</strong></td></tr>
+<tr><td>Identity</td><td>Model <code>2</code> · Firmware <code>0.2.0</code> · <code>CFG_VERSION 0x0025</code> · <code>METER_VERSION 0x0003</code> · <code>HM_MAP_VERSION 0x0020</code></td></tr>
+</tbody>
+</table>
+<p>Full addresses, types, scales and bit layouts: <a href="Modbus_Table.md"><code>Modbus_Table.md</code></a>.</p>
+<h5>6.1 Map summary (FC04)</h5>
 <ul>
-<li>Real-time metering via <strong>Input Registers</strong></li>
-<li>Configuration via <strong>Holding Registers</strong></li>
-<li>Control and acknowledgment via <strong>Coils</strong></li>
-<li>Status monitoring via <strong>Discrete Inputs</strong></li>
+<li><code>0</code> — I/O mask (LEDs, buttons, relay state bits 8/9)</li>
+<li><code>1</code> — Status (link / config dirty)</li>
+<li><code>2</code> — Alarm flags (L1–Total × Alarm/Warning/Event)</li>
+<li><code>3–6</code> — Chip PQ event masks</li>
+<li><code>7–21</code> — Urms, frequency, temperature, PF, angle, THD</li>
+<li><code>22–29</code> — Irms L1/L2/L3/N (S32, ×0.001 A, primary)</li>
+<li><code>30–52</code> — P / Q / S L1–Total (S32)</li>
+<li><code>54–84</code> — Active/reactive import &amp; export energy (U32 Wh/varh, primary)</li>
 </ul>
-<p>The device acts as a <strong>Modbus Slave</strong> and can be polled by a PLC, SCADA, ESPHome, or Home Assistant system.</p>
-<hr>
-<h5>6.1 Addressing &amp; Protocol Settings</h5>
-<table>
-<thead>
-<tr>
-<th>Setting</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Default Address</td>
-<td><code>3</code> (configurable: 1–247)</td>
-</tr>
-<tr>
-<td>Baud Rate</td>
-<td><code>19200 8N1</code> (configurable)</td>
-</tr>
-<tr>
-<td>Physical Layer</td>
-<td>RS‑485 (half-duplex, A/B/COM)</td>
-</tr>
-<tr>
-<td>Function Codes</td>
-<td><code>0x01</code>, <code>0x02</code>, <code>0x03</code>, <code>0x04</code>, <code>0x05</code>, <code>0x06</code>, <code>0x10</code></td>
-</tr>
-<tr>
-<td>Termination</td>
-<td>External 120 Ω at bus ends</td>
-</tr>
-<tr>
-<td>Fail-safe Bias</td>
-<td>Required on master side</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p>📌 Use the WebConfig tool over USB‑C to set Modbus address and baud rate.</p>
-</blockquote>
-<hr>
-<h5>6.2 Input Registers — Real-Time Telemetry (FC04)</h5>
-<table>
-<thead>
-<tr>
-<th>Address</th>
-<th>Type</th>
-<th>Metric</th>
-<th>Unit</th>
-<th>Scaling</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>100–102</td>
-<td>U16</td>
-<td>Voltage L1/L2/L3</td>
-<td>V</td>
-<td>×0.01</td>
-</tr>
-<tr>
-<td>110–112</td>
-<td>U16</td>
-<td>Current L1/L2/L3</td>
-<td>A</td>
-<td>×0.001</td>
-</tr>
-<tr>
-<td>200–207</td>
-<td>S32</td>
-<td>Active Power (L1–3, Totals)</td>
-<td>W</td>
-<td>1</td>
-</tr>
-<tr>
-<td>210–217</td>
-<td>S32</td>
-<td>Reactive Power (L1–3, Totals)</td>
-<td>var</td>
-<td>1</td>
-</tr>
-<tr>
-<td>220–227</td>
-<td>S32</td>
-<td>Apparent Power (L1–3, Totals)</td>
-<td>VA</td>
-<td>1</td>
-</tr>
-<tr>
-<td>240–243</td>
-<td>S16</td>
-<td>Power Factor L1–3, Total</td>
-<td>–</td>
-<td>×0.001</td>
-</tr>
-<tr>
-<td>244–246</td>
-<td>S16</td>
-<td>Phase Angle L1–3</td>
-<td>°</td>
-<td>×0.1</td>
-</tr>
-<tr>
-<td>250</td>
-<td>U16</td>
-<td>Frequency</td>
-<td>Hz</td>
-<td>×0.01</td>
-</tr>
-<tr>
-<td>251</td>
-<td>S16</td>
-<td>Temperature (internal)</td>
-<td>°C</td>
-<td>1</td>
-</tr>
-</tbody></table>
-<hr>
-<h5>6.3 Energy Registers (Wh/varh/VAh, FC04)</h5>
-<table>
-<thead>
-<tr>
-<th>Address</th>
-<th>Type</th>
-<th>Energy Type</th>
-<th>Phase / Total</th>
-<th>Unit</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>300–307</td>
-<td>U32</td>
-<td>Active Energy (+ import)</td>
-<td>A/B/C/Totals</td>
-<td>Wh</td>
-</tr>
-<tr>
-<td>308–315</td>
-<td>U32</td>
-<td>Active Energy (− export)</td>
-<td>A/B/C/Totals</td>
-<td>Wh</td>
-</tr>
-<tr>
-<td>316–323</td>
-<td>U32</td>
-<td>Reactive Energy (+ inductive)</td>
-<td>A/B/C/Totals</td>
-<td>varh</td>
-</tr>
-<tr>
-<td>324–331</td>
-<td>U32</td>
-<td>Reactive Energy (− capacitive)</td>
-<td>A/B/C/Totals</td>
-<td>varh</td>
-</tr>
-<tr>
-<td>332–339</td>
-<td>U32</td>
-<td>Apparent Energy</td>
-<td>A/B/C/Totals</td>
-<td>VAh</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p>Energy values are <strong>32-bit unsigned integers</strong> (Hi/Lo word pairs).</p>
-</blockquote>
-<hr>
-<h5>6.4 Holding Registers — Configuration (FC03/06/16)</h5>
-<table>
-<thead>
-<tr>
-<th>Address</th>
-<th>Type</th>
-<th>Description</th>
-<th>Range / Units</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>400</td>
-<td>U16</td>
-<td>Sample Interval</td>
-<td>10–5000 ms</td>
-</tr>
-<tr>
-<td>401</td>
-<td>U16</td>
-<td>Line Frequency</td>
-<td>50 or 60 Hz</td>
-</tr>
-<tr>
-<td>402</td>
-<td>U16</td>
-<td>Sum Mode</td>
-<td>0 = algorithmic<br>1 = absolute</td>
-</tr>
-<tr>
-<td>403</td>
-<td>U16</td>
-<td>Ucal Gain</td>
-<td>1–65535</td>
-</tr>
-<tr>
-<td>410–420</td>
-<td>U16</td>
-<td>Ugain A/B/C</td>
-<td>16-bit</td>
-</tr>
-<tr>
-<td>421–431</td>
-<td>S16</td>
-<td>Uoffset A/B/C</td>
-<td>16-bit</td>
-</tr>
-<tr>
-<td>440–450</td>
-<td>U16</td>
-<td>Igain A/B/C</td>
-<td>16-bit</td>
-</tr>
-<tr>
-<td>451–461</td>
-<td>S16</td>
-<td>Ioffset A/B/C</td>
-<td>16-bit</td>
-</tr>
-<tr>
-<td>499</td>
-<td>U16</td>
-<td><strong>Factory Reset</strong> Trigger</td>
-<td>Write <code>1</code> to reset</td>
-</tr>
-</tbody></table>
-<hr>
-<h5>6.5 Coils — Output Control (FC01/05/15)</h5>
-<table>
-<thead>
-<tr>
-<th>Address</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>600</td>
-<td>Relay 1 Control (ON/OFF)</td>
-</tr>
-<tr>
-<td>601</td>
-<td>Relay 2 Control (ON/OFF)</td>
-</tr>
-<tr>
-<td>610–613</td>
-<td>Alarm Acknowledgment (L1–L3, Totals)</td>
-</tr>
-</tbody></table>
-<hr>
-<h5>6.6 Discrete Inputs — Read-only Status (FC02)</h5>
-<table>
-<thead>
-<tr>
-<th>Address</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>500–503</td>
-<td>LED Status (U.1–U.4)</td>
-</tr>
-<tr>
-<td>520–523</td>
-<td>Button Press (1–4)</td>
-</tr>
-<tr>
-<td>540–541</td>
-<td>Relay State (1–2)</td>
-</tr>
-<tr>
-<td>560–571</td>
-<td>Alarm/Warning/Event flags</td>
-</tr>
-</tbody></table>
-<hr>
-<h5>6.7 Scaling Summary</h5>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Register Type</th>
-<th>Scale Factor</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Voltage (V)</td>
-<td>Input Register</td>
-<td>÷100</td>
-</tr>
-<tr>
-<td>Current (A)</td>
-<td>Input Register</td>
-<td>÷1000</td>
-</tr>
-<tr>
-<td>Power Factor</td>
-<td>Input Register</td>
-<td>÷1000</td>
-</tr>
-<tr>
-<td>Frequency (Hz)</td>
-<td>Input Register</td>
-<td>÷100</td>
-</tr>
-<tr>
-<td>Angle (°)</td>
-<td>Input Register</td>
-<td>÷10</td>
-</tr>
-<tr>
-<td>Energy (Wh)</td>
-<td>32-bit Input</td>
-<td>1</td>
-</tr>
-</tbody></table>
-<hr>
-<h5>6.8 Polling Best Practices</h5>
+<h5>6.2 Coils (write-only)</h5>
 <ul>
-<li><strong>Typical polling rate:</strong> 1 s for live data (powers, voltages, current)  </li>
-<li><strong>Energy:</strong> poll less often (e.g. every 5–10 s)  </li>
-<li><strong>Batch reads:</strong> Use FC04 and FC03 with multi-register reads for speed  </li>
-<li><strong>Avoid writing frequently</strong> to EEPROM-backed registers (e.g., Ucal or gains)  </li>
-<li><strong>Coils:</strong> Fast updates (e.g. overrides) okay; no debounce needed</li>
+<li><code>0 / 1</code> — Relay 1 / 2 command (state from IR0)</li>
+<li><code>5</code> — Identify (~5 s)</li>
+<li><code>16–19</code> — ACK L1 / L2 / L3 / Total</li>
 </ul>
-<blockquote>
-<p>🛠 To reduce bus collisions, stagger multiple ENMs on a shared RS‑485 bus using different <strong>poll intervals</strong> and address spacing.</p>
-</blockquote>
-<hr>
-<h5>6.9 Modbus Integration Example (MiniPLC)</h5>
-<pre><code class="language-yaml">modbus_controller:
-  - id: enm223
-    address: 3
-    modbus_id: rtu_bus
-    update_interval: 1s
+<p>Reboot, save-config and energy-reset are <strong>not</strong> on Modbus — use WebConfig.</p>
+<h5>6.3 Holding registers</h5>
+<ul>
+<li><code>0</code> — Modbus address</li>
+<li><code>1–2</code> — Baud (U32)</li>
+<li><code>4</code> — Line frequency 50/60</li>
+<li><code>5</code> — Sum-abs mode</li>
+<li><code>7–8</code> — Relay 1 / 2 enable</li>
+</ul>
+<p>Prefer one FC04 of <code>0..85</code> at ~1 s. Masters still polling discrete inputs or addresses above 85 must migrate to the v0.2.0 package.</p>
 
-sensor:
-  - platform: modbus_controller
-    modbus_controller_id: enm223
-    name: &quot;Urms L1&quot;
-    register_type: read
-    address: 100
-    value_type: U_WORD
-    unit_of_measurement: &quot;V&quot;
-    accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
-
-switch:
-  - platform: modbus_controller
-    modbus_controller_id: enm223
-    name: &quot;Relay 1&quot;
-    register_type: coil
-    address: 600
-</code></pre>
-<p><a id="7-esphome-integration-guide"></a></p>
 <h4>7. ESPHome Integration Guide (MicroPLC/MiniPLC + ENM‑223‑R1)</h4>
 <p>The HomeMaster controller (MiniPLC or MicroPLC) running <strong>ESPHome</strong> acts as the <strong>Modbus RTU master</strong> over RS‑485. It polls one or more ENM‑223‑R1 modules and publishes all sensors, relays, LEDs, and alarms into <strong>Home Assistant</strong>.</p>
 <p>No Home Assistant add-ons are required — all logic runs on the ESPHome controller.</p>
@@ -1761,7 +1441,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: ENM-223-R1/Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+      - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
           enm_address: 4
@@ -1938,9 +1618,9 @@ packages:
 <h4>11. Downloads</h4>
 <p>The following key project resources are included in this repository:</p>
 <ul>
-<li><p>🧠 <strong>Firmware (Arduino/PlatformIO)</strong><br><a href="Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino"><code>Firmware/v0.1.0/default_enm_223_r1/default_enm_223_r1.ino</code></a><br>Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.</p>
+<li><p>🧠 <strong>Firmware (v0.2.0 — current)</strong><br><a href="Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino"><code>Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino</code></a><br>Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.</p>
 </li>
-<li><p>🧰 <strong>WebConfig Tool</strong><br><a href="https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html"><code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html</code></a><br>HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.</p>
+<li><p>🧰 <strong>WebConfig Tool</strong><br><a href="https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html"><code>https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html</code></a><br>HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.</p>
 </li>
 <li><p>🖼 <strong>Images &amp; UI Diagrams</strong><br><a href="Images/"><code>Images/</code></a><br>Contains front-panel photos, system diagrams, wiring illustrations, and screenshots from WebConfig UI.</p>
 </li>
@@ -1948,7 +1628,7 @@ packages:
 </li>
 <li><p>📄 <strong>Datasheets &amp; Manuals</strong><br><a href="Manuals/ENM-223-R1_Datasheet.pdf"><code>ENM-223-R1_Datasheet.pdf</code></a><br>Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.</p>
 </li>
-<li><p>📦 <strong>ESPHome YAML Templates</strong><br><a href="Firmware/v0.1.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"><code>default_enm_223_r1_plc.yaml</code></a><br>Ready-to-use <code>packages:</code> block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.</p>
+<li><p>📦 <strong>ESPHome YAML Templates</strong><br><a href="Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml"><code>default_enm_223_r1_plc.yaml</code></a><br>ESPHome package (v0.2.0 — current): sensors, relays, Identify/ACK buttons, with sensors, relays, alarms, override logic, and Home Assistant tips.</p>
 </li>
 </ul>
 <blockquote>
@@ -1959,7 +1639,7 @@ packages:
 <p>If you need help using or configuring the ENM‑223‑R1 module, the following support options are available:</p>
 <h6>🛠 Official Resources</h6>
 <ul>
-<li><p>🧰 <a href="https://config.home-master.eu/ENM-223-R1/Firmware/v0.1.0/ConfigToolPage.html">WebConfig Tool (USB-C)</a><br>Configure the module directly from your browser — no drivers or software required.</p>
+<li><p>🧰 <a href="https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html">WebConfig Tool (USB-C)</a><br>Configure the module directly from your browser — no drivers or software required.</p>
 </li>
 <li><p>📘 <a href="https://www.home-master.eu/support">Official Support Portal</a><br>Includes setup guides, firmware help, diagnostics, and contact form.</p>
 </li>
