@@ -23,9 +23,10 @@
   a{color:inherit}
 
   header{border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:20}
-  .head-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;min-height:64px}
+  .head-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;min-height:88px}
   .brand{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
-  .brand img{height:34px;width:auto;display:block}
+  /* Match www.home-master.eu: header .navbar-brand.logo img { height: 4.5rem } */
+  .brand img{height:4.5rem;width:auto;display:block;object-fit:contain}
   .head-nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:flex-end}
   .head-nav a{font-size:14px;font-weight:600;color:var(--text);text-decoration:none}
   .head-nav a:hover{color:var(--muted)}
@@ -91,8 +92,8 @@
   @media (max-width:640px){
     .intro{padding:22px 18px}
     .intro h1{font-size:25px}
-    .head-inner{padding:12px 0}
-    .brand img{height:28px}
+    .head-inner{padding:10px 0;min-height:72px}
+    .brand img{height:3.25rem}
     .head-nav{gap:12px}
     .head-nav a:not(.head-cta){display:none}
   }
@@ -116,7 +117,7 @@
 <header>
   <div class="wrap head-inner">
     <a class="brand" href="https://www.home-master.eu/" aria-label="HomeMaster">
-      <img src="_shared/brand/homemaster-logo.webp" width="177" height="54" alt="HomeMaster" decoding="async">
+      <img src="_shared/brand/homemaster-logo.webp" width="236" height="72" alt="HomeMaster" decoding="async">
     </a>
     <nav class="head-nav" aria-label="Primary">
       <a href="https://www.home-master.eu/shop">Products</a>
