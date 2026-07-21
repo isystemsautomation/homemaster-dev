@@ -7,11 +7,12 @@ Arduino sketch, WebConfig page, and ESPHome package for the **ENM-223-R1** 3-pha
 | `v0.2.0/default_enm_223_r1/` | Main firmware sketch (`default_enm_223_r1.ino`, `atm90e32.*`, `hm_common.h`) |
 | `v0.2.0/ConfigToolPage.html` | USB WebConfig (Web Serial) |
 | `v0.2.0/default_enm_223_r1_plc/` | ESPHome Modbus package for MicroPLC / MiniPLC |
+| `v0.2.0/ENM-223-R1.uf2` | Released binary (flash this) |
 | `v0.1.0/` | Legacy firmware line (do not change unless maintaining v0.1.0) |
 
-**Current line:** `v0.2.0` (firmware string `0.2.0`, Modbus map **v2** / `HM_MAP_VERSION` 2)
+**Current line:** `v0.2.0` (firmware string `0.2.0`, `HM_MAP_VERSION` **`0x0020`**, `CFG_VERSION` **`0x0025`**, `METER_VERSION` **`0x0003`**, Model ID **`2`**)
 
-See also: [Modbus_Table.md](../Modbus_Table.md) for the full FC04 register map.
+See also: [Modbus_Table.md](../Modbus_Table.md) for the full FC04 register map (`0..85`).
 
 ---
 
@@ -19,20 +20,16 @@ See also: [Modbus_Table.md](../Modbus_Table.md) for the full FC04 register map.
 
 | Area | Detail |
 |------|--------|
-| **Signed P/Q** | Active and reactive power from ATM90E32AS published as **S32** Modbus values (import/export sign) |
-| **Peaks & neutral** | Hardware peak U/I (IR 12–17), neutral Irms (IR 18) |
-| **THD** | **Computed** active-power THD per phase (IR 47–49, ×0.01 %) — not ATM90 THD+N |
-| **Fundamental / harmonic power** | ATM90 **PmeanTF/AF/BF/CF** and **PmeanTH/AH/BH/CH** (IR 105–119, S32 W) |
-| **Harmonic active energy** | MCU-accumulated from ATM **APenergyTH/AH/BH/CH** (IR 121–127, U32 Wh) |
-| **Import / export energy** | AP/RP = import, AN/RN = export; WebConfig shows import/export/net labels |
-| **Alarm engine** | Per-channel Alarm / Warning / Event rules with **hysteresis**; chip PQ events (sag, OV, phase loss, over-I, freq, phase sequence) as **Event** |
-| **Modbus alarms** | DI 16–27 (active flags); ACK coils 16–19 |
-| **Relay Alarm Controlled** | Relay follows selected alarm channel/kinds — local load shed until condition clears or **Ack** |
-| **Phase mapping** | WebConfig: L1/L2/L3 → meter phase A/B/C; written to ATM90E32 `ChannelMap` on apply |
-| **Wiring mode** | WebConfig: **3P4W** (star) or **3P3W**; sets ATM90E32 `MMode0` on apply |
-| **Persistence** | **Settings** `/enm_cfg.bin` (CFG **0x0023**); **meter** `/enm_meter.bin` (v0x0002, calibration + energy incl. harmonic AP). Meter data survives typical firmware updates; settings are migrated when possible |
-
-Legacy Modbus addresses (Urms 0–11, P/Q/S 20–42, energies from 60, coils/DI 0–9 and 16–19) are **unchanged**. Map v2 adds IR **105–127** without renumbering.
+| **Contiguous Modbus map** | FC04 **`0..85`** (86 registers) — one sweep; **no FC02** discrete inputs |
+| **Primary-side metering** | CT ratio + PGA in WebConfig; U/I/P/Q/S and energy on the **primary** side |
+| **Signed P/Q** | Active and reactive power as **S32** (import/export sign) |
+| **Energy** | Primary Wh/varh import/export (U32); decoupled from CT/calibration changes; reset via WebConfig / button only |
+| **Alarm engine** | L1–L3/Total × Alarm/Warning/Event; optional ack latch; chip PQ in IR 3–6; ACK coils 16–19 |
+| **Relay modes** | None / Modbus / Alarm; coils 0/1 write-only; state from IR0 bits 8/9 |
+| **LEDs / buttons** | LED alarm-kind sources; button Ack actions |
+| **Phase mapping / wiring** | WebConfig: L1–L3 → A/B/C; **3P4W / 3P3W** |
+| **Persistence** | Settings `/enm_cfg.bin` (`CFG_VERSION` **0x0025**); meter `/enm_meter.bin` (`METER_VERSION` **0x0003**) |
+| **WebConfig-only live** | Peaks, Pfund/Pharm, VAh, harmonic energy (kept off the bus map) |
 
 ---
 
@@ -40,8 +37,8 @@ Legacy Modbus addresses (Urms 0–11, P/Q/S 20–42, energies from 60, coils/DI 
 
 | File | Contents | On firmware update |
 |------|----------|-------------------|
-| `/enm_cfg.bin` | Modbus address/baud, line Hz, sum mode, wire mode, phase map, relay/LED/button/alarm configuration | **Migrated** when `CFG_VERSION` has a migration path (e.g. 0x0021 → 0x0022). If the blob cannot be loaded, **settings revert to firmware defaults** on next boot. |
-| `/enm_meter.bin` | `ucal`, per-phase Ugain/Igain/offsets, energy counter ticks (incl. harmonic AP) | **Preserved** while `METER_VERSION` matches (v0x0001 → v0x0002 migration zeroes harmonic counters). |
+| `/enm_cfg.bin` | Modbus address/baud, line Hz, sum mode, wire mode, phase map, CT/PGA, relay/LED/button/alarm configuration | **Migrated** when `CFG_VERSION` has a migration path. If the blob cannot be loaded, **settings revert to firmware defaults** on next boot. |
+| `/enm_meter.bin` | `ucal`, per-phase Ugain/Igain/offsets, energy counter ticks | **Preserved** while `METER_VERSION` matches. |
 
 Flashing a new `.uf2` / sketch does **not** format LittleFS by itself. Recommission **alarms, relays, phase map, and bus address** after major firmware jumps if WebConfig shows defaults.
 
@@ -49,8 +46,7 @@ Flashing a new `.uf2` / sketch does **not** format LittleFS by itself. Recommiss
 
 ## Publishing to GitHub (after compile)
 
-Commit **source files** and the **UF2 where Arduino writes it** (`build/<board>/`).  
-Do **not** copy the UF2 next to the sketch — Arduino does not update that path.
+Commit **source files** and the **released UF2** at `Firmware/v0.2.0/ENM-223-R1.uf2` (Rule 7 — not a stale copy under `build/`).
 
 ### Commit these
 
@@ -58,26 +54,19 @@ Do **not** copy the UF2 next to the sketch — Arduino does not update that path
 |------|------------------------|
 | Sketch source | `default_enm_223_r1/default_enm_223_r1.ino`, `atm90e32.cpp`, `atm90e32.h` |
 | Shared headers | `default_enm_223_r1/hm_common.h` |
-| **Release UF2** | `default_enm_223_r1/build/rp2040.rp2040.generic_rp2350/default_enm_223_r1.ino.uf2` |
+| **Release UF2** | `ENM-223-R1.uf2` (canonical path next to the version folder) |
 | WebConfig | `ConfigToolPage.html`, `simple-web-serial.min.js` |
 | ESPHome package | `default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` |
 
-Public download URL (on `main`, current board folder):
+Public download URL (on `main`):
 
-`https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1/build/rp2040.rp2040.generic_rp2350/default_enm_223_r1.ino.uf2`
-
-### Do **not** commit
-
-| Item | Reason |
-|------|--------|
-| `*.bin`, `*.elf`, `*.map` | Build intermediates (ignored) |
-| `default_enm_223_r1.ino.uf2` next to the sketch | Stale copy — use `build/…` only |
+`https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ENM-223-R1/Firmware/v0.2.0/ENM-223-R1.uf2`
 
 ---
 
 ## Build (Arduino IDE)
 
-- **Board:** Generic RP2350 (rp2040 core 5.x) → build folder `build/rp2040.rp2040.generic_rp2350/`
+- **Board:** Generic RP2350 (rp2040 core 5.x)
 - **Sketch:** open `v0.2.0/default_enm_223_r1/default_enm_223_r1.ino`
 - **Libraries:** ModbusSerial, Arduino_JSON, LittleFS, SimpleWebSerial (see [module README §8.3](../README.md#83-arduino-ide-setup))
 - **Reproducible build:** [`sketch.yaml`](v0.2.0/default_enm_223_r1/sketch.yaml) — see [root build environment](../../README.md#build-environment-reproducible)
@@ -92,7 +81,9 @@ Open in a Chromium-based browser (file or hosted):
 
 `Firmware/v0.2.0/ConfigToolPage.html`
 
-Connect over USB-C Web Serial. Meter options (line Hz, sum mode, **3P4W/3P3W**, **phase mapping**), calibration, alarms, and relays are applied via `ext.atm` / `alarm` / `relay` messages and auto-saved to `/enm_cfg.bin`.
+Live: [config.home-master.eu …/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)
+
+Connect over USB-C Web Serial. Meter options (line Hz, sum mode, **3P4W/3P3W**, **phase mapping**, **CT ratio**, **PGA**), calibration, alarms, and relays are applied via `ext.atm` / `alarm` / `relay` messages and auto-saved to `/enm_cfg.bin`.
 
 ---
 
@@ -107,8 +98,8 @@ packages:
       - path: ENM-223-R1/Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
         vars:
           enm_id: enm223_1
-          enm_address: 30
+          enm_address: 3
           enm_prefix: "ENM #1"
 ```
 
-Set `enm_address` to the value shown in WebConfig after commissioning.
+Set `enm_address` to the value shown in WebConfig after commissioning (first-boot default **3** @ 19200 8N1).

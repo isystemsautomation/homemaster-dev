@@ -1,144 +1,127 @@
-# ENM-223-R1 Modbus Register Table
+# ENM-223-R1 — Modbus Register Map (v0.2.0)
 
-Firmware **0.2.0**, Modbus map **v2** (`CFG_VERSION` **0x0023**).  
-Chip: **ATM90E32AS** (Atmel-46003B). Legacy addresses **0–99** and coils/DI layout are **unchanged** from map v1.
+**Identity:** Model ID `2` · Firmware `0.2.0` · `CFG_VERSION 0x0025` · `METER_VERSION 0x0003`
+**Transport:** Modbus RTU slave, default address **3**, default baud **19200** (8N1).
 
-## Function Codes
+## What changed vs v0.1.0
+- **Contiguous Input-Register map, addresses `0..85` (86 registers).** The whole
+  telemetry set is read in **one FC04 request** (86 ≤ the 125-register Modbus limit).
+- **No Discrete Inputs (FC02).** All digital state is bit-packed into Input Registers.
+- **Currents are signed 32-bit** (`S_DWORD`, ×0.001 A, primary side) — full CT range.
+- **Energy is accumulated in primary Wh/varh** (32-bit), decoupled from CT ratio and
+  calibration; reset only by command (WebConfig) or the module button, never by a
+  settings change.
+- **Command coils are write-only** (relays, Identify, ACK); relay state is read back
+  from the IO-mask input register, not from the coil.
 
-| FC | Access |
-|----|--------|
-| **FC01** | Read coils |
-| **FC02** | Read discrete inputs |
-| **FC03** | Read holding registers |
-| **FC04** | Read input registers |
-| **FC05** | Write single coil |
-| **FC06** | Write single holding register |
-| **FC16** | Write multiple holding registers |
+## Function codes
 
-Default slave address **30**, baud **19200 8N1** (configurable via WebConfig or HR0/HR1–2).
+| FC | Use |
+|----|-----|
+| **FC04** | Read Input Registers `0..85` — all telemetry (one sweep) |
+| **FC01 / FC05** | Read / write Coils — relay command, Identify, alarm ACK |
+| **FC03 / FC06 / FC16** | Read / write Holding Registers — address, baud, line frequency, sum-abs, relay enable |
+| FC02 | *Not used* — no discrete inputs |
 
----
-
-## Input Registers (FC04) — Real-Time Telemetry
-
-### RMS, PF, Peaks (U16)
-
-| Address | Name | Type | Unit | Scale | ATM90 / notes |
-|---------|------|------|------|-------|---------------|
-| 0–2 | Urms L1/L2/L3 | U16 | V | ×0.01 | UrmsA/B/C |
-| 3–5 | Irms L1/L2/L3 | U16 | A | ×0.001 | IrmsA/B/C |
-| 6 | Line frequency | U16 | Hz | ×0.01 | |
-| 7 | Temperature | S16 | °C | 1 | internal |
-| 8–11 | Power factor L1/L2/L3/Total | S16 | — | ×0.001 | |
-| 12–14 | **Upeak** L1/L2/L3 | U16 | V | ×0.01 | **UPeakA/B/C** (0xF1–0xF3); `UPeak[V]=reg×Ugain/(2¹³×100)` |
-| 15–17 | **Ipeak** L1/L2/L3 | U16 | A | ×0.001 | **IPeakA/B/C** (0xF5–0xF7); `IPeak[A]=reg×Igain/(2¹³×1000)` |
-| 18 | Irms neutral | U16 | A | ×0.001 | IrmsN |
-| 19 | *reserved* | — | — | — | free |
-| 47–49 | **THD** L1/L2/L3 | U16 | % | ×0.01 | **Computed** active-power THD: `100×|P_harm|/|P_fund|` — **not** chip THD+N (ATM90E32AS has **none**) |
-
-### Signed Power (S32 — 2 registers, high word first)
-
-| Address (base) | Name | Type | Unit | ATM90 register (Table-14, LSB 0.00032 W) |
-|----------------|------|------|------|-------------------------------------------|
-| 20, 22, 24, 26 | Active power L1/L2/L3/Total | S32 | W | PmeanA/B/C/T + LSB |
-| 28, 30, 32, 34 | Reactive power L1/L2/L3/Total | S32 | var | QmeanA/B/C/T + LSB |
-| 36, 38, 40, 42 | Apparent power L1/L2/L3/Total | S32 | VA | SmeanA/B/C/T + LSB |
-| 44–46 | Phase angle L1/L2/L3 | S16 | ° | ×0.1 | |
-| **105, 107, 109, 111** | **Fundamental active power** L1/L2/L3/Total | S32 | W | **PmeanAF/BF/CF/TF** (D1–D3/D0 + E1–E3/E0) |
-| **113, 115, 117, 119** | **Harmonic active power** L1/L2/L3/Total | S32 | W | **PmeanAH/BH/CH/TH** (D5–D7/D4 + E5–E7/E4) |
-
-### Status & Chip Events (U16)
-
-| Address | Name | Description |
-|---------|------|-------------|
-| 50–59 | *free* | — |
-| 100 | Status flags | bit1=linkOk, bit3=cfgDirty |
-| 101 | Chip PQ events L1 | U16 bitfield |
-| 102 | Chip PQ events L2 | U16 bitfield |
-| 103 | Chip PQ events L3 | U16 bitfield |
-| 104 | Chip PQ events Total | U16 bitfield |
+Word order for 32-bit values is **high word first** (ESPHome `S_DWORD` / `U_DWORD`).
 
 ---
 
-## Input Registers (FC04) — Energy (U32, high word first)
+## Input Registers (FC04)
 
-Chip energy registers are **read-clears** (0.01 CF). The MCU accumulates ticks and publishes Wh/varh/VAh.
+### Bit-packed status (U16 bitmask)
 
-| Address (base) | Name | Type | Unit | ATM90 (Table-12) |
-|----------------|------|------|------|------------------|
-| 60, 62, 64, 66 | Active import (AP) | U32 | Wh | APenergyA/B/C/T |
-| 68, 70, 72, 74 | Active export (AN) | U32 | Wh | ANenergyA/B/C/T |
-| 76, 78, 80, 82 | Reactive import (RP) | U32 | varh | RPenergyA/B/C/T |
-| 84, 86, 88, 90 | Reactive export (RN) | U32 | varh | RNenergyA/B/C/T |
-| 92, 94, 96, 98 | Apparent (SA) | U32 | VAh | SAenergyA/B/C/T |
-| **121, 123, 125, 127** | **Harmonic active import** | U32 | Wh | **APenergyAH/BH/CH/TH** (0xA8–0xAB) |
+| Addr | Register | Bits |
+|------|----------|------|
+| 0 | **I/O mask** | b0–b3 = LED1–LED4, b4–b7 = BTN1–BTN4, b8 = Relay 1 state, b9 = Relay 2 state |
+| 1 | **Status flags** | b1 = Link OK, b3 = Config dirty |
+| 2 | **Alarm flags** | bit = `3·ch + kind`, ch 0–3 = L1/L2/L3/Total, kind 0–2 = Alarm/Warning/Event (b0 = L1 Alarm … b11 = Total Event) |
+| 3 | **Chip events L1** | b0 = Sag, b1 = Over-voltage, b2 = Phase loss, b3 = Over-current |
+| 4 | **Chip events L2** | same bits as reg 3 |
+| 5 | **Chip events L3** | same bits as reg 3 |
+| 6 | **Chip events Total** | b0 = Sag, b1 = Over-voltage, b2 = Phase loss, b3 = Over-current, b4 = Frequency, b5 = Reverse phase sequence |
 
----
+### Instantaneous scalars
 
-## Coils (FC01/FC05)
+| Addr | Value | Type | Unit | Scale |
+|------|-------|------|------|-------|
+| 7–9 | Urms L1 / L2 / L3 | U16 | V | ×0.01 |
+| 10 | Line frequency | U16 | Hz | ×0.01 |
+| 11 | Temperature | S16 | °C | ×1 |
+| 12–15 | Power factor L1 / L2 / L3 / Total | S16 | — | ×0.001 |
+| 16–18 | Phase angle L1 / L2 / L3 | S16 | ° | ×0.1 |
+| 19–21 | THD L1 / L2 / L3 | U16 | % | ×0.01 |
 
-| Address | Name | Description |
-|---------|------|-------------|
-| 0 | Relay 1 | Maintained ON/OFF (Modbus Controlled mode) |
-| 1 | Relay 2 | Maintained ON/OFF |
-| 16–19 | Alarm ACK L1/L2/L3/Total | Write `1`; auto-clears |
+### Currents (S32, high word first)
 
----
+| Addr | Value | Type | Unit | Scale |
+|------|-------|------|------|-------|
+| 22–23 | Irms L1 | S32 | A | ×0.001 |
+| 24–25 | Irms L2 | S32 | A | ×0.001 |
+| 26–27 | Irms L3 | S32 | A | ×0.001 |
+| 28–29 | Irms Neutral | S32 | A | ×0.001 |
 
-## Discrete Inputs (FC02)
+### Power (S32, high word first)
 
-| Address | Name | Description |
-|---------|------|-------------|
-| 0–3 | LED 1–4 | Physical LED state |
-| 4–7 | Button 1–4 | Pressed |
-| 8–9 | Relay 1–2 | Logical state (after mode/invert) |
-| 16–27 | Alarm flags | `addr = 16 + channel×3 + kind` (kind: 0=Alarm, 1=Warning, 2=Event) |
+| Addr | Value | Type | Unit |
+|------|-------|------|------|
+| 30 / 32 / 34 / 36 | Active power P — L1 / L2 / L3 / Total | S32 | W |
+| 38 / 40 / 42 / 44 | Reactive power Q — L1 / L2 / L3 / Total | S32 | var |
+| 46 / 48 / 50 / 52 | Apparent power S — L1 / L2 / L3 / Total | S32 | VA |
 
----
+### Energy (U32, high word first, primary Wh/varh)
 
-## Holding Registers (FC03) — Writable Settings
+Read-and-hold accumulators (not read-clear on the Modbus side). Reset only via the
+`reset_energy` command (WebConfig) or the module button.
 
-| Address | Type | Description |
-|---------|------|-------------|
-| 0 | U16 | Modbus slave address (1–247) |
-| 1–2 | U32 | Baud rate |
-| 4 | U16 | Line frequency 50/60 Hz |
-| 5 | U16 | Sum mode 0=algebraic, 1=absolute |
-| 7–8 | U16 | Relay 1/2 enable at boot |
-
-Phase mapping and 3P4W/3P3W are **WebConfig-only**.
-
----
-
-## ATM90E32AS Harmonics — Important Limits
-
-Per **Atmel-46003B**:
-
-- **No per-order harmonic spectrum** and **no THD+N registers**.
-- Addresses **0xF1–0xF3** = voltage peak, **0xF5–0xF7** = current peak (not THD; that mapping applies to ATM90E36 only).
-- Harmonic content is available only as **fundamental/harmonic active power** (Table-14) and **harmonic active import energy** (Table-12).
-- Datasheet **±5 % accuracy** on total harmonics (p.75).
-- IR **47–49** in this firmware = **computed** active-power THD from `P_fund` / `P_harm`, unchanged from map v1.
+| Addr | Value | Type | Unit |
+|------|-------|------|------|
+| 54 / 56 / 58 / 60 | Active energy **import** — L1 / L2 / L3 / Total | U32 | Wh |
+| 62 / 64 / 66 / 68 | Active energy **export** — L1 / L2 / L3 / Total | U32 | Wh |
+| 70 / 72 / 74 / 76 | Reactive energy **import** — L1 / L2 / L3 / Total | U32 | varh |
+| 78 / 80 / 82 / 84 | Reactive energy **export** L1 / L2 / L3, and **net** Total @84 | U32 | varh |
 
 ---
 
-## Scaling Reference
+## Coils (FC01 read / FC05 write) — write-only commands
 
-| Quantity | Formula / scale |
-|----------|-----------------|
-| P_fund, P_harm | `signed32 × 0.00032 W` (rounded to integer W in Modbus) |
-| Ipeak | `IPeakReg × Igain / (8192 × 1000)` A → Modbus U16 ×0.001 |
-| Upeak | `UPeakReg × Ugain / (8192 × 100)` V → Modbus U16 ×0.01 |
-| Harmonic energy | MCU sums 0.01 CF read-clear ticks → Wh via `MC_imp_per_kWh` |
+| Addr | Coil | Notes |
+|------|------|-------|
+| 0 | Relay 1 command | write ON/OFF; **state is read from IR 0 bit 8** (works in Modbus mode; in Alarm/None mode the relay is driven by internal logic and a written value is overridden) |
+| 1 | Relay 2 command | state from IR 0 bit 9 |
+| 5 | Identify | momentary — blinks the LEDs ~5 s |
+| 16 | ACK L1 | momentary — clears the latched alarm on channel L1 |
+| 17 | ACK L2 | momentary |
+| 18 | ACK L3 | momentary |
+| 19 | ACK Total | momentary |
 
-Igain/Ugain are the values written to ATM registers **0x62/0x66/0x6A** and **0x61/0x65/0x69** during calibration.
+> Reboot / save-config / energy-reset are **not** exposed over Modbus (shared-bus
+> safety). Config autosaves; reboot / energy-reset / factory are available via WebConfig.
+
+## Holding Registers (FC03 read / FC06·FC16 write) — configuration
+
+| Addr | Field | Range |
+|------|-------|-------|
+| 0 | Modbus address | 1–247 |
+| 1–2 | Modbus baud (U32, high word first) | 9600 / 19200 / 38400 / 57600 / 115200 |
+| 4 | Line frequency | 50 / 60 |
+| 5 | Sum-abs mode | 0 / 1 |
+| 7 | Relay 1 enable | 0 / 1 |
+| 8 | Relay 2 enable | 0 / 1 |
+
+(HR 3 and 6 are reserved.)
 
 ---
 
-## Example Reads
+## Notes
 
-**Fundamental power L1 (W):** FC04, addresses **105–106**, S32, high word at 105.
-
-**Harmonic active energy Total (Wh):** FC04, addresses **127–128**, U32.
-
-**Current peak L2 (A):** FC04, address **16**, U16, ×0.001.
+- **One-sweep read:** a single FC04 of `0..85` returns all telemetry. Fast changing
+  values (U/I/P/Q/S) are at the start; energy counters at the end may be polled less
+  often by the master.
+- **Primary-side values:** currents, power and energy are scaled to the primary side
+  by the CT ratio *N = primary A / secondary mA* configured in WebConfig.
+- **CT-ratio change** does not rewrite accumulated energy (past totals stay valid); it
+  only affects future accumulation.
+- **Word order:** every 32-bit register is high-word-first.
+- **No discrete inputs:** the module has no digital inputs; alarm/chip-event state is
+  reported through the bit-packed input registers above.
