@@ -997,7 +997,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-DIM-420-R1-V1.0.pdf](./Manuals/DoC-DIM-420-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_DIM-420-R1.pdf](./Manuals/DoC_DIM-420-R1.pdf) |
 | Datasheet | [DIM-420-R1_Datasheet.pdf](./Manuals/DIM-420-R1_Datasheet.pdf) |
 
 ### Trademark

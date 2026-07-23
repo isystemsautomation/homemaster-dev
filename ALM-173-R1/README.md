@@ -703,7 +703,7 @@ The ALM-173-R1 is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 
 | Document | File |
 |----------|------|
-| EU DoC | [DoC-ALM-173-R1-V1.0.pdf](Manuals/DoC-ALM-173-R1-V1.0.pdf) |
+| EU DoC | [DoC_ALM-173-R1.pdf](Manuals/DoC_ALM-173-R1.pdf) |
 | Datasheet | [ALM-173-R1_Datasheet.pdf](Manuals/ALM-173-R1_Datasheet.pdf) |
 
 **HomeMaster®** — EUTM No. 019082911 (EUIPO, 15 January 2025).

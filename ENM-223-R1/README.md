@@ -1051,7 +1051,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-ENM-223-R1-V1.0.pdf](./Manuals/DoC-ENM-223-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_ENM-223-R1.pdf](./Manuals/DoC_ENM-223-R1.pdf) |
 | Datasheet | [ENM-223-R1_Datasheet.pdf](./Manuals/ENM-223-R1_Datasheet.pdf) |
 
 ### Trademark

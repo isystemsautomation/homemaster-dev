@@ -169,7 +169,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-MicroPLC-V1.0.pdf](./Manuals/DoC-MicroPLC-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_MicroPLC.pdf](./Manuals/DoC_MicroPLC.pdf) |
 | Datasheet | [MicroPLC_Datasheet.pdf](./Manuals/MicroPLC_Datasheet.pdf) |
 
 ### Trademark

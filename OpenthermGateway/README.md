@@ -900,7 +900,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [OpenTherm_Gateway_DoC.pdf](./Manuals/OpenTherm_Gateway_DoC.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_OTGW-R1.pdf](./Manuals/DoC_OTGW-R1.pdf) |
 | Datasheet | [OpenTherm_Datasheet.pdf](./Manuals/OpenTherm_Datasheet.pdf) |
 
 ### Trademarks
