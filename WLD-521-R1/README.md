@@ -1346,7 +1346,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-WLD-521-R1-V1.0.pdf](./Manuals/DoC-WLD-521-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_WLD-521-R1.pdf](./Manuals/DoC_WLD-521-R1.pdf) |
 | Datasheet | [WLD-521-R1_Datasheet.pdf](./Manuals/WLD-521-R1_Datasheet.pdf) |
 
 ### Trademark

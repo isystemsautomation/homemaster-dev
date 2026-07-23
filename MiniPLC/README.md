@@ -746,7 +746,7 @@ The MiniPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® br
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-MiniPLC-V1.0.pdf](./Manuals/DoC-MiniPLC-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_MiniPLC.pdf](./Manuals/DoC_MiniPLC.pdf) |
 | Datasheet | [MiniPLC_Datasheet.pdf](./Manuals/MiniPLC_Datasheet.pdf) |
 | User Manual | [User Manual.pdf](./Manuals/User%20Manual.pdf) |
 

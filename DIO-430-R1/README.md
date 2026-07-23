@@ -881,7 +881,7 @@ The DIO-430-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster®
 
 | Document | File |
 |----------|------|
-| EU Declaration of Conformity (DoC) | [DoC-DIO-430-R1-V1.0.pdf](./Manuals/DoC-DIO-430-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_DIO-430-R1.pdf](./Manuals/DoC_DIO-430-R1.pdf) |
 | Datasheet | [DIO-430-R1_Datasheet.pdf](./Manuals/DIO-430-R1_Datasheet.pdf) |
 
 ### Trademark

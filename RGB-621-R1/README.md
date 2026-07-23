@@ -920,7 +920,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC-RGB-621-R1-V1.0.pdf](./Manuals/DoC-RGB-621-R1-V1.0.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_RGB-621-R1.pdf](./Manuals/DoC_RGB-621-R1.pdf) |
 | Datasheet | [RGB-621-R1_Datasheet.pdf](./Manuals/RGB-621-R1_Datasheet.pdf) |
 
 ### Trademark
