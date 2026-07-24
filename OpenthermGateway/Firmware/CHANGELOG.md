@@ -2,6 +2,11 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
+### v1.1.0 — current
+
+- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ 2026.7.0; enable `api.encryption` without a baked-in key and add `provisioning:` (15 min window).
+- Project version bumped from 1.0.7 to 1.1.0 (OTA downgrade protection uses this value).
+
 ### v1.0.7 — documentation update
 
 - **Documentation:** trademark attribution added; version sync.
@@ -15,10 +20,10 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder.
 - Updated device documentation wording in index.md per maintainer review.
 - Firmware recompiled with ESPHome 2026.5.3; new OTA binary published.
 
-### v1.0.6 — current (documentation update)
+### v1.0.6 — documentation update
 
 - **Safety:** Added relay output use-restriction warning to comply with the Basic-insulation rating between mains primary (L/N) and relay output (C, NC) tracks on the Relay board, REV1.0. The restriction will be lifted in REV2 of the hardware where Reinforced insulation is achieved by PCB redesign.
 
-### v1.0.6 — current
+### v1.0.6
 
 - Initial public firmware release for OTGW-R1 hardware V1.0.
