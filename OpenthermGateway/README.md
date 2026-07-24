@@ -20,7 +20,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 2. Connect ONE power input (24 V DC at +V/0V, OR 85–265 V AC at L/N).
 3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
 4. Power on, open https://improv-wifi.com, and provision Wi-Fi via Bluetooth.
-5. Open ESPHome Dashboard → click **Take Control** to import the configuration. The device appears in Home Assistant under Settings → Devices & Services → ESPHome.
+5. Within **15 minutes** of power-on, open ESPHome Device Builder → click **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant (Settings → Devices & Services → ESPHome). See [Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 | Resource | Link |
 |---|---|
@@ -48,6 +48,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Map](#gpio-map)
 - [Network Requirements](#network-requirements)
+- [Commissioning (firmware 1.1.0)](#commissioning-firmware-110)
 - [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
 - [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
 - [Home Assistant Integration](#home-assistant-integration)
@@ -265,14 +266,22 @@ U.1 is user-assignable via ESPHome YAML.
 | PWR | Solid ON | Device is powered |
 | O.1 | Solid ON | Relay is energised |
 | U.1 | Firmware-controlled | Configurable via ESPHome YAML |
-| U.2 | Solid ON | Normal operation (Wi-Fi + API connected) |
-| U.2 | Fast blink | Wi-Fi connecting or API disconnected |
+| U.2 | Off | Normal operation — no warning or error |
+| U.2 | Slow blink (~1 Hz) | Warning active. Warnings include Wi-Fi disruption and the native API being present with **no client connected** |
+| U.2 | Fast blink | Error found during setup |
 | U.2 | Blink pattern | OTA update in progress |
 
-> U.2 is configured as the ESPHome `status_led` (GPIO33) and its behaviour
-> is controlled by ESPHome firmware. U.1 is a user-assignable LED,
-> configurable via ESPHome YAML automations.
+> U.2 is the ESPHome `status_led` (GPIO33). Its patterns follow the ESPHome
+> `status_led` component (slow blink = warning, fast blink = setup error, off =
+> OK). U.1 is user-assignable via ESPHome YAML automations.
 > LED colours are not documented here — refer to the physical device or BOM.
+
+> **Firmware 1.1.0:** the native API is encrypted. Until Home Assistant (or another
+> API client) connects with the device encryption key, there is no API client, so
+> **U.2 slow-blinks continuously from boot until the device is adopted**. On 1.0.7
+> the API was unencrypted and U.2 usually went dark soon after Wi-Fi came up. After
+> upgrading to 1.1.0, a slow-blinking U.2 means the device is waiting to be
+> commissioned — not that it has failed.
 
 ### Button (GPIO35)
 The physical button is exposed as a binary sensor in ESPHome (`button_1`).
@@ -308,6 +317,59 @@ Do not reassign reserved GPIOs in custom ESPHome YAML.
 - Vendor-managed OTA updates require outbound **HTTPS (port 443)**
   access to GitHub Pages from the device.
 
+
+## Commissioning (firmware 1.1.0)
+
+From firmware **1.1.0** the factory image ships with an encrypted native API and a
+timed provisioning window (EN 18031-1 / RED Art. 3(3)(d)). Commissioning has two
+stages: put the device on Wi-Fi, then adopt it so each unit gets its own API
+encryption key. No key is baked into the published factory binary — that binary is
+identical for every unit and downloadable by anyone, so a baked-in key would be
+public.
+
+### 1. Wi-Fi provisioning
+
+Unchanged from earlier firmware:
+
+- **Improv** (recommended) via [improv-wifi.com](https://improv-wifi.com) over BLE or USB Serial
+- Or the **`HomeMaster OT Fallback`** access point (`http://192.168.4.1`)
+
+Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
+
+### 2. Provisioning window (15 minutes)
+
+After power-on the device accepts initial configuration for **15 minutes**. When the
+window closes:
+
+- new native API clients are refused
+- BLE Improv stops accepting credentials
+
+**Power-cycle the device** to reopen the window for another 15 minutes. Serial
+provisioning over USB continues to work regardless, because it requires physical
+access.
+
+### 3. Take control / adoption
+
+![ESPHome Device Builder discovery with Take control](./Images/take-control-discovery.png)
+
+The device appears in ESPHome Device Builder as `homemaster-opentherm-<mac>`
+running `homemaster.opentherm_gateway 1.1.0`. Press **Take control** to import the
+full configuration into your dashboard. That step generates the **API encryption
+key** and **OTA password** for this device.
+
+### 4. Encryption key — save it
+
+![ESPHome Encryption Key dialog](./Images/encryption-key-dialog.png)
+
+![Device info showing firmware 1.1.0 and Show encryption key](./Images/device-info-firmware-1.1.0.png)
+
+Each device gets its own key at commissioning. Save it — you need it when moving
+the device to another Home Assistant instance or re-adding it after removal. You
+can retrieve it later from **Device info → Show encryption key**.
+
+Until Home Assistant connects with that key, U.2 keeps slow-blinking (no API
+client). Once HA is connected, U.2 goes out under normal conditions.
+
 ## First Boot & Wi-Fi Setup
 
 The device supports two setup methods:
@@ -325,12 +387,10 @@ The device supports two setup methods:
 
 ℹ️ BLE Improv provisioning is open (`authorizer: none`) until the device successfully connects to Wi-Fi the first time. Provision in a private location and avoid leaving an un-provisioned device powered on within BLE range of untrusted devices.
 
-After connection, the device will appear automatically in:
-
-- ESPHome Dashboard
-- Home Assistant
-
-Click **Take Control** to import the full configuration.
+After Wi-Fi connects, the device appears in ESPHome Device Builder / Home Assistant
+discovery. Complete adoption as described in
+[Commissioning (firmware 1.1.0)](#commissioning-firmware-110) (**Take control**,
+encryption key). Until that is done, U.2 slow-blinks — expected on 1.1.0.
 
 ### Fallback Access Point (HomeMaster OT Fallback)
 
@@ -370,8 +430,9 @@ After Wi-Fi provisioning, the device appears automatically in:
 - **ESPHome Dashboard** — for configuration and logs
 - **Home Assistant** — under Settings → Devices & Services → ESPHome
 
-Click **Take Control** in ESPHome Dashboard to import the full
-configuration and manage firmware yourself.
+Click **Take control** in ESPHome Device Builder to import the full
+configuration, establish the per-device API encryption key, and manage firmware
+yourself. See [Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 ### ⚠️ Note on Taking Control
 After taking control, vendor-managed OTA updates stop working
@@ -383,7 +444,7 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 ⚠️ `import_full_config: true` in the `dashboard_import:` block will overwrite any local edits to your YAML on every dashboard import. After your first successful import, set it to `false` (or remove the `dashboard_import:` block entirely) if you want to keep custom changes.
 
 ### ESPHome Compatibility
-- Minimum ESPHome version used and tested: **2026.4.1**
+- Minimum ESPHome version for firmware **1.1.0**: **2026.7.0** (`esphome.min_version`)
 
 ## Firmware Updates
 
@@ -396,6 +457,11 @@ After taking control in ESPHome Dashboard, firmware can be updated manually:
 - Build new firmware from ESPHome
 - Upload via OTA or USB
 - Full control over configuration
+
+> **Upgrading 1.0.7 → 1.1.0:** commissioning changes. After the update, U.2
+> slow-blinks until the API encryption key is established and Home Assistant
+> reconnects. Complete **Take control** / re-add the device with the new key as
+> in [Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 ### Managed Updates (HTTP)
 
@@ -422,7 +488,8 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 
 | Symptom | Checks | Action |
 |---|---|---|
-| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 LED fast-blinking? Same subnet as HA? | Wait 60s for Wi-Fi. If U.2 blinks, device is connecting. If fails, connect to `HomeMaster OT Fallback` AP and re-enter credentials. |
+| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 slow-blinking? Same subnet as HA? Within 15 min of power-on? | Wait for Wi-Fi. Slow-blink U.2 usually means no API client yet — finish [commissioning](#commissioning-firmware-110). If Wi-Fi itself failed, use `HomeMaster OT Fallback`. Power-cycle to reopen the 15-minute provisioning window. |
+| U.2 slow-blinks after flashing 1.1.0, device otherwise works | Has the device been adopted in Home Assistant or ESPHome Device Builder? | Slow blink means no API client is connected. Complete **Take control** and add the device to Home Assistant. The LED goes out once Home Assistant connects. |
 | No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair. |
 | 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
@@ -521,9 +588,10 @@ esphome:
   name: homemaster-opentherm
   name_add_mac_suffix: true
   friendly_name: HomeMaster OpenTherm Gateway
+  min_version: 2026.7.0
   project:
     name: homemaster.opentherm_gateway
-    version: "1.0.7"
+    version: "1.1.0"
 
 esp32:
   variant: esp32
@@ -535,6 +603,14 @@ esp32:
 logger:
 
 api:
+  encryption:
+    # No key in the published factory binary — set at provisioning
+
+provisioning:
+  timeout: 15min
+  on_timeout:
+    then:
+      - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 wifi:
   ap:
