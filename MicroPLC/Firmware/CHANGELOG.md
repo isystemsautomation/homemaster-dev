@@ -2,7 +2,14 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
 
-### v1.1.0 — current
+### v1.1.1 — current
+
+- Dropped the `substitutions` block; values inlined as literals — configuration aligned with OpenthermGateway and MiniPLC.
+- Removed `mdns`, `network`, and the default-only keys `wifi.fast_connect`, `wifi.domain`, `esphome.area`, `logger.level`.
+- `friendly_name` and `project.name` normalised to the HomeMaster trademark casing.
+- Network updates: `http_request`, OTA via `http_request`, `update` polling `manifest.json` every **6 h**, plus a check **10 s** after Wi-Fi connect.
+
+### v1.1.0
 
 - EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
 - Vendor-managed network updates via `manifest.json` (`update.http_request`, poll every **6 h**).
