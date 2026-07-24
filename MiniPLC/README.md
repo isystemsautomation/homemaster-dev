@@ -18,7 +18,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 2. Connect ONE power input (24 V DC at V+/0V, OR 85–265 V AC at L/N).
 3. Wire your field signals: DI, AI, AO, RTD, 1-Wire, RS-485 — as needed.
 4. Power on, open <https://improv-wifi.com>, and provision Wi-Fi via Bluetooth (BLE) or USB (Serial).
-5. Open ESPHome Dashboard → click **Take Control** to import the configuration. The device appears in Home Assistant under Settings → Devices & Services → ESPHome.
+5. Within **15 minutes** of power-on, open ESPHome Device Builder → click **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant. See [Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 | Resource | Link |
 |---|---|
@@ -51,6 +51,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml)
 - [Real-Time Clock (RTC) Battery](#real-time-clock-rtc-battery)
 - [Network Requirements](#network-requirements)
+- [Commissioning (firmware 1.1.0)](#commissioning-firmware-110)
 - [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
 - [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
 - [Optional Ethernet (LAN8720)](#optional-ethernet-lan8720)
@@ -317,9 +318,14 @@ The device has 12 LEDs total on the front panel: **PWR**, **U.1**, **U.2**, **U.
 | DI 1–4 | Solid ON when input is active | Digital input state mirror |
 | R 1–6 | Solid ON when relay energised | Relay output state mirror |
 | U.1, U.2 | Firmware-controlled | User-assignable via ESPHome YAML |
-| U.3 (Status) | Solid ON | Normal operation (Wi-Fi + API connected) |
-| U.3 (Status) | Fast blink | Wi-Fi connecting or API disconnected |
+| U.3 (Status) | Off | Normal operation — no warning or error |
+| U.3 (Status) | Slow blink (~1 Hz) | Warning active. Warnings include Wi-Fi disruption and the native API being present with **no client connected** |
+| U.3 (Status) | Fast blink | Error found during setup |
 | U.3 (Status) | Blink pattern | OTA update in progress |
+
+> U.3 is the ESPHome `status_led` on PCF8574A pin **P7**. Patterns follow the
+> ESPHome `status_led` component (off = OK, slow blink = warning, fast blink =
+> setup error).
 
 ### Buttons (GPIO via PCF8574A)
 
@@ -448,6 +454,11 @@ Switches **1 and 4–5 and 8** select wiring mode. Switches **2–3 and 6–7** 
 RTD inputs are **disabled in the factory firmware** because the MAX31865 chip-select lines are wired to **GPIO1** and **GPIO3**, which are the ESP32 UART0 TX/RX pins used by the USB serial logger and Improv Serial provisioning.
 
 > ⚠️ **Trade-off:** Enabling RTD sensors disables the USB serial logger and Improv Serial. After this change, the device can be flashed only via OTA (Wi-Fi or Ethernet).
+>
+> Serial Improv is the **only** provisioning channel that remains open after the
+> 15-minute provisioning window expires. With RTD enabled (Serial Improv removed),
+> the only way to reopen provisioning is to **power-cycle** and use **BLE Improv**
+> within the new 15-minute window.
 
 To enable RTD sensors, after taking control of the device:
 
@@ -533,9 +544,55 @@ In normal operation the MiniPLC synchronises time from Home Assistant on every W
 - ESPHome API uses **TCP port 6053**. Ensure this port is not blocked by firewall rules between the device and Home Assistant.
 - Vendor-managed OTA updates require outbound **HTTPS (port 443)** access to GitHub Pages from the device.
 
+
+## Commissioning (firmware 1.1.0)
+
+From firmware **1.1.0** the factory image ships with an encrypted native API and a
+timed provisioning window (EN 18031-1 / RED Art. 3(3)(d)). Commissioning has two
+stages: put the device on the network, then adopt it so each unit gets its own API
+encryption key. No key is baked into the published factory binary — that binary is
+identical for every unit and downloadable by anyone, so a baked-in key would be
+public.
+
+### 1. Wi-Fi provisioning
+
+Unchanged from earlier firmware:
+
+- **Improv** (recommended) via [improv-wifi.com](https://improv-wifi.com) over BLE or USB Serial
+- Or the Wi-Fi **fallback access point** / captive portal when the device cannot join a configured network
+
+Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
+
+### 2. Provisioning window (15 minutes)
+
+After power-on the device accepts initial configuration for **15 minutes**. When the
+window closes:
+
+- new native API clients are refused
+- BLE Improv stops accepting credentials
+
+**Power-cycle the device** to reopen the window for another 15 minutes. Serial
+provisioning over USB continues to work regardless, because it requires physical
+access (unless RTD sensors have claimed GPIO1/GPIO3 — see [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml)).
+
+### 3. Take control / adoption
+
+The device appears in ESPHome Device Builder as `homemaster-miniplc-<mac>` running
+`homemaster.miniplc 1.1.0`. Press **Take control** to import the full configuration
+into your dashboard. That step generates the **API encryption key** and **OTA
+password** for this device.
+
+### 4. Encryption key — save it
+
+Each device gets its own key at commissioning. Save it — you need it when moving
+the device to another Home Assistant instance or re-adding it after removal. You
+can retrieve it later from **Device info → Show encryption key**.
+
 ## First Boot & Wi-Fi Setup
 
-The MiniPLC is configured exclusively through **Improv Wi-Fi provisioning** — there is no captive-portal fallback Access Point.
+The MiniPLC supports **Improv Wi-Fi provisioning** (BLE or USB Serial) and a
+Wi-Fi **fallback access point** / captive portal when it cannot join a configured
+network.
 
 ### Improv Wi-Fi Setup
 
@@ -551,12 +608,9 @@ You can provision Wi-Fi via either **Bluetooth (BLE)** or **USB-C (Serial)** —
 
 ℹ️ BLE Improv provisioning is open (`authorizer: none`) until the device successfully connects to Wi-Fi for the first time. Provision in a private location and avoid leaving an un-provisioned device powered on within BLE range of untrusted devices.
 
-After successful Wi-Fi connection, the device appears automatically in:
-
-- **ESPHome Dashboard** — for configuration and logs.
-- **Home Assistant** — under Settings → Devices & Services → ESPHome.
-
-Click **Take Control** in ESPHome Dashboard to import the full shipped configuration.
+After Wi-Fi connects, complete adoption as described in
+[Commissioning (firmware 1.1.0)](#commissioning-firmware-110) (**Take control**,
+encryption key).
 
 ### USB Serial Driver & Port Access
 
@@ -596,7 +650,16 @@ To enable Ethernet, after taking control of the device:
    - `wifi_signal` sensor under `sensor:`
    - `wifi_info` text sensor under `text_sensor:`
 
-The `api:`, `web_server:`, `ota:`, `update:`, `dashboard_import:` and all other non-Wi-Fi components continue to work over Ethernet without changes.
+The `api:`, `ota:`, `update:`, `dashboard_import:` and all other non-Wi-Fi
+components continue to work over Ethernet without changes. (Factory firmware
+**1.1.0** no longer includes `web_server:` — see changelog.)
+
+> **Ethernet and provisioning (1.1.0):** a working Ethernet link satisfies the
+> network side of provisioning. There is no BLE / Serial Improv step on the
+> Ethernet factory variant (`config-eth.yaml`). The device is considered
+> provisioned once it has network connectivity and the API encryption key is
+> established (Take control / adoption). The **15-minute** window and
+> **power-cycle to reopen** behaviour are the same as on Wi-Fi.
 
 > ⚠️ After switching to Ethernet you lose Wi-Fi provisioning via Improv. To go back, restore the Wi-Fi blocks and remove the `ethernet:` block.
 
@@ -607,7 +670,9 @@ After Wi-Fi provisioning, the device appears automatically in:
 - **ESPHome Dashboard** — for configuration and logs.
 - **Home Assistant** — under Settings → Devices & Services → ESPHome.
 
-Click **Take Control** in ESPHome Dashboard to import the full configuration and manage firmware yourself.
+Click **Take control** in ESPHome Device Builder to import the full configuration,
+establish the per-device API encryption key, and manage firmware yourself. See
+[Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 ### ⚠️ Note on Taking Control
 
@@ -619,7 +684,7 @@ If you remove these blocks, update via ESPHome OTA or USB instead.
 
 ### ESPHome Compatibility
 
-- Minimum ESPHome version used and tested: **2025.7.0**
+- Minimum ESPHome version for firmware **1.1.0**: **2026.7.0** (`esphome.min_version`)
 
 ## Firmware Updates
 
@@ -661,7 +726,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 
 | Symptom | Checks | Action |
 |---|---|---|
-| Device not in HA or ESPHome Dashboard | PWR LED solid ON? Status LED fast-blinking? Same subnet as HA? | Wait 60 s for Wi-Fi. If status LED blinks, device is connecting. If it does not connect, re-run Improv via BLE or USB. |
+| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.3 slow-blinking (warning)? Same subnet as HA? Within 15 min of power-on? | Check Wi-Fi / Ethernet. Slow-blink U.3 is a `status_led` warning (includes no API client). Finish [commissioning](#commissioning-firmware-110). Power-cycle to reopen the 15-minute window; use USB Serial Improv if BLE window closed. |
 | Digital input not responding | DI LED on front panel ON when input active? Wiring uses potential-free contact to GND (not 0V power return)? | Wire the contact between the DI terminal and its GND return; do not apply external voltage. Verify the input is not inverted in YAML and debounce is not too high. |
 | Relay does not switch | `RELAY #n` switch entity present in HA? | Toggle from HA. Check external fuse / breaker on the load circuit. Note: load needs its own power supply — relays are dry contact. |
 | Analog input reads 0 V | Sensor 0 V tied to AI GND? Sensor powered? | Tie sensor reference to AI GND. Check that sensor output is actually in 0–10 V range (some sensors output 4–20 mA — those need a separate 250 Ω resistor or a 4–20 mA-capable module). |
@@ -713,7 +778,7 @@ The file includes:
 - Wi-Fi with fallback AP and Improv (BLE + Serial)
 - ESPHome API + vendor HTTP OTA (`update.http_request`) + ESPHome OTA
 - `dashboard_import` for one-click Take Control
-- `web_server` on port 80 for local diagnostics
+- `api.encryption` without a baked-in key + `provisioning:` (15 min window)
 - I²C bus with all on-board peripherals (PCF8574 ×2, ADS1115, MCP4725, PCF8563, SH1106)
 - RS-485 UART (GPIO17 / GPIO16, 19200 baud) ready for Modbus
 - All digital inputs, buttons, relays, user LEDs, status LED, buzzer, analog inputs, analog output (DAC) with explicit `id` on every entity (Made for ESPHome compliant)

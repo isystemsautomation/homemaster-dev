@@ -24,6 +24,9 @@ api:
     # would be identical on every unit, i.e. equivalent to no key at all.
 
 provisioning:
+  # LED / status behaviour while the provisioning window is open is not
+  # documented by upstream ESPHome and is not confirmed here — awaiting
+  # clarification. Do not document observed quirks until upstream does.
   timeout: 15min
   on_timeout:
     then:

@@ -1,15 +1,16 @@
 {
   "name": "Homemaster MiniPLC",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32",
       "ota": {
-        "path": "miniplc.ota.bin",
-        "md5": "620f309474226d03b48a4696b34ff742",
-        "summary": "Initial release"
+        "path": "https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/homemaster-miniplc-firmware.ota.bin",
+        "md5": "aa823bc211d35a0a8cd69135fe972041",
+        "release_url": "https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/CHANGELOG.md",
+        "summary": "Version 1.1.0 \u2014 EN 18031-1 API encryption + provisioning (ESPHome 2026.7.0); web_server removed from factory image"
       }
     }
   ]
