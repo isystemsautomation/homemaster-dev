@@ -1,0 +1,15 @@
+{
+  "name": "HomeMaster MicroPLC",
+  "version": "1.1.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "ota": {
+        "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
+        "md5": "9ecc8ab8b38b7a1ed3b3b95b08293bf5",
+        "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
+        "summary": "Version 1.1.0 — EN 18031-1 API encryption + provisioning (ESPHome 2026.7.0); 15 min window; per-device key; HTTP OTA via manifest"
+      }
+    }
+  ]
+}
