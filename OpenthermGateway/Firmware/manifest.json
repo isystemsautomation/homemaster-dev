@@ -1,14 +1,14 @@
 {
   "name": "HomeMaster OpenTherm Gateway",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "builds": [
     {
       "chipFamily": "ESP32",
       "ota": {
-        "path": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/homemaster-opentherm.ota.bin",
-        "md5": "35f03a32d348609119af70389bf7d452",
+        "path": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/homemaster-opentherm-firmware.ota.bin",
+        "md5": "c1ed7fe1f6bf9750d8a95fae14f317a1",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/CHANGELOG.md",
-        "summary": "Version 1.0.7 — entity ids for Made for ESPHome; ESPHome 2026.5.3 rebuild"
+        "summary": "Version 1.1.0 — EN 18031-1 API encryption + provisioning (ESPHome 2026.7.0); 15 min window; per-device key"
       }
     }
   ]
