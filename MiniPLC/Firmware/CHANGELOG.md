@@ -1,8 +1,14 @@
+### v1.1.0 — current
+
+- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ 2026.7.0; enable `api.encryption` without a baked-in key and add `provisioning:` (15 min window).
+- Removed unauthenticated `web_server:` from the factory image. After adoption, users can re-add it with `auth:` (and `allowed_origins:` on ESPHome 2026.7.0+) via `dashboard_import` (`import_full_config: true`).
+- Project version bumped to 1.1.0 (OTA downgrade protection uses this value).
+
 # Changelog — HomeMaster MiniPLC
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
-### v1.0.1 — current
+### v1.0.1
 
 - Aligned README structure with the OpenTherm Gateway README.
 - Removed captive-portal fallback AP from documentation — provisioning is now Improv-only (BLE + USB Serial).

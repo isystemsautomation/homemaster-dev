@@ -2,11 +2,11 @@ esphome:
   name: homemaster-miniplc
   friendly_name: Homemaster MiniPLC
   comment: Homemaster MiniPLC
-  min_version: 2025.7.0
+  min_version: 2026.7.0
   name_add_mac_suffix: true
   project:
     name: homemaster.miniplc
-    version: "1.0.0"
+    version: "1.1.0"
 
 esp32:
   board: esp32dev
@@ -18,11 +18,16 @@ logger:
   baud_rate: 115200
 
 api:
+  encryption:
+    # No `key:` here — intentional and required. The key is set during
+    # provisioning. A key baked into a publicly published factory binary
+    # would be identical on every unit, i.e. equivalent to no key at all.
 
-web_server:
-  port: 80
-  version: 3
-  ota: false
+provisioning:
+  timeout: 15min
+  on_timeout:
+    then:
+      - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 # RS-485 / Modbus RTU bus. The UART is exposed below as `uart_modbus`.
 # Users can attach their own `modbus_controller:` blocks to integrate

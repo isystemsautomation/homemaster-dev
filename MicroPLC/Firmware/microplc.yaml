@@ -4,7 +4,7 @@ substitutions:
   room: ""                              # Optional: assign device to a room in HA
   device_description: "Homemaster MicroPLC"  # Description for documentation
   project_name: "Homemaster.MicroPLC"   # Project identifier
-  project_version: "v1.0.0"             # Firmware version
+  project_version: "v1.1.0"             # Firmware version
   update_interval: 60s                  # Default sensor update interval
   dns_domain: ".local"                  # mDNS domain suffix for network discovery
   timezone: ""                          # Timezone (can be set if device runs in different region)
@@ -18,7 +18,7 @@ esphome:
   comment: "${device_description}"      # Metadata comment
   area: "${room}"                       # Assign device to a room
   name_add_mac_suffix: true             # Appends MAC suffix to avoid duplicate hostnames
-  min_version: 2025.7.0                 # Minimum ESPHome version required
+  min_version: 2026.7.0                 # Minimum ESPHome version required
   project:
     name: "${project_name}"             # Project name
     version: "${project_version}"       # Project version
@@ -37,6 +37,16 @@ mdns:
   disabled: false                       # Enable mDNS for auto-discovery on the network
 
 api:                                    # Enable ESPHome API for Home Assistant integration
+  encryption:
+    # No `key:` here — intentional and required. The key is set during
+    # provisioning. A key baked into a publicly published factory binary
+    # would be identical on every unit, i.e. equivalent to no key at all.
+
+provisioning:
+  timeout: 15min
+  on_timeout:
+    then:
+      - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 ota:
   - platform: esphome
