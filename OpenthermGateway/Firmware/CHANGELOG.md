@@ -4,8 +4,9 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
 ### v1.1.0 — current
 
-- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ 2026.7.0; enable `api.encryption` without a baked-in key and add `provisioning:` (15 min window).
+- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
 - Project version bumped from 1.0.7 to 1.1.0 (OTA downgrade protection uses this value).
+- **LED:** until Home Assistant connects with the encryption key there is no API client, so status LED **U.2 slow-blinks** from boot until adoption (expected; not a fault). On 1.0.7 the unencrypted API usually cleared the LED sooner.
 
 ### v1.0.7 — documentation update
 
