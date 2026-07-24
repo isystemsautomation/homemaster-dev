@@ -1,11 +1,12 @@
-### v1.1.0 — current
-
-- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ 2026.7.0; enable `api.encryption` without a baked-in key and add `provisioning:` (15 min window).
-- Project version bumped to v1.1.0 (OTA downgrade protection uses this value).
-
 # Changelog — HomeMaster MicroPLC
 
-Firmware release history. ESPHome configuration (`microplc.yaml`) lives in this folder.
+Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
+
+### v1.1.0 — current
+
+- EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
+- Vendor-managed network updates via `manifest.json` (`update.http_request`, poll every **6 h**).
+- Project version string normalised to **1.1.0** (no `v` prefix), matching MiniPLC / OpenTherm Gateway for OTA downgrade protection.
 
 ### v1.0.0
 

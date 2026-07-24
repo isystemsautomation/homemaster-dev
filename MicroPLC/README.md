@@ -28,8 +28,10 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 - [Description](#description)
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [LED Behaviour](#led-behaviour)
 - [Programming](#programming)
 - [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
+- [Firmware Updates](#firmware-updates)
 - [Bus System Configuration](#bus-system-configuration)
 - [Specifications](#specifications)
 - [Pinout](#pinout)
@@ -55,11 +57,32 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 2. Power on the device.
 3. Open [improv-wifi.com](https://www.improv-wifi.com) in Chrome/Edge.
 4. Connect over USB (serial) or Bluetooth LE and enter Wi-Fi credentials.
-5. Open ESPHome Dashboard and click **Take Control** after discovery.
+5. Within **15 minutes** of power-on, open ESPHome Device Builder and click **Take control** after discovery. Home Assistant will then prompt for the API encryption key and install it automatically.
+
+
+## LED Behaviour
+
+<!-- LED behaviour during the provisioning window is not documented by upstream
+     ESPHome and is not confirmed here — awaiting clarification. Do not document
+     observed quirks (e.g. LED staying dark while waiting for setup) until upstream does. -->
+
+The firmware-configurable status LED is driven by ESPHome `status_led` on **GPIO25**
+(`inverted: true`).
+
+| Behaviour | Meaning |
+|---|---|
+| Off | Normal operation — no warning or error |
+| Slow blink (~1 Hz) | Warning active. Warnings include Wi-Fi disruption and the native API being present with **no client connected** |
+| Fast blink | Error found during setup |
+
+Other front-panel LEDs (power, relay, DI, RS-485 RX/TX) are hardware-driven and
+are not controlled by this component.
+
+<!-- TODO: status-LED photo of the MicroPLC front panel, if available -->
 
 ## Programming
 
-The MicroPLC ships with ESPHome and can be configured in three standard ways.
+The MicroPLC ships with ESPHome and can be configured in three standard ways. Firmware **1.1.0** requires **ESPHome ≥ 2026.7.0**.
 
 ### Improv Wi-Fi Setup
 
@@ -67,12 +90,29 @@ The MicroPLC ships with ESPHome and can be configured in three standard ways.
 2. Go to [improv-wifi.com](https://www.improv-wifi.com).
 3. Connect via USB (serial) or Bluetooth LE.
 4. Enter your Wi-Fi SSID and password, then connect.
-5. The device joins your Wi-Fi and becomes available in Home Assistant / ESPHome.
+5. The device joins your Wi-Fi and becomes available in Home Assistant / ESPHome Device Builder.
+
+From firmware **1.1.0** the device accepts initial configuration only for
+**15 minutes after power-on**. When the window closes, new native API clients are
+refused and BLE Improv stops accepting Wi-Fi credentials. **Power-cycle** the
+device to reopen the window for another 15 minutes. Serial provisioning over USB
+continues to work regardless, because it requires physical access.
 
 ### One-Click Import (ESPHome Dashboard)
 
-Once connected to Wi-Fi, the MicroPLC is auto-discovered in ESPHome Dashboard.
-Click **Take Control** to import the official configuration from GitHub.
+Once connected to Wi-Fi, the MicroPLC is auto-discovered in ESPHome Device Builder
+as `homemaster-microplc-<mac>` running `Homemaster.MicroPLC 1.1.0`.
+Click **Take control** to import the official configuration from GitHub. That step
+generates the **API encryption key** and **OTA password** for this device.
+
+From **1.1.0** the native API is encrypted. Each device gets its own key at
+adoption — no key is baked into the published factory YAML, because that file is
+identical for every unit and public on GitHub. **Save the key**; you need it when
+moving the device between Home Assistant instances. Retrieve it later from
+**Device info → Show encryption key**.
+
+<!-- TODO: screenshots — Take control discovery banner; ESPHome Encryption Key dialog; Device info → Show encryption key -->
+
 
 ### USB Type-C Flashing (ESPHome Dashboard)
 
@@ -92,6 +132,44 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 - **Linux** — Support is **in-kernel** (`cp210x`). Add your user to the **`dialout`** group (`sudo usermod -aG dialout $USER`), then log out and back in. The port appears as `/dev/ttyUSB0` or similar.
 
 **Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
+
+
+## Firmware Updates
+
+The device supports two firmware update methods:
+
+### ESPHome Updates (User-controlled)
+
+After taking control in ESPHome Device Builder, firmware can be updated manually:
+
+- Build new firmware from ESPHome
+- Upload via OTA or USB
+- Full control over configuration
+
+### Managed Updates (HTTP)
+
+The device also supports vendor-provided firmware updates.
+
+A firmware update entity is exposed in Home Assistant, allowing the device to check for new firmware versions and install updates directly.
+
+This mechanism uses the `update.http_request` component with a hosted firmware manifest,
+downloading updates over HTTPS directly to the device.
+
+If a newer firmware version is available, it can be installed directly from Home Assistant.
+
+The device polls the firmware manifest every 6 hours (`update_interval: 6h`) at
+`https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/manifest.json`.
+To disable vendor-managed OTA, remove the `update:`, `http_request:`, and
+`ota: platform: http_request` blocks from your YAML. Updates will then only be
+possible via ESPHome OTA or USB.
+
+> ℹ️ **OTA security:** OTA updates are downloaded over HTTPS from GitHub Pages. Trust depends on the security of the HomeMaster GitHub account; firmware files are not separately signed. If you need a stricter trust model, take control in ESPHome Device Builder and manage updates yourself.
+
+> ⚠️ **OTA safety:** Do not interrupt a firmware update once started.
+> If an OTA update is interrupted mid-flash, the device may fail to boot.
+> If this occurs, reflash via USB-C using ESPHome or the ESP flashing tool.
+> ESPHome safe mode is active for the first 10 boot attempts after a
+> failed OTA — connect via USB and reflash to recover.
 
 ## Bus System Configuration
 
@@ -121,6 +199,7 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 | 1-Wire | 1 channel (ESD/OVP protected) |
 | Mounting | DIN-rail |
 | Firmware | ESPHome (pre-installed), Arduino |
+| Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
 
 ## Pinout
 
