@@ -1,12 +1,12 @@
 esphome:
   name: homemaster-miniplc
-  friendly_name: Homemaster MiniPLC
-  comment: Homemaster MiniPLC
-  min_version: 2026.7.0
   name_add_mac_suffix: false
+  friendly_name: HomeMaster MiniPLC
+  comment: HomeMaster MiniPLC
+  min_version: 2026.7.0
   project:
     name: homemaster.miniplc
-    version: 1.1.0
+    version: "1.1.0"
 
 esp32:
   board: esp32dev
@@ -35,22 +35,9 @@ provisioning:
 # RS-485 / Modbus RTU bus. The UART is exposed below as `uart_modbus`.
 # Users can attach their own `modbus_controller:` blocks to integrate
 # field devices (energy meters, expansion modules, etc.).
-http_request:
-  id: http_request_data
-
 ota:
 - platform: esphome
   id: ota_esphome
-- platform: http_request
-  id: ota_http_request
-
-update:
-- platform: http_request
-  id: firmware_update
-  name: Firmware Update
-  source: 
-    https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/manifest.json
-  update_interval: 6h
 
 #wifi:
 #  ap: {}
@@ -67,8 +54,7 @@ update:
 #  authorizer: none
 
 dashboard_import:
-  package_import_url: 
-    github://isystemsautomation/homemaster-dev/MiniPLC/Firmware/miniplc.yaml@main
+  package_import_url: github://isystemsautomation/homemaster-dev/MiniPLC/Firmware/config-eth.yaml@main
   import_full_config: true
 
 # Optional wired Ethernet (LAN8720 PHY)
