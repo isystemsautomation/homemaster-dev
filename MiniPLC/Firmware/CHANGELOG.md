@@ -7,6 +7,7 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder.
 - EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
 - Removed `web_server:` from `miniplc.yaml` and `config-eth.yaml`. ESPHome’s web server has no CSRF protection and a permissive CORS policy by design, and unlike the API key / OTA password it is **not** configured automatically on adoption — so it would have stayed unauthenticated forever. Users can re-add it with `auth:` after adoption (`dashboard_import` uses `import_full_config: true`).
 - Project version bumped from 1.0.1 to **1.1.0** (OTA downgrade protection uses this value).
+- `friendly_name` normalised to the HomeMaster trademark; devices that install this update over OTA will be renamed in Home Assistant.
 
 ### v1.0.1
 
