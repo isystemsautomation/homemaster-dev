@@ -329,10 +329,7 @@ public.
 
 ### 1. Wi-Fi provisioning
 
-Unchanged from earlier firmware:
-
-- **Improv** (recommended) via [improv-wifi.com](https://improv-wifi.com) over BLE or USB Serial
-- Or the **`HomeMaster OT Fallback`** access point (`http://192.168.4.1`)
+Primary setup is **Improv** via [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge, over BLE or USB Serial.
 
 Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
 
@@ -372,10 +369,10 @@ client). Once HA is connected, U.2 goes out under normal conditions.
 
 ## First Boot & Wi-Fi Setup
 
-The device supports two setup methods:
-
-- **Improv Wi-Fi (recommended)**
-- **Fallback Access Point (HomeMaster OT Fallback)**
+The device supports **Improv Wi-Fi** via [improv-wifi.com](https://improv-wifi.com)
+in Chrome or Edge (BLE or USB Serial). If Wi-Fi credentials change later, power-cycle
+the device to reopen the 15-minute provisioning window, then provision again with
+Improv over BLE or USB.
 
 ### Improv Wi-Fi Setup (Recommended)
 
@@ -391,28 +388,6 @@ After Wi-Fi connects, the device appears in ESPHome Device Builder / Home Assist
 discovery. Complete adoption as described in
 [Commissioning (firmware 1.1.0)](#commissioning-firmware-110) (**Take control**,
 encryption key). Until that is done, U.2 slow-blinks — expected on 1.1.0.
-
-### Fallback Access Point (HomeMaster OT Fallback)
-
-If the device cannot connect to Wi-Fi, it starts a fallback Access Point.
-
-**SSID:** `HomeMaster OT Fallback`
-
-#### Steps
-
-1. Power on the device and wait approximately 60 seconds
-2. Connect to: HomeMaster OT Fallback
-3. Open a browser and navigate to: http://192.168.4.1
-4. Enter your Wi-Fi credentials and save
-
-The device will restart and connect to your network.
-
-### Notes
-
-- The captive portal page may open automatically. If it does not, open `http://192.168.4.1` manually.
-- Mobile devices may continue using mobile data; disable it if the page does not load.
-- The fallback Access Point is only active when the device cannot connect to Wi-Fi.
-- Improv Wi-Fi is the preferred setup method.
 
 ### USB Serial Driver & Port Access
 
@@ -488,15 +463,15 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 
 | Symptom | Checks | Action |
 |---|---|---|
-| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 slow-blinking? Same subnet as HA? Within 15 min of power-on? | Wait for Wi-Fi. Slow-blink U.2 usually means no API client yet — finish [commissioning](#commissioning-firmware-110). If Wi-Fi itself failed, use `HomeMaster OT Fallback`. Power-cycle to reopen the 15-minute provisioning window. |
+| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 slow-blinking? Same subnet as HA? Within 15 min of power-on? | Wait for Wi-Fi. Slow-blink U.2 usually means no API client yet — finish [commissioning](#commissioning-firmware-110). If Wi-Fi itself failed, power-cycle to reopen the 15-minute provisioning window and re-run Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com). |
 | U.2 slow-blinks after flashing 1.1.0, device otherwise works | Has the device been adopted in Home Assistant or ESPHome Device Builder? | Slow blink means no API client is connected. Complete **Take control** and add the device to Home Assistant. The LED goes out once Home Assistant connects. |
 | No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair. |
 | 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
 | Relay switches but load does not work | External power connected to load circuit? Relay is dry-contact — it does not supply power. | Add external power supply to the load circuit. Use external contactor for inductive loads above 3 A. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`. If `http_request`/`update` blocks removed from YAML, use ESPHome OTA instead. |
-| Wi-Fi credentials changed, device unreachable | — | Wait 60s after power-on. Connect to `HomeMaster OT Fallback` → `http://192.168.4.1` → enter new credentials. On mobile: disable mobile data. |
-| Device completely unreachable, no fallback AP | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use `https://web.esphome.io` (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. USB can be connected with or without external power — no backfeed risk. |
+| Wi-Fi credentials changed, device unreachable | — | Power-cycle the device to reopen the 15-minute provisioning window, then set new credentials with Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge. |
+| Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use `https://web.esphome.io` (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. USB can be connected with or without external power — no backfeed risk. |
 | OT communication verification without HA | — | ESPHome Dashboard → Logs → look for `[opentherm]` lines: `Received response` = OK · `Timeout` = check wiring · `Invalid response` = check for electrical noise on OT line. Add `web_server: port: 80` to YAML for browser interface at `http://<device_ip>`. |
 
 ### Device Behaviour Reference
@@ -613,14 +588,10 @@ provisioning:
       - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 wifi:
-  ap:
-    ssid: "HomeMaster OT Fallback"
   on_connect:
     then:
       - delay: 10s
       - component.update: firmware_update
-
-captive_portal:
 
 esp32_improv:
   authorizer: none
