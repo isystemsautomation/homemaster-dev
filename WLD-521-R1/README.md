@@ -1072,6 +1072,8 @@ uart:
 modbus:
   id: modbus_bus
   uart_id: uart_modbus
+  turnaround_time: 100ms
+  send_wait_time: 250ms
 
 packages:
   wld1:
@@ -1085,6 +1087,19 @@ packages:
           wld_address: 4     # Match this with WebConfig address
     refresh: 1d
 ```
+
+> **ESPHome 2026.7.0 raised the Modbus client defaults** — `turnaround_time` from
+> 100 ms to 600 ms and `send_wait_time` from 250 ms to 2000 ms (PR #11969).
+>
+> At the 600 ms default the bus carries only about 1.5 Modbus transactions per
+> second, whatever the UART speed, because the controller stays silent for 600 ms
+> after every response. Two modules on one RS-485 bus become slow to respond.
+> With three or more, one module can stop being polled altogether — with no
+> timeout and no CRC error in the log.
+>
+> On ESPHome 2026.7.0 and newer, set both values explicitly as shown above.
+> On earlier releases these were the defaults and the two lines are not required.
+
 
 > Replace `wld_address` with your module's actual Modbus ID (default is `3`).  
 > You can add more modules by duplicating the package block with unique `wld_id`, `wld_address`, and `wld_prefix`.

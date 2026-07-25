@@ -1328,7 +1328,15 @@ No local logic is required — all channel control, DI events, LEDs, and feedbac
 
 modbus:
   id: modbus_bus
+  turnaround_time: 100ms
+  send_wait_time: 250ms
 </code></pre>
+<blockquote>
+<p><strong>ESPHome 2026.7.0 raised the Modbus client defaults</strong> — <code>turnaround_time</code> from 100 ms to 600 ms and <code>send_wait_time</code> from 250 ms to 2000 ms (PR #11969).</p>
+<p>At the 600 ms default the bus carries only about 1.5 Modbus transactions per second, whatever the UART speed, because the controller stays silent for 600 ms after every response. Two modules on one RS-485 bus become slow to respond. With three or more, one module can stop being polled altogether — with no timeout and no CRC error in the log.</p>
+<p>On ESPHome 2026.7.0 and newer, set both values explicitly as shown above. On earlier releases these were the defaults and the two lines are not required.</p>
+</blockquote>
+
 <blockquote>
 <p class="has-line-data" data-line-start="770" data-line-end="771">The DIM‑420‑R1 supports 9600–115200 baud. Defaults to 19200/8N1/ID 3.</p>
 </blockquote>
