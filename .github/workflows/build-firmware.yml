@@ -79,6 +79,28 @@ jobs:
             --dump-profile \
             . 2>&1 | tee profile-dump.txt
 
+      - name: Generate SBOM (CycloneDX)
+        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        run: |
+          python3 "${GITHUB_WORKSPACE}/tools/sbom_arduino.py" \
+            --module "${{ matrix.module }}" \
+            --sketch "${{ matrix.sketch }}" \
+            --profile profile-dump.txt \
+            --fw-version 0.2.0 \
+            --out "${{ matrix.module }}.cdx.json"
+
+      - name: Validate SBOM
+        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        run: |
+          # Fail the build if the SBOM is not valid CycloneDX or has no components.
+          python3 - "${{ matrix.module }}.cdx.json" <<'PY'
+          import json, sys
+          b = json.load(open(sys.argv[1]))
+          assert b.get("bomFormat") == "CycloneDX", "not CycloneDX"
+          assert b.get("components"), "SBOM has no components"
+          print(f"SBOM OK: {len(b['components'])} components")
+          PY
+
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
@@ -86,4 +108,5 @@ jobs:
           path: |
             ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/build/**/*.uf2
             ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/profile-dump.txt
+            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/${{ matrix.module }}.cdx.json
           if-no-files-found: error

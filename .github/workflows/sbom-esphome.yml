@@ -1,0 +1,83 @@
+# Generate CycloneDX SBOMs for the three ESP32 / ESPHome radio modules.
+#
+# These are not built by build-firmware.yml (that one is the RP2350 Arduino line).
+# The ESPHome modules are built in Device Builder, so this workflow does not
+# compile them — it derives the SBOM from the pinned versions and the YAML.
+#
+# Place at: .github/workflows/sbom-esphome.yml
+# The generator is at: tools/sbom_esphome.py
+#
+# IMPORTANT: keep ESPHOME_VERSION in step with the version you actually build in
+# Device Builder. When you bump the toolchain, bump it here — the SBOM must
+# describe what shipped.
+
+name: SBOM (ESPHome modules)
+
+on:
+  push:
+    paths:
+      - 'MiniPLC/Firmware/**.yaml'
+      - 'MicroPLC/Firmware/**.yaml'
+      - 'OpenthermGateway/Firmware/**.yaml'
+      - 'tools/sbom_esphome.py'
+      - '.github/workflows/sbom-esphome.yml'
+  workflow_dispatch:
+
+env:
+  ESPHOME_VERSION: '2026.7.0'
+  FRAMEWORK_VERSION: '5.3.1'   # ESP-IDF version ESPHome 2026.7.x resolves; verify against build logs
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: MiniPLC
+            yaml: MiniPLC/Firmware/miniplc.yaml
+            fw: '1.2.0'
+          - module: MicroPLC
+            yaml: MicroPLC/Firmware/microplc.yaml
+            fw: '1.2.0'
+          - module: OpenthermGateway
+            yaml: OpenthermGateway/Firmware/opentherm.yaml
+            fw: '1.2.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pyyaml
+        run: pip install pyyaml
+
+      - name: Generate SBOM
+        run: |
+          python3 tools/sbom_esphome.py \
+            --module "${{ matrix.module }}" \
+            --yaml "${{ matrix.yaml }}" \
+            --esphome-version "${ESPHOME_VERSION}" \
+            --framework-version "${FRAMEWORK_VERSION}" \
+            --fw-version "${{ matrix.fw }}" \
+            --out "${{ matrix.module }}.cdx.json"
+
+      - name: Validate SBOM
+        run: |
+          python3 - "${{ matrix.module }}.cdx.json" <<'PY'
+          import json, sys
+          b = json.load(open(sys.argv[1]))
+          assert b.get("bomFormat") == "CycloneDX", "not CycloneDX"
+          assert b.get("components"), "SBOM has no components"
+          print(f"SBOM OK: {len(b['components'])} components")
+          PY
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.module }}
+          path: ${{ matrix.module }}.cdx.json
+          if-no-files-found: error
