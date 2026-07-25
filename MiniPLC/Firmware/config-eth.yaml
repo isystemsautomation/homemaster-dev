@@ -6,7 +6,7 @@ esphome:
   min_version: 2026.7.0
   project:
     name: homemaster.miniplc
-    version: "1.1.0"
+    version: "1.2.0"
 
 esp32:
   board: esp32dev

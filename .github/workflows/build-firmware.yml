@@ -1,15 +1,15 @@
-# Build all HomeMaster RP2350 module firmware (v0.2.0) with arduino-cli.
+# Build all HomeMaster RP2350 module firmware with arduino-cli.
 # Produces .uf2 binaries and --dump-profile output for pinning sketch.yaml versions.
 name: Build firmware (v0.2.0)
 
 on:
   push:
     paths:
-      - '**/Firmware/v0.2.0/**'
+      - '**/Firmware/v*/**'
       - '.github/workflows/build-firmware.yml'
   pull_request:
     paths:
-      - '**/Firmware/v0.2.0/**'
+      - '**/Firmware/v*/**'
       - '.github/workflows/build-firmware.yml'
 
 env:
@@ -25,24 +25,31 @@ jobs:
         include:
           - module: AIO-422-R1
             sketch: default_aio_422_r1
+            version: v0.2.0
             extra_libs: '"ADS1X15@0.6.2" "Adafruit MAX31865 library@1.6.2" "Adafruit MCP4725@2.0.2" "Adafruit BusIO@1.17.4"'
           - module: ALM-173-R1
             sketch: default_alm_173_r1
+            version: v0.2.0
             extra_libs: '"PCF8574@0.4.5"'
           - module: DIM-420-R1
             sketch: default_DIM_420_R1
+            version: v0.2.0
             extra_libs: ''
           - module: DIO-430-R1
             sketch: default_DIO_430_R1
+            version: v0.2.0
             extra_libs: ''
           - module: ENM-223-R1
             sketch: default_enm_223_r1
+            version: v0.2.0
             extra_libs: ''
           - module: RGB-621-R1
             sketch: default_rgb_621_r1
+            version: v0.2.0
             extra_libs: ''
           - module: WLD-521-R1
             sketch: default_wld-521-r1
+            version: v0.2.0
             extra_libs: ''
 
     steps:
@@ -71,7 +78,7 @@ jobs:
             ${{ matrix.extra_libs }}
 
       - name: Compile ${{ matrix.module }} / ${{ matrix.sketch }}
-        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        working-directory: ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}
         run: |
           arduino-cli compile \
             --fqbn "${{ env.FQBN }}" \
@@ -80,7 +87,7 @@ jobs:
             . 2>&1 | tee profile-dump.txt
 
       - name: Generate SBOM (CycloneDX)
-        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        working-directory: ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}
         run: |
           python3 "${GITHUB_WORKSPACE}/tools/sbom_arduino.py" \
             --module "${{ matrix.module }}" \
@@ -90,7 +97,7 @@ jobs:
             --out "${{ matrix.module }}.cdx.json"
 
       - name: Validate SBOM
-        working-directory: ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}
+        working-directory: ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}
         run: |
           # Fail the build if the SBOM is not valid CycloneDX or has no components.
           python3 - "${{ matrix.module }}.cdx.json" <<'PY'
@@ -106,7 +113,7 @@ jobs:
         with:
           name: firmware-${{ matrix.sketch }}
           path: |
-            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/build/**/*.uf2
-            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/profile-dump.txt
-            ${{ matrix.module }}/Firmware/v0.2.0/${{ matrix.sketch }}/${{ matrix.module }}.cdx.json
+            ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}/build/**/*.uf2
+            ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}/profile-dump.txt
+            ${{ matrix.module }}/Firmware/${{ matrix.version }}/${{ matrix.sketch }}/${{ matrix.module }}.cdx.json
           if-no-files-found: error
