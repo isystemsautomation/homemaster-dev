@@ -5,7 +5,7 @@ esphome:
   min_version: 2026.7.0
   project:
     name: homemaster.opentherm_gateway
-    version: "1.1.0"
+    version: "1.2.0"
 
 esp32:
   variant: esp32
@@ -29,14 +29,10 @@ provisioning:
       - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 wifi:
-  ap:
-    ssid: "HomeMaster OT Fallback"
   on_connect:
     then:
       - delay: 10s
       - component.update: firmware_update
-
-captive_portal:
 
 esp32_improv:
   authorizer: none

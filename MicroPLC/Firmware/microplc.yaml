@@ -6,7 +6,7 @@ esphome:
   min_version: 2026.7.0
   project:
     name: homemaster.microplc
-    version: "1.1.1"
+    version: "1.2.0"
 
 esp32:
   board: esp32dev                       # Target board type (generic ESP32 DevKit)
@@ -43,13 +43,10 @@ update:
     update_interval: 6h
 
 wifi:
-  ap: {}
   on_connect:
     then:
       - delay: 10s
       - component.update: firmware_update
-
-captive_portal:                         # Captive portal for fallback hotspot
 
 improv_serial:                          # Allows setup via Improv over Serial
 
