@@ -1,6 +1,6 @@
 # Build all HomeMaster RP2350 module firmware with arduino-cli.
 # Produces .uf2 binaries and --dump-profile output for pinning sketch.yaml versions.
-name: Build firmware (v0.2.0)
+name: Build firmware
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
             extra_libs: ''
           - module: DIO-430-R1
             sketch: default_DIO_430_R1
-            version: v0.2.0
+            version: v0.3.0
             extra_libs: ''
           - module: ENM-223-R1
             sketch: default_enm_223_r1

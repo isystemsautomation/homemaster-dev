@@ -556,10 +556,7 @@ public.
 
 ### 1. Wi-Fi provisioning
 
-Unchanged from earlier firmware:
-
-- **Improv** (recommended) via [improv-wifi.com](https://improv-wifi.com) over BLE or USB Serial
-- Or the Wi-Fi **fallback access point** / captive portal when the device cannot join a configured network
+Primary setup is **Improv** via [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge, over BLE or USB Serial.
 
 Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
 
@@ -590,9 +587,10 @@ can retrieve it later from **Device info → Show encryption key**.
 
 ## First Boot & Wi-Fi Setup
 
-The MiniPLC supports **Improv Wi-Fi provisioning** (BLE or USB Serial) and a
-Wi-Fi **fallback access point** / captive portal when it cannot join a configured
-network.
+The MiniPLC supports **Improv Wi-Fi provisioning** (BLE or USB Serial) via
+[improv-wifi.com](https://improv-wifi.com) in Chrome or Edge. If Wi-Fi credentials
+change later, power-cycle the device to reopen the 15-minute provisioning window,
+then provision again with Improv over BLE or USB.
 
 ### Improv Wi-Fi Setup
 
@@ -644,7 +642,6 @@ To enable Ethernet, after taking control of the device:
 
 2. Remove (or comment out) all Wi-Fi-related blocks:
    - `wifi:`
-   - `captive_portal:`
    - `improv_serial:`
    - `esp32_improv:`
    - `wifi_signal` sensor under `sensor:`
@@ -775,7 +772,7 @@ The full shipped configuration is available in the repository:
 The file includes:
 
 - ESP32 board / framework
-- Wi-Fi with fallback AP and Improv (BLE + Serial)
+- Wi-Fi with Improv (BLE + Serial)
 - ESPHome API + vendor HTTP OTA (`update.http_request`) + ESPHome OTA
 - `dashboard_import` for one-click Take Control
 - `api.encryption` without a baked-in key + `provisioning:` (15 min window)
