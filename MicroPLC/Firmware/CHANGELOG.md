@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
 
-### v1.1.1 — current
+### v1.2.0 — current
+
+- Project version bumped from 1.1.1 to **1.2.0**.
+- Removed the Wi-Fi fallback access point (`wifi.ap: {}`) and `captive_portal:` for RED Art. 3(3)(d) / EN 18031-1.
+
+### v1.1.1
+
 
 - Dropped the `substitutions` block; values inlined as literals — configuration aligned with OpenthermGateway and MiniPLC.
 - Removed `mdns`, `network`, and the default-only keys `wifi.fast_connect`, `wifi.domain`, `esphome.area`, `logger.level`.
