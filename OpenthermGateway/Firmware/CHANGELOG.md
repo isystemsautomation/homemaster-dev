@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
-### v1.1.0 — current
+### v1.2.0 — current
+
+- Project version bumped to **1.2.0**.
+- Removed the Wi-Fi fallback access point (`wifi.ap` / SSID `HomeMaster OT Fallback`) and `captive_portal:` for RED Art. 3(3)(d) / EN 18031-1.
+
+### v1.1.0
+
 
 - EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
 - Project version bumped from 1.0.7 to 1.1.0 (OTA downgrade protection uses this value).

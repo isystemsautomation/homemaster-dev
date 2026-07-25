@@ -1,6 +1,6 @@
 {
   "name": "HomeMaster MiniPLC",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": true,
   "builds": [
@@ -8,9 +8,9 @@
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/homemaster-miniplc-firmware.ota.bin",
-        "md5": "aa823bc211d35a0a8cd69135fe972041",
+        "md5": "e6a3138947d68cc46046c4e7756a5e67",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/CHANGELOG.md",
-        "summary": "Version 1.1.0 \u2014 EN 18031-1 API encryption + provisioning (ESPHome 2026.7.0); web_server removed from factory image"
+        "summary": "Version 1.2.0 \u2014 remove Wi-Fi fallback AP and captive_portal (RED Art. 3(3)(d) / EN 18031-1)"
       }
     }
   ]

@@ -1,14 +1,14 @@
 {
   "name": "HomeMaster MicroPLC",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "builds": [
     {
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
-        "md5": "aad68f22d586f5dccd701a68197b2e2c",
+        "md5": "3c1acd73bf3728ce3ee15992ff7f446a",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
-        "summary": "Version 1.1.1 — YAML aligned with OpenthermGateway (no substitutions); HTTP OTA via manifest with check 10 s after Wi-Fi connect"
+        "summary": "Version 1.2.0 — remove Wi-Fi fallback AP and captive_portal (RED Art. 3(3)(d) / EN 18031-1)"
       }
     }
   ]

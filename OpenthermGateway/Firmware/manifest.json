@@ -1,14 +1,14 @@
 {
   "name": "HomeMaster OpenTherm Gateway",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "builds": [
     {
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/homemaster-opentherm-firmware.ota.bin",
-        "md5": "c1ed7fe1f6bf9750d8a95fae14f317a1",
+        "md5": "3ce055f2cc94d88dec834746caad607c",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/CHANGELOG.md",
-        "summary": "Version 1.1.0 — EN 18031-1 API encryption + provisioning (ESPHome 2026.7.0); 15 min window; per-device key"
+        "summary": "Version 1.2.0 — remove Wi-Fi fallback AP and captive_portal (RED Art. 3(3)(d) / EN 18031-1)"
       }
     }
   ]

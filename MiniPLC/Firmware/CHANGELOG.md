@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder.
 
-### v1.1.0 — current
+### v1.2.0 — current
+
+- Project version bumped to **1.2.0**.
+- Removed the Wi-Fi fallback access point (`wifi.ap`) and `captive_portal:` from `miniplc.yaml` for RED Art. 3(3)(d) / EN 18031-1 (no unauthenticated open AP after first boot). Ethernet (`config-eth.yaml`) is unchanged aside from the version bump.
+
+### v1.1.0
+
 
 - EN 18031-1 / RED Art. 3(3)(d): require ESPHome ≥ **2026.7.0**; enable `api.encryption` **without** a baked-in key (per-device key set at adoption) and add `provisioning:` (**15 min** window after power-on; power-cycle to reopen).
 - Removed `web_server:` from `miniplc.yaml` and `config-eth.yaml`. ESPHome’s web server has no CSRF protection and a permissive CORS policy by design, and unlike the API key / OTA password it is **not** configured automatically on adoption — so it would have stayed unauthenticated forever. Users can re-add it with `auth:` after adoption (`dashboard_import` uses `import_full_config: true`).
