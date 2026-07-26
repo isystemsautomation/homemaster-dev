@@ -1,5 +1,5 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
 ## 🚀 Quick Start (current version)
 
@@ -318,9 +318,6 @@ For setup/diagnostics via any Chromium-based browser (Chrome, Edge, Opera, Brave
 
 ---
 
-Let me know if you'd like the follow-up section `4.4 Wiring Examples` or `5 Controller Integration`.
-
-
 <a id="installation-wiring"></a>
 
 ## 4.4 Installation & Wiring
@@ -604,7 +601,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Attribute             | Value                             |
 |-----------------------|-----------------------------------|
 | Mounting              | DIN rail (EN50022, 35 mm)         |
-| Material              | PC/ABS, UL V-0                    |
+| Material              | PC/ABS, V-0                       |
 | Color / Finish        | Light Gray / Smoke, Matte         |
 | Dimensions (L×W×H)    | 157.4 × 91 × 58.4 mm              |
 | Division Units        | 9M                                |
@@ -621,10 +618,10 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Operating Humidity     | ≤ 95 % RH, non-condensing         |
 | Ingress Protection     | IP20                              |
 | Pollution Degree       | 2                                 |
-| Impulse Voltage        | 2.5 kV (UL60730-1)                |
-| Operation Class        | Type 1 (UL60730-1, CSA E60730-1)  |
+| Impulse Voltage        | 2.5 kV                            |
+| Operation Class        | Type 1                            |
 | Altitude Rating        | ≤ 2000 m                          |
-| Certifications         | CE, UL60730-1, CSA E60730-1       |
+| Certifications         | CE                                |
 | RoHS / Pb-free         | ✅ Compliant                      |
 
 ---
@@ -741,7 +738,7 @@ Coils are **momentary triggers**. Write `1` to trigger; auto-resets to `0`.
 # 7. ESPHome Integration Guide
 
 The DIM‑420‑R1 integrates natively with ESPHome and Home Assistant via **Modbus RTU** using a plug-and-play **YAML package**.  
-No local logic is required — all channel control, DI events, LEDs, and feedback are exposed as entities.
+Local press-logic and dimming run on the module; the ESPHome package additionally exposes all channels, DI events, LEDs and feedback as Home Assistant entities.
 
 ---
 

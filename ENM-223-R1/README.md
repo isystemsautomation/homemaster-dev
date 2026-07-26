@@ -1,5 +1,5 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
 # ENM-223-R1 — 3-Phase Power Metering & I/O Module
 
@@ -506,12 +506,13 @@ Set `enm_address` to the Modbus ID configured in WebConfig (first-boot default *
 
 ### 5.5 Verify
 
-
 | Area           | What to Check |
 |----------------|---------------|
 | **LEDs**       | `PWR = ON`; `TX/RX = blink` during comms |
 | **Voltage**    | L1–L3 read ~230 V (or phase-neutral voltage) |
-| **Current**
+| **Current**    | CT channels respond when a load is present on that phase; near zero with no load / open CTs |
+| **Relays**     | Toggle as configured (Modbus Controlled or Alarm Controlled) |
+| **WebConfig**  | Live meter values update; settings persist after USB reconnect |
 
 ---
 

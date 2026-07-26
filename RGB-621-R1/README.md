@@ -7,7 +7,7 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 ![RGB-621-R1 photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/RGB-621-R1/Images/photo1.png)
 
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
 ## Contents
 

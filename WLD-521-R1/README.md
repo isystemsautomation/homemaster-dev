@@ -1,5 +1,5 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
 ## 🚀 Quick Start (current version)
 
@@ -787,9 +787,10 @@ Summarize steps in 3 phases:
 | Parameter            | Value / Behavior |
 |----------------------|------------------|
 | Type                 | SPDT, dry contact (NO/C/NC). |
-| Ratings (contacts)   | **250 VAC 16 A** (cosφ=1), **250 VAC 9 A** (cosφ=0.4), **30 VDC 10 A**. |
+| Module output limit  | **3 A @ 250 VAC (resistive)** / **3 A @ 30 VDC** — PCB, terminals and compliance limit. |
+| Relay component      | HF115F-class contacts are rated higher (up to 16 A @ 250 VAC at the component); **that chip rating does not apply to the module**. |
 | Protection           | RC / varistor snubbers for inductive loads. |
-| Recommendation       | Use coupling relays for inductive or >5 A continuous loads. |
+| Recommendation       | Use an interposing contactor or coupling relay for inductive loads or loads above **3 A**. |
 
 ### Communications
 | Interface | Details |
@@ -847,7 +848,7 @@ Summarize steps in 3 phases:
 | **Logic rails**               | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
 | **Isolated sensor rails**     | —   | +12 V ISO / +5 V ISO | — | Fused & LC‑filtered; specify budget per install. |
 | **Digital inputs**            | —   | —   | —   | Opto‑isolated; per‑channel surge protection. |
-| **Relay contacts (R1–R2)**    | —   | —   | 250 VAC 16 A / 30 VDC 10 A | Use external snubbers; derate for inductive loads. |
+| **Relay contacts (R1–R2)**    | —   | —   | **3 A @ 250 VAC** (resistive) / **3 A @ 30 VDC** | Module limit. Relay component rated higher — does **not** apply to the module. Use external snubbers; derate for inductive loads. |
 | **RS‑485 interface**          | —   | 115200 bps | — | Half‑duplex; fail‑safe; short‑circuit limited; surge‑protected. |
 | **USB‑C**                     | 5 V | —   | — | USB 2.0 device; ESD‑protected; setup only. |
 | **Operating temperature**     | 0 °C | — | 40 °C | ≤95 % RH, non‑condensing. |
@@ -1172,76 +1173,27 @@ packages:
 
 ## 8.1 Supported Languages
 
-- Arduino
-- C++
+- Arduino / C++
 - MicroPython
-
-## 8.2 Flashing
-
-1. **Connect via USB-C** to a computer using a Chromium-based browser or a serial flasher.
-2. To enter **bootloader mode**, press and hold **Buttons 1+2**, then release while connecting power.
-3. To trigger a **hardware reset**, press and hold **Buttons 3+4** for 3 seconds.
-4. Use **PlatformIO** or **Arduino IDE** with appropriate RP2040 board profile.
-
-## 8.3 Arduino / PlatformIO Notes
-
-- **Board config**: Use Generic RP2040 or RP2040-based custom board with QSPI.
-- **Flash size**: 2 MB Flash (Sketch: 1MB, FS: 1MB)
-- **Required Libraries**:
-  - `Arduino.h`
-  - `ModbusSerial.h`
-  - `SimpleWebSerial.h`
-  - `Arduino_JSON.h`
-  - `LittleFS.h`
-  - `OneWire.h`
-  - `hardware/watchdog.h`
-- **Pin Mapping** is aligned with RP2350 definitions; see schematic for GPIO layout.
-
-## 8.4 Firmware Updates
-
-- Use **WebConfig** or USB-C to re-flash the firmware using the appropriate boot/reset combination.
-- Configuration is stored in persistent flash (retained across firmware upgrades).
-- If a flash fails, enter BOOT mode manually and retry via browser uploader or PlatformIO CLI.
-- WebConfig can restore base config with default values if corrupted.
-
----
-
-<a id="8-programming--customization"></a>
-
-# 8. Programming & Customization
-
-> This section matches the style shown in your screenshot and **includes the missing items** (MicroPython note, USB‑C flashing steps, button reference image, and Arduino include list).
-
-## 8.1 Supported Languages
-
-* **MicroPython**
-* **C/C++**
-* **Arduino IDE**
-
----
 
 ## 8.2 Flashing via USB‑C
 
 1. **Connect USB‑C** from PC to the module.
 2. Enter **boot/flash mode** if required (see combinations below).
-3. Upload the provided firmware (WebConfig Uploader, PlatformIO, or Arduino IDE).
+3. Upload the firmware (WebConfig uploader, PlatformIO, or Arduino IDE).
 
-**Boot/Reset combinations (handled in hardware):**
-- **Buttons 1 + 2** → forces the module into **BOOT** mode.
-- **Buttons 3 + 4** → triggers a **hardware RESET**.
-
-Use these combinations during firmware flashing or to restart the device manually.
+**Boot/Reset combinations (hardware):**
+- **Buttons 1 + 2** → **BOOT** mode.
+- **Buttons 3 + 4** → hardware **RESET**.
 
 **Button numbering reference:**  
 <img src="Images/photo1.png" width="420" alt="Front panel with button numbering U1..U4"/>
 
----
-
 ## 8.3 Arduino / PlatformIO Notes
 
-- **Board profile:** `Generic RP2350` (RP2 family, dual‑core)  
-- **Flash layout:** 2 MB total (suggested **Sketch: 1 MB**, **FS: 1 MB**)
-- **Toolchains:** Arduino IDE 2.x or PlatformIO (`platform = raspberrypi`)
+- **Board profile:** `Generic RP2350` (RP2 family, dual‑core)
+- **Flash layout:** 2 MB total (**Sketch: 1 MB**, **FS: 1 MB**) — LittleFS for persistent config
+- **Toolchains:** Arduino IDE 2.x or PlatformIO
 
 **Required libraries (typical project):**
 - `Arduino.h`
@@ -1252,18 +1204,17 @@ Use these combinations during firmware flashing or to restart the device manuall
 - `OneWire.h`
 - `hardware/watchdog.h`
 
----
+Pin mapping follows the RP2350 schematic / GPIO layout.
 
 ## 8.4 Firmware Updates
 
-To update the firmware, use the **Arduino IDE** or **PlatformIO** via **USB‑C**:
-
-1. Connect the **USB‑C** cable to the module.
-2. Press **Buttons 1 + 2** together to enter **BOOT mode**, re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
-3. Upload the updated binary located in  
-   `Firmware/v0.1.0/default_wld-521-r1/`.
+1. Connect **USB‑C**.
+2. Hold **Buttons 1 + 2** for **BOOT** mode if needed; **Buttons 3 + 4** for a hard reset.
+3. Upload the binary from the module firmware folder (`Firmware/vX.Y.Z/`).
+4. Configuration in LittleFS is retained across firmware upgrades when the layout is compatible. If a flash fails, enter BOOT mode and retry. WebConfig can restore defaults if settings are corrupted.
 
 ---
+
 <a id="9-maintenance--troubleshooting"></a>
 
 # 9. Maintenance & Troubleshooting

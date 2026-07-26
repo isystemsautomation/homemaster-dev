@@ -96,11 +96,13 @@ The MiniPLC acts as a Modbus RTU master on its RS-485 bus. Add HomeMaster I/O mo
 | Module | Function | Repository |
 |---|---|---|
 | DIO-430-R1 | 4 × digital inputs + 3 × relays | [DIO-430-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1) |
-| DIM-420-R1 | 2 x channel msfet dimmer outputs | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1) |
-| ENM-223-R1 | Energy monitor (single-phase) | [ENM-223-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ENM-223-R1) |
-| ALM-173-R1 | Alarm panel (17 zones, 3 outputs) | [ALM-173-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1) |
-| AIO-422-R1 | 4 × analog inputs + 2 × analog outputs | [AIO-422-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1) |
-| DIO-430-R1 / DIM-420-R1 / RGB-621-R1 / STR-3221-R1 / WLD-521-R1 | Additional digital, RGB, stair-light, and leak-detection modules | See repository root |
+| DIM-420-R1 | 2-channel MOSFET AC dimmer | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1) |
+| ENM-223-R1 | 3-phase energy & power-quality monitor | [ENM-223-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ENM-223-R1) |
+| ALM-173-R1 | 17 digital inputs + 3 relays, alarm logic (not a certified alarm system) | [ALM-173-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1) |
+| AIO-422-R1 | 4 × analog inputs + 2 × analog outputs + 2 × RTD | [AIO-422-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1) |
+| RGB-621-R1 | RGB + CCT LED controller (5 PWM + 1 relay) | [RGB-621-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1) |
+| STR-3221-R1 | 32-channel staircase / architectural LED controller | [STR-3221-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/STR-3221-R1) |
+| WLD-521-R1 | Multi-zone leak detection, valve control, pulse metering | [WLD-521-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/WLD-521-R1) |
 
 Any standard Modbus RTU slave device can also be connected. Refer to each module's own `README.md` for register maps and the recommended YAML package import.
 

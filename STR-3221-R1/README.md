@@ -2,7 +2,7 @@
 
 ![Firmware Version](https://img.shields.io/badge/Firmware-v0.1.0-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
-![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
 ## 🚀 Quick Start (current version)
 
