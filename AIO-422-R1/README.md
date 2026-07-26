@@ -44,10 +44,12 @@ packages:
 - **4× Analog Inputs (0–10 V)**
   - High-resolution 16-bit ADC (ADS1115)
   - Ideal for sensors, potentiometers, control signals
+  - **0–10 V only** (no 4–20 mA)
 
 - **2× Analog Outputs (0–10 V)**
   - 12-bit DAC (MCP4725) with stable output
   - For actuators, dimmers, speed control
+  - **0–10 V only** (no 4–20 mA)
 
 - **2× RTD Inputs (PT100/PT1000)**
   - Based on MAX31865
@@ -71,7 +73,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 - Real-time analog signal monitoring
 - Analog output automation (lighting, HVAC, pumps)
 - Accurate temperature-based triggers using RTDs
-- Custom automation logic via MQTT or native ESPHome entities
+- Custom automation logic via native ESPHome entities (no MQTT broker required)
 
 ---
 
@@ -92,8 +94,8 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 | Parameter                     | Value                                |
 |------------------------------|--------------------------------------|
 | Power Supply                 | 24 V DC                              |
-| Analog Inputs                | 4 × 0–10 V (ADS1115, 16-bit)         |
-| Analog Outputs               | 2 × 0–10 V (MCP4725, 12-bit)         |
+| Analog Inputs                | 4 × 0–10 V (ADS1115, 16-bit); **voltage only — no 4–20 mA** |
+| Analog Outputs               | 2 × 0–10 V (MCP4725, 12-bit); **voltage only — no 4–20 mA** |
 | RTD Inputs                   | 2 × PT100/PT1000 (MAX31865)         |
 | RTD Wiring Support           | 2-, 3-, 4-wire                       |
 | Input/Output Protection      | ESD, overvoltage                     |

@@ -42,6 +42,8 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 
 **One-line purpose:** a high-density stair/architectural lighting node with presence-driven sequences and local-first operation.
 
+> **Status:** STR-3221-R1 is in development and not yet released for production; firmware, Modbus map and ESPHome integration are being finalized.
+
 ## Key advantages
 
 - **32-channel** low-side MOSFET LED controller with motion-triggered staircase animations and **2 presence inputs** — a focused product for stair and architectural lighting.
@@ -168,7 +170,7 @@ Automatically lights stair LEDs in sequence when motion is detected at the top o
 1. Connect motion sensors to **IN1 (bottom)** and **IN2 (top)** terminals.  
 2. Connect each stair LED segment to outputs **O1–O32** (low-side switching).  
 3. Set the module’s **Modbus address** (and related options) in **WebConfig**.  
-4. Program MicoPLC/MiniPLC to poll **IN1/IN2** and activate LEDs in a timed sequence.  
+4. Program MicroPLC/MiniPLC to poll **IN1/IN2** and activate LEDs in a timed sequence.  
 5. Use **Button 1** as “Manual Test / All ON” and **Button 2** as “All OFF”.
 
 ---

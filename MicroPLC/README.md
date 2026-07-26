@@ -2,11 +2,7 @@
 
 ![HomeMaster MicroPLC](./Images/MicroPLC.png)
 
-> **Project status:** under active development and testing.
-> Hardware and firmware are pre-release and may change.
-> The current firmware version for each module is listed at
-> [config.home-master.eu](https://config.home-master.eu/). All versions
-> live in this repository under `<MODULE>/Firmware/`.
+> **Firmware:** Firmware is updated per module; see each module’s `Firmware/` folder (and [config.home-master.eu](https://config.home-master.eu/)) for the current version.
 
 ## Description
 
@@ -58,6 +54,8 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - One 24 V digital input with surge protection (ISO1212)
 - Four front-panel buttons and status LEDs
 - DIN-rail mounting for standard control cabinets
+- **24 V DC only** field supply (plus USB-C for programming) — no AC mains input
+- **No onboard Ethernet or microSD** (unlike MiniPLC); expand I/O over RS-485 modules
 
 ## Quick Start
 
@@ -199,13 +197,17 @@ possible via ESPHome OTA or USB.
 | Feature | Details |
 |---|---|
 | Microcontroller | ESP32-WROOM-32U-N16 (16 MB flash) |
-| Power Supply | 5 V via USB-C (programming) or 24 V via terminal |
+| Power Supply | **24 V DC only** via terminal (field); 5 V via USB-C (programming) |
+| Onboard expansion | **No Ethernet**, **no microSD** (unlike MiniPLC) |
 | Relay Output | 1× SPDT relay (HF115F/005-1ZS3); 3 A @ 250 VAC module limit (relay component rated higher) |
 | Digital Input | 1× 24 V DI (ISO1212-based) |
 | Communication | RS-485, Wi-Fi, Bluetooth, USB-C |
 | RTC | PCF8563 |
 | 1-Wire | 1 channel (ESD/OVP protected) |
 | Mounting | DIN-rail |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
 | Firmware | ESPHome (pre-installed), Arduino |
 | Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
 

@@ -11,8 +11,8 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 
 ## Contents
 
-- [Quick Start](#-quick-start)
-- [Version History](#-version-history)
+- [Quick Start](#quick-start)
+- [Version History](#version-history)
 - [Hardware notes (current revision)](#hardware-notes-current-revision)
 - [1. Introduction](#1-introduction)
 - [2. Technical Specification](#2-rgb-621-r1--technical-specification)
@@ -30,11 +30,11 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 
 > **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
 
-## 🚀 Quick Start
+## Quick Start
 
 New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC** / **MiniPLC** — see [§7 ESPHome Integration](#7-esphome-integration-guide) for the ready-to-copy YAML. Give each module a **unique Modbus address** (default **3**).
 
-## 📦 Version History
+## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
@@ -203,18 +203,18 @@ The RGB-621-R1 is a 5-channel RGB + tunable-white (CCT) LED controller with two 
 one relay, and an on-module control engine — it runs standalone or as a Modbus RTU / Home Assistant
 node. I/O: 5 PWM channels (R, G, B, WW, CW), 2 digital inputs, 1 SPST-NO relay.
 
-### 🎚️ Use Case 1 — Standalone wall-switch dimming, color and scenes (no controller)
+### Use Case 1 — Standalone wall-switch dimming, color and scenes (no controller)
 Drive an RGB or RGB+CCT strip directly from one or two momentary wall buttons, all logic on the
 module: short-press toggles a group, press-and-hold ramps brightness smoothly (hold-to-dim over a
 configurable time), double-press jumps to full or recalls one of four on-module scenes. DI1 handles
 the RGB group, DI2 the warm/cool (CCT) group by default — fully configurable in WebConfig. Works
 with the bus and Home Assistant offline.
 
-### 🔌 Use Case 2 — Relay as automatic LED-PSU power-cut (energy saving)
+### Use Case 2 — Relay as automatic LED-PSU power-cut (energy saving)
 Set the onboard relay to **FOLLOW** mode and wire **Relay C / NO** **externally in series** with the LED driver supply (+): the relay closes while any watched channel is on and opens after an off-delay once everything is dark — no standby draw or driver heating. The module does **not** switch the **COM (LED+)** rail internally; FOLLOW only drives the separate dry-contact output. Or use the relay in **Manual** mode as a free switched output driven by a gesture, Modbus, or Home Assistant.
 Module output is 3 A @ 250 VAC (PCB limit); use an interposing contactor for larger loads.
 
-### 🏠 Use Case 3 — Full Home Assistant integration with live state
+### Use Case 3 — Full Home Assistant integration with live state
 Add the ESPHome package (see [§7](#7-esphome-integration-guide)) to a MicroPLC/MiniPLC and the strip appears in Home
 Assistant as an RGB+CCT light with the relay as a switch. Control color, brightness and CCT from HA
 with 12-bit gamma-corrected, step-free dimming, while wall switches keep working locally; the module
@@ -255,7 +255,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ## 4.3 Interface Warnings
 
-### ⚡ Power Supply (24 V DC)
+### Power Supply (24 V DC)
 
 | Parameter | Specification |
 |------------|---------------|
@@ -267,7 +267,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ---
 
-### 🟢 Digital Inputs
+### Digital Inputs
 
 | Parameter | Specification |
 |------------|---------------|
@@ -279,7 +279,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ---
 
-### 🔴 Relay Output
+### Relay Output
 
 | Parameter | Specification |
 |------------|---------------|
@@ -293,7 +293,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ---
 
-### 🔵 RS-485 Communication
+### RS-485 Communication
 
 | Parameter | Specification |
 |------------|---------------|
@@ -306,7 +306,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ---
 
-### 🧰 USB-C Interface
+### USB-C Interface
 
 | Parameter | Specification |
 |------------|---------------|

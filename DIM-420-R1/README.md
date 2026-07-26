@@ -82,6 +82,8 @@ Typical use: wall switches on the DIs, **Leading/Trailing** and thresholds per l
 - Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
 - Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
+> **Limitation:** Dimmer channels have **no per-channel power or energy metering**.
+
 ---
 
 ## 1.2 Features & Architecture
