@@ -4,7 +4,7 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Quick Start (current version)
+## Quick Start (current version)
 
 **Firmware v0.1.0** — ESPHome package:
 
@@ -21,7 +21,7 @@ packages:
           str_address: 21
 ```
 
-## 📦 Version History
+## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
@@ -31,7 +31,7 @@ packages:
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![Image](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/photo1.png)
+![Image](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/photo1.png)
 
 
 # 1. Introduction
@@ -85,10 +85,10 @@ Internally, it features robust surge protection and power regulation circuits, e
 
 | Diagrams & Descriptions |
 |--------------------------|
-| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS rails. |
-| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
-| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
+| ![System Diagram](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
+| ![FieldBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS rails. |
+| ![MCUBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
+| ![Terminal Map](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
 
 ---
 
@@ -217,7 +217,7 @@ Follow all safety and wiring practices described below.
 
 ## 4.3 Interface Warnings
 
-### ⚡ Power (24 VDC Input / LED Supply)
+### Power (24 VDC Input / LED Supply)
 
 | Area | Warning |
 |-------|----------|
@@ -227,7 +227,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### 🔌 Digital Input — module-wetted 24 V (DI)
+### Digital Input — module-wetted 24 V (DI)
 
 | Area | Warning |
 |-------|----------|
@@ -237,7 +237,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### 🔌 Presence-sensor inputs (IN1, IN2)
+### Presence-sensor inputs (IN1, IN2)
 
 | Area | Warning |
 |-------|----------|
@@ -247,7 +247,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### ⚙️ Outputs (O1…O32)
+### Outputs (O1…O32)
 
 | Area | Warning |
 |-------|----------|
@@ -258,7 +258,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### 🔄 RS-485 (Modbus RTU)
+### RS-485 (Modbus RTU)
 
 | Area | Warning |
 |-------|----------|
@@ -270,7 +270,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### 🧠 USB-C (Service / WebConfig)
+### USB-C (Service / WebConfig)
 
 | Area | Warning |
 |-------|----------|
@@ -317,7 +317,7 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
 
-![24 V DC power supply wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
+![24 V DC power supply wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
 *Module **V+** / **0V** (24 V DC) — size the PSU for electronics plus LED load.*
 
 ### Stair LED outputs (32 channels)
@@ -330,7 +330,7 @@ One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and 
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **24Vdc** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
-![Digital trigger input wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_DigitalInput.png)
+![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **24Vdc** (9); module supplies wetting current — do not apply external voltage.*
 
 ### PIR / presence sensors (IN1, IN2)
@@ -339,14 +339,14 @@ Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 
-![PIR motion sensor wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_PIRSensors.png)
+![PIR motion sensor wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_PIRSensors.png)
 *PIR sensors powered from **SENS** rail and signaling **IN1** / **IN2**.*
 
 ### RS-485 (Modbus RTU)
 
 Wire **A**, **B**, and optional **COM** on shielded twisted-pair in a daisy-chain bus; fit an external 120 Ω resistor across A/B at each physical bus end (no onboard terminator).
 
-![RS-485 bus wiring](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/STR_RS485_Connection.png)
+![RS-485 bus wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_RS485_Connection.png)
 ***A**, **B**, and **COM** to the controller or next module; external 120 Ω at both bus ends.*
 
 ### USB-C
@@ -432,7 +432,7 @@ The module enumerates as a **USB Serial device** when connected to a PC.
 
 ## 8.3 Arduino / PlatformIO Notes
 
-### 🧩 Required Libraries
+### Required Libraries
 For Arduino or PlatformIO environments, include:
 
 ```cpp
@@ -446,7 +446,7 @@ For Arduino or PlatformIO environments, include:
 #include "hardware/watchdog.h"
 ```
 
-### ⚙️ Board Configuration
+### Board Configuration
 
 | Parameter | Setting |
 |------------|----------|
@@ -456,7 +456,7 @@ For Arduino or PlatformIO environments, include:
 | **Baud Rate** | 115200 |
 | **Libraries** | Modbus RTU, SimpleWebSerial, JSON, LittleFS, Wire |
 
-### 📡 Pin Mapping Summary
+### Pin Mapping Summary
 
 | Peripheral | MCU Pin | Description |
 |-------------|----------|-------------|
@@ -472,7 +472,7 @@ For Arduino or PlatformIO environments, include:
 
 ## 8.4 Firmware Updates
 
-### 🧠 How to Update
+### How to Update
 1. Connect via **USB-C** to a PC.  
 2. Press **Buttons 1 + 2** to enter **BOOT mode**.  
 3. Upload new firmware (`default_str_3221_r1.ino` / UF2 when built) using:
@@ -480,10 +480,10 @@ For Arduino or PlatformIO environments, include:
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
 
-### 🔒 Preserving Configuration
+### Preserving Configuration
 All configuration parameters (address, baud, LED/button mappings, etc.) are stored in the MCU’s **non-volatile flash** and remain intact unless manually erased via WebConfig or serial command.
 
-### 🩹 Recovery Methods
+### Recovery Methods
 If flashing fails or the module is unresponsive:
 - Disconnect USB-C, wait 10 seconds, and reconnect while holding **Buttons 1 + 2** (force BOOT mode).
 - Reflash firmware again.

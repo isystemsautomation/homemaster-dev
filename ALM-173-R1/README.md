@@ -5,7 +5,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![ALM-173-R1 module photo](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
+![ALM-173-R1 module photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [Licensing](#open-source--licensing) · [§13 Compliance](#13-compliance--certifications) · [§14 Support](#14-support)
 
@@ -145,7 +145,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Ingress protection | IP20 (panel interior) |
 | Operating temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
 
-![ALM-173-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALMMDimensions.png)
+![ALM-173-R1 Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
 
 ### 4.4 Communication defaults
 
@@ -182,10 +182,10 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
     <th>System block</th><th>MCU pinout</th><th>Field board</th><th>MCU board</th>
   </tr>
   <tr>
-    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png"></td>
-    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png"></td>
-    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png"></td>
-    <td><img width="240" src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png"></td>
+    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png"></td>
+    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_MCU_Pinouts.png"></td>
+    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/FieldBoard-Diagram.png"></td>
+    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/MCUBoard-Diagram.png"></td>
   </tr>
 </table>
 
@@ -201,7 +201,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 | **RS-485** | A, B, COM | Modbus RTU | Terminate 120 Ω at bus ends |
 | **USB-C** | — | WebConfig / UF2 | Not a field power source |
 
-![Terminal labeling](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/photo1.png)
+![Terminal labeling](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 
 **Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
@@ -221,7 +221,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 ### 5.4 Front panel — buttons & LEDs
 
-![Button layout](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/buttons1.png)
+![Button layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/buttons1.png)
 
 | Control | Function |
 |---------|----------|
@@ -281,7 +281,7 @@ The module uses **24 V DC** primary (18–30 V DC nominal). Onboard regulation p
 
 | 24 V DC | Digital inputs | Relays | RS-485 |
 |:---:|:---:|:---:|:---:|
-| ![24 V](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![DI](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![Relays](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/ALM_RS485Connection.png) |
+| ![24 V](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![DI](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![Relays](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RS485Connection.png) |
 
 **Phase 2 — Configure (WebConfig)**
 
@@ -316,7 +316,7 @@ See [§3 Alarm Logic](#3-alarm-logic--how-it-works) for zone types, local arming
 
 ### Status & Tools
 
-![WebConfig — overview, connection & status (Armed/Entry/Exit/Tamper)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig1.png)
+![WebConfig — overview, connection & status (Armed/Entry/Exit/Tamper)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig1.png)
 
 Status pills (read-only): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**, **WebConfig**, **Modbus ID**, **Baud**. When local arming is enabled: **Armed**, **Entry**, **Exit**, **Tamper**.
 
@@ -328,7 +328,7 @@ Status pills (read-only): **Connection** (USB), **Bus** (RS-485), **Model**, **F
 
 ### Device Setup
 
-![Device setup — Modbus address & baud, serial log](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig2.png)
+![Device setup — Modbus address & baud, serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig2.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -339,7 +339,7 @@ Changed over **USB-C** only (not writable via Modbus holding registers).
 
 ### Alarm Status & Modes
 
-![Alarm status & per-group latch modes](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig3.png)
+![Alarm status & per-group latch modes](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig3.png)
 
 Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
@@ -349,7 +349,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 ### Digital Inputs (17)
 
-![Digital inputs — enable, invert, alarm group, zone type (latched badge)](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig4.png)
+![Digital inputs — enable, invert, alarm group, zone type (latched badge)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig4.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -392,7 +392,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 > Full **Home / Away / Night** modes, alarm codes, and keypads belong in the **Home Assistant Alarm Control Panel** — not on the module. See [§3](#3-alarm-logic--how-it-works).
 
-![Relays (bell cut-off), buttons & user LEDs](https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/ALM-173-R1/Images/webconfig5.png)
+![Relays (bell cut-off), buttons & user LEDs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig5.png)
 
 ---
 

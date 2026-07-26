@@ -1,7 +1,7 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Quick Start (current version)
+## Quick Start (current version)
 
 **Firmware shipped on new modules: `v0.1.0`**
 
@@ -18,7 +18,7 @@ packages:
           dim_address: 5
 ```
 
-## 📦 Version History
+## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
@@ -30,7 +30,7 @@ packages:
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
@@ -64,7 +64,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 # 1. Introduction
 
-## 1.1 Overview of the DIM-420-R1 Module ✨
+## 1.1 Overview of the DIM-420-R1 Module
 
 The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 IEC 61131-2 compliant digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
 
@@ -94,7 +94,7 @@ It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Mo
 
 ---
 
-## 1.3 System Role & Communication 🔌
+## 1.3 System Role & Communication
 
 The **DIM‑420‑R1** is a **standalone Modbus RTU slave** on an **RS‑485** multi‑drop trunk. It executes local input press‑logic and dimming behavior, mirrors state to **discrete inputs/holding registers**, and accepts control via **coils/holding writes** from a master (PLC/SCADA/ESPHome). A live **JSON snapshot** and event log stream over Web Serial for commissioning and diagnostics. 
 
@@ -203,7 +203,7 @@ These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them ma
 
 ---
 
-### ✅ Pre‑Power Checklist
+### Pre‑Power Checklist
 
 - All **AC and SELV** cables are routed separately with strain relief.  
 - No bridges between **logic GND** and **GND_ISO1/2**; isolation gaps unobstructed.   
@@ -249,7 +249,7 @@ The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and on
 The DIM‑420‑R1 uses **24 VDC SELV** for logic, UI, RS‑485, and Web Serial.  
 AC power is handled separately by the dimming channels (see §4.4).
 
-### 🔌 Supply Details
+### Supply Details
 
 | Type              | Description |
 |------------------|-------------|
@@ -257,7 +257,7 @@ AC power is handled separately by the dimming channels (see §4.4).
 | **AC Power**       | CH1/CH2 output sections are powered via `Lx_IN/Nx_IN` terminals. **Do not share logic power and AC domains.** |
 | **Internal Rails** | Onboard 5 V + 3.3 V (buck-regulated) for logic, UI, and isolated side. |
 
-### ⚡ Current
+### Current
 
 - ~50 mA idle (logic + UI only)
 - Add budget if using all 4 LEDs, buttons, and rapid RS‑485 comms.
@@ -271,7 +271,7 @@ DIM‑420‑R1 supports **RS‑485 Modbus RTU** for runtime control and **USB‑
 
 ### 4.3.1 RS‑485 (Modbus RTU)
 
-#### 🧷 Terminals
+#### Terminals
 
 A B COM
 
@@ -285,7 +285,7 @@ Located bottom-left on module:
 
 Use **shielded twisted pair**, terminate at both ends (~120 Ω), and bias if required.
 
-#### 🔁 Protocol
+#### Protocol
 
 | Parameter      | Value         |
 |----------------|---------------|
@@ -300,7 +300,7 @@ Use **shielded twisted pair**, terminate at both ends (~120 Ω), and bias if r
 
 For setup/diagnostics via any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+):
 
-#### 🖥 Steps
+#### Steps
 
 1. Connect USB‑C to PC
 2. Open `ConfigToolPage.html` (local or hosted)
@@ -326,32 +326,32 @@ The DIM‑420‑R1 separates **low‑voltage logic** (24 VDC, RS‑485, USB‑
 
 ---
 
-### 🔌 24 VDC Logic Power
+### 24 VDC Logic Power
 
 Connect regulated **24 VDC (SELV)** to the top‑left POWER terminals `V+` and `0V`.  
 This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
 </div>
 
 ---
 
-### 🔘 Digital Inputs (DI1–DI4)
+### Digital Inputs (DI1–DI4)
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay / open-collector / transistor outputs that simply close the input to its GND return. The module supplies the wetting current from its own 24 V rail; **do not feed external voltage into the input**. Three-wire sensors must be powered from your own supply, with their switching output wired to the input (the module provides no sensor-supply rail).  
 Each input has its own paired **Gnd** and must be wired independently.  
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
 </div>
 
 > Tip: keep DI wiring separate from mains cabling and provide strain relief.
 
 ---
 
-### 🧷 RS‑485 (Modbus RTU)
+### RS‑485 (Modbus RTU)
 
 Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
 
@@ -361,12 +361,12 @@ Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
 - Defaults: **Slave ID 3**, **19200 baud**, **8N1** (change in WebConfig)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
 </div>
 
 ---
 
-### 🧰 USB‑C Port (Front)
+### USB‑C Port (Front)
 
 For **setup/diagnostics only**:
 - In‑browser WebConfig over Web Serial (any Chromium-based browser: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+)
@@ -389,12 +389,12 @@ You can configure the DIM‑420‑R1 entirely from any Chromium-based browser (C
 > [https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html](https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
 </div>
 
 ---
 
-### 🖥 Browser & Cable
+### Browser & Cable
 
 - Use any **Chromium-based browser** (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+).
 - Connect a **USB‑C cable** to the module.
@@ -402,7 +402,7 @@ You can configure the DIM‑420‑R1 entirely from any Chromium-based browser (C
 
 ---
 
-### 🔗 Modbus Connection
+### Modbus Connection
 
 1. Open the WebConfig tool from the link above.
 2. Select the current **Modbus Address** and **Baud Rate**.
@@ -415,12 +415,12 @@ A live **Serial Log** keeps the last 5 messages for quick feedback.
 
 ---
 
-### 🎚 Dimming Channels (CH1 & CH2)
+### Dimming Channels (CH1 & CH2)
 
 Each dimmer channel can be configured for its intended load and behavior:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig2.png" width="880" alt="Channel configuration">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/webconfig2.png" width="880" alt="Channel configuration">
 </div>
 
 - **AC Presence / Frequency** badges confirm input signal quality.
@@ -434,12 +434,12 @@ Changes apply instantly and persist to flash ~1.5s after the last edit.
 
 ---
 
-### 🟢 Digital Inputs (DI1–DI4)
+### Digital Inputs (DI1–DI4)
 
 Configure press logic, target channels, and press actions:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig3.png" width="880" alt="Digital input mappings">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/webconfig3.png" width="880" alt="Digital input mappings">
 </div>
 
 - Input mode: Momentary or Latching
@@ -450,12 +450,12 @@ Each DI has its own mapping per event and an optional invert.
 
 ---
 
-### 🔘 Buttons & LEDs
+### Buttons & LEDs
 
 Configure onboard pushbuttons and indicator LEDs:
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
 </div>
 
 - **Buttons:** Trigger actions like Toggle CH1, Ramp up/down, MAX preset.
@@ -465,7 +465,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 ---
 
-### 💾 Save & Restore
+### Save & Restore
 
 - Config is stored automatically in flash after changes.
 - Settings persist through power loss and reset.
@@ -543,7 +543,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/photo2.png" width="640" alt="DIM-420-R1 Terminal Block">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/photo2.png" width="640" alt="DIM-420-R1 Terminal Block">
 </div>
 
 ---
@@ -861,7 +861,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 - Firmware updates via **UF2**
 - Serial flashing via **Arduino IDE / PlatformIO**
 
-### 🔌 UF2 Drag-and-Drop Method
+### UF2 Drag-and-Drop Method
 
 1. **Hold Button 1 + Button 2**
 2. Connect USB-C
@@ -869,7 +869,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 4. Drag your `firmware.uf2` into it
 5. Device reboots into normal mode
 
-### 🔧 Flash via Arduino or PlatformIO
+### Flash via Arduino or PlatformIO
 
 1. Connect USB-C
 2. Optional: press Reset (or hold U3+U4 for hard reset)
@@ -878,7 +878,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 ### Button Mapping (Front Panel)
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/DIM-420-R1/Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
+  <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
 </div>
 
 | Button | Label | Default Function | Special Use                         |
@@ -893,7 +893,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 
 ## 8.3 Arduino / PlatformIO Notes
 
-### 🔌 Required Libraries
+### Required Libraries
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
@@ -912,7 +912,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 
 ---
 
-## 🟢 LED Status
+## LED Status
 
 | LED  | Meaning                     |
 |------|-----------------------------|
@@ -923,7 +923,7 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 
 ---
 
-## 🧰 Common Issues
+## Common Issues
 
 | Symptom                 | Fix / Tip                                 |
 |--------------------------|--------------------------------------------|

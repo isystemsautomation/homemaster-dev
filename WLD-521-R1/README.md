@@ -1,7 +1,7 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
-## 🚀 Quick Start (current version)
+## Quick Start (current version)
 
 **Firmware shipped on new modules: `v0.1.0`**
 
@@ -18,7 +18,7 @@ packages:
           wld_address: 4
 ```
 
-## 📦 Version History
+## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
@@ -90,7 +90,7 @@ It integrates with a **MiniPLC/MicroPLC** (or other PLC/SCADA/HA controllers) vi
 
 ---
 
-## 1.3 System Role & Communication 💧
+## 1.3 System Role & Communication
 
 The **WLD-521-R1** is a smart Modbus RTU slave. It can operate autonomously for leak/flow/irrigation safety logic, while exposing its I/O and sensors to a PLC, ESPHome controller, or SCADA system.
 
@@ -117,7 +117,7 @@ The **WLD-521-R1** supports a range of real-world applications in leak detection
 
 ---
 
-### 💧 1) Basement Leak Alarm + Auto Shut-off
+### 1) Basement Leak Alarm + Auto Shut-off
 
 **Goal:** Detect water leaks and immediately shut off the water supply using a relay-controlled valve.
 
@@ -130,7 +130,7 @@ The **WLD-521-R1** supports a range of real-world applications in leak detection
 
 ---
 
-### 🌿 2) Garden Irrigation with Flow Supervision
+### 2) Garden Irrigation with Flow Supervision
 
 **Goal:** Automate watering safely with flow monitoring and environmental interlocks.
 
@@ -151,7 +151,7 @@ The **WLD-521-R1** supports a range of real-world applications in leak detection
 
 ---
 
-### 📈 3) Water Consumption Metering (Billing)
+### 3) Water Consumption Metering (Billing)
 
 **Goal:** Track water usage in liters using pulse flow meters.
 
@@ -165,7 +165,7 @@ The **WLD-521-R1** supports a range of real-world applications in leak detection
 
 ---
 
-### 🔥 4) Heat Energy Monitoring (Hydronic ΔT Loops)
+### 4) Heat Energy Monitoring (Hydronic ΔT Loops)
 
 **Goal:** Measure heat power and energy from flow and temperature sensors.
 
@@ -223,7 +223,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ## 3.3 I/O & Interface Warnings
 
-### 🔌 Power
+### Power
 
 | Interface             | Warning |
 |-----------------------|---------|
@@ -232,7 +232,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ---
 
-### ⏸ Inputs & Relays
+### Inputs & Relays
 
 | Interface              | Warning |
 |------------------------|---------|
@@ -243,7 +243,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ---
 
-### 🔗 Communication & USB
+### Communication & USB
 
 | Interface           | Warning |
 |---------------------|---------|
@@ -252,7 +252,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ---
 
-### 🔘 User Interface
+### User Interface
 
 | Element           | Notes |
 |-------------------|-------|
@@ -261,7 +261,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ---
 
-### 🛡 Shielding & EMC
+### Shielding & EMC
 
 | Area              | Recommendation |
 |-------------------|----------------|
@@ -362,7 +362,7 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 
 ---
 
-####  Input Status (FC02) - Read Only
+#### Input Status (FC02) - Read Only
 
 | Address | Name | Type | Description |
 |---------|------|------|-------------|
@@ -373,9 +373,9 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 
 ---
 
-####  Coils (FC01/FC05) - Read/Write
+#### Coils (FC01/FC05) - Read/Write
 
-#####  Maintained Coils (Switched - ESPHome can set ON/OFF directly)
+##### Maintained Coils (Switched - ESPHome can set ON/OFF directly)
 
 | Address | Name | Type | Description |
 |---------|------|------|-------------|
@@ -383,7 +383,7 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 | 201 | Relay 2 State | Boolean | Relay 2 ON/OFF state (maintained) |
 | 220-224 | DI1-DI5 Enable | Boolean | Digital Input enable state (maintained) |
 
-#####  Pulse Coils (Cleared after use)
+##### Pulse Coils (Cleared after use)
 
 | Address | Name | Type | Description |
 |---------|------|------|-------------|
@@ -391,11 +391,11 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 
 ---
 
-####  Holding Registers (FC03) - Read Only
+#### Holding Registers (FC03) - Read Only
 
 All data accessible via FC03 Read Holding Registers.
 
-#####  Status Registers (UINT16: 0 or 1)
+##### Status Registers (UINT16: 0 or 1)
 
 | Address | Name | Type | Description |
 |---------|------|------|-------------|
@@ -404,7 +404,7 @@ All data accessible via FC03 Read Holding Registers.
 | 90-93 | LED1-LED4 State | UINT16 | User LED states (mirror of ISTS) |
 | 100-103 | BTN1-BTN4 State | UINT16 | Button pressed states (mirror of ISTS) |
 
-#####  Flow Meter Data (UINT32 - 2 registers each, Little Endian)
+##### Flow Meter Data (UINT32 - 2 registers each, Little Endian)
 
 | Address | Name | Type | Unit | Description |
 |---------|------|------|------|-------------|
@@ -419,7 +419,7 @@ All data accessible via FC03 Read Holding Registers.
 | 120-121 | DI4 Flow Accumulated | UINT32 | L × 1000 | Total flow for DI4 |
 | 122-123 | DI5 Flow Accumulated | UINT32 | L × 1000 | Total flow for DI5 |
 
-#####  Heat Energy Data (S32/U32 - 2 registers each, Little Endian)
+##### Heat Energy Data (S32/U32 - 2 registers each, Little Endian)
 
 | Address | Name | Type | Unit | Description |
 |---------|------|------|------|-------------|
@@ -439,7 +439,7 @@ All data accessible via FC03 Read Holding Registers.
 | 150-151 | DI4 Heat ΔT | SINT32 | °C × 1000 | Temperature difference for DI4 |
 | 152-153 | DI5 Heat ΔT | SINT32 | °C × 1000 | Temperature difference for DI5 |
 
-#####  1-Wire Temperature Data (SINT32 - 2 registers each, Little Endian)
+##### 1-Wire Temperature Data (SINT32 - 2 registers each, Little Endian)
 
 | Address | Name | Type | Unit | Description |
 |---------|------|------|------|-------------|
@@ -456,7 +456,7 @@ All data accessible via FC03 Read Holding Registers.
 
 ---
 
-####  Notes
+#### Notes
 
 1. **Maintained Coils (200-224)**: These coils maintain their state. ESPHome can read/write them directly as switches.
 2. **Pulse Coils (340-344)**: These coils are automatically cleared after being read. Write `1` to reset the corresponding counter.
@@ -557,7 +557,7 @@ The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C in
 
 ---
 
-### 🔌 WebConfig Setup
+### WebConfig Setup
 
 1. Connect the module to your PC using a **USB-C** cable.
 2. Open **[ConfigToolPage.html](https://config.home-master.eu/WLD-521-R1/Firmware/v0.1.0/ConfigToolPage.html)** in a Chromium-based browser.
@@ -568,7 +568,7 @@ The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C in
 
 ---
 
-### 🧩 Modbus Address & Baudrate
+### Modbus Address & Baudrate
 
 In the **Modbus** panel:
 
@@ -576,11 +576,11 @@ In the **Modbus** panel:
 - **Set Baudrate**: choose between **9600–115200** (default: 19200).
 - Confirm the updated settings in the banner and **Serial Log**.
 
-📸 ![WebConfig – Modbus](Images/webconfig1.png)
+![WebConfig – Modbus](Images/webconfig1.png)
 
 ---
 
-### 🔁 Input Configuration (DI1–DI5)
+### Input Configuration (DI1–DI5)
 
 Each DI has:
 
@@ -607,11 +607,11 @@ Each DI has:
 - **Reset Total / Reset Pulses**
 - **Calc from External**: align module total with external meter
 
-📸 ![WebConfig – Inputs](Images/webconfig3.png)
+![WebConfig – Inputs](Images/webconfig3.png)
 
 ---
 
-### 🔥 Heat Energy Calculation (Optional on Counter DIs)
+### Heat Energy Calculation (Optional on Counter DIs)
 
 Enable **Heat** on a DI to calculate:
 
@@ -627,11 +627,11 @@ You can:
 - View **TA**, **TB**, **ΔT**
 - Reset energy counters
 
-📸 ![WebConfig – Heat Panel](Images/webconfig4.png)
+![WebConfig – Heat Panel](Images/webconfig4.png)
 
 ---
 
-### ⚙️ Relay Logic Configuration (Relay 1 & 2)
+### Relay Logic Configuration (Relay 1 & 2)
 
 - **Enable / Invert**
 - **Control Source**:
@@ -642,11 +642,11 @@ You can:
 
 > Relays are dry contact. Wire loads to `NO / NC / COM`.
 
-📸 ![WebConfig – Relays](Images/webconfig5.png)
+![WebConfig – Relays](Images/webconfig5.png)
 
 ---
 
-### 🔵 LED Mapping (LED1–LED4)
+### LED Mapping (LED1–LED4)
 
 Each LED can be:
 
@@ -656,11 +656,11 @@ Each LED can be:
 
 > The **State Dot** shows live ON/OFF.
 
-📸 ![WebConfig – LEDs](Images/webconfig6.png)
+![WebConfig – LEDs](Images/webconfig6.png)
 
 ---
 
-### 🔘 Button Configuration (BTN1–BTN4)
+### Button Configuration (BTN1–BTN4)
 
 Each button triggers an **Action**:
 
@@ -677,11 +677,11 @@ Each button triggers an **Action**:
 - **Long press (3s)** = enter/exit override mode  
 - **In override**, relay ignores Modbus/logic control
 
-📸 ![WebConfig – Buttons](Images/webconfig6.png)
+![WebConfig – Buttons](Images/webconfig6.png)
 
 ---
 
-### 🧪 Testing & Diagnostics
+### Testing & Diagnostics
 
 Use:
 
@@ -1109,19 +1109,19 @@ packages:
 
 ## 7.2 Exposed Entities (via ESPHome)
 
-### 🔧 Binary Sensors
+### Binary Sensors
 - `DI1` to `DI5` — leak detection, float switch, or pulse edges
 - Relay mirror (read-only)
 - Buttons (`BTN1`–`BTN4`) — short press detection
 - Irrigation: Zone state, sensor OK flags, window status
 
-### 📊 Sensors
+### Sensors
 - Flow rate (L/min) and total (liters) per DI
 - 1-Wire temperature probes (°C)
 - ΔT, Power (W), Energy (Wh/kWh) for heat metering
 - Irrigation: elapsed time, total liters, real-time flow
 
-### 🔀 Switches
+### Switches
 - Relay 1 and Relay 2
 - Optional: expose override toggles as separate switches
 - Irrigation zone start/stop (via internal helpers or scripts)

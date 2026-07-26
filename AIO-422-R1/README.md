@@ -2,7 +2,7 @@
 
 The **AIO-422-R1** is a high-precision analog I/O expansion module designed for **home automation**, **HVAC**, **environmental monitoring**, applications. It connects to **MicroPLC** or **MiniPLC** controllers via **RS-485 (Modbus RTU)** and seamlessly integrates with **ESPHome** and **Home Assistant** for analog sensing and control in smart automation systems.
 
-## 🚀 Quick Start (current version)
+## Quick Start (current version)
 
 **Firmware shipped on new modules: `v0.1.0`**
 
@@ -19,17 +19,18 @@ packages:
           aio_address: 3
 ```
 
-## 📦 Version History
+## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.1.0** | `AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml` | 2026-06 | First versioned release |
+| **v0.1.0** | `AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml` | 2026-06 | **Current — shipped on new modules** (first versioned release) |
+| v0.2.0 | `AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml` | — | **Beta** — in-tree build / register-map work; not the shipped firmware |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_aio_422_r1/sketch.yaml)
+> **Shipped firmware is `v0.1.0`.** The reproducible Arduino / `sketch.yaml` build notes for **v0.2.0 (beta)** are here: [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_aio_422_r1/sketch.yaml).
 
 ---
 
-## 🔧 Key Features
+## Key Features
 
 - **4× Analog Inputs (0–10 V)**
   - High-resolution 16-bit ADC (ADS1115)
@@ -54,7 +55,7 @@ packages:
 
 ---
 
-## 🧠 Smart Home & Automation Integration
+## Smart Home & Automation Integration
 
 The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be fully integrated into **Home Assistant** via ESPHome for:
 
@@ -65,7 +66,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ---
 
-## 📦 Firmware & Programming
+## Firmware & Programming
 
 - Programmable via **Arduino IDE** (recommended for full Modbus + WebConfig firmware)
 - **WebConfig** over USB-C: open [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html) in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+)
@@ -77,7 +78,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ---
 
-## ⚙️ Technical Specifications
+## Technical Specifications
 
 | Parameter                     | Value                                |
 |------------------------------|--------------------------------------|
@@ -95,7 +96,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ---
 
-## 🏠 Example Use Cases
+## Example Use Cases
 
 - Control 0–10 V dimmable lighting
 - Read analog pressure or humidity sensors
@@ -107,7 +108,7 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ## Modbus RTU Register Map
 
-Map matches `default_aio_422_r1_plc_full.yaml` (v0.2.0).
+The tables below match the **v0.2.0 (beta)** package map (`default_aio_422_r1_plc_full.yaml`). Controllers shipping with **v0.1.0** should use the register map and ESPHome package under `Firmware/v0.1.0/`.
 
 ### Discrete Inputs (FC02)
 
