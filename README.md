@@ -134,14 +134,17 @@ OpenTherm Gateway joins Home Assistant over the native ESPHome API (same as the 
 
 ## Quick Start
 
-### 5‑minute setup
-1. **Power the controller** — ESPHome is pre‑installed on MiniPLC, MicroPLC, and OpenTherm Gateway.  
-2. **Join Wi‑Fi with Improv** — BLE or Serial via [improv-wifi.com](https://improv-wifi.com).  
-3. **Wire RS‑485** (controllers + I/O modules) — A/B differential pair; **120 Ω termination** at both bus ends.  
-4. **Configure each module** — USB‑C → WebConfig: Modbus address, calibration, mapping, rules.  
-5. **Open Home Assistant** — add the ESPHome device; I/O modules appear as entities through the controller packages.
+### 5-minute setup
+1. **Power the controller** — ESPHome is pre-installed on MiniPLC, MicroPLC, and OpenTherm Gateway.
+2. **Join Wi-Fi with Improv** — BLE or Serial via [improv-wifi.com](https://improv-wifi.com).
+3. **Wire RS-485** (controllers + I/O modules) — A/B differential pair; **120 Ω termination** at both bus ends.
+4. **Configure each module** — USB-C → WebConfig: set the **Modbus address**, calibration, mapping and rules. Note the address you assign — you'll reference it in the controller config.
+5. **Add the modules to the controller** — in the controller's ESPHome YAML, include the ESPHome **package** for each module (see the [ESPHome example](#home-assistant-example-esphome) below) and set each module's Modbus address to match the one you assigned in WebConfig. Upload the config to the controller.
+6. **Open Home Assistant** — add the ESPHome controller device. Each module's entities then appear in Home Assistant through the controller's packages.
 
-OpenTherm Gateway skips step 3–4 for Modbus: wire OT+/OT− to the boiler and commission it like any ESPHome device.
+> Modules do not auto-discover: they are Modbus RTU devices on the RS-485 bus, exposed to Home Assistant by the controller. The Modbus address in WebConfig must match the address used in the controller package.
+
+OpenTherm Gateway is standalone over the native ESPHome API — it does not use the Modbus steps (3–5). Wire OT+/OT− to the boiler and commission it like any ESPHome device.
 
 ---
 
