@@ -106,6 +106,38 @@ binary_sensor:
     address: 0
     bitmask: 0x0400
 
+  # IREG_FLAGS @1 — keeps FC04 0..31 as one contiguous range
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI1 enabled"
+    register_type: read
+    address: 1
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI2 enabled"
+    register_type: read
+    address: 1
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI3 enabled"
+    register_type: read
+    address: 1
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI4 enabled"
+    register_type: read
+    address: 1
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI5 enabled"
+    register_type: read
+    address: 1
+    bitmask: 0x0010
+
 sensor:
   # ----- Flow rate (IREG 2..10) -----
   - platform: modbus_controller
