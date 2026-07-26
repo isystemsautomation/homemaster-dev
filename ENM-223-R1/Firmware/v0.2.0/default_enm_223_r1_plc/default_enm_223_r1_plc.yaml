@@ -18,12 +18,16 @@
 ## Parent must supply enm_id / enm_address / enm_prefix (and global modbus_bus).
 ##
 
+substitutions:
+  enm_update_interval: 1s      # HomeMaster default — STD-009
+  enm_command_throttle: 0ms    # HomeMaster default — STD-009
+
 modbus_controller:
   - id: ${enm_id}
     address: ${enm_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: ${enm_update_interval}
+    command_throttle: ${enm_command_throttle}
     allow_duplicate_commands: false
 
 binary_sensor:

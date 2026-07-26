@@ -1,8 +1,13 @@
+substitutions:
+  aio_update_interval: 1s      # HomeMaster default — STD-009
+  aio_command_throttle: 0ms    # HomeMaster default — STD-009
+
 modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 3s
+    update_interval: ${aio_update_interval}
+    command_throttle: ${aio_command_throttle}
     allow_duplicate_commands: false
 
 binary_sensor:

@@ -6,6 +6,8 @@ substitutions:
   wld_id: wld_1
   wld_prefix: "WLD#1"
   wld_address: "3"     # firmware default Modbus ID
+  wld_update_interval: 1s      # HomeMaster default — STD-009
+  wld_command_throttle: 0ms    # HomeMaster default — STD-009
 
 # If UART/MODBUS aren't defined globally, uncomment & set pins:
 # uart:
@@ -23,8 +25,8 @@ modbus_controller:
   - id: ${wld_id}
     address: ${wld_address}
     modbus_id: modbus_bus
-    update_interval: 3s
-    command_throttle: 50ms
+    update_interval: ${wld_update_interval}
+    command_throttle: ${wld_command_throttle}
     allow_duplicate_commands: false
 
 # ===================== Holding (FC03) =====================
