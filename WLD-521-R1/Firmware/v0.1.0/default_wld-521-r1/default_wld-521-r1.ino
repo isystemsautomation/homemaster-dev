@@ -624,7 +624,7 @@ inline void setSlaveIdIfAvailable(...){}
 // ================== Modbus maps ==================
 // ISTS (Input Status) - kept for backward compatibility (FC02)
 enum : uint16_t { ISTS_DI_BASE=1, ISTS_RLY_BASE=60 };
-enum : uint16_t { ISTS_LED_BASE=90, ISTS_BTN_BASE=100 };
+enum : uint16_t { ISTS_BTN_BASE=100 };
 
 // Command Coils (FC05/FC01) - Maintained (switched) coils from ESPHome
 enum : uint16_t {
@@ -639,7 +639,6 @@ enum : uint16_t {
   // ISTS mirrors (as UINT16: 0 or 1)
   HREG_DI_BASE    = 1,   // 5 regs: DI1-DI5 states
   HREG_RLY_BASE   = 60,  // 2 regs: RLY1-RLY2 states
-  HREG_LED_BASE   = 90,  // 4 regs: LED1-LED4 states
   HREG_BTN_BASE   = 100, // 4 regs: BTN1-BTN4 states
   
   // Flow/Heat/1-Wire (continuous from 104)
@@ -650,6 +649,20 @@ enum : uint16_t {
   HREG_HEAT_DT_BASE     = 144, // 5×(S32)  °C ×1000     (2 regs each) = 10 regs
   HREG_OW_TEMP_BASE     = 154  // 10×(S32) °C ×1000     (2 regs each) = 20 regs
   // Total: 1-173 (continuous)
+};
+
+// ===== Input Registers (FC04) — сплошной блок для опроса ESPHome =====
+// Быстрая часть 0..31, медленная 32..71. Границу задаёт пакет.
+enum : uint16_t {
+  IREG_STATE      = 0,   // битовая маска состояний
+  IREG_FLAGS      = 1,   // enable + флаги
+  IREG_FLOW_RATE  = 2,   //  5×U32  л/мин ×1000
+  IREG_HEAT_POWER = 12,  //  5×S32  Вт
+  IREG_HEAT_DT    = 22,  //  5×S32  °C ×1000
+  IREG_FLOW_ACCUM = 32,  //  5×U32  л ×1000
+  IREG_HEAT_EN_WH = 42,  //  5×U32  Вт·ч ×1000
+  IREG_OW_TEMP    = 52,  // 10×S32  °C ×1000
+  IREG_COUNT      = 72
 };
 
 // ================== 1-Wire DB helpers ==================
@@ -840,7 +853,6 @@ void setup(){
   // ISTS (Input Status) - kept for backward compatibility (FC02)
   for(uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for(uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
-  for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
   for(uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
 
   // Command Coils (FC05/FC01) - Maintained (switched) coils from ESPHome
@@ -864,7 +876,6 @@ void setup(){
   // ISTS mirrors (as UINT16: 0 or 1)
   for(uint16_t i=0;i<NUM_DI;i++)  mb.addHreg(HREG_DI_BASE + i, 0);
   for(uint16_t i=0;i<NUM_RLY;i++) mb.addHreg(HREG_RLY_BASE + i, 0);
-  for(uint16_t i=0;i<NUM_LED;i++) mb.addHreg(HREG_LED_BASE + i, 0);
   for(uint16_t i=0;i<NUM_BTN;i++) mb.addHreg(HREG_BTN_BASE + i, 0);
 
   // Flow/Heat/1-Wire (continuous from 104)
@@ -888,6 +899,9 @@ void setup(){
     uint16_t b = HREG_OW_TEMP_BASE + (i*2);
     mb.addHreg(b+0,0); mb.addHreg(b+1,0);
   }
+
+  // Input Registers (FC04) — один сплошной блок 0..71
+  for (uint16_t i = 0; i < IREG_COUNT; i++) mb.addIreg(i);
 
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
 
@@ -1258,6 +1272,23 @@ inline void setHreg32(uint16_t base, uint32_t v){
 inline void setHreg32s(uint16_t base, int32_t v){
   setHreg32(base, (uint32_t)v);
 }
+inline void setIreg32(uint16_t base, uint32_t v){
+  mb.setIreg(base+0,(uint16_t)( v        & 0xFFFF));
+  mb.setIreg(base+1,(uint16_t)((v >> 16) & 0xFFFF));
+}
+inline void setIreg32s(uint16_t base, int32_t v){
+  setIreg32(base, (uint32_t)v);
+}
+
+void publishStateMasks(){
+  uint16_t state = 0, flags = 0;
+  for (uint8_t i=0;i<NUM_DI;i++)  if (diState[i])       state |= (1u << i);
+  for (uint8_t i=0;i<NUM_RLY;i++) if (physRelayState[i]) state |= (1u << (5 + i));
+  for (uint8_t i=0;i<NUM_BTN;i++) if (buttonState[i])    state |= (1u << (7 + i));
+  for (uint8_t i=0;i<NUM_DI;i++)  if (diCfg[i].enabled)  flags |= (1u << i);
+  mb.setIreg(IREG_STATE, state);
+  mb.setIreg(IREG_FLAGS, flags);
+}
 
 // ================== Modbus maintained coils (switched from ESPHome) ==================
 void processModbusCommands(){
@@ -1423,13 +1454,13 @@ void loop(){
     bool srcActive = ledSrcActive(ledCfg[i].source);
     bool phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
-    mb.setIsts(ISTS_LED_BASE + i, phys);
-    mb.setHreg(HREG_LED_BASE + i, phys ? 1 : 0); // Mirror to HREG
     ledStates[i]=phys;
 
     JSONVar L; L["mode"]=(double)ledCfg[i].mode; L["source"]=(double)ledCfg[i].source; L["state"]=phys;
     ledConfigArray[i]=L;
   }
+
+  publishStateMasks();
 
   // ===== 1s tick =====
   if (timeAfter32(now, nextRateTickMs)) {
@@ -1494,22 +1525,27 @@ void loop(){
   for (int i=0;i<NUM_DI;i++){
     uint32_t rate_milli = (flowRateLmin[i] <= 0.0f) ? 0u : (uint32_t)llround((double)flowRateLmin[i]*1000.0);
     setHreg32(HREG_FLOW_RATE_BASE + (i*2), rate_milli);
+    setIreg32(IREG_FLOW_RATE + (i*2), rate_milli);
 
     uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
     uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
     double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
     uint32_t accum_milli = (accumL <= 0.0) ? 0u : (uint32_t)llround(accumL*1000.0);
     setHreg32(HREG_FLOW_ACCUM_BASE + (i*2), accum_milli);
+    setIreg32(IREG_FLOW_ACCUM + (i*2), accum_milli);
 
     int32_t P = (int32_t)llround(heatPowerW[i]);
     setHreg32s(HREG_HEAT_POWER_BASE + (i*2), P);
+    setIreg32s(IREG_HEAT_POWER + (i*2), P);
 
     double wh = heatEnergyJ[i] / 3600.0;
     uint32_t wh_milli = (wh <= 0.0) ? 0u : (uint32_t)llround(wh*1000.0);
     setHreg32(HREG_HEAT_EN_WH_BASE + (i*2), wh_milli);
+    setIreg32(IREG_HEAT_EN_WH + (i*2), wh_milli);
 
     int32_t dt_milli = (int32_t)llround(heatDT[i]*1000.0);
     setHreg32s(HREG_HEAT_DT_BASE + (i*2), dt_milli);
+    setIreg32s(IREG_HEAT_DT + (i*2), dt_milli);
   }
 
 
@@ -1524,6 +1560,7 @@ void loop(){
       }
     }
     setHreg32s(HREG_OW_TEMP_BASE + (i*2), temp_milli);
+    setIreg32s(IREG_OW_TEMP + (i*2), temp_milli);
   }
 
   if (millis()-lastSend>=sendInterval){

@@ -29,103 +29,557 @@ modbus_controller:
     command_throttle: ${wld_command_throttle}
     allow_duplicate_commands: false
 
-# ===================== Holding (FC03) =====================
-sensor:
-  # ---------- DI/Relay/LED/Button states from HREG (mirrored from ISTS) ----------
-  # DI states (HREG 1-5, UINT16: 0 or 1)
-  - platform: modbus_controller
-    id: ${wld_id}_di1_hreg
-    modbus_controller_id: ${wld_id}
-    address: 1
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di2_hreg
-    modbus_controller_id: ${wld_id}
-    address: 2
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di3_hreg
-    modbus_controller_id: ${wld_id}
-    address: 3
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di4_hreg
-    modbus_controller_id: ${wld_id}
-    address: 4
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di5_hreg
-    modbus_controller_id: ${wld_id}
-    address: 5
-    register_type: holding
-    value_type: U_WORD
-    internal: true
+# ===================== Input Registers (FC04) =====================
+# Fast 0..31 every cycle; slow 32..71 every tenth update.
+# Word order: low word first (U_DWORD_R / S_DWORD_R) — matches setIreg32.
 
-  # Relay states (HREG 60-61, UINT16: 0 or 1)
-  - platform: modbus_controller
-    id: ${wld_id}_r1_state_hreg
-    modbus_controller_id: ${wld_id}
-    address: 60
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_r2_state_hreg
-    modbus_controller_id: ${wld_id}
-    address: 61
-    register_type: holding
-    value_type: U_WORD
-    internal: true
-
-
-
-
- 
-# ===================== Binary Sensors (from HREG) =====================
 binary_sensor:
-  # DI states (from HREG 1-5)
-  - platform: template
+  # IREG_STATE @0
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
     name: "${wld_prefix} DI1"
-    lambda: |-
-      return id(${wld_id}_di1_hreg).state != 0;
-  - platform: template
+    register_type: read
+    address: 0
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
     name: "${wld_prefix} DI2"
-    lambda: |-
-      return id(${wld_id}_di2_hreg).state != 0;
-  - platform: template
+    register_type: read
+    address: 0
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
     name: "${wld_prefix} DI3"
-    lambda: |-
-      return id(${wld_id}_di3_hreg).state != 0;
-  - platform: template
+    register_type: read
+    address: 0
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
     name: "${wld_prefix} DI4"
-    lambda: |-
-      return id(${wld_id}_di4_hreg).state != 0;
-  - platform: template
+    register_type: read
+    address: 0
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
     name: "${wld_prefix} DI5"
-    lambda: |-
-      return id(${wld_id}_di5_hreg).state != 0;
+    register_type: read
+    address: 0
+    bitmask: 0x0010
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    id: ${wld_id}_rly1_state
+    name: "${wld_prefix} Relay 1 state"
+    internal: true
+    register_type: read
+    address: 0
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    id: ${wld_id}_rly2_state
+    name: "${wld_prefix} Relay 2 state"
+    internal: true
+    register_type: read
+    address: 0
+    bitmask: 0x0040
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} BTN1"
+    register_type: read
+    address: 0
+    bitmask: 0x0080
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} BTN2"
+    register_type: read
+    address: 0
+    bitmask: 0x0100
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} BTN3"
+    register_type: read
+    address: 0
+    bitmask: 0x0200
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} BTN4"
+    register_type: read
+    address: 0
+    bitmask: 0x0400
 
-# ===================== Command Coils (FC05/FC01) =====================
-# Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
+sensor:
+  # ----- Flow rate (IREG 2..10) -----
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow1 Rate"
+    register_type: read
+    address: 2
+    value_type: U_DWORD_R
+    unit_of_measurement: "L/min"
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow2 Rate"
+    register_type: read
+    address: 4
+    value_type: U_DWORD_R
+    unit_of_measurement: "L/min"
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow3 Rate"
+    register_type: read
+    address: 6
+    value_type: U_DWORD_R
+    unit_of_measurement: "L/min"
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow4 Rate"
+    register_type: read
+    address: 8
+    value_type: U_DWORD_R
+    unit_of_measurement: "L/min"
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow5 Rate"
+    register_type: read
+    address: 10
+    value_type: U_DWORD_R
+    unit_of_measurement: "L/min"
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # ----- Heat power (IREG 12..20) -----
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat1 Power"
+    register_type: read
+    address: 12
+    value_type: S_DWORD_R
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat2 Power"
+    register_type: read
+    address: 14
+    value_type: S_DWORD_R
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat3 Power"
+    register_type: read
+    address: 16
+    value_type: S_DWORD_R
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat4 Power"
+    register_type: read
+    address: 18
+    value_type: S_DWORD_R
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat5 Power"
+    register_type: read
+    address: 20
+    value_type: S_DWORD_R
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # ----- Heat ΔT (IREG 22..30) -----
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat1 ΔT"
+    register_type: read
+    address: 22
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat2 ΔT"
+    register_type: read
+    address: 24
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat3 ΔT"
+    register_type: read
+    address: 26
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat4 ΔT"
+    register_type: read
+    address: 28
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat5 ΔT"
+    register_type: read
+    address: 30
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # ----- Volume / energy / 1-Wire (IREG 32..70), slow range -----
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow1 Total"
+    register_type: read
+    address: 32
+    value_type: U_DWORD_R
+    unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
+    accuracy_decimals: 3
+    force_new_range: true
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow2 Total"
+    register_type: read
+    address: 34
+    value_type: U_DWORD_R
+    unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow3 Total"
+    register_type: read
+    address: 36
+    value_type: U_DWORD_R
+    unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow4 Total"
+    register_type: read
+    address: 38
+    value_type: U_DWORD_R
+    unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Flow5 Total"
+    register_type: read
+    address: 40
+    value_type: U_DWORD_R
+    unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat1 Energy"
+    register_type: read
+    address: 42
+    value_type: U_DWORD_R
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat2 Energy"
+    register_type: read
+    address: 44
+    value_type: U_DWORD_R
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat3 Energy"
+    register_type: read
+    address: 46
+    value_type: U_DWORD_R
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat4 Energy"
+    register_type: read
+    address: 48
+    value_type: U_DWORD_R
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Heat5 Energy"
+    register_type: read
+    address: 50
+    value_type: U_DWORD_R
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 1"
+    register_type: read
+    address: 52
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 2"
+    register_type: read
+    address: 54
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 3"
+    register_type: read
+    address: 56
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 4"
+    register_type: read
+    address: 58
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 5"
+    register_type: read
+    address: 60
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 6"
+    register_type: read
+    address: 62
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 7"
+    register_type: read
+    address: 64
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 8"
+    register_type: read
+    address: 66
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 9"
+    register_type: read
+    address: 68
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} 1-Wire 10"
+    register_type: read
+    address: 70
+    value_type: S_DWORD_R
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 3
+    skip_updates: 9
+    filters:
+      - multiply: 0.001
+
+# ===================== Command Coils (FC05 write-only) =====================
+# Relay coils — no FC01 read-back. Public switches take state from IREG_STATE.
 switch:
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} Relay 1"
+    id: ${wld_id}_relay1_coil
+    name: "${wld_prefix} Relay 1 coil"
     address: 200
     register_type: coil
+    internal: true
+    assumed_state: true
 
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} Relay 2"
+    id: ${wld_id}_relay2_coil
+    name: "${wld_prefix} Relay 2 coil"
     address: 201
     register_type: coil
+    internal: true
+    assumed_state: true
 
- 
+  - platform: template
+    name: "${wld_prefix} Relay 1"
+    id: ${wld_id}_relay1
+    lambda: |-
+      return id(${wld_id}_rly1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${wld_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${wld_id}_relay1_coil
+
+  - platform: template
+    name: "${wld_prefix} Relay 2"
+    id: ${wld_id}_relay2
+    lambda: |-
+      return id(${wld_id}_rly2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${wld_id}_relay2_coil
+    turn_off_action:
+      - switch.turn_off: ${wld_id}_relay2_coil
