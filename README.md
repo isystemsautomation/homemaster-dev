@@ -6,7 +6,7 @@
 
 HomeMaster combines the reliability and modularity of industrial DIN‑rail automation with the openness of the ESPHome / Home Assistant ecosystem — fully open hardware and firmware, local‑first, no cloud, no vendor lock‑in.
 
-**Website:** [home-master.eu](https://www.home-master.eu/) · **Shop / Products:** [Products](https://www.home-master.eu/products) · **Releases:** [GitHub Releases](https://github.com/isystemsautomation/homemaster-dev/releases)
+**Website:** [home-master.eu](https://www.home-master.eu/) · **Shop / Products:** [Products](https://www.home-master.eu/products)
 
 ---
 
@@ -90,7 +90,7 @@ OpenTherm Gateway joins Home Assistant over the native ESPHome API (same as the 
 | **Connectivity** | Ethernet, USB‑C, Wi‑Fi, BLE + Improv | USB‑C, Wi‑Fi, BLE + Improv | USB‑C, Wi‑Fi, BLE + Improv |
 | **Storage** | microSD card slot | Internal flash | Internal flash |
 | **Ideal for** | Full homes, labs, HVAC/solar, standalone offline control | Room‑level control, compact cabinets, modular expansion | Boiler telemetry & weather‑compensated heating in HA |
-| **Power** | AC/DC wide range or 24 VDC | 24 VDC only | AC/DC wide range or 24 VDC |
+| **Power** | 85–265 V AC or 24 V DC | 24 VDC only | 85–265 V AC or 24 V DC |
 | **Firmware** | ESPHome pre‑installed; runs standalone & offline | ESPHome pre‑installed | ESPHome pre‑installed |
 
 > **OpenTherm relay note:** the gateway relay must not be wired across a different mains phase or isolated mains source than the device L/N supply (PCB insulation is Basic). See the [OpenTherm Gateway README](./OpenthermGateway/).
@@ -119,18 +119,16 @@ OpenTherm Gateway joins Home Assistant over the native ESPHome API (same as the 
 - **WLD‑521‑R1** — five leak zones, temperature, local valve shut‑off, and pulse water metering on one module.
 
 ### Recommended setups
-- 🏠 **Starter (lighting + I/O)** — MicroPLC + DIO‑430‑R1 + RGB‑621‑R1  
-  _Wall switches, RGB strip control, local DI→relay mapping_
-- ⚡ **Energy monitoring** — MicroPLC + ENM‑223‑R1  
-  _Grid / solar / 3‑phase loads with local PQ alarms_
-- 🧪 **Lab / HVAC** — MiniPLC + AIO‑422‑R1 + DIO‑430‑R1  
-  _Analog, RTD, and discrete I/O with standalone controller logic_
-- 💧 **Leak safety** — MicroPLC + WLD‑521‑R1 + ALM‑173‑R1  
-  _Leak sensors, auto‑valve, contact monitoring_
-- 🌈 **Advanced lighting** — MiniPLC + RGB‑621‑R1 + DIM‑420‑R1 + STR‑3221‑R1  
-  _RGB/CCT, phase‑cut AC, staircase animations_
-- 🔥 **Boiler control** — OpenTherm Gateway (+ MiniPLC/MicroPLC for the rest of the plant)  
-  _Full OpenTherm telemetry in Home Assistant_
+
+| Scenario | Core devices | What it does |
+|---|---|---|
+| Apartment / home electrical cabinet | MiniPLC + DIO-430-R1 + WLD-521-R1 | Wall-switch lighting and relay control, plus multi-zone leak detection with local auto valve shut-off — core automation that keeps running offline. |
+| Whole-home lighting | MiniPLC + RGB-621-R1 + DIM-420-R1 + STR-3221-R1 | RGB+CCT strips (12-bit + gamma dimming), phase-cut AC dimming, and motion-triggered staircase lighting, mapped locally. |
+| 3-phase energy metering & load protection | MicroPLC + ENM-223-R1 | Per-phase metrology with local power-quality alarms and relay-based load-shedding — measures and protects, not metering alone. |
+| HVAC / process control | MiniPLC + AIO-422-R1 + DIO-430-R1 | 0–10 V analog in/out plus PT100/PT1000 RTD and discrete relays for valves, actuators and setpoints, with standalone controller logic. |
+| Heating (boiler control) | OpenTherm Gateway (+ MiniPLC/MicroPLC for the rest of the plant) | Full OpenTherm boiler telemetry and modulating/weather-compensated heating in Home Assistant. |
+| Contact & detector monitoring | MicroPLC + ALM-173-R1 | High-density digital inputs with AUX detector loop power and local alarm logic. Automation/monitoring module — not a certified intruder alarm. |
+| Modular / room-level starter | MicroPLC + DIO-430-R1 + RGB-621-R1 | Compact entry setup: switch inputs, relay outputs and RGB control over one RS-485 bus, expandable later. |
 
 ---
 
@@ -170,7 +168,7 @@ Each Modbus module includes **USB WebConfig** — no drivers:
 - Perform **calibration** and **live diagnostics**
 - Adjust **alarm thresholds** and **LED modes**
 
-> WebConfig works in Chrome / Edge / other Chromium browsers — plug in **USB‑C** and click **Connect**. Settings on RP2350 modules persist in **LittleFS**.
+> WebConfig requires a **Chromium-based browser** (Chrome, Edge, Opera). **Not supported in Safari; Firefox only via Nightly with the Web Serial flag.** Plug in **USB-C** and click **Connect**. Settings on RP2350 modules persist in **LittleFS**.
 
 ### Networking
 - **RS‑485 Modbus:** `19200 8N1` (default), **120 Ω termination** required — deterministic wired field bus  
@@ -356,6 +354,6 @@ See `LICENSE` files in each directory for full terms.
 
 ## Versioning & updates
 
-Firmware packages, binaries, and release notes are published on the repository **[Releases](https://github.com/isystemsautomation/homemaster-dev/releases)** page. Do not rely on a hardcoded series string in this README — always use the latest release notes for the module you are installing.
+Firmware is versioned per module. Each module's firmware lives in its own folder (`<MODULE>/Firmware/vX.Y.Z/`) and is updated independently — there is no single system-wide version. Install or update the firmware for the specific module you are working with from that module's folder.
 
 **Documentation last updated:** 2026-07-26
