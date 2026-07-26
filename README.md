@@ -19,7 +19,7 @@ HomeMaster combines the reliability and modularity of industrial DIN‑rail auto
 | **Local‑first / edge‑resilient** | *The controller does the thinking; the server only visualizes.* Critical logic runs on the controller and on each module. Lighting, leak shut‑off, and alarm actions keep working if the network or Home Assistant is down. No cloud; data stays on site (GDPR‑friendly). |
 | **Distributed logic** | Each Modbus I/O module runs onboard rules. **RP2350 modules** persist configuration in on‑device flash (**LittleFS**) across reboots and power loss. |
 | **Standard RS‑485 Modbus RTU** | A deterministic, robust wired bus. Modules speak standard Modbus RTU and work with **any Modbus master** — HomeMaster controllers, third‑party PLCs, or industrial HMI / SCADA systems. Not locked to HomeMaster. |
-| **Driverless USB‑C WebConfig** | Set Modbus address, calibrate, and map inputs/rules from a Chromium browser. No drivers, no install. |
+| **Driverless USB‑C WebConfig (modules)** | Configure each RP2350 module in the browser (Chrome, Edge, Opera): set Modbus address, calibrate, map inputs and rules. No drivers, no software to install. |
 | **EU design, CE marked** | Designed and placed on the market as **CE marked** products. Directives and the signed EU Declaration of Conformity are listed under [Safety & compliance](#safety--compliance). |
 | **Developer‑friendly** | ESPHome, Arduino, PlatformIO, MicroPython, ESP‑IDF, Pico SDK / CircuitPython, and UF2 drag‑and‑drop on RP2350 modules. |
 
