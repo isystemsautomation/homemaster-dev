@@ -712,6 +712,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
+    force_new_range: true
     skip_updates: 2
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
