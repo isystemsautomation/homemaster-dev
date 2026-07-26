@@ -10,9 +10,7 @@
 
 ## Description
 
-HomeMaster MicroPLC is a compact open-source automation controller based on `ESP32-WROOM-32U-N16`.
-It is designed for Home Assistant integration via ESPHome and supports local control, sensor
-inputs, and industrial communication with RS-485 Modbus RTU.
+HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-installed — the entry point that drives a bus of HomeMaster I/O modules over RS-485 while running local control offline for Home Assistant.
 
 | Resource | Link |
 |---|---|
@@ -23,9 +21,19 @@ inputs, and industrial communication with RS-485 Modbus RTU.
 | 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
+## Key advantages
+
+- Compact ESP32 **Modbus RTU master** with **ESPHome pre-installed** — the entry point that drives a bus of HomeMaster I/O modules.
+- Native Home Assistant API — no MQTT broker, no Modbus register mapping for onboard entities.
+- Onboard I/O for room-level use: **1 relay**, **1 DI**, **1-Wire**, RTC; expand via RS-485 modules.
+- *The controller does the thinking; the server only visualizes* — critical logic stays on the MicroPLC when HA is offline.
+- **Improv** Wi-Fi onboarding (BLE/USB); runs local and offline.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — no vendor lock-in.
+
 ## Table of Contents
 
 - [Description](#description)
+- [Key advantages](#key-advantages)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [LED Behaviour](#led-behaviour)

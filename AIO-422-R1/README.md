@@ -1,6 +1,15 @@
 # AIO-422-R1 – Analog I/O & RTD Interface Module
 
-The **AIO-422-R1** is a high-precision analog I/O expansion module designed for **home automation**, **HVAC**, **environmental monitoring**, applications. It connects to **MicroPLC** or **MiniPLC** controllers via **RS-485 (Modbus RTU)** and seamlessly integrates with **ESPHome** and **Home Assistant** for analog sensing and control in smart automation systems.
+The **AIO-422-R1** puts **analog in, analog out, and RTD** in one DIN-rail Modbus module: **4× 0–10 V inputs (16-bit)**, **2× 0–10 V outputs**, and **2× PT100/PT1000** for HVAC and process sensing/actuation. It connects to **MiniPLC/MicroPLC** (or any Modbus RTU master) over RS-485 and integrates with **ESPHome / Home Assistant** via the controller packages.
+
+## Key advantages
+
+- **4× AI 0–10 V (16-bit) + 2× AO 0–10 V + 2× RTD (PT100/PT1000)** in one DIN module — analog sensing and actuation for HVAC/process without stacking separate boards.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ## Quick Start (current version)
 

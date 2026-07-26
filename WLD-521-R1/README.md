@@ -63,10 +63,16 @@ The module connects over **RS-485 (Modbus RTU)** to a **MicroPLC or MiniPLC**, e
 
 ## 1.1 Overview of the WLD-521-R1
 
-The **WLD-521-R1** is a DIN‑rail smart I/O module for **leak detection**, **pulse water metering**, **ΔT heat monitoring**, and **local irrigation control**. It exposes **5 opto‑isolated digital inputs**, **2 SPDT relays**, **4 user buttons**, and **4 status LEDs** and is serviced over **USB‑C**.
+The **WLD-521-R1** is autonomous water-safety I/O: **multi-zone leak detection**, **local auto valve shut-off**, **pulse water metering**, and **ΔT heat-energy** metering on 1-Wire — safety logic runs on the module even if the network is down. **5 opto-isolated DIs**, **2 SPDT relays**, buttons/LEDs, USB-C WebConfig, and RS-485 Modbus to MiniPLC/MicroPLC or any Modbus master.
 
-It integrates with a **MiniPLC/MicroPLC** (or other PLC/SCADA/HA controllers) via **Modbus RTU over RS‑485**. Configuration is done in a browser using the **WebConfig** tool (Web Serial over USB‑C): set Modbus params, choose per‑input modes (sensor/counter), link 1‑Wire temperature sensors, and enable autonomous irrigation/flow‑safety logic.  
-**In one line:** a resilient water‑safety/flow module with local logic that still plays perfectly with your PLC and Home Assistant stack.
+## Key advantages
+
+- Multi-zone leak detection (**5 inputs**) + **2 relays** with local auto valve shut-off + pulse water metering + **ΔT heat-energy** metering (1-Wire); safety logic runs autonomously on the module.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 

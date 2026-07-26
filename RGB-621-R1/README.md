@@ -52,16 +52,18 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 
 ## 1.1 Overview of the RGB-621-R1
 
-The **RGB-621-R1** is a **smart RGB + CCT LED controller module** designed for **HomeMaster automation systems** and other **Modbus RTU networks**.  
-It features **5 high-current PWM outputs** for RGB and Tunable White (CCT) LED control, **2 IEC 61131-2 compliant digital inputs** for potential-free wall switches or contacts, and **1 relay output** for switching external loads or LED drivers.
-
-Powered by the **Raspberry Pi RP2350A** microcontroller, the module supports **RS-485 (Modbus RTU)** communication and configuration via **WebConfig over USB-C (Web Serial)** — no drivers or external software required.  
-It connects directly to **HomeMaster MicroPLC** and **MiniPLC** controllers or operates as a **standalone Modbus slave** in any automation network.
-
-Its **dual-board I/O architecture**, **surge and short-circuit protection**, and field/logic separation ensure accurate dimming, stable communication, and reliable operation in demanding **home, ambient, or architectural lighting applications**.
-
+The **RGB-621-R1** is an **RGB + tunable-white (CCT)** LED controller with **5 PWM channels**, **12-bit + gamma-corrected dimming**, a relay, and **2 digital inputs**, plus an on-module scene/gesture engine that keeps working offline. An **RP2350** drives **RS-485 Modbus RTU** and **USB-C WebConfig**; use it with MiniPLC/MicroPLC packages or as a Modbus slave on any master.
 
 ---
+
+## Key advantages
+
+- **RGB + tunable white (CCT)** on **5 PWM channels** with **12-bit + gamma-corrected dimming**, plus a relay and **2 inputs**, with an on-module scene/gesture engine.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ## 1.2 Features & Architecture
 

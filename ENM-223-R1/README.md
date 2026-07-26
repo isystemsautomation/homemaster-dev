@@ -13,13 +13,9 @@
 
 ## 1. Overview
 
-The **ENM-223-R1** is a configurable smart I/O module designed for **3-phase power quality and energy metering**.  
-It includes **3 voltage inputs, 3 current channels**, **2 relays**, and optional **4 buttons / 4 LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
-It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **energy monitoring, automation, and smart building applications**.
+The **ENM‑223‑R1** measures **and** protects: 3‑phase **ATM90E32AS** metrology with power‑quality event detection and a local relay alarm engine for load‑shedding — not metering alone. It provides **3 voltage channels (L1/L2/L3‑N)**, **3 CT current channels**, **2 SPDT relays**, **4 user LEDs**, and **4 buttons** on an **RP2350** with driverless **USB‑C WebConfig**.
 
-The **ENM‑223‑R1** is a modular **3‑phase energy metering + I/O** device for power monitoring, automation, and local control. It features **3 voltage channels (L1/L2/L3‑N)**, **3 current channels (external CTs)**, **2 SPDT relays**, **4 user LEDs**, and **4 buttons**—all driven by an **RP2350** MCU with QSPI flash and a dedicated **ATM90E32AS** metering IC.
-
-It integrates with **MiniPLC/MicroPLC** controllers or any **Modbus RTU** master over **RS‑485**, and it’s configured in‑browser via **USB‑C Web Serial** (no drivers). Typical uses include **energy dashboards, demand response, alarm‑driven relay control, and building automation**. First‑boot firmware default is **Modbus address 3 @ 19200 8N1** (changeable in WebConfig; assign a unique plant ID on each RS‑485 segment).
+It integrates with **MiniPLC/MicroPLC** or any **Modbus RTU** master over **RS‑485**. Typical uses include energy dashboards, demand response, and alarm‑driven relay control. First‑boot default is **Modbus address 3 @ 19200 8N1** (set a unique plant ID per segment in WebConfig).
 
 > Quick device flow:  
 > **Wire Lx/N/PE + CTs → set address/baud, line Hz, 3P4W/3P3W, phase mapping in WebConfig → calibrate → alarms (L1/L2/L3/Totals) → relay Alarm Controlled or Modbus → RS‑485 → poll Modbus.**
@@ -47,6 +43,15 @@ The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm 
 | Daisy‑Chaining       | Multi‑drop on shared A/B; ensure unique IDs and end‑of‑line termination |
 
 > **Note:** Per-channel **Alarm / Warning / Event** rules, **Ack required**, **Alarm Controlled** relays, **phase mapping**, **CT ratio / PGA**, and **3P4W/3P3W** are configured in WebConfig. Modbus exposes alarm flags in IR2, chip events in IR3–6, and write-only ACK coils 16–19.
+
+## Key advantages
+
+- Measures **and** protects: 3-phase **ATM90E32** metrology (V/I/P/Q/S, PF, THD, import/export) with power-quality events (sag, overvoltage, phase-loss, overcurrent, frequency, reverse-phase) and **2 relays** with a local alarm engine for load-shedding; **5 kV RMS** digital isolation.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 

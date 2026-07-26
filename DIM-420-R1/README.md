@@ -66,12 +66,21 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 ## 1.1 Overview of the DIM-420-R1 Module
 
-The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 IEC 61131-2 compliant digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
+The **DIM‑420‑R1** is a **2-channel phase-cut AC dimmer** (leading/trailing per channel) with **4 digital inputs**. Local press-logic and dimming keep working offline; a MiniPLC/MicroPLC (or any Modbus master) adds ESPHome / Home Assistant supervision over RS-485. Setup is in-browser via **USB-C WebConfig**.
 
-It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Modbus masters, ESPHome / Home Assistant, and SCADA/PLC systems**. Typical use: connect wall switches to the DIs, pick **Leading/Trailing edge** per load, set **Lower/Upper thresholds**, and control scenes from a PLC or locally with press‑logic. 
+Typical use: wall switches on the DIs, **Leading/Trailing** and thresholds per load, local press-logic or PLC/ESPHome scenes.
 
 > **Quick use case:**  
 > Wire DI1–DI4 to wall switches → select *Momentary* or *Latching* with Short/Long/Double logic → choose **Cut Mode** and **Load Type** per channel → map LEDs/Buttons → connect RS‑485 A/B → control and monitor via PLC / ESPHome. 
+
+## Key advantages
+
+- **2-channel phase-cut AC dimmer** (leading/trailing, per channel) plus **4 inputs**; local press-logic and dimming keep working offline.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 

@@ -13,7 +13,7 @@
 
 ## 1. Overview
 
-The **DIO-430-R1** is a configurable smart digital I/O module for **digital input monitoring and relay-based output control** in building automation, lighting, HVAC, alarms, and general control systems. It mounts on a **35 mm DIN rail** and connects to a **MicroPLC, MiniPLC, or any Modbus RTU master** over **RS-485**, with optional **Home Assistant (ESPHome)** integration.
+The **DIO-430-R1** is a digital I/O module whose **standalone local logic** — wall switches, override buttons, gesture counters, and DI→relay mapping — keeps working even with no controller or network. It mounts on a **35 mm DIN rail** and connects to **MiniPLC/MicroPLC** (or any Modbus RTU master) over **RS-485**, with Home Assistant integration via ESPHome packages.
 
 **Key capabilities at a glance:**
 
@@ -28,6 +28,15 @@ The **DIO-430-R1** is a configurable smart digital I/O module for **digital inpu
 ### How local and remote control coexist
 
 Relays can be switched from **any** source — wired inputs, front buttons, or Home Assistant — **simultaneously**; the last command wins. There is no "local vs remote" mode to flip: if the network or controller reboots, wall switches **still work**; when online, you also get full remote control.
+
+## Key advantages
+
+- **3 relays + 4 inputs + physical override buttons**, with gesture counters (single/double/triple/long) and interlock; standalone local logic works even with no controller or network.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 

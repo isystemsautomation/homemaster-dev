@@ -6,11 +6,18 @@
 
 ## Description
 
-The HomeMaster MiniPLC is an ESP32-based DIN-rail automation controller designed for residential, commercial, and light industrial smart automation. It combines industrial digital inputs, mechanical relay outputs, analog I/O, RTD and 1-Wire temperature inputs, an OLED display, front-panel buttons, a battery-backed RTC, and an isolated RS-485 / Modbus RTU bus.
-
-The device is designed for local operation using ESPHome and integrates directly with Home Assistant. It runs offline without cloud dependency and can act as a stand-alone controller or as a Modbus RTU master for expansion via RS-485 HomeMaster I/O modules.
+The HomeMaster MiniPLC is the flagship ESP32 DIN-rail controller: rich onboard I/O (relays, DI, 0–10 V analog in/out, RTD, 1-Wire) plus an isolated RS-485 Modbus RTU master for HomeMaster expansion modules. ESPHome is pre-installed for local, offline Home Assistant integration — the controller runs the logic; HA provides dashboards and history.
 
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
+
+## Key advantages
+
+- Flagship ESP32 DIN-rail controller with rich onboard I/O: **6 relays**, **4 DI**, **4× AI 0–10 V (16-bit)**, **1× AO 0–10 V**, **2× RTD (PT100/PT1000)**, **2× 1-Wire**, optional Ethernet, microSD, OLED, and RTC — RTD plus analog in/out on the controller is uncommon in this class.
+- **ESPHome pre-installed**; native Home Assistant API — no MQTT broker, no Modbus register mapping for onboard entities.
+- **Modbus RTU master** for the HomeMaster I/O module line over a deterministic RS-485 wired bus.
+- *The controller does the thinking; the server only visualizes* — critical logic runs on the MiniPLC; Home Assistant is dashboards and history.
+- **Improv** Wi-Fi onboarding (BLE/USB); runs local and offline without cloud dependency.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
 
 ## Quick Start
 
@@ -34,6 +41,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Table of Contents
 
 - [Description](#description)
+- [Key advantages](#key-advantages)
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Compatible Expansion Modules](#compatible-expansion-modules)

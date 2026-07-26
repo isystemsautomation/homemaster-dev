@@ -6,13 +6,19 @@
 
 ## Description
 
-The HomeMaster OpenTherm Gateway is an ESP32-based DIN-rail device designed to interface with OpenTherm®-compatible boilers.
+The HomeMaster OpenTherm Gateway is an ESP32 **OpenTherm master** (not a Modbus slave) for OpenTherm®-compatible boilers. It exposes full boiler telemetry and modulating / weather-compensated control in Home Assistant via pre-installed ESPHome, with a dry-contact relay and two 1-Wire buses for local temperature sensing.
 
-The device provides a hardware OpenTherm interface together with one relay output and 1-Wire temperature sensor support. It is designed for local operation using ESPHome and integrates directly with Home Assistant.
-
-The device operates as an **OpenTherm master**. It initiates all communication with the boiler. The boiler must be configured as OpenTherm slave (standard for all OT-capable boilers). If no boiler is connected to the OT terminals, the OpenTherm entities will be unavailable but the relay and 1-Wire functions continue to operate normally.
+The device initiates all OpenTherm communication with the boiler (boiler must be OpenTherm slave — standard for OT-capable boilers). If no boiler is connected, OpenTherm entities are unavailable but the relay and 1-Wire functions continue to operate. Observe the relay **cross-mains** restriction on hardware rev V1.0 (see Wiring).
 
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
+
+## Key advantages
+
+- ESP32 **OpenTherm master** (not a Modbus slave) exposing full boiler telemetry — modulation, flame, temperatures, faults — in Home Assistant, with modulating / weather-compensated heating.
+- Includes a dry-contact **relay** (observe the cross-mains restriction on hardware rev V1.0) and **2× 1-Wire** buses.
+- **ESPHome pre-installed**; native Home Assistant API — no MQTT, no register mapping.
+- **Improv** Wi-Fi onboarding; runs local and offline.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — no vendor lock-in.
 
 ## Quick Start
 
@@ -35,6 +41,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Table of Contents
 
 - [Description](#description)
+- [Key advantages](#key-advantages)
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Tested Boilers](#tested-boilers)

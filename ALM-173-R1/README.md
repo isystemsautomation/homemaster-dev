@@ -13,7 +13,7 @@
 
 ## 1. Overview
 
-The **ALM-173-R1** is a configurable **alarm and annunciator I/O module** for intrusion detection, fault signalling, and local supervision. It mounts on a **35 mm DIN rail**, connects to a **MicroPLC, MiniPLC, or any Modbus RTU master** over **RS-485**, and is configured via **USB-C WebConfig** (Web Serial).
+The **ALM-173-R1** is a high-density automation/monitoring I/O module: **17 opto-isolated inputs**, **AUX detector-loop power**, **3 relays**, and an on-board alarm engine that keeps running offline. It is **not a certified or insurance-grade intruder alarm**. Mounts on a **35 mm DIN rail**, talks **RS-485 Modbus RTU** to MiniPLC/MicroPLC (or any Modbus master), and is configured via **USB-C WebConfig**.
 
 **Key capabilities at a glance:**
 
@@ -27,6 +27,15 @@ The **ALM-173-R1** is a configurable **alarm and annunciator I/O module** for in
 Alarm groups, zone types, local arming, and bell cut-off are described in [§3 Alarm Logic — How It Works](#3-alarm-logic--how-it-works). This is **not** DIO-style per-input relay mapping.
 
 > **Quick path:** wire inputs → assign groups → set latch modes → map relays/LEDs → RS-485 + WebConfig address/baud → integrate with PLC or Home Assistant.
+
+## Key advantages
+
+- **17 opto-isolated inputs + 3 relays + AUX detector-loop power** and an on-board alarm engine (groups, latching, optional local arming) that runs offline. Automation/monitoring module — **not a certified intruder alarm**.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 

@@ -38,16 +38,18 @@ packages:
 
 ## 1.1 Overview of the STR-3221-R1
 
-The **STR-3221-R1** is a compact and configurable **smart LED / I/O controller** designed for **multi-channel LED lighting and automation control** in architectural and industrial applications.
+The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for staircase and architectural lighting, with **motion-triggered animations**, **2 presence-sensor inputs**, one 24 V discrete input, and local buttons. WebConfig over USB-C sets address and behaviour; MiniPLC/MicroPLC (or any Modbus master) supervise it over RS-485.
 
-It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **1 IEC 61131-2 compliant 24 V discrete input**, **2 presence-sensor inputs**, and **4 local buttons** each with indicator LEDs.  
-Configuration is handled through a browser-based **WebConfig interface** via **USB-C (Web Serial)** — no additional software or drivers are required.
+**One-line purpose:** a high-density stair/architectural lighting node with presence-driven sequences and local-first operation.
 
-The module communicates with a **MicroPLC/MiniPLC** or any Modbus master via **RS-485 (Modbus RTU)**, making it ideal for **staircase lighting, building automation, ambient illumination, alarm signaling, or other automation systems**.
+## Key advantages
 
-Internally, it features robust surge protection and power regulation circuits, ensuring reliable field operation and long service life.
-
-**One-line purpose:** a **high-density field I/O lighting node** that’s easy to wire, configure, and supervise from PLC, SCADA, or home automation platforms.
+- **32-channel** low-side MOSFET LED controller with motion-triggered staircase animations and **2 presence inputs** — a focused product for stair and architectural lighting.
+- Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
+- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
+- Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
+- Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 
@@ -165,7 +167,7 @@ Automatically lights stair LEDs in sequence when motion is detected at the top o
 **Setup:**
 1. Connect motion sensors to **IN1 (bottom)** and **IN2 (top)** terminals.  
 2. Connect each stair LED segment to outputs **O1–O32** (low-side switching).  
-3. Set WebConfig → **STR-3221-R1** .  
+3. Set the module’s **Modbus address** (and related options) in **WebConfig**.  
 4. Program MicoPLC/MiniPLC to poll **IN1/IN2** and activate LEDs in a timed sequence.  
 5. Use **Button 1** as “Manual Test / All ON” and **Button 2** as “All OFF”.
 
@@ -291,7 +293,7 @@ Follow all safety and wiring practices described below.
 
 | Item | Description |
 |------|-------------|
-| Module | MODULE-CODE unit |
+| Module | STR-3221-R1 |
 | Controller | MiniPLC/MicroPLC or Modbus RTU master |
 | PSU | Regulated 24 VDC |
 | Cable | USB-C and RS-485 twisted pair |
