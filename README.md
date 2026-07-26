@@ -6,7 +6,9 @@
 ![Home Assistant](https://img.shields.io/badge/HA%20version-2024.12%2B-blue)
 
 > **Releases:** see the latest tagged build on GitHub Releases. Versioning uses **YYYY‑MM**.  
-> Fully open‑source hardware, firmware, and configuration tools.
+> Fully open‑source hardware, firmware, and configuration tools. **CE marked.**
+
+**Website:** [home-master.eu](https://www.home-master.eu/) · **Shop / Products:** [Products](https://www.home-master.eu/products)
 
 ---
 
@@ -15,6 +17,7 @@
 HomeMaster is an **industrial‑grade, modular automation system** for smart homes, labs, and professional installations. It features:
 
 - ESP32‑based PLC controllers (**MiniPLC & MicroPLC**) — same platform & memory class
+- **OpenTherm Gateway** for boiler / HVAC control
 - A family of smart I/O modules (energy monitoring, lighting, alarms, analog I/O, etc.)
 - **RS‑485 Modbus RTU** communication
 - **ESPHome** compatibility for **Home Assistant**
@@ -64,35 +67,36 @@ flowchart TD
 
 #### 🎯 Quick Module Selector
 - 💡 **Lighting Control** → DIM‑420‑R1, RGB‑621‑R1, STR‑3221‑R1  
-- ⚡ **Measurment & Protecion** → ENM‑223‑R1 , WLD‑521‑R1 
+- ⚡ **Measurement & Protection** → ENM‑223‑R1, WLD‑521‑R1  
 - 🚨 **Security/Alarms** → ALM‑173‑R1
 - 🔌 **General I/O** → DIO‑430‑R1, AIO‑422‑R1   
+- 🔥 **Boiler / HVAC** → [OpenTherm Gateway](./OpenthermGateway/) · [🛒 Product page](https://www.home-master.eu/shop/opentherm-gateway-59)
 
 ### Controller Comparison
 
-| Feature / Use Case | 🟢 [**MiniPLC**](./MiniPLC/) <br> <a href="./MiniPLC/"><img src="./MiniPLC/Images/MiniPLC2.png" alt="MiniPLC" height="140"/></a> | 🔵 [**MicroPLC**](./MicroPLC/) <br> <a href="./MicroPLC/"><img src="./MicroPLC/Images/MicroPLC.png" alt="MicroPLC" height="140"/></a> |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Size**           | Full‑width DIN enclosure                                                                                                         | Compact DIN enclosure                                                                                 |
-| **Onboard I/O**    | 6× Relays, 4× DI, 2× RTD, 2× AI/O, Display, RTC                                                                                   | 1× Relay, 1× DI, 1‑Wire, RTC                                                                          |
-| **Connectivity**   | Ethernet, USB‑C, Wi‑Fi, BLE + Improv                                                                                             | USB‑C, Wi‑Fi, BLE + Improv                                                                           |
-| **Storage**        | microSD card slot                                                                                                                | Internal flash only                                                                                  |
-| **Ideal For**      | Full homes, labs, HVAC/solar, automation pros                                                                                    | Makers, room‑level, modular expansion setups                                                         |
-| **Power Input**    | AC/DC wide range or 24 VDC                                                                                                       | 24 VDC only                                                                                           |
+| Feature / Use Case | 🟢 [**MiniPLC**](./MiniPLC/) <br> [🛒 Product page](https://www.home-master.eu/shop/esp32-miniplc-55) <br> <a href="./MiniPLC/"><img src="./MiniPLC/Images/MiniPLC2.png" alt="MiniPLC" height="140"/></a> | 🔵 [**MicroPLC**](./MicroPLC/) <br> [🛒 Product page](https://www.home-master.eu/shop/esp32-microplc-56) <br> <a href="./MicroPLC/"><img src="./MicroPLC/Images/MicroPLC.png" alt="MicroPLC" height="140"/></a> | 🔥 [**OpenTherm Gateway**](./OpenthermGateway/) <br> [🛒 Product page](https://www.home-master.eu/shop/opentherm-gateway-59) <br> <a href="./OpenthermGateway/"><img src="./OpenthermGateway/Images/opentherm.png" alt="OpenTherm Gateway" height="140"/></a> |
+|--------------------|----------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| **Size**           | Full‑width DIN enclosure                                                                                                         | Compact DIN enclosure                                                                                 | Compact DIN enclosure |
+| **Onboard I/O**    | 6× Relays, 4× DI, 2× RTD, 2× AI/O, Display, RTC                                                                                   | 1× Relay, 1× DI, 1‑Wire, RTC                                                                          | OpenTherm master, 1× Relay, 1‑Wire |
+| **Connectivity**   | Ethernet, USB‑C, Wi‑Fi, BLE + Improv                                                                                             | USB‑C, Wi‑Fi, BLE + Improv                                                                           | USB‑C, Wi‑Fi, BLE + Improv |
+| **Storage**        | microSD card slot                                                                                                                | Internal flash only                                                                                  | Internal flash only |
+| **Ideal For**      | Full homes, labs, HVAC/solar, automation pros                                                                                    | Makers, room‑level, modular expansion setups                                                         | Boiler control, weather compensation |
+| **Power Input**    | AC/DC wide range or 24 VDC                                                                                                       | 24 VDC only                                                                                           | AC/DC wide range or 24 VDC |
 
 
 
 ### Module Overview
 
-| Image | Module | Inputs | Outputs | Key Features | Best For |
-|---|---|---|---|---|---|
-| <a href="./ENM-223-R1/"><img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" height="80"/></a> | [**ENM‑223‑R1**](./ENM-223-R1/) | 3‑Phase CTs | 2 Relays | Per‑phase power metrics | Solar, grid monitoring |
-| <a href="./ALM-173-R1/"><img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" height="80"/></a> | [**ALM‑173‑R1**](./ALM-173-R1/) | 17 DI | 3 Relays | AUX power, alarm logic | Security systems |
-| <a href="./DIM-420-R1/"><img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" height="80"/></a> | [**DIM‑420‑R1**](./DIM-420-R1/) | 4 DI | 2 Dimming | Phase‑cut dimming | Lighting control |
-| <a href="./AIO-422-R1/"><img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" height="80"/></a> | [**AIO‑422‑R1**](./AIO-422-R1/) | 4 AI + 2 RTD | 2 AO | 0‑10V I/O, PT100/1000 | HVAC, sensors |
-| <a href="./DIO-430-R1/"><img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" height="80"/></a> | [**DIO‑430‑R1**](./DIO-430-R1/) | 4 DI | 3 Relays | Override buttons, logic mapping | General control |
-| <a href="./RGB-621-R1/"><img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" height="80"/></a> | [**RGB‑621‑R1**](./RGB-621-R1/) | 2 DI | 5 PWM + 1 Relay | RGB+CCT, smooth fades | Color lighting |
-| <a href="./STR-3221-R1/"><img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" height="80"/></a> | [**STR‑3221‑R1**](./STR-3221-R1/) | 1 DI + 2 presence | 32 LED Channels | Animated sequences | Architectural lighting |
-| <a href="./WLD-521-R1/"><img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" height="80"/></a> | [**WLD‑521‑R1**](./WLD-521-R1/) | 5 DI + Temp | 2 Relays | Leak detection, pulse metering | Safety systems |
+| Image | Module | Inputs | Outputs | Key Features | Best For | 🛒 Product page |
+|---|---|---|---|---|---|---|
+| <a href="./ENM-223-R1/"><img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" height="80"/></a> | [**ENM‑223‑R1**](./ENM-223-R1/) | 3‑Phase CTs | 2 Relays | Per‑phase power metrics | Solar, grid monitoring | [Product page](https://www.home-master.eu/shop/enm-223-r1-energy-metering-737) |
+| <a href="./ALM-173-R1/"><img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" height="80"/></a> | [**ALM‑173‑R1**](./ALM-173-R1/) | 17 DI | 3 Relays | AUX power, alarm logic | Security systems | [Product page](https://www.home-master.eu/shop/alm-173-r1-alarm-systems-733) |
+| <a href="./DIM-420-R1/"><img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" height="80"/></a> | [**DIM‑420‑R1**](./DIM-420-R1/) | 4 DI | 2 Dimming | Phase‑cut dimming | Lighting control | [Product page](https://www.home-master.eu/shop/dim-420-r1-ac-dimmer-module-736) |
+| <a href="./AIO-422-R1/"><img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" height="80"/></a> | [**AIO‑422‑R1**](./AIO-422-R1/) | 4 AI + 2 RTD | 2 AO | 0‑10V I/O, PT100/1000 | HVAC, sensors | [Product page](https://www.home-master.eu/shop/aio-422-r1-analog-io-rtd-735) |
+| <a href="./DIO-430-R1/"><img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" height="80"/></a> | [**DIO‑430‑R1**](./DIO-430-R1/) | 4 DI | 3 Relays | Override buttons, logic mapping | General control | [Product page](https://www.home-master.eu/shop/dio-430-r1-relay-module-58) |
+| <a href="./RGB-621-R1/"><img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" height="80"/></a> | [**RGB‑621‑R1**](./RGB-621-R1/) | 2 DI | 5 PWM + 1 Relay | RGB+CCT, 12-bit + gamma-corrected smooth dimming | Color lighting | [Product page](https://www.home-master.eu/shop/rgb-621-r1-rgbcct-module-57) |
+| <a href="./STR-3221-R1/"><img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" height="80"/></a> | [**STR‑3221‑R1**](./STR-3221-R1/) | 1 DI + 2 presence | 32 LED Channels | Animated sequences | Architectural lighting | [Product page](https://www.home-master.eu/shop/str-3221-r1-stair-leds-module-66) |
+| <a href="./WLD-521-R1/"><img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" height="80"/></a> | [**WLD‑521‑R1**](./WLD-521-R1/) | 5 DI + Temp | 2 Relays | Leak detection, pulse metering | Safety systems | [Product page](https://www.home-master.eu/shop/wld-521-r1-water-meter-leak-1035) |
 
 
 ### Recommended Setups
