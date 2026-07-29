@@ -110,7 +110,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | Interface         | Qty | Description |
 |-------------------|-----|-------------|
 | **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
-| **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
+| **Current Inputs** | 3 | CT1–CT3, external **current-output** split-core CTs; secondary **≤ 60 mA RMS** (6 Ω burden on FieldBoard) |
 | **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
 | **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
 | **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
@@ -127,11 +127,11 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | **Logic Rails** | – | 3.3 / 5 | – | V | Buck (AP64501) + LDO (AMS1117-3.3) |
 | **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
 | **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
-| **Current Inputs** | – | 1 / 0.333 | – | V RMS | External CTs |
+| **Current Inputs (CT secondary)** | – | 50 | 60 | mA RMS | Current-output CTs into a 6 Ω burden on the FieldBoard. Full scale **120 / 60 / 30 mA** at PGA **×1 / ×2 / ×4** (factory default ×2). Do **not** use 1 A or 5 A secondary CTs |
 | **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
 | **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
 | **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
-| **Operating Temp.** | 0 | – | 40 | °C | ≤ 95 % RH non-condensing |
+| **Operating Temp.** | 0 | – | 40 | °C | storage −10…+55 °C; 0–90 % RH non-condensing |
 | **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
 | **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
 
@@ -149,13 +149,13 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 |-----------|---------------|
 | **Mounting** | DIN rail EN 50022 (35 mm) |
 | **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
-| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm (9 division units) |
-| **Weight** | ~420 g |
-| **Terminals** | 300 V / 20 A / 26–12 AWG (2.5 mm²) / torque 0.5–0.6 Nm / pitch 5.08 mm |
+| **Dimensions (L × W × H)** | 71.5 × 90 × 59 mm (4 division units, ≈ 72 mm DIN mounting width) |
+| **Weight** | See product label / packing slip |
+| **Terminals** | Pluggable screw, pitch 5.08 mm / 0.2–2.5 mm² (AWG 24–12) / torque 0.4 Nm (max) |
 | **Ingress Protection** | IP20 (EN 60529) |
 | **Altitude** | ≤ 2000 m |
 | **Environment** | RoHS / REACH compliant |
-| **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
+| **Operating Temp.** | 0–40 °C (storage −10…+55 °C) / 0–90 % RH (non-condensing) |
 
 <div align="center">
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
@@ -226,7 +226,7 @@ See [§12 Compliance & Certifications](#12-compliance--certifications) for direc
 
 </div>
 
-> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (26–12 AWG, torque 0.5–0.6 Nm).
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4 Nm max).
 
 ### 4.2 Connectors & terminal map
 
@@ -234,7 +234,7 @@ See [§12 Compliance & Certifications](#12-compliance--certifications) for direc
 |----------------|--------------------|------------------|----------------|
 | **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
 | **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
-| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External CT (333 mV / 1 V RMS) | Shielded pairs recommended |
+| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External current-output CT, secondary ≤ 60 mA RMS | Shielded pairs recommended; never open a live secondary |
 | **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
 | **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
 | **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
@@ -278,7 +278,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 | Power Isolation       | Disconnect both **24 V DC** and **voltage inputs (Lx/N)** before servicing. Use lockout/tagout where applicable. |
 | Environmental Limits  | Mount in a clean, sealed enclosure. Avoid condensation, conductive dust, or vibration. |
 | Grounding             | Bond the panel to PE. Wire **PE and N** to the module. Never bridge **GND_ISO** to logic GND. |
-| Voltage Compliance    | CT inputs: 1 V or 333 mV RMS only. Voltage inputs: 85–265 V AC. Use upstream fusing and surge protection. |
+| Voltage Compliance    | CT inputs: current-output CTs, secondary **≤ 60 mA RMS**. Voltage inputs: 85–265 V AC. Use upstream fusing and surge protection. |
 
 ---
 
@@ -302,13 +302,13 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 |------------------|---------|
 | **24 V DC Input** | Use a clean, fused SELV power source. Reverse polarity is protected but may disable the module. |
 | **Voltage Input** | Connect **L1/L2/L3/N/PE** only within rated range (85–265 V AC). Use circuit protection upstream. |
-| **Sensor Domain** | Use **CTs with 1 V or 333 mV RMS** output. Never apply 5 A directly. Observe polarity and shielding. |
+| **Sensor Domain** | Use **current-output CTs** with a secondary of **≤ 60 mA RMS**. Never connect a **1 A or 5 A secondary** CT — the 6 Ω burden would develop several volts and destroy the AFE input. Observe polarity and shielding. |
 
 #### Inputs & Relays
 
 | Area              | Warning |
 |-------------------|---------|
-| **CT Inputs**      | Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference. |
+| **CT Inputs**      | Accept only **current-output** CTs (secondary rated in mA). **Never open a CT secondary while the primary is energised** — a hazardous voltage appears across the open winding. Reversing polarity may affect power sign. Use GND_ISO reference. |
 | **Relay Outputs**  | Dry contacts only. Rated: **3 A @ 250 VAC or 30 VDC** (module limit). Use snubber (RC/TVS) for inductive loads. |
 
 #### Communication & USB
@@ -340,6 +340,7 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 - [x] RS‑485 A/B polarity and 120 Ω termination confirmed  
 - [x] Relay loads do **not** exceed 3 A or contact voltage rating  
 - [x] CTs installed with correct polarity and securely landed  
+- [x] CT secondaries landed or shorted — **never left open while the primary is energised**  
 - [x] Voltage inputs fused, protected, and within spec (85–265 V AC)
 
 > 🧷 **Tip:** In single-phase installations, energize **L1** and tie **L2/L3 → N** to prevent phantom voltages.
@@ -397,7 +398,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 - **24 V DC** to `V+ / GND` (top left terminals)
 - **Voltage inputs**: `PE / N / L1 / L2 / L3`  
   - For single-phase: energize **L1 only**, tie **L2/L3 → N**
-- **CTs** to `CT1/CT2/CT3` with correct ± polarity (1 V or 333 mV RMS)  
+- **CTs** to `CT1/CT2/CT3` with correct ± polarity (current-output, secondary ≤ 60 mA RMS)  
   - Arrow → load; shielded pairs preferred
 - **RS‑485 A/B/COM**  
   - Use shielded twisted pair; terminate bus ends with **120 Ω**
@@ -425,11 +426,11 @@ Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals 
 
 ##### Current transformers (CT)
 
-Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity and the rated output level (333 mV or 1 V RMS).
+Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity. Use **current-output** CTs whose secondary is **≤ 60 mA RMS** at the maximum primary current you intend to measure; enter the CT primary (A) and secondary (mA) in WebConfig.
 
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
 
-*Shielded CT leads recommended; observe arrow polarity for correct signed power readings.*
+*Shielded CT leads recommended; observe arrow polarity for correct signed power readings. **Never open a CT secondary while the primary is energised.***
 
 ##### Relays (2× SPDT)
 
@@ -794,7 +795,7 @@ No Home Assistant add-ons are required — all logic runs on the ESPHome control
 
 #### Field I/O
 - Voltage inputs: L1, L2, L3, N, PE
-- CTs: CT1–CT3 (1 V or 333 mV)
+- CTs: CT1–CT3 (current-output, secondary ≤ 60 mA RMS)
 - Relays: dry contact, driven by internal logic or Modbus
 - Buttons / LEDs: wired to MCU, mapped in firmware/UI
 
