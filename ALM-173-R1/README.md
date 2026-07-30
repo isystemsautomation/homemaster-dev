@@ -121,7 +121,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | User LEDs | 4 | Configurable Steady/Blink + PWR/TX/RX status |
 | Modbus RTU | 1 | RS-485; address 1–247; 9600–115200 baud |
 | USB-C | 1 | WebConfig (Web Serial); UF2 flashing |
-| Power | 24 V DC | 18–30 V DC nominal; 1 A time-lag fuse, reverse diode, TVS |
+| Power | 24 V DC | 24 V DC nominal; 1 A time-lag fuse, reverse diode, TVS |
 | Sensor rails | 2 | Isolated **+12 V** (PS/1) and **+5 V** (PS/2); ~2 W / ~150 mA usable on 12 V rail |
 | MCU | RP2350A | Dual-core; QSPI flash; LittleFS |
 
@@ -129,7 +129,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 
 | Parameter | Min | Typ | Max | Unit | Notes |
 |-----------|----:|----:|----:|:----:|-------|
-| Supply voltage | 18 | 24 | 30 | V DC | SELV; 1 A time-lag fuse, reverse-polarity diode, TVS |
+| Supply voltage | — | 24 | — | V DC | SELV; 1 A time-lag fuse, reverse-polarity diode, TVS |
 | Module power | — | 1.85 | 3.0 | W | Excludes external relay load currents |
 | Digital inputs | — | 5 | — | V DC | Opto-isolated; 5300 VRMS test voltage (SFH6156 optocoupler) |
 | Relay contact (module) | — | — | 3 | A | @ 250 VAC resistive |
@@ -202,7 +202,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 | Block | Pins | Function | Notes |
 |-------|------|----------|-------|
-| **POWER** | V+, 0V | 24 V DC input | 18–30 V DC; SELV; fused |
+| **POWER** | V+, 0V | 24 V DC input | 24 V DC; SELV; fused |
 | **DI1…DI17** | INx, GND I.x | Opto-isolated inputs | 5 V DC loop; dry contact or SELV; each return isolated |
 | **RELAY1–3** | NO, C, NC | SPDT dry contacts | 3 A @ 250 VAC module rating |
 | **PS/1** | +12 V ISO | Sensor supply | ~2 W (~150 mA usable); isolated |
