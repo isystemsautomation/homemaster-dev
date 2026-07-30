@@ -339,18 +339,37 @@ The WLD‑521‑R1 operates from a **regulated 24 VDC supply** connected to th
 
 The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communication, and **USB‑C** for setup via browser.
 
+### RS-485 / Modbus RTU
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
+
 ### RS‑485 Pinout (Bottom Left Terminals)
 
 | Terminal | Function          |
 |----------|-------------------|
 | **A**    | RS‑485 A (Data +) |
 | **B**    | RS‑485 B (Data –) |
-| **COM**  | RS‑485 reference ground (connect to controller GND) |
-
-- Wire **A → A**, **B → B**, **COM → COM**
-- Use **twisted-pair** cable and **terminate** at both ends (120 Ω)
-- Avoid star topologies; keep stubs short
-- Shielded cable is recommended for EMI immunity
+| **COM**  | RS‑485 reference ground (required on every node) |
 
 ### Modbus Settings
 
@@ -550,7 +569,7 @@ Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch valves, pumps
 
 ### RS-485 (Modbus RTU)
 
-Wire **A**, **B**, and **COM** on shielded twisted-pair in a daisy-chain bus with **120 Ω** termination at both physical ends of the segment.
+Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 ### USB-C
 

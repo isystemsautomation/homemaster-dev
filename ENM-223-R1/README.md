@@ -114,7 +114,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
 | **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
 | **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
-| **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
+| **RS-485** | 1 | A/B/COM, Modbus RTU — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
 | **Power Input** | 1 | 24 V DC (22–28 V) logic supply, reverse & surge protected |
 
@@ -129,7 +129,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
 | **Current Inputs (CT secondary)** | – | 50 | 60 | mA RMS | Current-output CTs into a 6 Ω burden on the FieldBoard. Full scale **120 / 60 / 30 mA** at PGA **×1 / ×2 / ×4** (factory default ×2). Do **not** use 1 A or 5 A secondary CTs |
 | **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
-| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
+| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
 | **Operating Temp.** | 0 | – | 40 | °C | storage −10…+55 °C; 0–90 % RH non-condensing |
 | **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
@@ -185,7 +185,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 - **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
 - **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
 - **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
-- **RS-485:** TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  
+- **RS-485:** see [RS-485 / Modbus RTU](#rs-485--modbus-rtu); TX/RX LED feedback  
 - **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
 - **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
 
@@ -194,6 +194,30 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 See [§12 Compliance & Certifications](#12-compliance--certifications) for directives, DoC, and related marks. Mechanical ingress (IP20) is also listed under [§3.3](#33-mechanical--environmental).
 
 ---
+
+### RS-485 / Modbus RTU
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ## 4. Hardware & Interface
 
@@ -235,7 +259,7 @@ See [§12 Compliance & Certifications](#12-compliance--certifications) for direc
 | **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
 | **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
 | **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External current-output CT, secondary ≤ 60 mA RMS | Shielded pairs recommended; never open a live secondary |
-| **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
+| **RS-485** | A, B, COM | Modbus RTU bus | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
 | **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
 | **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
@@ -442,14 +466,7 @@ Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external load
 
 ##### RS-485 (Modbus RTU)
 
-Wire **A**, **B**, and **COM** on twisted-pair cable in a daisy-chain bus; place **120 Ω** termination at the physical ends of the segment (not inside the module). Biasing resistors (pull-up/down) belong on the master. Tie **COM/GND** references if nodes use separate supplies.
-
-| Terminals  | Description            |
-|------------|------------------------|
-| `A`, `B`   | Differential signal pair (twisted/shielded) |
-| `COM`/`GND` | Logic reference (tie GNDs if on separate supplies) |
-
-Factory first-boot defaults: Modbus address **`3`**, baud **`19200`**, format **`8N1`**, address range **1–247** (set per site in WebConfig).
+Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
 

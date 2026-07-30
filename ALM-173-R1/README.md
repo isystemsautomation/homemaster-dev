@@ -176,11 +176,35 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 - Reverse-polarity diode + TVS on 24 V input; 1 A time-lag fuse.
 - Opto-isolated digital inputs (5300 VRMS); isolated sensor rails with PTC/fuse limiting.
 - Relay drivers with onboard suppression; add external RC/MOV for inductive field loads.
-- RS-485: TVS, series protection, fail-safe biasing.
+- RS-485: see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 - USB-C ESD-protected; service port only.
 - Auto-save to flash after WebConfig changes (~1.5 s quiet period).
 
 ---
+
+### RS-485 / Modbus RTU
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ## 5. Hardware & Interface
 
@@ -207,7 +231,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 | **RELAY1–3** | NO, C, NC | SPDT dry contacts | 3 A @ 250 VAC module rating |
 | **PS/1** | +12 V ISO | Sensor supply | ~2 W (~150 mA usable); isolated |
 | **PS/2** | +5 V ISO | Sensor supply | Low-power sensors only; PTC limited |
-| **RS-485** | A, B, COM | Modbus RTU | Terminate 120 Ω at bus ends |
+| **RS-485** | A, B, COM | Modbus RTU | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | — | WebConfig / UF2 | Not a field power source |
 
 ![Terminal labeling](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
@@ -224,7 +248,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 | **Inputs** | Dry contact / SELV only; respect Enable/Invert/Group in WebConfig |
 | **Relays** | Dry contacts; **3 A @ 250 VAC** module limit; snub inductive loads |
 | **Sensor rails** | Low power only; shorts may trip PTCs |
-| **RS-485** | Twisted pair; daisy-chain; 120 Ω at both ends; shared COM/GND |
+| **RS-485** | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | Setup/maintenance only |
 | **Buttons** | Can ack alarms or override relays — document procedures for safety-critical installs |
 

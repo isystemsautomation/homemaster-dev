@@ -74,7 +74,7 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT)** LED controller with **5 P
 | **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
 | **LED Indicators** | 8 | PWR, TX, RX, I.1, I.2, O.1, and two user LEDs (LED1/LED2) |
-| **Modbus RTU** | Yes | RS-485 interface via MAX485CSA+T transceiver (external 120 Ω bus termination) |
+| **Modbus RTU** | Yes | RS-485 via MAX485CSA+T (non-isolated; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu)) |
 | **USB-C** | Yes | WebConfig & firmware flashing with PRTR5V0U2X ESD protection |
 | **Power Input** | 24 V DC ±10 % (SELV/PELV) | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
 | **Logic Supply** | — | AP64501SP-13 buck (5 V) + AMS1117-3.3 LDO chain |
@@ -147,7 +147,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 ![Front Terminals](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/photo1.png)
 
 **Top:** V+/0 V (24 V DC input), Relay C / NO, Inputs I1/I2 (+ GND)  
-**Bottom:** PWM R/G/B/CW/WW, **COM (LED+)**, RS-485 A/B (+ RS-485 COM opt.)
+**Bottom:** PWM R/G/B/CW/WW, **COM (LED+)**, RS-485 A/B/COM
 
 ---
 
@@ -293,16 +293,29 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ---
 
-### RS-485 Communication
+### RS-485 / Modbus RTU
 
-| Parameter | Specification |
-|------------|---------------|
-| Transceiver | MAX485CSA+T |
-| Bus Type | Differential, multi-drop (A/B lines) |
-| Default Settings | 19200 bps · 8N1 |
-| Bus termination | External 120 Ω at both bus ends |
-| Protection | Surge/ESD network integrated |
-| Notes | Observe polarity (A = +, B = –). Use shielded twisted-pair cable; ground shield at one end only. |
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ---
 
@@ -368,33 +381,23 @@ Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-
 
 ## 5.3 Communication
 
+Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+
 **RS-485 Pinout (bottom connector):**
 
 | Terminal | Signal | Description |
 |-----------|---------|-------------|
 | **A** | RS-485 A (+) | Non-inverting line |
 | **B** | RS-485 B (–) | Inverting line |
-| **RS-485 COM** | Common reference (optional) | Field ground reference (GND_FUSED) for long bus runs |
+| **RS-485 COM** | Common reference | Required on every node (logic/field reference) |
 
-- Use a **twisted-pair shielded cable** (e.g., Cat-5 or RS-485 grade).  
-  Connect the shield to protective earth (PE) at **one end only**.
+**Default Modbus settings:**
 
-- **Network topology:**  
-  Daisy-chain (bus) — no star wiring.  
-  Fit an external 120 Ω resistor across A/B at each of the two physical bus ends.
+- **Address:** 3 (each module on the bus must be unique — change in WebConfig to avoid collisions)
+- **Baud rate:** 19200 bps
+- **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)
 
-- **Default Modbus settings:**  
-  - **Address:** 3 (each module on the bus must be unique — change in WebConfig to avoid collisions)  
-  - **Baud rate:** 19200 bps  
-  - **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)  
-
-- **Configuration:**  
-  - Connect via **USB-C** and open **WebConfig** in any browser that supports the **Web Serial API**.  
-  - Set module address, baud rate, and optional relay/input parameters — changes apply immediately and are saved to flash automatically.
-
-- **Ground reference use:**  
-  - In most RS-485 systems, differential A/B are sufficient.  
-  - The **RS-485 COM** terminal may be connected between devices only if bus transceivers require a shared reference (rare in modern isolated networks).
+**Configuration:** Connect via **USB-C** and open **WebConfig** in any browser that supports the **Web Serial API**. Set module address, baud rate, and optional relay/input parameters — changes apply immediately and are saved to flash automatically.
 
 ---
 
@@ -442,7 +445,7 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 ### RS-485 (Modbus RTU)
 
 ![RS-485 A/B/COM Modbus RTU wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RS485Connection.png)
-***A** / **B** / optional **RS-485 COM** — daisy-chain to controller; see [§5.3](#53-communication).*
+***A** / **B** / **RS-485 COM** — daisy-chain to controller; COM required on every node — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).*
 
 ### USB-C
 

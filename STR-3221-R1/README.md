@@ -132,7 +132,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 > ⚙️ **Design domains:**  
 > - Field side: 24 VDC (DI, outputs); **+5 V** fused SENS.A / SENS.B for presence sensors.  
 > - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
-> - Communication side: RS-485 isolated by line TVS + fuses.
+> - Communication side: RS-485 transient protection (TVS + PTC) — **not galvanically isolated**; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 ---
 
@@ -262,17 +262,30 @@ Follow all safety and wiring practices described below.
 
 ---
 
-### RS-485 (Modbus RTU)
+### RS-485 / Modbus RTU
 
-| Area | Warning |
-|-------|----------|
-| **Wiring** | Use **twisted pair (shielded)** cable for A/B lines. Maintain consistent polarity along the trunk. |
-| **Termination** | Terminate with 120 Ω resistors at both physical ends only. |
-| **Ground Reference** | Connect **COM** to controller’s reference if using separate power supplies. |
-| **Topology** | Daisy-chain preferred. Avoid star connections to prevent reflections. |
-| **Surge Protection** | Integrated TVS diodes and fuses protect the transceiver; still use proper cable shielding in industrial environments. |
+All HomeMaster controllers and modules share the same RS-485 front end.
 
----
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
+
 
 ### USB-C (Service / WebConfig)
 
@@ -348,7 +361,7 @@ Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/
 
 ### RS-485 (Modbus RTU)
 
-Wire **A**, **B**, and optional **COM** on shielded twisted-pair in a daisy-chain bus; fit an external 120 Ω resistor across A/B at each physical bus end (no onboard terminator).
+Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 ![RS-485 bus wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_RS485_Connection.png)
 ***A**, **B**, and **COM** to the controller or next module; external 120 Ω at both bus ends.*

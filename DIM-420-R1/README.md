@@ -248,7 +248,7 @@ The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and on
 |                     | PLC/HA YAML (optional) | For ESPHome/Home Assistant: exposes CH/DI/LED control |
 | **Field I/O**        | AC Load          | CH1/CH2 outputs to **trailing- or leading-edge dimmable** loads |
 |                     | DI Switches      | Wall switches (dry contact). Use `DIx` + `GND`. Momentary/latching supported. |
-|                     | RS‑485 bus       | A / B / COM (use shielded twisted pair). COM is optional GND ref |
+|                     | RS‑485 bus       | A / B / COM (use shielded twisted pair). COM required on every node |
 |                     | Power Terminals  | `V+`, `0V` = logic power (SELV). `Lx/Nx IN/OUT` = mains side. |
 
 > 💡 **Quick path mount:** wire 24 VDC, RS‑485 (A/B/COM), and DI → connect USB‑C → open WebConfig → set Modbus & cut mode → tune thresholds → map DIs/LEDs → save → disconnect USB → go live.
@@ -280,23 +280,31 @@ AC power is handled separately by the dimming channels (see §4.4).
 
 DIM‑420‑R1 supports **RS‑485 Modbus RTU** for runtime control and **USB‑C WebConfig** for setup.
 
-### 4.3.1 RS‑485 (Modbus RTU)
+### RS-485 / Modbus RTU
 
-#### Terminals
+All HomeMaster controllers and modules share the same RS-485 front end.
 
-A B COM
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
 
-Located bottom-left on module:
+**Bus wiring rules — apply to every device on the bus:**
 
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
-| Pin | Description |
-|-----|-------------|
-| A / B | RS‑485 differential pair |
-| COM   | Optional GND reference (connect to controller GND if needed) |
-
-Use **shielded twisted pair**, terminate at both ends (~120 Ω), and bias if required.
-
-#### Protocol
+#### Protocol (Modbus defaults)
 
 | Parameter      | Value         |
 |----------------|---------------|
@@ -364,18 +372,11 @@ Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in 
 
 ### RS‑485 (Modbus RTU)
 
-Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
-
-- **B / A** → RS‑485 differential pair (use shielded twisted pair)
-- **COM** → optional reference ground to the controller
-- Terminate the bus at both ends (~120 Ω) if not already present
-- Defaults: **Slave ID 3**, **19200 baud**, **8N1** (change in WebConfig)
+Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 <div align="center">
   <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
 </div>
-
----
 
 ### USB‑C Port (Front)
 
@@ -550,7 +551,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **POWER** | V+, 0V                     | Logic power (24 VDC SELV) |
 | **DI**    | DI1–DI4 + GND pairs        | IEC 61131-2 digital inputs (ISO1212 front-end); each has dedicated GND |
 | **AC OUT**| Lx_IN/OUT, Nx_IN/OUT       | Dimmed output channels (CH1/CH2) |
-| **RS‑485**| A, B, COM                  | Differential bus + optional ground ref |
+| **RS‑485**| A, B, COM                  | Differential bus + COM (required on every node) |
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
 
 <div align="center">

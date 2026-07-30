@@ -85,7 +85,7 @@ Typical uses for the DIO-430-R1:
 | **Relay Outputs** | 3 | SPDT (NO/NC/COM), 3 A @ 250 VAC (resistive) dry contacts. Relay component rated higher, but module output is limited to 3 A — use interposing contactors for larger or inductive/mains loads. |
 | **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
 | **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
-| **RS-485 (Modbus RTU)** | 1 | A/B/COM terminals. Daisy-chain. 120 Ω termination at both ends. |
+| **RS-485 (Modbus RTU)** | 1 | A/B/COM — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | 1 | Web Serial setup, diagnostics, firmware flashing (ESD-protected). |
 | **Power Input** | 1 | 24 V DC SELV. Reverse-polarity + surge protected. |
 
@@ -137,11 +137,35 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 - Reverse-path diode + high-side MOSFET on 24 V input.
 - Local PTC + TVS protection on field interfaces.
 - Relay drivers opto-isolated; RC/MOV suppression recommended.
-- RS-485 with TVS, series protection, and fail-safe biasing.
+- RS-485: see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 - USB-C ESD-protected; CC resistors per spec.
 - Non-volatile flash with **auto-save** after configuration changes.
 
 ---
+
+### RS-485 / Modbus RTU
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ## 4. Hardware & Interface
 
@@ -173,7 +197,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 **Power domain & front-end.** The input field side runs on the module's own 24 V supply (internally fused) — there is no separate isolated input supply. The ISO1212 is a current/threshold-conditioning front-end, **not** a galvanic isolator; inputs are **not** galvanically isolated from the module's own 24 V rail. An external 24 V signal can be applied to INx (this is the normal "24 V signal" mode and does not disturb the internal wetting — SENSE and IN are separate pins, current-limited), and each channel is protected by a series fuse, common-mode choke, ~26 V TVS and an RC filter. **The signal return must share the module's SELV ground:** wire it to the paired **GNDx** (= the module's 24 V return). If the external 24 V comes from a separate supply, make sure both are SELV and share a common 0 V reference to avoid ground loops. Do not bond **GNDx** to logic GND.
 
-| **RS-485** | B, A, COM | Modbus RTU bus | Terminate 120 Ω at ends |
+| **RS-485** | B, A, COM | Modbus RTU bus | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | D+, D−, VBUS, GND | Setup / Service port | Not for field powering |
 
 ### 4.3 Front panel — buttons & LEDs
@@ -256,33 +280,8 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 | Separation | Keep relay load wiring physically separate from signal wiring. De-energize before servicing. |
 | Verification | After wiring, verify NO/NC behavior and load polarity before enabling automation. |
 
-**RS-485 (Modbus RTU)**
+**RS-485:** see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
-| Area | Warning |
-|------|---------|
-| Topology | Use twisted pair; **daisy-chain** (no stubs). Terminate with **120 Ω** at both physical ends. |
-| Polarity | Maintain **A/B** polarity consistently. Share **COM/GND** reference between nodes (same SELV domain). |
-| EMC | Route away from VFDs, contactors, and mains bundles. Use shielded cable in high-EMI environments. |
-| Protection | Port includes protection; good wiring practice still required to avoid transients. |
-
-**USB-C (setup)**
-
-| Area | Warning |
-|------|---------|
-| Purpose | **Setup & maintenance only** (WebConfig / firmware). Not for powering field devices. |
-| ESD/EMI | Avoid hot-plugging in high-EMI areas. Use a grounded service laptop. Disconnect after commissioning. |
-
-**Front panel (buttons & LEDs)**
-
-| Area | Warning |
-|------|---------|
-| Buttons & LEDs | Buttons can override relays; document operating procedures. Lock out overrides for safety-critical installs. |
-
-**Shielding & EMC**
-
-| Area | Recommendation |
-|------|----------------|
-| Cable Shields | Terminate shields at **one end** (typically the PLC/controller). Keep runs short and away from high-voltage/EMI sources. |
 
 ### 5.2 What you need
 

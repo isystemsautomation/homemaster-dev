@@ -6,7 +6,7 @@
 
 ## Description
 
-The HomeMaster MiniPLC is the flagship ESP32 DIN-rail controller: rich onboard I/O (relays, DI, 0–10 V analog in/out, RTD, 1-Wire) plus an isolated RS-485 Modbus RTU master for HomeMaster expansion modules. ESPHome is pre-installed for local, offline Home Assistant integration — the controller runs the logic; HA provides dashboards and history.
+The HomeMaster MiniPLC is the flagship ESP32 DIN-rail controller: rich onboard I/O (relays, DI, 0–10 V analog in/out, RTD, 1-Wire) plus an RS-485 Modbus RTU master (non-isolated) for HomeMaster expansion modules. ESPHome is pre-installed for local, offline Home Assistant integration — the controller runs the logic; HA provides dashboards and history.
 
 This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
 
@@ -82,7 +82,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
 - 2 × RTD inputs (PT100 / PT1000 via MAX31865) with on-board DIP switch configuration for sensor type and 2/3/4-wire mode
 - 2 × 1-Wire buses (DS18B20 compatible) with auxiliary +5 V supply
-- Isolated RS-485 / Modbus RTU bus (MAX485 with TVS, PTC fuses, EMI choke, fail-safe biasing)
+- RS-485 / Modbus RTU bus (MAX485; non-isolated — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu))
 - 128 × 64 OLED display (SH1106, I²C)
 - 4 front-panel buttons + 3 user LEDs + 1 status LED + buzzer
 - PCF8563 real-time clock with on-board battery holder (battery sold separately)
@@ -277,16 +277,34 @@ The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by o
 
 > ⚠️ **One sensor per bus by default.** The shipped configuration does not pin sensor addresses. With multiple sensors on the same 1-Wire bus, ESPHome reads the first sensor it discovers — assignment is non-deterministic across reboots. For multiple sensors per bus, set explicit `address:` values in YAML (visible in ESPHome logs at boot).
 
-### RS-485 / Modbus RTU Wiring
+### RS-485 / Modbus RTU
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 | Two-wire bus | Termination |
 |:---:|:---:|
 | ![RS-485 wiring 1](./Images/wiring_rs485_1.png)<br>*Connect A, B, and COM to the bus.* | ![RS-485 wiring 2](./Images/wiring_rs485_2.png)<br>*120 Ω termination only at the two physical ends.* |
 
-- Terminate with **120 Ω** only at the two ends of the line.
-- Connect **COM** between all RS-485 nodes — this limits common-mode voltage.
-- Fail-safe biasing is already provided inside the MiniPLC; do not add external bias resistors.
-- Use the same power supply for MiniPLC and extension modules where possible (or tie 0 V references together at one point).
 
 ## Pinout
 
@@ -305,7 +323,7 @@ The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by o
 | D1, D2 | 1-Wire DATA | DS18B20-compatible (GPIO5 and GPIO4) |
 | +5V | +5 V output | Auxiliary supply for 1-Wire sensors |
 | Gnd | Signal ground | Common ground reference for signal terminals |
-| A, B, COM | RS-485 / Modbus | Half-duplex RS-485 bus with isolated transceiver |
+| A, B, COM | RS-485 / Modbus | Half-duplex RS-485 bus (non-isolated; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu)) |
 
 ### Bottom terminals (Power & Relay)
 
