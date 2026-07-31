@@ -111,10 +111,10 @@ uint8_t aoPowerOn[2] = {HM_PWR_OFF, HM_PWR_OFF};
 void handleValues(JSONVar values);
 void handleCommand(JSONVar obj);
 void handleUnifiedConfig(JSONVar obj);
-void handleDac(JSONVar obj);
-void handleLedCfg(JSONVar obj);
-void handleBtnCfg(JSONVar obj);
-void handleRtdCfg(JSONVar obj);
+void handleDac(JSONVar obj);      // whole Config object { t, list, powerOn? }
+void handleLedCfg(JSONVar list);  // Config list array (bare ints or {src|source})
+void handleBtnCfg(JSONVar list);  // Config list array (bare ints or {action})
+void handleRtdCfg(JSONVar list);  // Config list object { wires, rnominal }
 
 void performReset();
 void sendWebStatus();
@@ -936,15 +936,16 @@ void handleDac(JSONVar obj) {
 
   if (changed) {
     lastCfgTouchMs = millis();
-    cfgDirty = true;
-    sendWebCfg();
+    cfgDirty = true;              // TODO (intake rule 4)
+    sendWebCfg();                 // TODO (intake rule 4)
   }
 }
 
 // ===== RTD configuration handler (Web-only, persisted) =====
-void handleRtdCfg(JSONVar obj) {
-  JSONVar wires = obj["wires"];
-  JSONVar rn    = obj["rnominal"];
+// Receives the raw 'list' object from the Config router (intake rule 2).
+void handleRtdCfg(JSONVar list) {
+  JSONVar wires = list["wires"];
+  JSONVar rn    = list["rnominal"];
 
   if (JSON.typeof(wires) == "array") {
     for (int i=0;i<2;i++) {
@@ -967,50 +968,69 @@ void handleRtdCfg(JSONVar obj) {
   applyRtdHardwareCfg();
   wsLog("RTD configuration updated (Web-only)");
 
-  cfgDirty = true;
+  cfgDirty = true;                // TODO (intake rule 4)
   lastCfgTouchMs = millis();
-  sendWebCfg();
+  sendWebCfg();                   // TODO (intake rule 4)
 }
 
-void handleLedCfg(JSONVar obj) {
-  JSONVar src = obj["src"];
-  if (JSON.typeof(src) != "array") {
-    wsLog( "ledCfg: missing 'src' array");
+// Receives the raw 'list' array from the Config router (intake rule 2).
+// Each element may be a bare number or an object: {src: N} or {source: N}.
+void handleLedCfg(JSONVar list) {
+  if (JSON.typeof(list) != "array") {
+    wsLog(String("led: expected array, got ") + JSON.typeof(list));
     return;
   }
-
-  for (int i = 0; i < 4; i++) {
-    if (i >= (int)src.length()) break;
-    int v = (int)src[i];
+  for (int i = 0; i < NUM_LED && i < (int)list.length(); i++) {
+    JSONVar e = list[i];
+    int v;
+    if      (e.hasOwnProperty("src"))    v = (int)e["src"];
+    else if (e.hasOwnProperty("source")) v = (int)e["source"];
+    else                                 v = (int)e;
     ledSrc[i] = clamp_u8(v, 0, 4);
   }
-
   wsLog("LED source configuration updated");
-  cfgDirty = true;
+  cfgDirty = true;                // TODO (intake rule 4)
   lastCfgTouchMs = millis();
-  sendWebCfg();
+  sendWebCfg();                   // TODO (intake rule 4)
 }
 
-void handleBtnCfg(JSONVar obj) {
-  JSONVar act = obj["action"];
-  if (JSON.typeof(act) != "array") {
-    wsLog( "btnCfg: missing 'action' array");
+// Receives the raw 'list' array from the Config router (intake rule 2).
+// Each element may be a bare number or an object of the form {action: N}.
+void handleBtnCfg(JSONVar list) {
+  if (JSON.typeof(list) != "array") {
+    wsLog(String("btn: expected array, got ") + JSON.typeof(list));
     return;
   }
-
-  for (int i = 0; i < 4; i++) {
-    if (i >= (int)act.length()) break;
-    int v = (int)act[i];
+  for (int i = 0; i < NUM_BTN && i < (int)list.length(); i++) {
+    JSONVar e = list[i];
+    int v = e.hasOwnProperty("action") ? (int)e["action"] : (int)e;
     btnAction[i] = clamp_u8(v, 0, 9);
   }
-
   wsLog("Button actions updated");
-  cfgDirty = true;
+  cfgDirty = true;                // TODO (intake rule 4)
   lastCfgTouchMs = millis();
-  sendWebCfg();
+  sendWebCfg();                   // TODO (intake rule 4)
 }
 
-// Config router: contract t + legacy inbound aliases (dac, rtdCfg, btnCfg, ledCfg).
+// ================== Config intake rules (HomeMaster line-wide) ==================
+// 1. Config arrives on exactly one channel: "Config", shaped { t, list }.
+//    Only "values", "Config" and "command" may be registered with WebSerial.on().
+//    A module may add a channel ONLY for a payload that genuinely cannot be
+//    expressed as { t, list } (see WLD "onewire", ENM "AlarmsCfg"), and must
+//    document why. SimpleWebSerial caps the total at 8 events.
+// 2. The router NEVER constructs an intermediate JSONVar. No payload[key][i] = ...
+//    Pass "list" (or the whole "obj" when top-level siblings are needed) through
+//    unchanged. Building a JSONVar by integer index yields an object keyed "0",
+//    "1", "2"..., not an array, and downstream JSON.typeof() checks then fail.
+// 3. Tolerate element shape where the value is read, not in an adapter layer:
+//    an element may be a bare number or an object ({action:N}, {source:N}).
+// 4. One exit point. Set a single "changed" flag, and at the end of the router
+//    do the persistence and echo once. Leaf helpers must not each call
+//    sendWebCfg() / touch cfgDirty on their own.
+// 5. Never return silently. A malformed or unrecognised payload must wsLog what
+//    was actually received, including JSON.typeof() of the offending value.
+// ==============================================================================
+// Config router: contract t + legacy inbound type aliases (dac, rtdCfg, btnCfg, ledCfg).
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   JSONVar list = obj["list"];
@@ -1019,10 +1039,7 @@ void handleUnifiedConfig(JSONVar obj) {
   String type = String(t);
 
   if (type == "ext.dac" || type == "dac") {
-    JSONVar payload;
-    payload["list"] = list;
-    if (obj.hasOwnProperty("powerOn")) payload["powerOn"] = obj["powerOn"];
-    handleDac(payload);
+    handleDac(obj);
     return;
 
   } else if (type == "ext.rtd" || type == "rtdCfg") {
@@ -1030,30 +1047,15 @@ void handleUnifiedConfig(JSONVar obj) {
     return;
 
   } else if (type == "btn" || type == "btnCfg" || type == "buttons") {
-    JSONVar payload;
-    if (JSON.typeof(list) == "array") {
-      for (int i = 0; i < NUM_BTN && i < (int)list.length(); i++) {
-        if (list[i].hasOwnProperty("action")) payload["action"][i] = list[i]["action"];
-        else payload["action"][i] = list[i];
-      }
-    }
-    handleBtnCfg(payload);
+    handleBtnCfg(list);
     return;
 
   } else if (type == "led" || type == "ledCfg" || type == "leds") {
-    JSONVar payload;
-    if (JSON.typeof(list) == "array") {
-      for (int i = 0; i < NUM_LED && i < (int)list.length(); i++) {
-        if (list[i].hasOwnProperty("src")) payload["src"][i] = list[i]["src"];
-        else if (list[i].hasOwnProperty("source")) payload["src"][i] = list[i]["source"];
-        else payload["src"][i] = list[i];
-      }
-    }
-    handleLedCfg(payload);
+    handleLedCfg(list);
     return;
 
   } else {
-    wsLog(String("Unknown Config type: ") + t);
+    wsLog(String("Unknown Config type: ") + t + " (list is " + JSON.typeof(list) + ")");
   }
 }
 
@@ -1357,10 +1359,6 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.on("dac",     handleDac);
-  WebSerial.on("ledCfg",  handleLedCfg);
-  WebSerial.on("btnCfg",  handleBtnCfg);
-  WebSerial.on("rtdCfg",  handleRtdCfg);
 
   if (!initFilesystemAndConfig()) {
     wsLog( "FATAL: Filesystem/config init failed");
