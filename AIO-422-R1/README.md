@@ -89,6 +89,48 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ---
 
+## WebConfig Reference
+
+Open **[AIO-422-R1 WebConfig](https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html)** in a **Chromium-based browser** (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). Connect via **USB-C** and click **Connect**. Changes apply immediately and are saved to flash after a short idle period (no Save button).
+
+> **Firefox:** experimental only (Nightly with Web Serial enabled). **Safari** and stable Firefox are not supported.
+
+### Connection, status & tools
+
+![AIO-422-R1 WebConfig — connection, Modbus address/baud, tools and serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig1.png)
+
+Status pills (read-only): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**, **WebConfig**, **Modbus ID**, **Baud**.
+
+| Control | What it does |
+|--------|--------------|
+| Identify (~5 s) | Blinks user LEDs to locate the module on the rail. |
+| Factory reset | Restores settings to defaults. |
+| Reboot | Restarts the module. |
+| Modbus Address | Slave address **1–247** (unique on the bus). |
+| Baud Rate | 9600 / 19200 / 38400 / 57600 / 115200 — must match the controller. |
+| Serial Log | USB diagnostics stream (copyable). |
+
+### Analog inputs, outputs & RTD
+
+![AIO-422-R1 WebConfig — live AI/AO values and RTD channels](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig2.png)
+
+| Area | What you set / see |
+|------|---------------------|
+| AI1–AI4 | Live 0–10 V (mV) from the field inputs. |
+| AO1–AO2 | DAC raw slider (0–4095), live volts, power-on policy. |
+| RTD1–RTD2 | Temperature, fault code, raw diagnostics; wire mode (2/3/4-wire) and sensor type (PT100/PT1000). Match the on-board jumper to the sensor type — Rref follows automatically. |
+
+### Buttons & user LEDs
+
+![AIO-422-R1 WebConfig — button actions and LED sources](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig3.png)
+
+| Area | What you set |
+|------|----------------|
+| Buttons 1–4 | Front-panel action (AO steps, toggles, etc. — saved in flash). |
+| User LEDs 1–4 | Source for each LED (manual / AO thresholds / bus / RTD fault, etc.). |
+
+---
+
 ## Technical Specifications
 
 | Parameter                     | Value                                |
