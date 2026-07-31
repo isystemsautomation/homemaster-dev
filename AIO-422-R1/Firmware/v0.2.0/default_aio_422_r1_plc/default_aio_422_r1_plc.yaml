@@ -266,8 +266,9 @@ number:
     max_value: 4095
     step: 1
     mode: slider
-    optimistic: true
+    update_interval: 1s
     lambda: |-
+      if (isnan(id(${aio_id}_ao1_state).state)) return {};
       return id(${aio_id}_ao1_state).state;
     set_action:
       - output.set_level:
@@ -280,8 +281,9 @@ number:
     max_value: 4095
     step: 1
     mode: slider
-    optimistic: true
+    update_interval: 1s
     lambda: |-
+      if (isnan(id(${aio_id}_ao2_state).state)) return {};
       return id(${aio_id}_ao2_state).state;
     set_action:
       - output.set_level:
