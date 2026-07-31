@@ -174,7 +174,7 @@
 
     const dacValues = [0, 0];
     const aoPowerOn = [0, 0];
-    const rtdCfg = { wires: [2, 2], rnominal: [100, 100], rref: [200, 200] };
+    const rtdCfg = { wires: [2, 2], rnominal: [100, 100], rref: [400, 400] };
     const rtdEditing = [false, false];
 
     function setAiDot(i, on) {
@@ -224,15 +224,15 @@
       for (let i = 0; i < NUM_RTD; i++) {
         if (wires[i] != null) rtdCfg.wires[i] = Number(wires[i]) || 2;
         if (rn[i] != null) rtdCfg.rnominal[i] = Number(rn[i]) || 100;
-        if (rr[i] != null) rtdCfg.rref[i] = Number(rr[i]) || 200;
+        if (rr[i] != null) rtdCfg.rref[i] = Number(rr[i]) || 400;
         if (!rtdEditing[i]) {
           const wireEl = $('rtd-wire-' + i);
           const senEl = $('rtd-sensor-' + i);
-          const rrEl = $('rtd-rref-' + i);
           if (wireEl) wireEl.value = String(rtdCfg.wires[i]);
           if (senEl) senEl.value = String(rtdCfg.rnominal[i]);
-          if (rrEl) rrEl.value = String(rtdCfg.rref[i]);
         }
+        const rrefValEl = $('rtd-rref-val-' + i);
+        if (rrefValEl) rrefValEl.textContent = String(rtdCfg.rref[i]);
       }
     }
 
@@ -290,6 +290,7 @@
 
       const rtd = ext.rtd || {};
       const t10 = HMWebConfig.toArray(rtd.temp_x10);
+      const hasInfo = !!rtd.info;
       const info = rtd.info || {};
       const tc = HMWebConfig.toArray(info.temp_c);
       const fault = HMWebConfig.toArray(info.fault);
@@ -306,29 +307,24 @@
         const ratioEl = $('rtd-ratio-' + i);
         const ohmEl = $('rtd-ohms-' + i);
 
-        const tempC = Number(tc[i]);
         if (tempEl) {
-          if (!isNaN(tempC) && isFinite(tempC)) tempEl.textContent = tempC.toFixed(2);
-          else {
+          const tempC = Number(tc[i]);
+          if (hasInfo && tc[i] != null && !isNaN(tempC) && isFinite(tempC)) {
+            tempEl.textContent = tempC.toFixed(2);
+          } else if (!hasInfo || tc[i] == null) {
             const t10v = Number(t10[i]);
-            tempEl.textContent = isNaN(t10v) ? '--' : (t10v / 10).toFixed(1);
+            if (!isNaN(t10v)) tempEl.textContent = (t10v / 10).toFixed(1);
+            // else leave previous value
           }
         }
-        const faultVal = Number(fault[i]);
-        if (faultEl) {
-          faultEl.textContent = isNaN(faultVal) ? '--' : ('0x' + (faultVal & 0xFF).toString(16).padStart(2, '0').toUpperCase());
+        if (faultEl && fault[i] != null) {
+          faultEl.textContent = '0x' + (Number(fault[i]) & 0xFF).toString(16).padStart(2, '0').toUpperCase();
         }
-        if (errEl) errEl.textContent = err[i] || '';
-        if (rawEl) rawEl.textContent = (raw[i] == null ? '--' : String(raw[i]));
-        if (ratioEl) {
-          const rv = Number(ratio[i]);
-          ratioEl.textContent = isNaN(rv) ? '--' : rv.toFixed(6);
-        }
-        if (ohmEl) {
-          const ov = Number(ohms[i]);
-          ohmEl.textContent = isNaN(ov) ? '--' : ov.toFixed(3);
-        }
-        setRtdDot(i, isNaN(faultVal) ? 0 : faultVal);
+        if (rawEl && raw[i] != null) rawEl.textContent = String(raw[i]);
+        if (ratioEl && ratio[i] != null) ratioEl.textContent = Number(ratio[i]).toFixed(6);
+        if (ohmEl && ohms[i] != null) ohmEl.textContent = Number(ohms[i]).toFixed(3);
+        if (errEl && hasInfo) errEl.textContent = err[i] || '';
+        if (fault[i] != null) setRtdDot(i, Number(fault[i]));
       }
     });
 
@@ -415,7 +411,6 @@
       if (!c) return;
       const wireOpts = [[2, '2-wire'], [3, '3-wire'], [4, '4-wire']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
       const sensorOpts = [[100, 'PT100 (100Ω)'], [1000, 'PT1000 (1000Ω)']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
-      const rrefOpts = [[200, '200Ω'], [400, '400Ω'], [2000, '2000Ω'], [4000, '4000Ω']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
 
       for (let i = 0; i < NUM_RTD; i++) {
         const card = document.createElement('div');
@@ -431,7 +426,8 @@
             <div class="rtd-err" id="rtd-err-${i}"></div>
             Raw code: <span id="rtd-raw-${i}" class="mono">--</span><br>
             Ratio: <span id="rtd-ratio-${i}" class="mono">--</span><br>
-            Resistance: <span id="rtd-ohms-${i}" class="mono">--</span> Ω
+            Resistance: <span id="rtd-ohms-${i}" class="mono">--</span> Ω<br>
+            Rref: <span id="rtd-rref-val-${i}" class="mono">--</span> Ω
           </div>
           <div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;">
             <div style="font-weight:800;font-size:13px;margin-bottom:8px;">RTD Settings (Web-only)</div>
@@ -445,9 +441,9 @@
                 <select id="rtd-sensor-${i}">${sensorOpts}</select>
               </div>
             </div>
-            <div style="margin-top:8px;">
-              <label for="rtd-rref-${i}">Reference resistor (Rref)</label>
-              <select id="rtd-rref-${i}">${rrefOpts}</select>
+            <div class="hint" style="margin-top:6px">
+              Set the on-board PT100/PT1000 jumper for this channel to match.
+              Rref follows automatically: PT100 → 400 Ω, PT1000 → 4000 Ω.
             </div>
             <div style="margin-top:10px;text-align:right;">
               <button type="button" class="btn primary" id="rtd-apply-${i}">Apply RTD${i + 1}</button>
@@ -456,7 +452,7 @@
         c.appendChild(card);
 
         const mark = editing => { rtdEditing[i] = editing; };
-        ['rtd-wire-', 'rtd-sensor-', 'rtd-rref-'].forEach(prefix => {
+        ['rtd-wire-', 'rtd-sensor-'].forEach(prefix => {
           const el = $(prefix + i);
           if (!el) return;
           el.addEventListener('focus', () => mark(true));
@@ -464,7 +460,10 @@
           el.addEventListener('change', () => {
             rtdCfg.wires[i] = parseInt($('rtd-wire-' + i)?.value || '2', 10) || 2;
             rtdCfg.rnominal[i] = parseInt($('rtd-sensor-' + i)?.value || '100', 10) || 100;
-            rtdCfg.rref[i] = parseInt($('rtd-rref-' + i)?.value || '200', 10) || 200;
+            // Rref is derived on the firmware from sensor type; mirror locally for display.
+            rtdCfg.rref[i] = (rtdCfg.rnominal[i] === 1000) ? 4000 : 400;
+            const rrefValEl = $('rtd-rref-val-' + i);
+            if (rrefValEl) rrefValEl.textContent = String(rtdCfg.rref[i]);
           });
         });
         $('rtd-apply-' + i)?.addEventListener('click', sendRtdCfg);
@@ -472,12 +471,10 @@
     })();
 
     function sendRtdCfg() {
-      const payload = {
-        wires: rtdCfg.wires.slice(),
-        rnominal: rtdCfg.rnominal.slice(),
-        rref: rtdCfg.rref.slice()
-      };
-      HMWebConfig.sendConfig('ext.rtd', payload);
+      HMWebConfig.sendConfig('ext.rtd', {
+        wires:    rtdCfg.wires.slice(),
+        rnominal: rtdCfg.rnominal.slice()
+      });
     }
 
     (function buildButtons() {

@@ -56,7 +56,7 @@ struct PersistConfigV8 {
 
   uint8_t  rtd_wires[2];
   uint16_t rtd_rnominal[2];
-  uint16_t rtd_rref[2];
+  uint16_t rtd_rref[2];  // written but ignored — Rref derived from rnominal (sanitizeRtdCfg)
 
   uint32_t crc32;
 } __attribute__((packed));
@@ -75,7 +75,7 @@ struct PersistConfig {
 
   uint8_t  rtd_wires[2];
   uint16_t rtd_rnominal[2];
-  uint16_t rtd_rref[2];
+  uint16_t rtd_rref[2];  // written but ignored — Rref derived from rnominal (sanitizeRtdCfg)
 
   uint32_t crc32;
 } __attribute__((packed));
@@ -120,7 +120,7 @@ void performReset();
 void sendWebStatus();
 void sendWebCfg();
 void sendWebBootstrap();
-void sendWebExt(bool includeRtdInfo);
+void sendWebExt();
 void writeDac(int idx, uint16_t value);
 void adsTick();
 void readSensors();
@@ -199,6 +199,12 @@ static uint8_t rtdScanCh = 0;
 static const float RTD_SUSPECT_HI = 850.0f;
 static const float RTD_SUSPECT_LO = -250.0f;
 
+// A Pt100 reading far below the product's usable range almost always means
+// the on-board PT100/PT1000 jumper does not match the sensor type selected
+// in WebConfig (jumper on 4000 ohm while firmware assumes Rref = 400).
+static const float RTD_JUMPER_SUSPECT_C = -150.0f;
+static const uint32_t RTD_JUMPER_WARN_MS = 30000;
+
 // ===== Button debounce =====
 struct BtnDebounce {
   bool     raw;
@@ -222,6 +228,7 @@ uint8_t  rtdBadCount[2]          = {0, 0};
 float     rtdLastGoodTempC[2]   = {0, 0};
 int16_t   rtdLastGoodTempX10[2] = {0, 0};
 bool      rtdHasGoodValue[2]    = {false, false};
+uint32_t  rtdJumperWarnMs[2]    = {0, 0};
 
 // ===== RTD async recovery (non-blocking, no delay()) =====
 static const uint32_t RTD_REC_WAIT_MS    = 2;
@@ -266,7 +273,7 @@ float    rtdTempC[2]     = {0, 0};     // computed temperature in °C
 // ===== RTD configuration (Web-only, persisted) =====
 uint8_t  rtdWiresCfg[2]    = {2, 2};
 uint16_t rtdRnominalCfg[2] = {100, 100};
-uint16_t rtdRrefCfg[2]     = {200, 200};
+uint16_t rtdRrefCfg[2]     = {400, 400};
 
 uint16_t dacRaw[2] = {0,0};
 
@@ -285,8 +292,6 @@ unsigned long lastSensorRead = 0;
 const unsigned long sensorInterval = 200;
 
 // FIX B: RTD full info only every 2 seconds
-unsigned long lastRtdInfoSend = 0;
-const unsigned long rtdInfoInterval = 2000;
 
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
@@ -372,6 +377,12 @@ static max31865_numwires_t wiresToEnum(uint8_t w) {
   return MAX31865_2WIRE;
 }
 
+// Rref is a hardware property of the board, tied to the sensor type.
+// PT100 -> 400 ohm, PT1000 -> 4000 ohm. Never user-selectable.
+static inline uint16_t rtdRrefForNominal(uint16_t rnom) {
+  return (rnom == 1000) ? 4000 : 400;
+}
+
 static void sanitizeRtdCfg() {
   for (int i=0;i<2;i++) {
     uint8_t w = rtdWiresCfg[i];
@@ -382,9 +393,8 @@ static void sanitizeRtdCfg() {
     if (rn != 100 && rn != 1000) rn = 100;
     rtdRnominalCfg[i] = rn;
 
-    uint16_t rr = rtdRrefCfg[i];
-    if (rr != 200 && rr != 400 && rr != 2000 && rr != 4000) rr = 200;
-    rtdRrefCfg[i] = rr;
+    // Derived, not configured. Overrides whatever was stored or received.
+    rtdRrefCfg[i] = rtdRrefForNominal(rn);
   }
 }
 
@@ -552,8 +562,8 @@ void setDefaults() {
   rtdWiresCfg[1]    = 2;
   rtdRnominalCfg[0] = 100;
   rtdRnominalCfg[1] = 100;
-  rtdRrefCfg[0]     = 200;
-  rtdRrefCfg[1]     = 200;
+  rtdRrefCfg[0]     = 400;   // derived from PT100
+  rtdRrefCfg[1]     = 400;
   sanitizeRtdCfg();
 
   rtdFault[0] = rtdFault[1] = 0;
@@ -915,7 +925,6 @@ void handleDac(JSONVar obj) {
 void handleRtdCfg(JSONVar obj) {
   JSONVar wires = obj["wires"];
   JSONVar rn    = obj["rnominal"];
-  JSONVar rr    = obj["rref"];
 
   if (JSON.typeof(wires) == "array") {
     for (int i=0;i<2;i++) {
@@ -931,14 +940,6 @@ void handleRtdCfg(JSONVar obj) {
       int v = (int)rn[i];
       if (v != 100 && v != 1000) v = 100;
       rtdRnominalCfg[i] = (uint16_t)v;
-    }
-  }
-  if (JSON.typeof(rr) == "array") {
-    for (int i=0;i<2;i++) {
-      if (i >= (int)rr.length()) break;
-      int v = (int)rr[i];
-      if (v != 200 && v != 400 && v != 2000 && v != 4000) v = 200;
-      rtdRrefCfg[i] = (uint16_t)v;
     }
   }
 
@@ -1059,7 +1060,6 @@ void applyRtdHardwareCfg() {
   }
 }
 
-// ================== FIX C: update RTD diagnostics only every rtdInfoInterval ==================
 void updateRtdDiagnostics() {
   // No SPI I/O — consume values cached by rtdServiceChannel() / recovery.
   for (int i=0;i<2;i++) {
@@ -1194,6 +1194,26 @@ static void rtdServiceChannel(uint8_t i) {
   }
 
   if (readingValid) {
+    // Advisory only: PT100 + implausibly cold often means jumper on 4000 Ω.
+    // Do not invalidate, recover, or zero — cryogenic use must still work.
+    const bool jumperSuspect =
+      (rtdRnominalCfg[i] == 100) && (temp < RTD_JUMPER_SUSPECT_C);
+    if (jumperSuspect) {
+      // 0 = cleared / never warned → emit immediately; else throttle 30 s.
+      if (rtdJumperWarnMs[i] == 0 ||
+          (uint32_t)(nowMs - rtdJumperWarnMs[i]) >= RTD_JUMPER_WARN_MS) {
+        rtdJumperWarnMs[i] = nowMs ? nowMs : 1;
+        WebSerial.send(
+          "message",
+          String("RTD") + String(i+1) +
+          ": reading " + String(temp, 1) + "C is implausible for PT100 - check the "
+          "on-board PT100/PT1000 jumper against the sensor type selected here."
+        );
+      }
+    } else {
+      rtdJumperWarnMs[i] = 0;  // reset so a recurrence is reported promptly
+    }
+
     // Valid reading: store as last-good and publish immediately
     rtdBadCount[i] = 0;
     rtdHasGoodValue[i] = true;
@@ -1417,30 +1437,28 @@ void sendWebCfg() {
   WebSerial.send("cfg", cfg);
 }
 
-void sendWebExt(bool includeRtdInfo) {
+void sendWebExt() {
   JSONVar ext;
   for (int i = 0; i < 4; i++) ext["ai"][i] = aiMv[i];
   for (int i = 0; i < 2; i++) ext["rtd"]["temp_x10"][i] = rtdTemp_x10[i];
-  if (includeRtdInfo) {
-    JSONVar info;
-    for (int i = 0; i < 2; i++) {
-      info["temp_x10"][i] = rtdTemp_x10[i];
-      info["temp_c"][i]   = rtdTempC[i];
-      info["fault"][i]    = (int)rtdFault[i];
-      info["error"][i]    = rtdError[i];
-      info["raw"][i]      = (int)rtdRawCode[i];
-      info["ratio"][i]    = rtdRatio[i];
-      info["ohms"][i]     = rtdOhms[i];
-    }
-    ext["rtd"]["info"] = info;
+  JSONVar info;
+  for (int i = 0; i < 2; i++) {
+    info["temp_x10"][i] = rtdTemp_x10[i];
+    info["temp_c"][i]   = rtdTempC[i];
+    info["fault"][i]    = (int)rtdFault[i];
+    info["error"][i]    = rtdError[i];
+    info["raw"][i]      = (int)rtdRawCode[i];
+    info["ratio"][i]    = rtdRatio[i];
+    info["ohms"][i]     = rtdOhms[i];
   }
+  ext["rtd"]["info"] = info;
   WebSerial.send("ext", ext);
 }
 
 void sendWebBootstrap() {
   sendWebStatus();
   sendWebCfg();
-  sendWebExt(true);
+  sendWebExt();
 }
 
 static void serviceBtnDebounce(BtnDebounce &st, bool raw, uint32_t now) {
@@ -1586,12 +1604,8 @@ void loop() {
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhys[i] ? 1 : 0;
       WebSerial.send("io", io);
 
-      bool includeRtdInfo = (now - lastRtdInfoSend >= rtdInfoInterval);
-      if (includeRtdInfo) {
-        lastRtdInfoSend = now;
-        updateRtdDiagnostics();
-      }
-      sendWebExt(includeRtdInfo);
+      updateRtdDiagnostics();
+      sendWebExt();
     }
   }
 
