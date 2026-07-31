@@ -12,9 +12,18 @@
 ##   E  54..85 Energy U32 (AP/AN/RP/RN × L1-3-T)
 ## Peaks / Pfund / Pharm / VAh / harmonic energy: WebSerial only (not on Modbus).
 ##
+## Poll split (force_new_range @54 + skip_updates: 29 on every energy sensor):
+##   FC04 @0  count=54  every cycle (1 s)     — A..D live measurements
+##   FC04 @54 count=32  every 30th cycle      — E energy counters
+## Split pays when the slow block is polled ≥ (100 + w) / w times less often than
+## the fast one (w = wire time of the slow response). For 32 regs at 19200,
+## w ≈ 40 ms → threshold 3.5×. skip_updates: 2 was only 3× (net loss vs merge);
+## skip_updates: 29 is 30× — well above threshold, so the split beats an 86-reg
+## every-cycle read (~4.7 ms/s energy cost vs ~40 ms/s if merged).
+##
 ## Coils (DIO-style): write-only — no FC01 read-back.
 ##   Relay cmds 0-1 · Identify 5 · ACK 16-19. Save/Reboot/Reset-energy NOT on Modbus.
-##   Public relays = template (state from IO_MASK FC04). Measurements = one FC04 0..53.
+##   Public relays = template (state from IO_MASK FC04).
 ## Parent must supply enm_id / enm_address / enm_prefix (and global modbus_bus).
 ##
 
@@ -717,7 +726,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
     force_new_range: true
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L2"
@@ -728,7 +737,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Import L3"
@@ -739,7 +748,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_ap_total
@@ -751,7 +760,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L1"
@@ -762,7 +771,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L2"
@@ -773,7 +782,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Active Energy Export L3"
@@ -784,7 +793,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_an_total
@@ -796,7 +805,7 @@ sensor:
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L1"
@@ -806,7 +815,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L2"
@@ -816,7 +825,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Import L3"
@@ -826,7 +835,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rp_total
@@ -837,7 +846,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L1"
@@ -847,7 +856,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L2"
@@ -857,7 +866,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Reactive Energy Export L3"
@@ -867,7 +876,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     id: ${enm_id}_e_rn_total
@@ -878,7 +887,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
     accuracy_decimals: 0
-    skip_updates: 2
+    skip_updates: 29
   - platform: template
     name: "${enm_prefix} Active Energy Net Total"
     unit_of_measurement: "Wh"
