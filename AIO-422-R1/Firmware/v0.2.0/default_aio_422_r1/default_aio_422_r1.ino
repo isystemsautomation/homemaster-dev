@@ -202,9 +202,29 @@ static const uint32_t ADS_TIMEOUT_MS = 50;   // stuck-conversion guard
 // ===== RTD scan stagger =====
 static uint8_t rtdScanCh = 0;
 
-// Absolute suspicion window (was 600 / -200 — that capped the usable PT100 range).
-static const float RTD_SUSPECT_HI = 850.0f;
-static const float RTD_SUSPECT_LO = -250.0f;
+// Outer sanity bound (sensor / convert path). Not the ESD window.
+static const float RTD_TEMP_LO = -250.0f;
+static const float RTD_TEMP_HI =  850.0f;
+
+// Empirical, not the sensor's datasheet range. A MAX31865 latched by ESD reports a
+// stable, plausible-looking value around 700-750 C with no fault bits set — observed
+// 2026-07-31, RTD1 stuck at 720.2-720.5 C for 43 s while RTD2 read -5.9 C.
+// A reading outside this window is not rejected outright: it is refused as a
+// *baseline* and must confirm itself through the candidate series before it is
+// trusted. That is what keeps genuine >600 C use working (no-baseline path).
+static const float RTD_SUSPECT_HI =  600.0f;
+static const float RTD_SUSPECT_LO = -200.0f;
+
+static const float RTD_JUMP_TEMP_C      = 100.0f;
+static const float RTD_CANDIDATE_BAND_C = 5.0f;
+static const uint8_t RTD_CANDIDATE_NEED = 5;
+
+enum : uint8_t {
+  RTD_ACC_OK = 0,
+  RTD_ACC_HARD,
+  RTD_ACC_SUSPECT,
+  RTD_ACC_JUMP
+};
 
 // A Pt100 reading far below the product's usable range almost always means
 // the on-board PT100/PT1000 jumper does not match the sensor type selected
@@ -236,6 +256,10 @@ float     rtdLastGoodTempC[2]   = {0, 0};
 int16_t   rtdLastGoodTempX10[2] = {0, 0};
 bool      rtdHasGoodValue[2]    = {false, false};
 uint32_t  rtdJumperWarnMs[2]    = {0, 0};
+
+// Candidate series: consistent jump/suspect-no-baseline readings can replace baseline.
+float    rtdCandTempC[2]  = {0, 0};
+uint8_t  rtdCandCount[2]  = {0, 0};
 
 // ===== RTD async recovery (non-blocking, no delay()) =====
 static const uint32_t RTD_REC_WAIT_MS    = 2;
@@ -444,6 +468,79 @@ static void sanitizeRtdCfg() {
   }
 }
 
+// ===== RTD acceptance (shared by main scan and recovery verify) =====
+static float rtdOhmsFromTemp(float rnom, float tt) {
+  const float A = 3.9083e-3f;
+  const float B = -5.775e-7f;
+  const float C = -4.183e-12f;
+  if (tt >= 0.0f) return rnom * (1.0f + A * tt + B * tt * tt);
+  return rnom * (1.0f + A * tt + B * tt * tt + C * (tt - 100.0f) * tt * tt * tt);
+}
+
+// Single gate for both paths. Order: hard → suspect → jump → ok.
+static uint8_t rtdClassifySample(uint8_t i, uint8_t f, float temp, float ohmsNow) {
+  if (f != 0) return RTD_ACC_HARD;
+  if (isnan(temp) || isinf(temp)) return RTD_ACC_HARD;
+  if (temp < RTD_TEMP_LO || temp > RTD_TEMP_HI) return RTD_ACC_HARD;
+
+  if (temp > RTD_SUSPECT_HI || temp < RTD_SUSPECT_LO) return RTD_ACC_SUSPECT;
+
+  if (rtdHasGoodValue[i]) {
+    const float rnom = (float)rtdRnominalCfg[i];
+    const float oldTempC = rtdLastGoodTempC[i];
+    const float deltaT = fabsf(temp - oldTempC);
+    const float ohmsOld = rtdOhmsFromTemp(rnom, oldTempC);
+    const float deltaR = fabsf(ohmsNow - ohmsOld);
+    if (deltaT > RTD_JUMP_TEMP_C || deltaR > rnom * 0.5f) return RTD_ACC_JUMP;
+  }
+  return RTD_ACC_OK;
+}
+
+static inline bool rtdShouldFeedCandidate(uint8_t i, uint8_t kind) {
+  if (kind == RTD_ACC_JUMP) return true;
+  // Suspect may establish a first baseline; never confirm ESD against a trusted one.
+  if (kind == RTD_ACC_SUSPECT && !rtdHasGoodValue[i]) return true;
+  return false;
+}
+
+static void rtdCandidateReset(uint8_t i) {
+  rtdCandCount[i] = 0;
+}
+
+static void rtdAdoptBaseline(uint8_t i, float temp, const char *reason) {
+  rtdBadCount[i] = 0;
+  rtdHasGoodValue[i] = true;
+  rtdLastGoodTempC[i] = temp;
+  rtdLastGoodTempX10[i] = (int16_t)lroundf(temp * 10.0f);
+  rtdTempC[i] = temp;
+  rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+  rtdCandidateReset(i);
+  publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
+  if (reason) {
+    WebSerial.send(
+      "message",
+      String("RTD") + String(i + 1) + ": " + reason + " temp=" + String(temp, 2) + "C"
+    );
+  }
+}
+
+// Returns true if the candidate was adopted as the new baseline.
+static bool rtdCandidateOffer(uint8_t i, float temp) {
+  if (rtdCandCount[i] == 0 || fabsf(temp - rtdCandTempC[i]) > RTD_CANDIDATE_BAND_C) {
+    rtdCandTempC[i] = temp;
+    rtdCandCount[i] = 1;
+    return false;
+  }
+  if (rtdCandCount[i] < 255) rtdCandCount[i]++;
+  if (rtdCandCount[i] < RTD_CANDIDATE_NEED) return false;
+
+  rtdAdoptBaseline(
+    i, rtdCandTempC[i],
+    "baseline adopted after candidate series confirmation"
+  );
+  return true;
+}
+
 // ===== RTD async recovery implementation (after RTD cfg + helpers) =====
 static void rtdRecoveryReset() {
   rtdRec.state       = RTD_REC_IDLE;
@@ -492,16 +589,15 @@ static void rtdRecoveryVerifyTrigger() {
   uint8_t f2 = rtds[i]->readFault();
   uint16_t raw2 = rtds[i]->readRTD();
   rtdRawCode[i] = raw2;
+  float ratio2 = raw2 / 32768.0f;
+  float ohms2 = ratio2 * rref;
   float temp2 = rtds[i]->calculateTemperature(raw2, rnom, rref);
 
   rtdFault[i] = f2;
   rtdError[i] = decodeMax31865Fault(f2);
 
-  bool tempFinite2 = (!isnan(temp2) && !isinf(temp2));
-  bool tempInRange2 = (temp2 >= -250.0f && temp2 <= 850.0f);
-  bool retryValid = (f2 == 0) && tempFinite2 && tempInRange2;
-
-  if (retryValid) {
+  // Same acceptance gate as the main scan — recovery only proves the chip answers.
+  if (rtdClassifySample(i, f2, temp2, ohms2) == RTD_ACC_OK) {
     rtdRec.resultTempC = temp2;
     rtdRec.state = RTD_REC_DONE_OK;
   } else {
@@ -1174,17 +1270,9 @@ static void rtdServiceChannel(uint8_t i) {
   float rnom = (float)rtdRnominalCfg[i];
   float rref = (float)rtdRrefCfg[i];
 
-  // ---- Fast, stable RTD recovery with anti-flapping ----
-  // Do not trust temperature when faulted or out-of-range.
-  // Recovery is rate-limited (cooldown) so we don't reinitialize
-  // the MAX31865 on every loop and cause output flapping.
-
   Adafruit_MAX31865& dev = *rtds[i];
   uint32_t nowMs = millis();
 
-  // Read fault first, then RTD + pure-math temperature (single conversion).
-  // MAX31865 can sometimes latch an invalid internal state after ESD where
-  // fault bits are not set but the computed temperature/resistance jumps.
   uint8_t f = dev.readFault();
   rtdFault[i] = f;
   rtdError[i] = decodeMax31865Fault(f);
@@ -1193,69 +1281,14 @@ static void rtdServiceChannel(uint8_t i) {
   rtdRawCode[i] = rawCode;
   float ratio = (rawCode / 32768.0f);
   float ohmsNow = ratio * rref;
-
   float temp = dev.calculateTemperature(rawCode, rnom, rref);
-  bool tempFinite =
-    (!isnan(temp) && !isinf(temp));
-  bool tempInRange =
-    (temp >= -250.0f && temp <= 850.0f);
-  bool readingValid = (f == 0) && tempFinite && tempInRange;
 
-  // Jump detection: if the reading differs too much from the last known-good
-  // value, treat it as invalid and force a quick MAX31865 re-init.
-  bool jumpDetected = false;
+  const uint8_t kind = rtdClassifySample(i, f, temp, ohmsNow);
 
-  // Extra guard: absolute suspicion window. Previously 600 / -200 which
-  // silently capped the usable PT100 range below the documented 850 C.
-  // Keep the diagnostic path; jump detection (relative to last-good) catches ESD.
-  if (readingValid && (temp > RTD_SUSPECT_HI || temp < RTD_SUSPECT_LO)) {
-    jumpDetected = true;
-    readingValid = false;
-    WebSerial.send(
-      "message",
-      String("RTD suspicious value -> forcing reinit: ch=") + String(i+1) +
-      " temp=" + String(temp, 2) + "C" +
-      " fault=0x" + String(f, HEX) +
-      " raw=" + String((int)rawCode)
-    );
-  }
-  if (rtdHasGoodValue[i]) {
-    float oldTempC = rtdLastGoodTempC[i];
-    float deltaT = fabs(temp - oldTempC);
-
-    // Convert last-good temperature back to resistance (Pt100/Pt1000 model)
-    // so we can compare resistance jumps even when fault bits are not set.
-    // Callendar–Van Dusen coefficients for platinum RTDs.
-    const float A = 3.9083e-3f;
-    const float B = -5.775e-7f;
-    const float C = -4.183e-12f;
-    float tt = oldTempC;
-    float ohmsOld =
-      (tt >= 0.0f)
-        ? (rnom * (1.0f + A*tt + B*tt*tt))
-        : (rnom * (1.0f + A*tt + B*tt*tt + C*(tt - 100.0f)*tt*tt*tt));
-
-    float deltaR = fabs(ohmsNow - ohmsOld);
-    const float deltaRLimit = rnom * 0.5f;   // ~130 C equivalent on both Pt100 and Pt1000
-    if (deltaT > 100.0f || deltaR > deltaRLimit) {
-      jumpDetected = true;
-      readingValid = false; // do not overwrite last-good with a bad reading
-      WebSerial.send(
-        "message",
-        String("RTD jump detected -> forcing reinit: ch=") + String(i+1) +
-        " oldT=" + String(oldTempC, 2) + "C newT=" + String(temp, 2) + "C" +
-        " raw=" + String((int)rawCode)
-      );
-    }
-  }
-
-  if (readingValid) {
-    // Advisory only: PT100 + implausibly cold often means jumper on 4000 Ω.
-    // Do not invalidate, recover, or zero — cryogenic use must still work.
+  if (kind == RTD_ACC_OK) {
     const bool jumperSuspect =
       (rtdRnominalCfg[i] == 100) && (temp < RTD_JUMPER_SUSPECT_C);
     if (jumperSuspect) {
-      // 0 = cleared / never warned → emit immediately; else throttle 30 s.
       if (rtdJumperWarnMs[i] == 0 ||
           (uint32_t)(nowMs - rtdJumperWarnMs[i]) >= RTD_JUMPER_WARN_MS) {
         rtdJumperWarnMs[i] = nowMs ? nowMs : 1;
@@ -1267,33 +1300,47 @@ static void rtdServiceChannel(uint8_t i) {
         );
       }
     } else {
-      rtdJumperWarnMs[i] = 0;  // reset so a recurrence is reported promptly
+      rtdJumperWarnMs[i] = 0;
     }
 
-    // Valid reading: store as last-good and publish immediately
-    rtdBadCount[i] = 0;
-    rtdHasGoodValue[i] = true;
-    rtdLastGoodTempC[i] = temp;
-    rtdLastGoodTempX10[i] = (int16_t)lroundf(temp * 10.0f);
-
-    rtdTempC[i] = temp;
-    rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-    publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
+    rtdAdoptBaseline(i, temp, nullptr);
     return;
   }
 
-  // Invalid reading: increment bad counter (anti-flapping), saturate uint8_t
+  if (kind == RTD_ACC_SUSPECT) {
+    WebSerial.send(
+      "message",
+      String("RTD suspicious value (denied as baseline): ch=") + String(i+1) +
+      " temp=" + String(temp, 2) + "C" +
+      " fault=0x" + String(f, HEX) +
+      " raw=" + String((int)rawCode)
+    );
+  } else if (kind == RTD_ACC_JUMP) {
+    WebSerial.send(
+      "message",
+      String("RTD jump detected: ch=") + String(i+1) +
+      " oldT=" + String(rtdLastGoodTempC[i], 2) + "C newT=" + String(temp, 2) + "C" +
+      " raw=" + String((int)rawCode)
+    );
+  }
+
   if (rtdBadCount[i] < 255) rtdBadCount[i]++;
 
-  // Start async recovery if cooldown allows (non-blocking; see rtdRecoveryTick()).
-  if (rtdRecoveryIdle() &&
-      (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
+  if (rtdShouldFeedCandidate(i, kind)) {
+    if (rtdCandidateOffer(i, temp)) return;  // adopted + published
+  } else {
+    rtdCandidateReset(i);
+  }
+
+  const bool wantRecover =
+    (kind == RTD_ACC_JUMP || kind == RTD_ACC_SUSPECT || kind == RTD_ACC_HARD);
+  if (rtdRecoveryIdle() && wantRecover &&
+      (kind == RTD_ACC_JUMP || kind == RTD_ACC_SUSPECT ||
+       (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
     rtdLastRecoverMs[i] = nowMs;
     rtdRecoveryRequest((uint8_t)i);
   }
 
-  // Still invalid while recovery is pending or not yet started:
-  // Avoid immediate 0 output on first/second bad reads. Hold last-good briefly.
   if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
     rtdTempC[i]    = rtdLastGoodTempC[i];
     rtdTemp_x10[i] = rtdLastGoodTempX10[i];
@@ -1315,13 +1362,8 @@ void readSensors() {
     bool  recoveredOk   = false;
     if (rtdRecoveryTakeResult((uint8_t)i, recoveredTemp, recoveredOk)) {
       if (recoveredOk) {
-        rtdBadCount[i] = 0;
-        rtdHasGoodValue[i] = true;
-        rtdLastGoodTempC[i] = recoveredTemp;
-        rtdLastGoodTempX10[i] = (int16_t)lroundf(recoveredTemp * 10.0f);
-        rtdTempC[i] = recoveredTemp;
-        rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-        publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
+        // Verify already ran rtdClassifySample; only OK reaches DONE_OK.
+        rtdAdoptBaseline(i, recoveredTemp, "baseline restored after chip recovery");
       } else if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
         rtdTempC[i]    = rtdLastGoodTempC[i];
         rtdTemp_x10[i] = rtdLastGoodTempX10[i];
