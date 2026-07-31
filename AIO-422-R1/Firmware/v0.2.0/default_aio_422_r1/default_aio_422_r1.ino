@@ -26,8 +26,7 @@
 #define HM_FW_MINOR   2
 #define HM_FW_PATCH   0
 #define HM_FW         "0.2.0"
-#define HM_MAP        1
-#define HM_MAP_VERSION 1
+#define HM_MAP_VERSION ((HM_FW_MAJOR << 8) | (HM_FW_MINOR << 4) | HM_FW_PATCH)  // 0x0020 = v0.2.0
 
 #include <Wire.h>
 #include <ADS1X15.h>
@@ -307,6 +306,16 @@ uint32_t g_mb_baud    = 19200;
 
 // ================== Modbus map ==================
 enum : uint16_t {
+  // Contiguous input-register block (FC04 @0 count=12) — ESPHome poll path
+  IREG_BTN_MASK      = 0,
+  IREG_LED_MASK      = 1,
+  IREG_STATUS_FLAGS  = 2,   // bit1=linkOk, bit3=cfgDirty (DIO-aligned)
+  IREG_FAULT_MASK    = 3,
+  IREG_RTD_BASE      = 4,   // 4..5  S_WORD °C×10
+  IREG_AI_MV_BASE    = 6,   // 6..9  U_WORD mV
+  IREG_AO_RAW_BASE   = 10,  // 10..11 U_WORD 0..4095 (state mirror)
+  IREG_BLOCK_COUNT   = 12,
+
   ISTS_BTN_BASE   = 1,
   ISTS_LED_BASE   = 20,
 
@@ -314,6 +323,16 @@ enum : uint16_t {
   HREG_AI_MV_BASE  = 140,
   HREG_DAC_BASE    = 200,
 };
+
+// Mirror helpers — existing HREG writes stay; IREG is additive for the package poll.
+static inline void publishAiMv(uint8_t ch, uint16_t mv) {
+  mb.Hreg(HREG_AI_MV_BASE + ch, mv);
+  mb.Ireg(IREG_AI_MV_BASE + ch, mv);
+}
+static inline void publishRtdX10(uint8_t i, uint16_t x10) {
+  mb.Hreg(HREG_TEMP_BASE + i, x10);
+  mb.Ireg(IREG_RTD_BASE + i, x10);
+}
 
 // ================== LED source selection (Web-only, persisted) ==================
 enum : uint8_t {
@@ -1141,7 +1160,7 @@ void adsTick() {
   if (mv < 0)     mv = 0;
   if (mv > 65535) mv = 65535;
   aiMv[adsCh] = (uint16_t)mv;
-  mb.Hreg(HREG_AI_MV_BASE + adsCh, aiMv[adsCh]);
+  publishAiMv(adsCh, aiMv[adsCh]);
   adsPending = false;
   adsCh = (uint8_t)((adsCh + 1) & 0x03);
 }
@@ -1259,7 +1278,7 @@ static void rtdServiceChannel(uint8_t i) {
 
     rtdTempC[i] = temp;
     rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-    mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+    publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
     return;
   }
 
@@ -1278,11 +1297,11 @@ static void rtdServiceChannel(uint8_t i) {
   if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
     rtdTempC[i]    = rtdLastGoodTempC[i];
     rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-    mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+    publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
   } else {
     rtdTemp_x10[i] = 0;
     rtdTempC[i]    = 0;
-    mb.Hreg(HREG_TEMP_BASE + i, 0);
+    publishRtdX10(i, 0);
   }
 }
 
@@ -1302,15 +1321,15 @@ void readSensors() {
         rtdLastGoodTempX10[i] = (int16_t)lroundf(recoveredTemp * 10.0f);
         rtdTempC[i] = recoveredTemp;
         rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+        publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
       } else if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
         rtdTempC[i]    = rtdLastGoodTempC[i];
         rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+        publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
       } else {
         rtdTemp_x10[i] = 0;
         rtdTempC[i]    = 0;
-        mb.Hreg(HREG_TEMP_BASE + i, 0);
+        publishRtdX10(i, 0);
       }
       continue;
     }
@@ -1319,11 +1338,11 @@ void readSensors() {
       if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
         rtdTempC[i]    = rtdLastGoodTempC[i];
         rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+        publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
       } else if (!rtdHasGoodValue[i]) {
         rtdTemp_x10[i] = 0;
         rtdTempC[i]    = 0;
-        mb.Hreg(HREG_TEMP_BASE + i, 0);
+        publishRtdX10(i, 0);
       }
       continue;
     }
@@ -1334,18 +1353,18 @@ void readSensors() {
       if (rtdHasGoodValue[i]) {
         rtdTempC[i]    = rtdLastGoodTempC[i];
         rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-        mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+        publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
       } else {
         rtdTemp_x10[i] = 0;
         rtdTempC[i]    = 0;
-        mb.Hreg(HREG_TEMP_BASE + i, 0);
+        publishRtdX10(i, 0);
       }
       continue;
     }
 
     if ((uint8_t)i != rtdScanCh) {
       // Non-scanned channel: republish current value only (no SPI).
-      mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+      publishRtdX10(i, (uint16_t)rtdTemp_x10[i]);
       continue;
     }
 
@@ -1416,17 +1435,20 @@ void setup() {
   for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
+  for (uint16_t i=0;i<IREG_BLOCK_COUNT;i++) mb.addIreg(i);
+
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_TEMP_BASE  + i);
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, 0);
 
   if (!ads_ok) {
-    for (int ch=0; ch<4; ch++) mb.Hreg(HREG_AI_MV_BASE + ch, 0);
+    for (int ch=0; ch<4; ch++) publishAiMv(ch, 0);
   }
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
   applyPowerOnOutputs();
+  for (int i = 0; i < 2; i++) mb.Ireg(IREG_AO_RAW_BASE + i, dacRaw[i]);
 
   wsLog("Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED + Web-only RTD config/diagnostics)");
 
@@ -1441,7 +1463,7 @@ void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
-  st["map"]   = HM_MAP;
+  st["map"]   = HM_FW;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   st["linkOk"] = ((uint32_t)(millis() - g_lastLinkSeenMs) < LINK_TIMEOUT_MS) ? 1 : 0;
@@ -1581,6 +1603,7 @@ void loop() {
   }
 
   // Buttons (debounced)
+  uint16_t btnMask = 0;
   for (int i=0;i<NUM_BTN;i++) {
     bool raw = (digitalRead(BTN_PINS[i]) == HIGH);
     serviceBtnDebounce(btnDeb[i], raw, now);
@@ -1590,16 +1613,20 @@ void loop() {
       runButtonAction((uint8_t)i);
     }
     mb.setIsts(ISTS_BTN_BASE + i, btnDeb[i].stable);
+    if (btnDeb[i].stable) btnMask |= (uint16_t)(1u << i);
   }
+  mb.Ireg(IREG_BTN_MASK, btnMask);
 
   if (!outTrackInit) {
     memcpy(prevDacRaw, dacRaw, sizeof(prevDacRaw));
     outTrackInit = true;
+    for (int i = 0; i < 2; i++) mb.Ireg(IREG_AO_RAW_BASE + i, dacRaw[i]);
   } else {
     for (int i = 0; i < 2; i++) {
       if (dacRaw[i] != prevDacRaw[i]) {
         if (dacRaw[i] != 0) aoLastLevel[i] = dacRaw[i];
         prevDacRaw[i] = dacRaw[i];
+        mb.Ireg(IREG_AO_RAW_BASE + i, dacRaw[i]);
         lastOutChangeMs = now;
       }
     }
@@ -1632,6 +1659,7 @@ void loop() {
 
   // LEDs — ledState is logical/manual; ledPhys is what is driven
   const bool identifying = g_identifyUntilMs && ((int32_t)(now - g_identifyUntilMs) < 0);
+  uint16_t ledMask = 0;
   for (int i=0;i<NUM_LED;i++) {
     bool on;
     if (identifying) {
@@ -1644,6 +1672,26 @@ void loop() {
     ledPhys[i] = on;
     digitalWrite(LED_PINS[i], on ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, on);
+    if (on) ledMask |= (uint16_t)(1u << i);
+  }
+  mb.Ireg(IREG_LED_MASK, ledMask);
+
+  // STATUS_FLAGS / FAULT_MASK — mirror live state into the FC04 block
+  {
+    uint16_t status = 0;
+    if ((uint32_t)(now - g_lastLinkSeenMs) < LINK_TIMEOUT_MS) status |= 0x0002;
+    if (cfgDirty) status |= 0x0008;
+    mb.Ireg(IREG_STATUS_FLAGS, status);
+
+    uint16_t fault = 0;
+    if (!rtd_ok[0] || rtdFault[0]) fault |= 0x0001;
+    if (!rtd_ok[1] || rtdFault[1]) fault |= 0x0002;
+    if (!ads_ok)     fault |= 0x0004;
+    if (!dac_ok[0])  fault |= 0x0008;
+    if (!dac_ok[1])  fault |= 0x0010;
+    if (!rtd_ok[0])  fault |= 0x0020;
+    if (!rtd_ok[1])  fault |= 0x0040;
+    mb.Ireg(IREG_FAULT_MASK, fault);
   }
 
   // WebSerial UI updates (unified status/io/ext) — outbound only throttled

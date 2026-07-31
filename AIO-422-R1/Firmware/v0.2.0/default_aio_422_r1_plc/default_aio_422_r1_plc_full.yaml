@@ -1,96 +1,167 @@
+##
+## AIO-422-R1 — ESPHome Modbus package (v0.2.0)
+##
+## Single package file — include from your ESPHome YAML:
+##   packages:
+##     aio: github://isystemsautomation/homemaster-dev/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc/default_aio_422_r1_plc.yaml
+##
+## Requires global `modbus:` with id `modbus_bus`. If UART/Modbus are not defined yet, uncomment:
+# uart:
+#   id: rs485_uart
+#   tx_pin: GPIO4
+#   rx_pin: GPIO5
+#   baud_rate: 19200
+#   parity: NONE
+#   stop_bits: 1
+# modbus:
+#   id: modbus_bus
+#   uart_id: rs485_uart
+##
+## Input Registers (FC=04, read) — contiguous 0..11 (one merged poll per cycle):
+##   0 BTN_MASK (bit0..3 = buttons 1..4)
+##   1 LED_MASK (bit0..3 = LEDs 1..4, physical)
+##   2 STATUS_FLAGS (bit1=linkOk, bit3=cfgDirty)
+##   3 FAULT_MASK (bit0=RTD1 sensor fault, bit1=RTD2 sensor fault,
+##                 bit2=!ads_ok, bit3=!dac_ok[0], bit4=!dac_ok[1],
+##                 bit5=!rtd_ok[0], bit6=!rtd_ok[1])
+##   4..5  RTD1/RTD2 temperature  S_WORD °C×10
+##   6..9  AI1..AI4               U_WORD mV
+##   10..11 AO1/AO2 raw state     U_WORD 0..4095 (state, not command)
+##
+## Holding (FC=03/06) — AO command at 200/201 write-only via output platform.
+##   Legacy HREG 120..121 / 140..143 remain on the module for non-package clients;
+##   this package does not poll them (STD-009).
+##
+## Identity (IREG 200..204) is not polled — configuration, not loop state.
+
+substitutions:
+  aio_id: aio
+  aio_address: "3"
+  aio_prefix: "AIO"
+  aio_update_interval: 1s
+  aio_command_throttle: 0ms
+
 modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 3s
-    allow_duplicate_commands: false
+    command_throttle: ${aio_command_throttle}
+    update_interval: ${aio_update_interval}
 
 binary_sensor:
-  # ---- Buttons (Discrete Inputs) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} Button 1"
-    address: 1
-    register_type: discrete_input
-
+    register_type: read
+    address: 0
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} Button 2"
-    address: 2
-    register_type: discrete_input
-
+    register_type: read
+    address: 0
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} Button 3"
-    address: 3
-    register_type: discrete_input
-
+    register_type: read
+    address: 0
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} Button 4"
-    address: 4
-    register_type: discrete_input
+    register_type: read
+    address: 0
+    bitmask: 0x0008
 
-  # ---- LEDs (Discrete Inputs) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} LED 1"
-    address: 20
-    register_type: discrete_input
-
+    register_type: read
+    address: 1
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} LED 2"
-    address: 21
-    register_type: discrete_input
-
+    register_type: read
+    address: 1
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} LED 3"
-    address: 22
-    register_type: discrete_input
-
+    register_type: read
+    address: 1
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} LED 4"
-    address: 23
-    register_type: discrete_input
-
-
-# ================= WRITEABLE Holding Registers =================
-number:
-  # ---- DAC outputs ----
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} AO0 Raw"
-    address: 200
-    register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 4095
-    step: 1
-    mode: slider
+    register_type: read
+    address: 1
+    bitmask: 0x0008
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} AO1 Raw"
-    address: 201
-    register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 4095
-    step: 1
-    mode: slider
+    name: "${aio_prefix} Link OK"
+    register_type: read
+    address: 2
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Config dirty"
+    register_type: read
+    address: 2
+    bitmask: 0x0008
 
-# ================= READABLE Holding Registers =================
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD1 fault"
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD2 fault"
+    register_type: read
+    address: 3
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} ADS fault"
+    register_type: read
+    address: 3
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC1 fault"
+    register_type: read
+    address: 3
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC2 fault"
+    register_type: read
+    address: 3
+    bitmask: 0x0010
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD1 chip missing"
+    register_type: read
+    address: 3
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD2 chip missing"
+    register_type: read
+    address: 3
+    bitmask: 0x0040
+
 sensor:
-  # ---- RTD temperatures (°C*10 as S_WORD) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD1 Temperature"
     id: ${aio_id}_rtd1
-    address: 120
-    register_type: holding
+    register_type: read
+    address: 4
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -101,21 +172,20 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD2 Temperature"
     id: ${aio_id}_rtd2
-    address: 121
-    register_type: holding
+    register_type: read
+    address: 5
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
 
-  # ---- AI field voltage in mV (U_WORD) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI1 mV"
     id: ${aio_id}_ai1
-    address: 140
-    register_type: holding
+    register_type: read
+    address: 6
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -124,8 +194,8 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI2 mV"
     id: ${aio_id}_ai2
-    address: 141
-    register_type: holding
+    register_type: read
+    address: 7
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -134,8 +204,8 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI3 mV"
     id: ${aio_id}_ai3
-    address: 142
-    register_type: holding
+    register_type: read
+    address: 8
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -144,8 +214,76 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI4 mV"
     id: ${aio_id}_ai4
-    address: 143
-    register_type: holding
+    register_type: read
+    address: 9
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
+
+  # AO state from IREG — feeds template numbers below (not holding read-back)
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ${aio_id}_ao1_state
+    name: "${aio_prefix} AO1 state"
+    internal: true
+    register_type: read
+    address: 10
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ${aio_id}_ao2_state
+    name: "${aio_prefix} AO2 state"
+    internal: true
+    register_type: read
+    address: 11
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+# Write-only holding outputs — never added to the poll set (ESPHome 2026.7.0)
+output:
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ${aio_id}_ao1_out
+    address: 200
+    register_type: holding
+    value_type: U_WORD
+    multiply: 4095.0
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ${aio_id}_ao2_out
+    address: 201
+    register_type: holding
+    value_type: U_WORD
+    multiply: 4095.0
+
+number:
+  - platform: template
+    name: "${aio_prefix} AO1 Raw"
+    id: ${aio_id}_ao1
+    min_value: 0
+    max_value: 4095
+    step: 1
+    mode: slider
+    optimistic: true
+    lambda: |-
+      return id(${aio_id}_ao1_state).state;
+    set_action:
+      - output.set_level:
+          id: ${aio_id}_ao1_out
+          level: !lambda "return x / 4095.0;"
+  - platform: template
+    name: "${aio_prefix} AO2 Raw"
+    id: ${aio_id}_ao2
+    min_value: 0
+    max_value: 4095
+    step: 1
+    mode: slider
+    optimistic: true
+    lambda: |-
+      return id(${aio_id}_ao2_state).state;
+    set_action:
+      - output.set_level:
+          id: ${aio_id}_ao2_out
+          level: !lambda "return x / 4095.0;"
