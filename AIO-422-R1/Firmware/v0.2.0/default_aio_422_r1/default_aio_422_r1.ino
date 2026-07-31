@@ -105,6 +105,30 @@ bool           outTrackInit    = false;
 
 uint8_t aoPowerOn[2] = {HM_PWR_OFF, HM_PWR_OFF};
 
+// ================== FW decls ==================
+// Explicit prototypes above all call sites — do not rely on Arduino auto-prototype
+// generation (breaks under PlatformIO / when a late manual decl suppresses the generator).
+void handleValues(JSONVar values);
+void handleCommand(JSONVar obj);
+void handleUnifiedConfig(JSONVar obj);
+void handleDac(JSONVar obj);
+void handleLedCfg(JSONVar obj);
+void handleBtnCfg(JSONVar obj);
+void handleRtdCfg(JSONVar obj);
+
+void performReset();
+void sendWebStatus();
+void sendWebCfg();
+void sendWebBootstrap();
+void sendWebExt(bool includeRtdInfo);
+void writeDac(int idx, uint16_t value);
+void adsTick();
+void readSensors();
+static void rtdServiceChannel(uint8_t i);
+void applyRtdHardwareCfg();
+void rtdRecoveryTick();
+void updateRtdDiagnostics();
+
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2   4
 #define RX2   5
@@ -151,6 +175,7 @@ bool rtd_ok[2]  = {false, false};
 bool buttonState[NUM_BTN] = {false,false,false,false};
 bool buttonPrev[NUM_BTN]  = {false,false,false,false};
 bool ledState[NUM_LED]    = {false,false,false,false};
+bool ledPhys[NUM_LED]     = {false,false,false,false};
 uint32_t g_identifyUntilMs = 0;
 const uint32_t IDENTIFY_MS = 5000;
 unsigned long lastBlinkToggle = 0;
@@ -160,6 +185,34 @@ bool identifyBlinkPhase = false;
 int16_t  aiRaw[4]   = {0,0,0,0};
 uint16_t aiMv[4]    = {0,0,0,0};
 int16_t  rtdTemp_x10[2] = {0,0};
+
+// ===== ADS1115 async scan =====
+static uint8_t  adsCh          = 0;
+static bool     adsPending     = false;
+static uint32_t adsRequestMs   = 0;
+static const uint32_t ADS_TIMEOUT_MS = 50;   // stuck-conversion guard
+
+// ===== RTD scan stagger =====
+static uint8_t rtdScanCh = 0;
+
+// Absolute suspicion window (was 600 / -200 — that capped the usable PT100 range).
+static const float RTD_SUSPECT_HI = 850.0f;
+static const float RTD_SUSPECT_LO = -250.0f;
+
+// ===== Button debounce =====
+struct BtnDebounce {
+  bool     raw;
+  bool     stable;
+  bool     prevStable;
+  uint32_t lastChangeMs;
+};
+BtnDebounce btnDeb[NUM_BTN] = {};
+static const uint16_t BTN_DEBOUNCE_MS = 30;
+static void serviceBtnDebounce(BtnDebounce &st, bool raw, uint32_t now);
+
+// ===== Bus link indicator (WebConfig "Bus" pill) =====
+uint32_t       g_lastLinkSeenMs = 0;
+const uint32_t LINK_TIMEOUT_MS  = 5000;
 
 // ===== RTD fast recovery state (per-channel) =====
 // Used to recover quickly after ESD / latched MAX31865 upset without
@@ -381,7 +434,9 @@ static void rtdRecoveryVerifyTrigger() {
   float rnom = (float)rtdRnominalCfg[i];
   float rref = (float)rtdRrefCfg[i];
   uint8_t f2 = rtds[i]->readFault();
-  float temp2 = rtds[i]->temperature(rnom, rref);
+  uint16_t raw2 = rtds[i]->readRTD();
+  rtdRawCode[i] = raw2;
+  float temp2 = rtds[i]->calculateTemperature(raw2, rnom, rref);
 
   rtdFault[i] = f2;
   rtdError[i] = decodeMax31865Fault(f2);
@@ -437,7 +492,7 @@ static void rtdRecoveryAdvanceChipStep(Adafruit_MAX31865 &dev, uint8_t chipIdx) 
       break;
 
     case 5:
-      (void)dev.readRTD();
+      // No settle readRTD() — next readSensors() scan performs a real conversion.
       rtdRec.step = 6;
       rtdRec.stepMs = now;
       break;
@@ -757,26 +812,6 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_baud    = baud;
 }
 
-// ================== FW decls ==================
-void handleValues(JSONVar values);
-void handleCommand(JSONVar obj);
-void handleUnifiedConfig(JSONVar obj);
-void handleDac(JSONVar obj);
-void handleLedCfg(JSONVar obj);
-void handleBtnCfg(JSONVar obj);
-void handleRtdCfg(JSONVar obj);
-
-void performReset();
-void sendWebStatus();
-void sendWebCfg();
-void sendWebBootstrap();
-void sendWebExt(bool includeRtdInfo);
-void writeDac(int idx, uint16_t value);
-void readSensors();
-void applyRtdHardwareCfg();
-void rtdRecoveryTick();
-void updateRtdDiagnostics();   // FIX C
-
 // ================== Command handler / reset ==================
 void handleCommand(JSONVar obj) {
   const char* actC = (const char*)obj["action"];
@@ -1026,8 +1061,7 @@ void applyRtdHardwareCfg() {
 
 // ================== FIX C: update RTD diagnostics only every rtdInfoInterval ==================
 void updateRtdDiagnostics() {
-  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
-
+  // No SPI I/O — consume values cached by rtdServiceChannel() / recovery.
   for (int i=0;i<2;i++) {
     if (!rtd_ok[i]) {
       rtdFault[i]    = 0xFF;
@@ -1035,53 +1069,171 @@ void updateRtdDiagnostics() {
       rtdRawCode[i]  = 0;
       rtdRatio[i]    = 0;
       rtdOhms[i]     = 0;
-      // temp already maintained in readSensors()
       continue;
     }
 
-    uint16_t raw = rtds[i]->readRTD();
-    rtdRawCode[i] = raw;
-
     float rref = (float)rtdRrefCfg[i];
-    float ratio = (raw / 32768.0f);
+    float ratio = (rtdRawCode[i] / 32768.0f);
     rtdRatio[i] = ratio;
     rtdOhms[i]  = ratio * rref;
-
-    uint8_t f = rtds[i]->readFault();
-    rtdFault[i] = f;
-    rtdError[i] = decodeMax31865Fault(f);
+    rtdError[i] = decodeMax31865Fault(rtdFault[i]);
   }
 }
 
-// ================== Sensor read helper ==================
-void readSensors() {
-  if (ads_ok) {
-    for (int ch=0; ch<4; ch++) {
-      int16_t raw = ads.readADC(ch);
-      aiRaw[ch] = raw;
-
-      float v_adc   = ads.toVoltage(raw);
-      float v_field = v_adc * ADC_FIELD_SCALE;
-      long  mv      = lroundf(v_field * 1000.0f);
-
-      if (mv < 0)      mv = 0;
-      if (mv > 65535)  mv = 65535;
-
-      aiMv[ch] = (uint16_t)mv;
-      mb.Hreg(HREG_AI_MV_BASE + ch, aiMv[ch]);
-    }
-  } else {
-    for (int ch=0; ch<4; ch++) {
-      aiRaw[ch] = 0;
-      aiMv[ch]  = 0;
-      mb.Hreg(HREG_AI_MV_BASE + ch, 0);
-    }
+// ================== ADS1115 async scan ==================
+// Non-blocking: at most one I2C register access per call.
+void adsTick() {
+  if (!ads_ok) return;
+  uint32_t now = millis();
+  if (!adsPending) {
+    ads.requestADC(adsCh);
+    adsPending   = true;
+    adsRequestMs = now;
+    return;
   }
+  if (!ads.isReady()) {
+    if ((uint32_t)(now - adsRequestMs) >= ADS_TIMEOUT_MS) {
+      adsPending = false;          // retry the same channel
+    }
+    return;
+  }
+  int16_t raw = ads.getValue();
+  aiRaw[adsCh] = raw;
+  float v_field = ads.toVoltage(raw) * ADC_FIELD_SCALE;
+  long  mv      = lroundf(v_field * 1000.0f);
+  if (mv < 0)     mv = 0;
+  if (mv > 65535) mv = 65535;
+  aiMv[adsCh] = (uint16_t)mv;
+  mb.Hreg(HREG_AI_MV_BASE + adsCh, aiMv[adsCh]);
+  adsPending = false;
+  adsCh = (uint8_t)((adsCh + 1) & 0x03);
+}
 
-  // FAST RTD temperature only (avoid readRTD here)
+// ================== Sensor read helper ==================
+static void rtdServiceChannel(uint8_t i) {
   const uint32_t RTD_RECOVER_COOLDOWN_MS = 500;
   const uint8_t  RTD_ZERO_AFTER_BAD_COUNT = 3;
   Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+
+  float rnom = (float)rtdRnominalCfg[i];
+  float rref = (float)rtdRrefCfg[i];
+
+  // ---- Fast, stable RTD recovery with anti-flapping ----
+  // Do not trust temperature when faulted or out-of-range.
+  // Recovery is rate-limited (cooldown) so we don't reinitialize
+  // the MAX31865 on every loop and cause output flapping.
+
+  Adafruit_MAX31865& dev = *rtds[i];
+  uint32_t nowMs = millis();
+
+  // Read fault first, then RTD + pure-math temperature (single conversion).
+  // MAX31865 can sometimes latch an invalid internal state after ESD where
+  // fault bits are not set but the computed temperature/resistance jumps.
+  uint8_t f = dev.readFault();
+  rtdFault[i] = f;
+  rtdError[i] = decodeMax31865Fault(f);
+
+  uint16_t rawCode = dev.readRTD();
+  rtdRawCode[i] = rawCode;
+  float ratio = (rawCode / 32768.0f);
+  float ohmsNow = ratio * rref;
+
+  float temp = dev.calculateTemperature(rawCode, rnom, rref);
+  bool tempFinite =
+    (!isnan(temp) && !isinf(temp));
+  bool tempInRange =
+    (temp >= -250.0f && temp <= 850.0f);
+  bool readingValid = (f == 0) && tempFinite && tempInRange;
+
+  // Jump detection: if the reading differs too much from the last known-good
+  // value, treat it as invalid and force a quick MAX31865 re-init.
+  bool jumpDetected = false;
+
+  // Extra guard: absolute suspicion window. Previously 600 / -200 which
+  // silently capped the usable PT100 range below the documented 850 C.
+  // Keep the diagnostic path; jump detection (relative to last-good) catches ESD.
+  if (readingValid && (temp > RTD_SUSPECT_HI || temp < RTD_SUSPECT_LO)) {
+    jumpDetected = true;
+    readingValid = false;
+    WebSerial.send(
+      "message",
+      String("RTD suspicious value -> forcing reinit: ch=") + String(i+1) +
+      " temp=" + String(temp, 2) + "C" +
+      " fault=0x" + String(f, HEX) +
+      " raw=" + String((int)rawCode)
+    );
+  }
+  if (rtdHasGoodValue[i]) {
+    float oldTempC = rtdLastGoodTempC[i];
+    float deltaT = fabs(temp - oldTempC);
+
+    // Convert last-good temperature back to resistance (Pt100/Pt1000 model)
+    // so we can compare resistance jumps even when fault bits are not set.
+    // Callendar–Van Dusen coefficients for platinum RTDs.
+    const float A = 3.9083e-3f;
+    const float B = -5.775e-7f;
+    const float C = -4.183e-12f;
+    float tt = oldTempC;
+    float ohmsOld =
+      (tt >= 0.0f)
+        ? (rnom * (1.0f + A*tt + B*tt*tt))
+        : (rnom * (1.0f + A*tt + B*tt*tt + C*(tt - 100.0f)*tt*tt*tt));
+
+    float deltaR = fabs(ohmsNow - ohmsOld);
+    const float deltaRLimit = rnom * 0.5f;   // ~130 C equivalent on both Pt100 and Pt1000
+    if (deltaT > 100.0f || deltaR > deltaRLimit) {
+      jumpDetected = true;
+      readingValid = false; // do not overwrite last-good with a bad reading
+      WebSerial.send(
+        "message",
+        String("RTD jump detected -> forcing reinit: ch=") + String(i+1) +
+        " oldT=" + String(oldTempC, 2) + "C newT=" + String(temp, 2) + "C" +
+        " raw=" + String((int)rawCode)
+      );
+    }
+  }
+
+  if (readingValid) {
+    // Valid reading: store as last-good and publish immediately
+    rtdBadCount[i] = 0;
+    rtdHasGoodValue[i] = true;
+    rtdLastGoodTempC[i] = temp;
+    rtdLastGoodTempX10[i] = (int16_t)lroundf(temp * 10.0f);
+
+    rtdTempC[i] = temp;
+    rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+    mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+    return;
+  }
+
+  // Invalid reading: increment bad counter (anti-flapping), saturate uint8_t
+  if (rtdBadCount[i] < 255) rtdBadCount[i]++;
+
+  // Start async recovery if cooldown allows (non-blocking; see rtdRecoveryTick()).
+  if (rtdRecoveryIdle() &&
+      (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
+    rtdLastRecoverMs[i] = nowMs;
+    rtdRecoveryRequest((uint8_t)i);
+  }
+
+  // Still invalid while recovery is pending or not yet started:
+  // Avoid immediate 0 output on first/second bad reads. Hold last-good briefly.
+  if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
+    rtdTempC[i]    = rtdLastGoodTempC[i];
+    rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+    mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
+  } else {
+    rtdTemp_x10[i] = 0;
+    rtdTempC[i]    = 0;
+    mb.Hreg(HREG_TEMP_BASE + i, 0);
+  }
+}
+
+void readSensors() {
+  // AI channels are scanned asynchronously by adsTick() every loop iteration.
+
+  // FAST RTD temperature — cheap paths every tick; hardware read one channel/tick.
+  const uint8_t  RTD_ZERO_AFTER_BAD_COUNT = 3;
   for (int i=0;i<2;i++) {
     float recoveredTemp = 0.0f;
     bool  recoveredOk   = false;
@@ -1134,117 +1286,16 @@ void readSensors() {
       continue;
     }
 
-    float rnom = (float)rtdRnominalCfg[i];
-    float rref = (float)rtdRrefCfg[i];
-
-    // ---- Fast, stable RTD recovery with anti-flapping ----
-    // Do not trust temperature() when faulted or out-of-range.
-    // Recovery is rate-limited (cooldown) so we don't reinitialize
-    // the MAX31865 on every loop and cause output flapping.
-
-    Adafruit_MAX31865& dev = *rtds[i];
-    uint32_t nowMs = millis();
-
-    // Read fault first, then RTD/temperature.
-    // MAX31865 can sometimes latch an invalid internal state after ESD where
-    // fault bits are not set but the computed temperature/resistance jumps.
-    uint8_t f = dev.readFault();
-    rtdFault[i] = f;
-    rtdError[i] = decodeMax31865Fault(f);
-
-    uint16_t rawCode = dev.readRTD();
-    float ratio = (rawCode / 32768.0f);
-    float ohmsNow = ratio * rref;
-
-    float temp = dev.temperature(rnom, rref);
-    bool tempFinite =
-      (!isnan(temp) && !isinf(temp));
-    bool tempInRange =
-      (temp >= -250.0f && temp <= 850.0f);
-    bool readingValid = (f == 0) && tempFinite && tempInRange;
-
-    // Jump detection: if the reading differs too much from the last known-good
-    // value, treat it as invalid and force a quick MAX31865 re-init.
-    bool jumpDetected = false;
-
-    // Extra guard: if the value is extremely high/low, treat it as suspicious
-    // even if the MAX31865 fault bit is not set (common after ESD).
-    // This prevents accepting a stuck temperature like ~735C as "valid".
-    if (readingValid && (temp > 600.0f || temp < -200.0f)) {
-      jumpDetected = true;
-      readingValid = false;
-      WebSerial.send(
-        "message",
-        String("RTD suspicious value -> forcing reinit: ch=") + String(i+1) +
-        " temp=" + String(temp, 2) + "C" +
-        " fault=0x" + String(f, HEX) +
-        " raw=" + String((int)rawCode)
-      );
-    }
-    if (rtdHasGoodValue[i]) {
-      float oldTempC = rtdLastGoodTempC[i];
-      float deltaT = fabs(temp - oldTempC);
-
-      // Convert last-good temperature back to resistance (Pt100/Pt1000 model)
-      // so we can compare resistance jumps even when fault bits are not set.
-      // Callendar–Van Dusen coefficients for platinum RTDs.
-      const float A = 3.9083e-3f;
-      const float B = -5.775e-7f;
-      const float C = -4.183e-12f;
-      float t = oldTempC;
-      float ohmsOld =
-        (t >= 0.0f)
-          ? (rnom * (1.0f + A*t + B*t*t))
-          : (rnom * (1.0f + A*t + B*t*t + C*(t - 100.0f)*t*t*t));
-
-      float deltaR = fabs(ohmsNow - ohmsOld);
-      if (deltaT > 100.0f || deltaR > 50.0f) {
-        jumpDetected = true;
-        readingValid = false; // do not overwrite last-good with a bad reading
-        WebSerial.send(
-          "message",
-          String("RTD jump detected -> forcing reinit: ch=") + String(i+1) +
-          " oldT=" + String(oldTempC, 2) + "C newT=" + String(temp, 2) + "C" +
-          " raw=" + String((int)rawCode)
-        );
-      }
-    }
-
-    if (readingValid) {
-      // Valid reading: store as last-good and publish immediately
-      rtdBadCount[i] = 0;
-      rtdHasGoodValue[i] = true;
-      rtdLastGoodTempC[i] = temp;
-      rtdLastGoodTempX10[i] = (int16_t)lroundf(temp * 10.0f);
-
-      rtdTempC[i] = temp;
-      rtdTemp_x10[i] = rtdLastGoodTempX10[i];
+    if ((uint8_t)i != rtdScanCh) {
+      // Non-scanned channel: republish current value only (no SPI).
       mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
       continue;
     }
 
-    // Invalid reading: increment bad counter (anti-flapping)
-    rtdBadCount[i]++;
-
-    // Start async recovery if cooldown allows (non-blocking; see rtdRecoveryTick()).
-    if (rtdRecoveryIdle() &&
-        (jumpDetected || (nowMs - rtdLastRecoverMs[i] >= RTD_RECOVER_COOLDOWN_MS))) {
-      rtdLastRecoverMs[i] = nowMs;
-      rtdRecoveryRequest((uint8_t)i);
-    }
-
-    // Still invalid while recovery is pending or not yet started:
-    // Avoid immediate 0 output on first/second bad reads. Hold last-good briefly.
-    if (rtdHasGoodValue[i] && rtdBadCount[i] < RTD_ZERO_AFTER_BAD_COUNT) {
-      rtdTempC[i]    = rtdLastGoodTempC[i];
-      rtdTemp_x10[i] = rtdLastGoodTempX10[i];
-      mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)rtdTemp_x10[i]);
-    } else {
-      rtdTemp_x10[i] = 0;
-      rtdTempC[i]    = 0;
-      mb.Hreg(HREG_TEMP_BASE + i, 0);
-    }
+    rtdServiceChannel((uint8_t)i);
   }
+
+  rtdScanCh ^= 1;
 }
 
 // ================== Setup ==================
@@ -1284,9 +1335,14 @@ void setup() {
   if (ads_ok) {
     ads.setGain(1);
     ads.setDataRate(4);
+    ads.setMode(1);   // 1 = single shot
     wsLog( "ADS1115 OK @0x48 (Wire1)");
   } else {
     wsLog( "ERROR: ADS1115 not found @0x48");
+    for (int ch=0; ch<4; ch++) {
+      aiRaw[ch] = 0;
+      aiMv[ch]  = 0;
+    }
   }
 
   dac_ok[0] = dac0.begin(0x60, &Wire1);
@@ -1298,6 +1354,7 @@ void setup() {
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
+  Serial2.setFIFOSize(256);
   Serial2.begin(g_mb_baud);
   mb.config(g_mb_baud);
   setSlaveIdIfAvailable(mb, g_mb_address);
@@ -1310,6 +1367,10 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, 0);
 
+  if (!ads_ok) {
+    for (int ch=0; ch<4; ch++) mb.Hreg(HREG_AI_MV_BASE + ch, 0);
+  }
+
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
   applyPowerOnOutputs();
@@ -1318,6 +1379,7 @@ void setup() {
 
   updateRtdDiagnostics();
   sendWebBootstrap();
+  g_lastLinkSeenMs = millis();
   hmWatchdogArm(4000);
 }
 
@@ -1329,6 +1391,7 @@ void sendWebStatus() {
   st["map"]   = HM_MAP;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
+  st["linkOk"] = ((uint32_t)(millis() - g_lastLinkSeenMs) < LINK_TIMEOUT_MS) ? 1 : 0;
   WebSerial.send("status", st);
 }
 
@@ -1380,6 +1443,17 @@ void sendWebBootstrap() {
   sendWebExt(true);
 }
 
+static void serviceBtnDebounce(BtnDebounce &st, bool raw, uint32_t now) {
+  if (raw != st.raw) {
+    st.raw = raw;
+    st.lastChangeMs = now;
+  }
+  if ((uint32_t)(now - st.lastChangeMs) >= BTN_DEBOUNCE_MS) {
+    st.prevStable = st.stable;
+    st.stable = st.raw;
+  }
+}
+
 // ================== Button action executor ==================
 static inline void setAO(int ch, uint16_t v) {
   dacRaw[ch] = v;
@@ -1422,8 +1496,12 @@ void loop() {
   hmWatchdogFeed();
   unsigned long now = millis();
 
+  WebSerial.check();
+  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
+
   mb.task();
   rtdRecoveryTick();
+  adsTick();
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) wsLog( "Configuration saved");
@@ -1431,17 +1509,16 @@ void loop() {
     cfgDirty = false;
   }
 
-  // Buttons
+  // Buttons (debounced)
   for (int i=0;i<NUM_BTN;i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
-    buttonPrev[i]  = buttonState[i];
-    buttonState[i] = pressed;
-
-    if (!buttonPrev[i] && buttonState[i]) {
+    bool raw = (digitalRead(BTN_PINS[i]) == HIGH);
+    serviceBtnDebounce(btnDeb[i], raw, now);
+    buttonPrev[i]  = btnDeb[i].prevStable;
+    buttonState[i] = btnDeb[i].stable;
+    if (!btnDeb[i].prevStable && btnDeb[i].stable) {
       runButtonAction((uint8_t)i);
     }
-
-    mb.setIsts(ISTS_BTN_BASE + i, pressed);
+    mb.setIsts(ISTS_BTN_BASE + i, btnDeb[i].stable);
   }
 
   if (!outTrackInit) {
@@ -1457,9 +1534,13 @@ void loop() {
   }
   maybePersistOutputState(now);
 
-  // DAC from Modbus
+  // DAC from Modbus (clamp to 12-bit, echo clamped value)
   for (int i=0;i<2;i++) {
     uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
+    if (regVal > 4095) {
+      regVal = 4095;
+      mb.Hreg(HREG_DAC_BASE + i, regVal);   // echo the clamped value back to the master
+    }
     if (regVal != dacRaw[i]) {
       dacRaw[i] = regVal;
       writeDac(i, dacRaw[i]);
@@ -1477,31 +1558,32 @@ void loop() {
     identifyBlinkPhase = !identifyBlinkPhase;
   }
 
-  // LEDs
+  // LEDs — ledState is logical/manual; ledPhys is what is driven
   const bool identifying = g_identifyUntilMs && ((int32_t)(now - g_identifyUntilMs) < 0);
   for (int i=0;i<NUM_LED;i++) {
     bool on;
     if (identifying) {
       on = identifyBlinkPhase;
+    } else if (ledSrc[i] == LEDSRC_MANUAL) {
+      on = ledState[i];
     } else {
-      on = (ledSrc[i] == LEDSRC_MANUAL) ? ledState[i] : getLedAutoState(ledSrc[i]);
+      on = getLedAutoState(ledSrc[i]);
     }
-    if (ledState[i] != on) ledState[i] = on;
+    ledPhys[i] = on;
     digitalWrite(LED_PINS[i], on ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, on);
   }
 
-  // WebSerial UI updates (unified status/io/ext)
+  // WebSerial UI updates (unified status/io/ext) — outbound only throttled
   if (now - lastSend >= sendInterval) {
     lastSend = now;
 
-    WebSerial.check();
     if (hmUsbCanSend()) {
       sendWebStatus();
 
       JSONVar io;
       for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
-      for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledState[i] ? 1 : 0;
+      for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledPhys[i] ? 1 : 0;
       WebSerial.send("io", io);
 
       bool includeRtdInfo = (now - lastRtdInfoSend >= rtdInfoInterval);

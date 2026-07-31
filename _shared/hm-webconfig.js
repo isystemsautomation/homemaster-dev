@@ -636,14 +636,14 @@
     return conn;
   };
 
-  HMWebConfig.sendConfig = function sendConfig(t, list) {
+  HMWebConfig.sendConfig = function sendConfig(t, list, extra) {
     if (HMWebConfig._compat.blocked) {
       notifyWriteBlocked('Config write blocked: setting was NOT applied (firmware/model compatibility).');
       return Promise.resolve();
     }
     HMWebConfig._compat.lastBlockedMsg = '';  // next user write clears sticky blocked notice
     if (HMWebConfig._suppressCfgSend) return Promise.resolve();
-    const packet = { t, list };
+    const packet = Object.assign({ t, list }, extra || {});
     logTx('Config', packet);
     return HMWebConfig.conn.send('Config', packet).catch(err => {
       appendLog('Config send failed: ' + (err?.message || err));

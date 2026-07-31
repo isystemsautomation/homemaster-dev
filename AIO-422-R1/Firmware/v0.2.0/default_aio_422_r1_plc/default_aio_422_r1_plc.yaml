@@ -5,9 +5,6 @@ modbus_controller:
     update_interval: 3s
     allow_duplicate_commands: false
 
-binary_sensor:
-
-
 # ================= WRITEABLE Holding Registers =================
 number:
   # ---- DAC outputs ----
