@@ -16,11 +16,13 @@
 ## Input Registers (FC04, read) — contiguous @0..3 (one poll per cycle):
 ##   0 IN1..IN16 mask · 1 IN17/Any/G1-G3/Relay/LED/Armed/Entry/Exit/Tamper
 ##   2 Zone1..16 latched · 3 Zone17 latched
-##   Relay/Armed: coils @0..3 (DIO-style); group=0 → Modbus only, group≠0 → alarm (+ Modbus override)
 ##
-## Coils (FC01/05) @0..10:
-##   0..2 Relay 1..3 (stateful) · 3 Armed (stateful)
-##   4 Ack All · 5..7 Ack G1-G3 · 8..10 group pulse G1-G3 (momentary, internal)
+## Relay/Armed state is in IREG 1 (no FC01 coil read-back — STD-009 / DIO pattern):
+##   bit5 0x0020 Relay 1 · bit6 0x0040 Relay 2 · bit7 0x0080 Relay 3 · bit12 0x1000 Armed
+##   group=0 → Modbus only; group≠0 → alarm (+ Modbus override)
+##
+## Coils (FC05/15 write-only) @0..10 — assumed_state, never polled with FC01:
+##   0..2 Relay 1..3 · 3 Armed · 4 Ack All · 5..7 Ack G1-G3 · 8..10 pulse G1-G3
 ##
 ## Identity (FC04) @200 — read once at startup; not in this package.
 
@@ -29,7 +31,7 @@ substitutions:
   alm_address: "3"
   alm_prefix: "ALM"
   alm_update_interval: 1s
-  alm_command_throttle: 50ms
+  alm_command_throttle: 0ms
 
 modbus_controller:
   - id: ${alm_id}
@@ -216,6 +218,40 @@ binary_sensor:
     bitmask: 0x8000
     device_class: problem
 
+  # Relay/Armed state @ IREG 1 — same FC04 block; feeds template switches below
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: ${alm_id}_relay1_state
+    name: "${alm_prefix} Relay 1 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: ${alm_id}_relay2_state
+    name: "${alm_prefix} Relay 2 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0040
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: ${alm_id}_relay3_state
+    name: "${alm_prefix} Relay 3 state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x0080
+  - platform: modbus_controller
+    modbus_controller_id: ${alm_id}
+    id: ${alm_id}_armed_state
+    name: "${alm_prefix} Armed state"
+    internal: true
+    register_type: read
+    address: 1
+    bitmask: 0x1000
+
   # Zone latched @ IREG 2 (1..16) and 3 (17)
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
@@ -338,33 +374,76 @@ binary_sensor:
     device_class: problem
 
 switch:
-  # Stateful coils (DIO-style — coil read-back + write)
+  # Write-only coils — no FC01 read-back (state from IREG 1 via template switches)
+  # IDs must be prefixed with ${alm_id} so two packages do not collide (same as DIO/RGB).
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 1"
-    id: ${alm_id}_relay1
+    id: ${alm_id}_relay1_coil
     register_type: coil
     address: 0
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 2"
-    id: ${alm_id}_relay2
+    id: ${alm_id}_relay2_coil
     register_type: coil
     address: 1
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Relay 3"
-    id: ${alm_id}_relay3
+    id: ${alm_id}_relay3_coil
     register_type: coil
     address: 2
+    internal: true
+    assumed_state: true
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
-    name: "${alm_prefix} Armed"
+    id: ${alm_id}_armed_coil
     register_type: coil
     address: 3
+    internal: true
+    assumed_state: true
+
+  # Public switches — state from FC04, command via write-only coils above
+  - platform: template
+    name: "${alm_prefix} Relay 1"
+    id: ${alm_id}_relay1
+    lambda: |-
+      return id(${alm_id}_relay1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${alm_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${alm_id}_relay1_coil
+  - platform: template
+    name: "${alm_prefix} Relay 2"
+    id: ${alm_id}_relay2
+    lambda: |-
+      return id(${alm_id}_relay2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${alm_id}_relay2_coil
+    turn_off_action:
+      - switch.turn_off: ${alm_id}_relay2_coil
+  - platform: template
+    name: "${alm_prefix} Relay 3"
+    id: ${alm_id}_relay3
+    lambda: |-
+      return id(${alm_id}_relay3_state).state;
+    turn_on_action:
+      - switch.turn_on: ${alm_id}_relay3_coil
+    turn_off_action:
+      - switch.turn_off: ${alm_id}_relay3_coil
+  - platform: template
+    name: "${alm_prefix} Armed"
+    id: ${alm_id}_armed
+    lambda: |-
+      return id(${alm_id}_armed_state).state;
+    turn_on_action:
+      - switch.turn_on: ${alm_id}_armed_coil
+    turn_off_action:
+      - switch.turn_off: ${alm_id}_armed_coil
 
   # Momentary command coils (internal — driven by template buttons)
-  # IDs must be prefixed with ${alm_id} so two packages do not collide (same as DIO/RGB).
   - platform: modbus_controller
     modbus_controller_id: ${alm_id}
     id: ${alm_id}_ack_all
