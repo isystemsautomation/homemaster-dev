@@ -128,6 +128,7 @@ static void rtdServiceChannel(uint8_t i);
 void applyRtdHardwareCfg();
 void rtdRecoveryTick();
 void updateRtdDiagnostics();
+bool getLedAutoState(uint8_t src, uint32_t now);
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2   4
@@ -316,11 +317,17 @@ enum : uint16_t {
 
 // ================== LED source selection (Web-only, persisted) ==================
 enum : uint8_t {
-  LEDSRC_MANUAL    = 0,
-  LEDSRC_AO1_AT0   = 1,
-  LEDSRC_AO2_AT0   = 2,
-  LEDSRC_AO1_AT100 = 3,
-  LEDSRC_AO2_AT100 = 4,
+  LEDSRC_MANUAL      = 0,
+  LEDSRC_AO1_AT0     = 1,
+  LEDSRC_AO2_AT0     = 2,
+  LEDSRC_AO1_AT100   = 3,
+  LEDSRC_AO2_AT100   = 4,
+  LEDSRC_BUS_LINK    = 5,   // RS-485 traffic seen within LINK_TIMEOUT_MS
+  LEDSRC_RTD1_FAULT  = 6,   // sensor-level: chip down OR fault bits set
+  LEDSRC_RTD2_FAULT  = 7,
+  LEDSRC_AO1_ACTIVE  = 8,   // dacRaw[0] > AO_ZERO_TH
+  LEDSRC_AO2_ACTIVE  = 9,
+  LEDSRC_HW_FAULT    = 10,  // chip-level only: a device failed to initialise
 };
 
 uint8_t ledSrc[4] = { LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL };
@@ -552,12 +559,20 @@ void rtdRecoveryTick() {
   mb.task();
 }
 
-bool getLedAutoState(uint8_t src) {
-  if (src == LEDSRC_AO1_AT0)   return (dacRaw[0] <= AO_ZERO_TH);
-  if (src == LEDSRC_AO2_AT0)   return (dacRaw[1] <= AO_ZERO_TH);
-  if (src == LEDSRC_AO1_AT100) return (dacRaw[0] >= AO_FULL_TH);
-  if (src == LEDSRC_AO2_AT100) return (dacRaw[1] >= AO_FULL_TH);
-  return false;
+bool getLedAutoState(uint8_t src, uint32_t now) {
+  switch (src) {
+    case LEDSRC_AO1_AT0:    return (dacRaw[0] <= AO_ZERO_TH);
+    case LEDSRC_AO2_AT0:    return (dacRaw[1] <= AO_ZERO_TH);
+    case LEDSRC_AO1_AT100:  return (dacRaw[0] >= AO_FULL_TH);
+    case LEDSRC_AO2_AT100:  return (dacRaw[1] >= AO_FULL_TH);
+    case LEDSRC_BUS_LINK:   return ((uint32_t)(now - g_lastLinkSeenMs) < LINK_TIMEOUT_MS);
+    case LEDSRC_RTD1_FAULT: return (!rtd_ok[0] || rtdFault[0] != 0);
+    case LEDSRC_RTD2_FAULT: return (!rtd_ok[1] || rtdFault[1] != 0);
+    case LEDSRC_AO1_ACTIVE: return (dacRaw[0] > AO_ZERO_TH);
+    case LEDSRC_AO2_ACTIVE: return (dacRaw[1] > AO_ZERO_TH);
+    case LEDSRC_HW_FAULT:   return (!ads_ok || !dac_ok[0] || !dac_ok[1] || !rtd_ok[0] || !rtd_ok[1]);
+    default:                return false;
+  }
 }
 
 // ================== Defaults / persist ==================
@@ -690,7 +705,7 @@ bool applyFromPersistV8(const PersistConfigV8 &pc) {
   g_mb_baud    = pc.mb_baud;
 
   for (int i=0;i<4;i++) {
-    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 10);
     btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 9);
   }
 
@@ -719,7 +734,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   g_mb_baud    = pc.mb_baud;
 
   for (int i=0;i<4;i++) {
-    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 10);
     btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 9);
   }
 
@@ -986,7 +1001,7 @@ void handleLedCfg(JSONVar list) {
     if      (e.hasOwnProperty("src"))    v = (int)e["src"];
     else if (e.hasOwnProperty("source")) v = (int)e["source"];
     else                                 v = (int)e;
-    ledSrc[i] = clamp_u8(v, 0, 4);
+    ledSrc[i] = clamp_u8(v, 0, 10);
   }
   wsLog("LED source configuration updated");
   cfgDirty = true;                // TODO (intake rule 4)
@@ -1458,6 +1473,7 @@ void sendWebCfg() {
 void sendWebExt() {
   JSONVar ext;
   for (int i = 0; i < 4; i++) ext["ai"][i] = aiMv[i];
+  for (int i = 0; i < 2; i++) ext["dac"]["raw"][i] = dacRaw[i];
   for (int i = 0; i < 2; i++) ext["rtd"]["temp_x10"][i] = rtdTemp_x10[i];
   JSONVar info;
   for (int i = 0; i < 2; i++) {
@@ -1623,7 +1639,7 @@ void loop() {
     } else if (ledSrc[i] == LEDSRC_MANUAL) {
       on = ledState[i];
     } else {
-      on = getLedAutoState(ledSrc[i]);
+      on = getLedAutoState(ledSrc[i], now);
     }
     ledPhys[i] = on;
     digitalWrite(LED_PINS[i], on ? HIGH : LOW);

@@ -157,7 +157,7 @@
 
   <div class="sectiontitle">
     <h3>User LEDs (4)</h3>
-    <p class="hint">Select LED sources or keep manual control via buttons.</p>
+    <p class="hint">Select LED sources or keep manual control via buttons. Bus link OK follows any RS-485 traffic on the segment, not just polls addressed to this module. RTD fault sources also light when no sensor is wired to that channel.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -191,22 +191,27 @@
       else el.style.background = 'var(--ok)';
     }
 
+    function applyDacRawLive(rawArr) {
+      const raw = HMWebConfig.toArray(rawArr);
+      for (let i = 0; i < NUM_DAC; i++) {
+        if (raw[i] == null) continue;
+        const val = Number(raw[i]) || 0;
+        dacValues[i] = val;
+        const slider = $('dac-slider-' + i);
+        const rawEl = $('dac-raw-' + i);
+        const vEl = $('dac-volts-' + i);
+        if (slider && slider !== document.activeElement) slider.value = val;
+        if (rawEl) rawEl.textContent = val;
+        if (vEl) vEl.textContent = (val / 4095 * 10).toFixed(2);
+      }
+    }
+
     function applyDacFromCfg(ext) {
       const dac = ext && ext.dac;
       if (!dac) return;
-      const raw = HMWebConfig.toArray(dac.raw);
+      applyDacRawLive(dac.raw);
       const po = HMWebConfig.toArray(dac.powerOn);
       for (let i = 0; i < NUM_DAC; i++) {
-        if (raw[i] != null) {
-          const val = Number(raw[i]) || 0;
-          dacValues[i] = val;
-          const slider = $('dac-slider-' + i);
-          const rawEl = $('dac-raw-' + i);
-          const vEl = $('dac-volts-' + i);
-          if (slider && slider !== document.activeElement) slider.value = val;
-          if (rawEl) rawEl.textContent = val;
-          if (vEl) vEl.textContent = (val / 4095 * 10).toFixed(2);
-        }
         if (po[i] != null) {
           aoPowerOn[i] = Number(po[i]) || 0;
           const poEl = $('powerOn-ao' + (i + 1));
@@ -277,6 +282,7 @@
 
     HMWebConfig.conn.on('ext', function (ext) {
       if (!ext) return;
+      if (ext.dac && ext.dac.raw != null) applyDacRawLive(ext.dac.raw);
       const ai = HMWebConfig.toArray(ext.ai);
       ai.forEach((mv, i) => {
         const mvNum = Number(mv);
@@ -519,11 +525,17 @@
       const c = $('io-leds');
       if (!c) return;
       const opts = [
-        [0, 'Manual'],
-        [1, 'AO1 = 0%'],
-        [2, 'AO2 = 0%'],
-        [3, 'AO1 = 100%'],
-        [4, 'AO2 = 100%']
+        [0,  'Manual'],
+        [1,  'AO1 = 0%'],
+        [2,  'AO2 = 0%'],
+        [3,  'AO1 = 100%'],
+        [4,  'AO2 = 100%'],
+        [5,  'Bus link OK'],
+        [6,  'RTD1 fault'],
+        [7,  'RTD2 fault'],
+        [8,  'AO1 active'],
+        [9,  'AO2 active'],
+        [10, 'Hardware fault'],
       ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
       for (let i = 1; i <= NUM_LED; i++) {
         const d = document.createElement('div');
