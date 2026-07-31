@@ -481,11 +481,16 @@
       const c = $('io-buttons');
       if (!c) return;
       const opts = [
-        [0, 'Manual LED toggle'],
-        [1, 'Toggle AO1 (0↔100%)'],
-        [2, 'Toggle AO2 (0↔100%)'],
-        [3, 'AO1=max toggle'],
-        [4, 'AO2=max toggle']
+        [0, 'Toggle flag (LED + Modbus ISTS)'],
+        [1, 'AO1 on/off (0 ↔ 100%)'],
+        [2, 'AO2 on/off (0 ↔ 100%)'],
+        [3, 'AO1 on/off (restore last level)'],
+        [4, 'AO2 on/off (restore last level)'],
+        [5, 'AO1 +10%'],
+        [6, 'AO1 −10%'],
+        [7, 'AO2 +10%'],
+        [8, 'AO2 −10%'],
+        [9, 'All AO off'],
       ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
       for (let i = 1; i <= NUM_BTN; i++) {
         const d = document.createElement('div');

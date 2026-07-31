@@ -171,6 +171,13 @@ bool rtd_ok[2]  = {false, false};
 #define ADC_FIELD_SCALE_DEN 10000
 #define ADC_FIELD_SCALE ((float)ADC_FIELD_SCALE_NUM / (float)ADC_FIELD_SCALE_DEN)
 
+// ================== AI channel map ==================
+// Field terminal AI1..AI4 -> ADS1115 single-ended input index.
+// AI3 and AI4 are crossed on the board; corrected here so that Modbus
+// (HREG 140..143) and WebConfig (ext.ai[0..3]) both report the terminal
+// the user actually wired to.
+static const uint8_t AI_ADS_CH[4] = {0, 1, 3, 2};
+
 // ================== Runtime state ==================
 bool buttonState[NUM_BTN] = {false,false,false,false};
 bool buttonPrev[NUM_BTN]  = {false,false,false,false};
@@ -187,7 +194,7 @@ uint16_t aiMv[4]    = {0,0,0,0};
 int16_t  rtdTemp_x10[2] = {0,0};
 
 // ===== ADS1115 async scan =====
-static uint8_t  adsCh          = 0;
+static uint8_t  adsCh          = 0;  // logical field-terminal index 0..3 (AI1..AI4), not ADS input
 static bool     adsPending     = false;
 static uint32_t adsRequestMs   = 0;
 static const uint32_t ADS_TIMEOUT_MS = 50;   // stuck-conversion guard
@@ -322,16 +329,29 @@ static const uint16_t AO_ZERO_TH = 5;
 static const uint16_t AO_FULL_TH = 4090;
 
 // ================== Button actions (Web-only, persisted) ==================
+// Values 3/4 used to mean "AO=max toggle" (0↔4095). They now mean
+// "on/off, restore last level" (0↔aoLastLevel, default 4095). Behaviour is
+// identical until a mid-scale level is stored, so stored configs stay valid
+// without a CFG_VERSION bump or remap.
 enum : uint8_t {
-  BTNACT_LED_MANUAL_TOGGLE = 0,
-  BTNACT_TOGGLE_AO1_0      = 1,
-  BTNACT_TOGGLE_AO2_0      = 2,
-  BTNACT_TOGGLE_AO1_MAX    = 3,
-  BTNACT_TOGGLE_AO2_MAX    = 4,
+  BTNACT_LED_MANUAL_TOGGLE = 0,   // unchanged
+  BTNACT_AO1_ONOFF         = 1,   // unchanged behaviour
+  BTNACT_AO2_ONOFF         = 2,   // unchanged behaviour
+  BTNACT_AO1_ONOFF_LEVEL   = 3,   // NEW meaning, compatible with old value 3
+  BTNACT_AO2_ONOFF_LEVEL   = 4,   // NEW meaning, compatible with old value 4
+  BTNACT_AO1_UP            = 5,
+  BTNACT_AO1_DOWN          = 6,
+  BTNACT_AO2_UP            = 7,
+  BTNACT_AO2_DOWN          = 8,
+  BTNACT_ALL_AO_OFF        = 9,
 };
 
 uint8_t btnAction[4] = { BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE,
                          BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE };
+
+// Last non-zero AO level, used by the "on/off, restore last level" actions.
+// RAM only — after reboot the power-on policy (aoPowerOn) governs the output.
+uint16_t aoLastLevel[2] = {4095, 4095};
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -671,7 +691,7 @@ bool applyFromPersistV8(const PersistConfigV8 &pc) {
 
   for (int i=0;i<4;i++) {
     ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
-    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 4);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 9);
   }
 
   rtdWiresCfg[0]    = pc.rtd_wires[0];
@@ -700,7 +720,7 @@ bool applyFromPersist(const PersistConfig &pc) {
 
   for (int i=0;i<4;i++) {
     ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 4);
-    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 4);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 9);
   }
 
   rtdWiresCfg[0]    = pc.rtd_wires[0];
@@ -981,7 +1001,7 @@ void handleBtnCfg(JSONVar obj) {
   for (int i = 0; i < 4; i++) {
     if (i >= (int)act.length()) break;
     int v = (int)act[i];
-    btnAction[i] = clamp_u8(v, 0, 4);
+    btnAction[i] = clamp_u8(v, 0, 9);
   }
 
   wsLog("Button actions updated");
@@ -1086,7 +1106,7 @@ void adsTick() {
   if (!ads_ok) return;
   uint32_t now = millis();
   if (!adsPending) {
-    ads.requestADC(adsCh);
+    ads.requestADC(AI_ADS_CH[adsCh]);
     adsPending   = true;
     adsRequestMs = now;
     return;
@@ -1479,33 +1499,52 @@ static inline void setAO(int ch, uint16_t v) {
   writeDac(ch, dacRaw[ch]);
 }
 
+static const int AO_STEP_PCT = 10;
+static void stepAO(int ch, int deltaPct) {
+  int pct = (int)lroundf((float)dacRaw[ch] * 100.0f / 4095.0f);
+  pct += deltaPct;
+  if (pct < 0)   pct = 0;
+  if (pct > 100) pct = 100;
+  uint16_t v = (uint16_t)lroundf((float)pct * 4095.0f / 100.0f);
+  setAO(ch, v);
+}
+
 void runButtonAction(uint8_t btnIndex) {
   uint8_t act = btnAction[btnIndex];
 
-  if (act == BTNACT_LED_MANUAL_TOGGLE) {
-    if (ledSrc[btnIndex] == LEDSRC_MANUAL) ledState[btnIndex] = !ledState[btnIndex];
-    return;
-  }
+  switch (act) {
+    case BTNACT_LED_MANUAL_TOGGLE:
+      if (ledSrc[btnIndex] == LEDSRC_MANUAL) ledState[btnIndex] = !ledState[btnIndex];
+      break;
 
-  if (act == BTNACT_TOGGLE_AO1_0) {
-    uint16_t target = (dacRaw[0] != 0) ? 0 : 4095;
-    setAO(0, target);
-    return;
-  }
-  if (act == BTNACT_TOGGLE_AO2_0) {
-    uint16_t target = (dacRaw[1] != 0) ? 0 : 4095;
-    setAO(1, target);
-    return;
-  }
-  if (act == BTNACT_TOGGLE_AO1_MAX) {
-    uint16_t target = (dacRaw[0] != 4095) ? 4095 : 0;
-    setAO(0, target);
-    return;
-  }
-  if (act == BTNACT_TOGGLE_AO2_MAX) {
-    uint16_t target = (dacRaw[1] != 4095) ? 4095 : 0;
-    setAO(1, target);
-    return;
+    case BTNACT_AO1_ONOFF:
+      setAO(0, dacRaw[0] != 0 ? 0 : 4095);
+      break;
+    case BTNACT_AO2_ONOFF:
+      setAO(1, dacRaw[1] != 0 ? 0 : 4095);
+      break;
+
+    case BTNACT_AO1_ONOFF_LEVEL:
+      if (dacRaw[0] != 0) setAO(0, 0);
+      else                setAO(0, aoLastLevel[0] ? aoLastLevel[0] : 4095);
+      break;
+    case BTNACT_AO2_ONOFF_LEVEL:
+      if (dacRaw[1] != 0) setAO(1, 0);
+      else                setAO(1, aoLastLevel[1] ? aoLastLevel[1] : 4095);
+      break;
+
+    case BTNACT_AO1_UP:   stepAO(0, +AO_STEP_PCT); break;
+    case BTNACT_AO1_DOWN: stepAO(0, -AO_STEP_PCT); break;
+    case BTNACT_AO2_UP:   stepAO(1, +AO_STEP_PCT); break;
+    case BTNACT_AO2_DOWN: stepAO(1, -AO_STEP_PCT); break;
+
+    case BTNACT_ALL_AO_OFF:
+      setAO(0, 0);
+      setAO(1, 0);
+      break;
+
+    default:
+      break;
   }
 }
 
@@ -1545,6 +1584,7 @@ void loop() {
   } else {
     for (int i = 0; i < 2; i++) {
       if (dacRaw[i] != prevDacRaw[i]) {
+        if (dacRaw[i] != 0) aoLastLevel[i] = dacRaw[i];
         prevDacRaw[i] = dacRaw[i];
         lastOutChangeMs = now;
       }
