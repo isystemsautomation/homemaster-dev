@@ -134,7 +134,61 @@ bool getLedAutoState(uint8_t src, uint32_t now);
 #define RX2   5
 const int TxenPin = -1;
 int SlaveId = 1;
-ModbusSerial mb(Serial2, SlaveId, TxenPin);
+
+// Modbus-Arduino 1.3.0 / Modbus-Serial 2.0.6 have no onGetIreg/onGetHreg
+// callbacks (see Modbus.h — TRegister has no cbModbus). Fallback: wrap the
+// UART so we see the exact frame bytes mb.task() consumes, and mark the link
+// when a CRC-valid request is addressed to this slave (we are being polled).
+static uint16_t hmModbusCrc(const uint8_t *data, uint16_t len) {
+  uint16_t crc = 0xFFFF;
+  for (uint16_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (uint8_t b = 0; b < 8; b++) {
+      if (crc & 1u) crc = (crc >> 1) ^ 0xA001u;
+      else          crc >>= 1;
+    }
+  }
+  return crc;
+}
+
+class ModbusLinkWatchStream : public Stream {
+ public:
+  explicit ModbusLinkWatchStream(HardwareSerial &u) : uart(u) {}
+
+  void clearCapture() { capLen = 0; }
+
+  // True if the bytes just consumed by mb.task() were a valid RTU frame for us.
+  bool takeValidFrameFor(uint8_t slaveId) {
+    bool ok = false;
+    if (capLen >= 4 && cap[0] == slaveId) {
+      const uint16_t got  = (uint16_t)cap[capLen - 1] << 8 | cap[capLen - 2];
+      const uint16_t calc = hmModbusCrc(cap, (uint16_t)(capLen - 2));
+      ok = (got == calc);
+    }
+    clearCapture();
+    return ok;
+  }
+
+  int available() override { return uart.available(); }
+  int read() override {
+    int c = uart.read();
+    if (c >= 0 && capLen < sizeof(cap)) cap[capLen++] = (uint8_t)c;
+    return c;
+  }
+  int peek() override { return uart.peek(); }
+  void flush() override { uart.flush(); }
+  size_t write(uint8_t b) override { return uart.write(b); }
+  size_t write(const uint8_t *buf, size_t size) override { return uart.write(buf, size); }
+  int availableForWrite() override { return uart.availableForWrite(); }
+
+ private:
+  HardwareSerial &uart;
+  uint8_t  cap[256];
+  uint16_t capLen = 0;
+};
+
+static ModbusLinkWatchStream mbBus(Serial2);
+ModbusSerial mb(mbBus, SlaveId, TxenPin);
 
 // ================== GPIO MAP ==================
 static const uint8_t LED_PINS[4] = {18, 19, 20, 21};
@@ -243,7 +297,13 @@ BtnDebounce btnDeb[NUM_BTN] = {};
 static const uint16_t BTN_DEBOUNCE_MS = 30;
 static void serviceBtnDebounce(BtnDebounce &st, bool raw, uint32_t now);
 
-// ===== Bus link indicator (WebConfig "Bus" pill) =====
+// ===== Bus link indicator (WebConfig "Bus" pill / IREG STATUS_FLAGS bit1) =====
+// Timestamp of the last CRC-valid Modbus request addressed to *this* slave.
+// Semantically "my master is polling me", not "any traffic on the segment".
+// That diverges from DIO (which watches Serial2.available() for any bus activity)
+// on purpose: sampling available() cannot work once mb.task() drains the FIFO.
+// Modbus-Serial 2.0.6 has no onGet* callbacks, so we detect addressed frames via
+// ModbusLinkWatchStream around the UART (see noteModbusLinkFromConsumedFrame).
 uint32_t       g_lastLinkSeenMs = 0;
 const uint32_t LINK_TIMEOUT_MS  = 5000;
 
@@ -327,6 +387,16 @@ const unsigned long sensorInterval = 200;
 // ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
+
+static inline void noteModbusLinkFromConsumedFrame() {
+  if (mbBus.takeValidFrameFor(g_mb_address)) g_lastLinkSeenMs = millis();
+}
+
+static inline void mbTaskLinkAware() {
+  mbBus.clearCapture();
+  mb.task();
+  noteModbusLinkFromConsumedFrame();
+}
 
 // ================== Modbus map ==================
 enum : uint16_t {
@@ -671,7 +741,7 @@ void rtdRecoveryTick() {
 
   Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
   rtdRecoveryAdvanceChipStep(*rtds[rtdRec.chip], rtdRec.chip);
-  mb.task();
+  mbTaskLinkAware();
 }
 
 bool getLedAutoState(uint8_t src, uint32_t now) {
@@ -1632,9 +1702,8 @@ void loop() {
   unsigned long now = millis();
 
   WebSerial.check();
-  if (Serial2.available() > 0) g_lastLinkSeenMs = now;
 
-  mb.task();
+  mbTaskLinkAware();
   rtdRecoveryTick();
   adsTick();
 
@@ -1753,5 +1822,5 @@ void loop() {
     }
   }
 
-  mb.task();
+  mbTaskLinkAware();
 }
