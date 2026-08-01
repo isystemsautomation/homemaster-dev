@@ -1,14 +1,14 @@
 {
   "name": "HomeMaster MicroPLC",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "builds": [
     {
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
-        "md5": "3473cbfceead7a7d56fbc4d6f7ed8699",
+        "md5": "be6835c8b64f096f0b0b84c17c3f8e32",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
-        "summary": "Version 1.2.0 — remove Wi-Fi fallback AP and captive_portal (RED Art. 3(3)(d) / EN 18031-1)"
+        "summary": "Version 1.3.0 — 16 MB flash layout, expose 1-Wire Bus 1 Temperature (dallas_temp on GPIO4)"
       }
     }
   ]

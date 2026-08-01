@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
 
-### v1.2.0 — current
+### v1.3.0 — current
+
+- Project version bumped from 1.2.0 to **1.3.0**.
+- Declared `flash_size: 16MB` (and `variant: esp32`) so ESPHome builds a partition table that matches the hardware; units already in the field need a full USB flash with erase before OTA can use the new layout.
+- Added a `dallas_temp` sensor on the 1-Wire bus (GPIO4), exposing **1-Wire Bus 1 Temperature**; the bus was previously declared but never read. Bus id renamed `hub_1` → `ow_bus_1` to match OpenthermGateway and MiniPLC.
+
+### v1.2.0
 
 - Project version bumped from 1.1.1 to **1.2.0**.
 - Removed the Wi-Fi fallback access point (`wifi.ap: {}`) and `captive_portal:` for RED Art. 3(3)(d) / EN 18031-1.

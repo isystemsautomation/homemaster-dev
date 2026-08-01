@@ -6,7 +6,7 @@ esphome:
   min_version: 2026.7.0
   project:
     name: homemaster.microplc
-    version: "1.2.0"
+    version: "1.3.0"
 
 esp32:
   variant: esp32
@@ -86,15 +86,22 @@ i2c:
 
 one_wire:
   - platform: gpio
-    pin: GPIO04                         # Pin for 1-Wire devices (e.g., DS18B20 sensors)
-    id: hub_1
+    id: ow_bus_1
+    pin: GPIO4                          # Pin for 1-Wire devices (e.g., DS18B20 sensors)
+
+sensor:
+  - platform: dallas_temp
+    id: ow_bus_1_temperature
+    one_wire_id: ow_bus_1
+    name: "1-Wire Bus 1 Temperature"
+    unit_of_measurement: "°C"
 
 switch:
   - platform: gpio
     name: "Relay"                       # Relay switch exposed to Home Assistant
     pin: 26
     id: relay1
-                             
+
 status_led:
   pin:
     number: GPIO25                      # Pin for status LED
