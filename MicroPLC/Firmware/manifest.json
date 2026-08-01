@@ -6,7 +6,7 @@
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
-        "md5": "3136a9a9a06a7ea227e6d7bfde0467ac",
+        "md5": "613ab1eefcb6098fefafd7630463f366",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
         "summary": "Version 1.3.1 \u2014 expose DI #1 (GPIO36); RS-485 UART id uart_modbus at 19200 baud"
       }
