@@ -7,6 +7,8 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder a
 - Added the onboard **24 V digital input** as `DI #1` (**GPIO36**); the input existed in hardware from v1.0.0 but was never exposed as an entity.
 - RS-485 UART aligned with MiniPLC: id renamed `mod_uart` → **`uart_modbus`**, matching the wiring example in every module README, and pins written as `GPIO17`/`GPIO16`.
 - **UART baud rate corrected from 115200 to 19200** — the HomeMaster module bus runs at 19200, so the previous value prevented the factory firmware from communicating with any expansion module.
+- Added diagnostic entities matching OpenthermGateway: **ESP Status**, **WiFi Signal**, **ESP32 Temperature**, **ESP Uptime Human**, **ESPHome Version** and **ESP IP Address**, all under the diagnostic entity category.
+- Added a **Restart** button (reboot only; no settings are cleared).
 
 ### v1.3.0
 

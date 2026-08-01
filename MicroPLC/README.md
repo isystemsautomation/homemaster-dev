@@ -38,6 +38,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - [Firmware Updates](#firmware-updates)
 - [Bus System Configuration](#bus-system-configuration)
 - [Specifications](#specifications)
+- [Entity Reference](#entity-reference)
 - [Pinout](#pinout)
 - [MicroPLC Functional Block Diagram](#microplc-functional-block-diagram)
 - [License](#license)
@@ -220,6 +221,27 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Relative humidity | 0–90 % RH, non-condensing |
 | Firmware | ESPHome (pre-installed), Arduino |
 | Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
+
+## Entity Reference
+
+<details>
+<summary>Click to expand full entity reference table</summary>
+
+| Entity | Type | Default | Description |
+|---|---|---|---|
+| ESP Status | Binary Sensor | Enabled (diagnostic) | Wi-Fi / API connection status |
+| DI #1 | Binary Sensor | Enabled | 24 V DC digital input (GPIO36, ISO1212) |
+| 1-Wire Bus 1 Temperature | Sensor | Enabled | DS18B20 on GPIO4 |
+| Relay | Switch | Enabled | Onboard SPDT relay (GPIO26) |
+| Restart | Button | Enabled (config) | Reboot only — does not clear Wi-Fi or API key |
+| WiFi Signal | Sensor | Enabled (diagnostic) | RSSI in dBm |
+| ESP32 Temperature | Sensor | Enabled (diagnostic) | Internal chip temperature |
+| ESP Uptime Human | Text Sensor | Enabled (diagnostic) | Human-readable uptime |
+| ESPHome Version | Text Sensor | Enabled (diagnostic) | Running ESPHome version |
+| ESP IP Address | Text Sensor | Enabled (diagnostic) | Device IP address |
+| Firmware Update | Update | Enabled | Vendor OTA update entity (HTTP) |
+
+</details>
 
 ### RS-485 / Modbus RTU
 

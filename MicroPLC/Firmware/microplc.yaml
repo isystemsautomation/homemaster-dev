@@ -93,6 +93,11 @@ one_wire:
     pin: GPIO4                          # Pin for 1-Wire devices (e.g., DS18B20 sensors)
 
 binary_sensor:
+  - platform: status
+    id: esp_status
+    name: "ESP Status"
+    entity_category: diagnostic
+
   - platform: gpio
     id: di_1
     name: "DI #1"
@@ -100,6 +105,23 @@ binary_sensor:
       number: GPIO36
 
 sensor:
+  - platform: uptime
+    id: esp_uptime
+    internal: true
+    update_interval: 60s
+
+  - platform: wifi_signal
+    id: wifi_signal_db
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: internal_temperature
+    id: esp32_temperature
+    name: "ESP32 Temperature"
+    update_interval: 60s
+    entity_category: diagnostic
+
   - platform: dallas_temp
     id: ow_bus_1_temperature
     one_wire_id: ow_bus_1
@@ -111,6 +133,44 @@ switch:
     name: "Relay"                       # Relay switch exposed to Home Assistant
     pin: 26
     id: relay1
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+text_sensor:
+  - platform: template
+    id: esp_uptime_human
+    name: "ESP Uptime Human"
+    entity_category: diagnostic
+    update_interval: 60s
+    lambda: |-
+      if (isnan(id(esp_uptime).state)) {
+        return {};
+      }
+      int total_seconds = (int) id(esp_uptime).state;
+      int days = total_seconds / 86400;
+      int hours = (total_seconds % 86400) / 3600;
+      if (days > 0) {
+        return {to_string(days) + "d " + to_string(hours) + "h"};
+      }
+      int minutes = (total_seconds % 3600) / 60;
+      if (hours > 0) {
+        return {to_string(hours) + "h " + to_string(minutes) + "m"};
+      }
+      return {to_string(minutes) + "m"};
+
+  - platform: version
+    id: esphome_version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
+  - platform: wifi_info
+    ip_address:
+      id: esp_ip_address
+      name: "ESP IP Address"
+      entity_category: diagnostic
 
 status_led:
   pin:
