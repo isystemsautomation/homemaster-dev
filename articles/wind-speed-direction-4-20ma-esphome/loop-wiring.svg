@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 440" width="920" height="440" role="img" aria-labelledby="t d">
+  <title id="t">Wiring a 4-20 mA loop-powered sensor into a 0-10 V analog input with a 470 ohm sense resistor</title>
+  <desc id="d">The 24 V supply feeds the loop-powered sensor; the sensor return passes through a 470 ohm sense resistor to 0 V. The AIO-422-R1 measures the voltage across the resistor between its analog input and analog ground. The supply 0 V and the module AGND are the same node.</desc>
+
+  <style>
+    .box   { fill:#f5f7fa; stroke:#33475b; stroke-width:2; }
+    .lbl   { font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; fill:#1b2733; font-weight:600; }
+    .sub   { font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12.5px; fill:#5a6b7b; }
+    .term  { font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12.5px; fill:#1b2733; font-weight:600; }
+    .note  { font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12.5px; fill:#33475b; }
+    .calc  { font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace; font-size:12.5px; fill:#1b2733; }
+    .wire  { fill:none; stroke:#1b2733; stroke-width:2.4; }
+    .wpos  { fill:none; stroke:#c0392b; stroke-width:2.4; }
+    .dash  { fill:none; stroke:#8a9aa9; stroke-width:1.4; stroke-dasharray:4 4; }
+  </style>
+
+  <!-- 24 V supply -->
+  <rect class="box" x="40" y="160" width="128" height="112" rx="4"/>
+  <text class="lbl" x="104" y="205" text-anchor="middle">24 V DC</text>
+  <text class="sub" x="104" y="225" text-anchor="middle">supply</text>
+  <text class="term" x="158" y="185" text-anchor="end">+</text>
+  <text class="term" x="158" y="266" text-anchor="end">0 V</text>
+
+  <!-- sensor -->
+  <rect class="box" x="300" y="40" width="268" height="82" rx="4"/>
+  <text class="lbl" x="434" y="72" text-anchor="middle">Wind sensor</text>
+  <text class="sub" x="434" y="94" text-anchor="middle">4–20 mA, 2-wire loop-powered</text>
+  <text class="term" x="310" y="112">+</text>
+  <text class="term" x="558" y="112" text-anchor="end">−</text>
+
+  <!-- AIO module -->
+  <rect class="box" x="700" y="142" width="180" height="158" rx="4"/>
+  <text class="lbl" x="790" y="200" text-anchor="middle">AIO-422-R1</text>
+  <text class="sub" x="790" y="222" text-anchor="middle">analog input</text>
+  <text class="sub" x="790" y="240" text-anchor="middle">0–10 V</text>
+  <text class="term" x="710" y="185">AIn</text>
+  <text class="term" x="710" y="290">AGND</text>
+
+  <!-- +24 V wire: supply + -> sensor + -->
+  <path class="wpos" d="M168 190 H 228 V 81 H 300"/>
+  <!-- sensor - -> node A -> AIn -->
+  <path class="wire" d="M568 81 H 630 V 190 H 700"/>
+  <!-- node B -> AGND -->
+  <path class="wire" d="M630 272 H 700"/>
+  <!-- node B -> back to supply 0 V -->
+  <path class="wire" d="M630 272 H 200 V 248 H 168"/>
+  <!-- resistor body -->
+  <line class="wire" x1="630" y1="190" x2="630" y2="208"/>
+  <rect x="616" y="208" width="28" height="56" rx="2" fill="#ffffff" stroke="#1b2733" stroke-width="2.4"/>
+  <line class="wire" x1="630" y1="264" x2="630" y2="272"/>
+
+  <!-- junction dots -->
+  <circle cx="630" cy="190" r="4.5" fill="#1b2733"/>
+  <circle cx="630" cy="272" r="4.5" fill="#1b2733"/>
+
+  <!-- resistor label -->
+  <text class="lbl" x="600" y="232" text-anchor="end">R = 470 Ω</text>
+  <text class="sub" x="600" y="250" text-anchor="end">1 % metal film</text>
+
+  <!-- loop current note -->
+  <path class="dash" d="M434 122 V 138"/>
+  <text class="note" x="434" y="158" text-anchor="middle">I = 4…20 mA, identical everywhere in the loop</text>
+
+  <!-- ground callout -->
+  <path class="dash" d="M630 300 V 336 H 470"/>
+  <text class="note" x="462" y="340" text-anchor="end">supply 0 V and AGND are one node</text>
+
+  <!-- bottom result strip -->
+  <line x1="40" y1="378" x2="880" y2="378" stroke="#d6dee6" stroke-width="1.5"/>
+  <text class="calc" x="40" y="404">4 mA × 470 Ω = 1.88 V</text>
+  <text class="calc" x="290" y="404">20 mA × 470 Ω = 9.40 V</text>
+  <text class="note" x="560" y="404">entire span inside the 0–10 V input, ~6 % headroom</text>
+</svg>
