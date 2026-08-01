@@ -51,7 +51,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - 1-Wire interface with ESD and overvoltage protection
 - PCF8563 RTC for time-based automation
 - One industrial-grade relay with varistor and opto-isolation
-- One 24 V digital input with surge protection (ISO1212)
+- One 24 V digital input on **GPIO36** with surge protection (ISO1212)
 - Four front-panel buttons and status LEDs
 - DIN-rail mounting for standard control cabinets
 - **24 V DC only** field supply (plus USB-C for programming) — no AC mains input
@@ -200,7 +200,7 @@ possible via ESPHome OTA or USB.
 | Power Supply | **24 V DC only** via terminal (field); 5 V via USB-C (programming) |
 | Onboard expansion | **No Ethernet**, **no microSD** (unlike MiniPLC) |
 | Relay Output | 1× SPDT relay (HF115F/005-1ZS3); 3 A @ 250 VAC module limit (relay component rated higher) |
-| Digital Input | 1× 24 V DI (ISO1212-based) |
+| Digital Input | 1× 24 V DI on **GPIO36** (ISO1212-based) |
 | Communication | RS-485 Modbus RTU (MAX485, half-duplex, non-isolated), Wi-Fi, Bluetooth, USB-C |
 | RTC | PCF8563 |
 | 1-Wire | 1 channel (ESD/OVP protected) |

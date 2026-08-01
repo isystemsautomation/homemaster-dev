@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
 
-### v1.3.0 — current
+### v1.3.1 — current
+
+- Added the onboard **24 V digital input** as `DI #1` (**GPIO36**); the input existed in hardware from v1.0.0 but was never exposed as an entity.
+- RS-485 UART aligned with MiniPLC: id renamed `mod_uart` → **`uart_modbus`**, matching the wiring example in every module README, and pins written as `GPIO17`/`GPIO16`.
+- **UART baud rate corrected from 115200 to 19200** — the HomeMaster module bus runs at 19200, so the previous value prevented the factory firmware from communicating with any expansion module.
+
+### v1.3.0
 
 - Project version bumped from 1.2.0 to **1.3.0**.
 - Declared `flash_size: 16MB` (and `variant: esp32`) so ESPHome builds a partition table that matches the hardware; units already in the field need a full USB flash with erase before OTA can use the new layout.
