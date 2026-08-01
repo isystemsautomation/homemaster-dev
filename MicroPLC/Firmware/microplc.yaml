@@ -9,7 +9,9 @@ esphome:
     version: "1.2.0"
 
 esp32:
+  variant: esp32
   board: esp32dev                       # Target board type (generic ESP32 DevKit)
+  flash_size: 16MB
   framework:
     type: esp-idf                       # Use ESP-IDF (official Espressif framework)
     version: recommended                # Recommended stable version
