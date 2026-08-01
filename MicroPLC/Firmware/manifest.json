@@ -6,7 +6,7 @@
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
-        "md5": "3c1acd73bf3728ce3ee15992ff7f446a",
+        "md5": "3473cbfceead7a7d56fbc4d6f7ed8699",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
         "summary": "Version 1.2.0 — remove Wi-Fi fallback AP and captive_portal (RED Art. 3(3)(d) / EN 18031-1)"
       }
