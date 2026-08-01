@@ -192,6 +192,16 @@ possible via ESPHome OTA or USB.
 |---|---|
 | PCF8563 | `0x51` |
 
+### RS-485 UART
+
+ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` blocks to this UART (same pattern as every HomeMaster module README).
+
+| Item | Value |
+|---|---|
+| TX | GPIO17 |
+| RX | GPIO16 |
+| Baud rate | **19200** |
+
 ## Specifications
 
 | Feature | Details |
