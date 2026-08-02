@@ -6,7 +6,7 @@
       "chipFamily": "ESP32",
       "ota": {
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
-        "md5": "04730a5a67f9cb5024fd23db3c653329",
+        "md5": "bdffd4e26cc9bdf7c59346435d7b8b06",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
         "summary": "Version 1.3.1 \u2014 DI #1, UART 19200, diagnostics, Restart, mbedTLS 4 KB SSL buffers for OTA"
       }
