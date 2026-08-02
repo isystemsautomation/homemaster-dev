@@ -9,7 +9,7 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder a
 - **UART baud rate corrected from 115200 to 19200** — the HomeMaster module bus runs at 19200, so the previous value prevented the factory firmware from communicating with any expansion module.
 - Added diagnostic entities matching OpenthermGateway: **ESP Status**, **WiFi Signal**, **ESP32 Temperature**, **ESP Uptime Human**, **ESPHome Version** and **ESP IP Address**, all under the diagnostic entity category.
 - Added a **Restart** button (reboot only; no settings are cleared).
-- Replaced the full x509 certificate bundle with a single embedded root CA (`ca_certificate_path`), fixing `mbedtls_ssl_setup` allocation failures that prevented the OTA update check on controllers running several Modbus packages. Certificate verification remains enabled.
+- Reduced mbedTLS SSL I/O buffers to **4 KB** and enabled dynamic buffer allocation, fixing `mbedtls_ssl_setup` (`MBEDTLS_ERR_SSL_ALLOC_FAILED`) that prevented the OTA update check on controllers running several Modbus packages. Certificate verification remains enabled.
 
 ### v1.3.0
 
