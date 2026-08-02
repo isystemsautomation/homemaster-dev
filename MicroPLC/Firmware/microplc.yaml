@@ -15,6 +15,11 @@ esp32:
   framework:
     type: esp-idf                       # Use ESP-IDF (official Espressif framework)
     version: recommended                # Recommended stable version
+    sdkconfig_options:
+      # ESPHome 2026.7 still embeds the Mozilla CMN x509 bundle even when
+      # http_request.ca_certificate_path is set. Drop it so only ca.pem is
+      # trusted and mbedTLS SSL setup memory stays small enough for OTA.
+      CONFIG_MBEDTLS_CERTIFICATE_BUNDLE: n
 
 logger:
   baud_rate: 115200                     # Serial logging baud rate
@@ -32,6 +37,7 @@ provisioning:
       - logger.log: "Provisioning window closed. Power-cycle the device to reopen it."
 
 http_request:
+  ca_certificate_path: ca.pem
 
 ota:
   - platform: esphome
