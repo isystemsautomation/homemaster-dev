@@ -15,18 +15,6 @@ esp32:
   framework:
     type: esp-idf                       # Use ESP-IDF (official Espressif framework)
     version: recommended                # Recommended stable version
-    advanced:
-      sram1_as_iram: true
-    sdkconfig_options:
-      # Shrink mbedTLS I/O buffers (default 16 KB each) so mbedtls_ssl_setup
-      # can allocate under Modbus-heavy heap fragmentation. 4 KB is enough for
-      # the OTA manifest; raise to 8192 if the firmware download itself fails.
-      CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN: "4096"
-      CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN: "4096"
-      CONFIG_MBEDTLS_DYNAMIC_BUFFER: y
-      # Parent of DYNAMIC_FREE_CA_CERT (ESP-IDF 5.5 Kconfig dependency).
-      CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA: y
-      CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT: y
 
 logger:
   baud_rate: 115200                     # Serial logging baud rate
