@@ -1,5 +1,7 @@
 # HomeMaster OpenTherm Gateway
 
+<a href="https://devices.esphome.io/devices/homemaster-openthermgateway/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
+
 ![Device](./Images/opentherm.png)
 
 **Part No.:** OTGW-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
