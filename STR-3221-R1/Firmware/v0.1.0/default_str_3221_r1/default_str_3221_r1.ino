@@ -15,24 +15,25 @@
  * Holding registers (FC=03/06/16):
  *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
  *   480       Modbus slave address (R/W)
- *   481       Modbus baud rate (R/W, whitelist 9600..115200; хранится сырым значением,
- *             115200 не представим в uint16 -> читается как 0, ставится только через WebConfig)
+ *   481       Modbus baud rate (R/W, whitelist 9600..115200)
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
  *
  * GPIO (STR MCU board schematic — not README §8.3):
  *   UART TX/RX  GPIO4/5   RS-485 via MAX485 (DE/RE auto, TxenPin=-1)
- *   I2C SDA/SCL GPIO6/7   4× TLC59208F @ 0x40..0x43 (U9..U12)
- *   LED2/LED1   GPIO8/9   status LEDs
- *   IO2/IO1/IO3 GPIO10/11/12  isolated digital inputs
- *   BUTTON1..4  GPIO16..19  active-LOW, INPUT_PULLUP
+ *   I2C SDA/SCL GPIO6/7 (Wire1 / I2C1)   4× TLC59208F (U9..U12)
+ *   LED2/LED1   GPIO8/9   onboard indicators (not front-panel O.1..O32 — those follow TLC PWM)
+ *   Field inputs (Modbus DI1..3):
+ *     DI1 / DI     GPIO11  ISO1212 24 V — idle 0 V, active 3 V (HIGH)
+ *     DI2 / SENS.B GPIO12  SFH6156 U17 — idle 3 V, active 0 V (LOW)
+ *     DI3 / SENS.A GPIO10  SFH6156 U18 — idle 3 V, active 0 V (LOW)
+ *   BUTTON1..4  GPIO16..19  active-HIGH via CD4069 (INPUT, pressed=HIGH)
  *
- * TLC59208F channel map (strap A2:A1:A0):
- *   U9  0x40  O1..O8
- *   U10 0x41  O9..O16
- *   U11 0x42  O17..O24
- *   U12 0x43  O25..O32
+ * TLC59208F address map (TI datasheet Table 1):
+ *   Strap GND/VCC on A2:A1:A0 → 0x40, 0x42, 0x44, 0x46 (U9..U12 typical)
+ *   Strap GND/SCL/SDA on A2:A1:A0 → 0x20..0x3E range (A1=SCL on bus)
+ *   Runtime auto-bind from I2C scan (prefers block 0x20..0x23 if present)
  */
 
 #include <Arduino.h>
@@ -44,6 +45,7 @@
 #define HM_FW_MINOR   1
 #define HM_FW_PATCH   0
 #define HM_FW         "0.1.0"
+#define HM_MAP        1
 #define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
@@ -51,7 +53,8 @@
 #include <utility>
 #include "hardware/watchdog.h"
 
-struct PersistConfig;  // forward decl for Arduino auto-prototypes
+// Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
+struct PersistConfig;
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -61,9 +64,10 @@ int SlaveId = 1;
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (STR MCU board) ==================
-#define PIN_IO1   11
-#define PIN_IO2   10
-#define PIN_IO3   12
+// Modbus DI1=GPIO11 ISO1212, DI2=GPIO12 SENS.B, DI3=GPIO10 SENS.A.
+#define PIN_DI      11
+#define PIN_SENS_B  12
+#define PIN_SENS_A  10
 #define PIN_LED1  9
 #define PIN_LED2  8
 #define PIN_BTN1  16
@@ -73,7 +77,8 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 #define PIN_I2C_SDA 6
 #define PIN_I2C_SCL 7
 
-static const uint8_t DI_PINS[3]  = {PIN_IO1, PIN_IO2, PIN_IO3};
+static const uint8_t DI_PINS[3]  = { PIN_DI, PIN_SENS_B, PIN_SENS_A };
+static const bool    DI_ACTIVE_HIGH[3] = { true, false, false };
 static const uint8_t LED_PINS[2] = {PIN_LED1, PIN_LED2};
 static const uint8_t BTN_PINS[4] = {PIN_BTN1, PIN_BTN2, PIN_BTN3, PIN_BTN4};
 
@@ -83,15 +88,29 @@ static const uint8_t NUM_BTN  = 4;
 static const uint8_t NUM_PWM  = 32;
 
 // ================== TLC59208F ==================
-static const uint8_t TLC_ADDR[4] = {0x40, 0x41, 0x42, 0x43};
-static const uint8_t TLC_REG_MODE1  = 0x00;
-static const uint8_t TLC_REG_MODE2  = 0x01;
-static const uint8_t TLC_REG_PWM0   = 0x02;
-static const uint8_t TLC_REG_LEDOUT = 0x0C;
+static const uint8_t TLC_ADDR_DEFAULT[4] = {0x40, 0x42, 0x44, 0x46};
+static const uint8_t TLC_ADDR_SCL_BLOCK[4] = {0x20, 0x21, 0x22, 0x23};
+static uint8_t tlcAddrActive[4] = {0x40, 0x42, 0x44, 0x46};
+static const uint8_t TLC_ADDR_BIND_MIN = 0x20;
+static const uint8_t TLC_ADDR_BIND_MAX = 0x5E;
+static const uint8_t I2C_SCAN_MIN = 0x08;
+static const uint8_t I2C_SCAN_MAX = 0x77;
+static const uint8_t I2C_FOUND_MAX = 24;
+
+static uint8_t i2cFound[I2C_FOUND_MAX];
+static uint8_t i2cFoundCount = 0;
+static const uint8_t TLC_REG_MODE1   = 0x00;
+static const uint8_t TLC_REG_MODE2   = 0x01;
+static const uint8_t TLC_REG_PWM0    = 0x02;
+static const uint8_t TLC_REG_LEDOUT0 = 0x0C;
+static const uint8_t TLC_REG_LEDOUT1 = 0x0D;
 static const uint8_t TLC_LEDOUT_INDIVIDUAL_PWM = 0xAA;
 
 static uint8_t tlcApplied[NUM_PWM];
+static bool    tlcChipOk[4] = {false, false, false, false};
 static bool    tlcReady = false;
+static uint32_t tlcNextRetryMs = 0;
+static const uint32_t TLC_RETRY_MS = 5000;
 
 // ================== Config & runtime ==================
 struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; };
@@ -112,8 +131,8 @@ uint16_t pwmLevel[NUM_PWM];
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 
-static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
-static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const char* msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -125,8 +144,8 @@ uint32_t g_identifyUntilMs = 0;
 const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persisted Modbus settings ==================
-uint8_t  g_mb_address = 3;
-uint32_t g_mb_baud    = 19200;
+uint8_t  g_mb_address = 21;
+uint32_t g_mb_baud    = 115200;
 
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
@@ -143,7 +162,10 @@ struct PersistConfig {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x53545231UL; // '1RTS'
-static const uint16_t CFG_VERSION = 0x0001;
+static const uint16_t CFG_VERSION = 0x0003;
+
+// MCU board: CD4069 inverts button signals — pressed reads HIGH (same as ENM/WLD/DIM).
+static constexpr bool BUTTON_PRESSED_LOW = false;
 static const char*    CFG_PATH    = "/cfg_str.bin";
 
 volatile bool   cfgDirty        = false;
@@ -178,40 +200,277 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
   -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
 inline void setSlaveIdIfAvailable(...) {}
 
+static const uint8_t TLC_SWRST_ADDR = 0x96;
+static const uint32_t I2C_TIMEOUT_MS = 25;
+
+static TwoWire* tlcWire = &Wire1;
+static bool tlcWireStarted = false;
+
 // ================== TLC59208F driver ==================
+static uint8_t i2cProbeErr(uint8_t addr) {
+  tlcWire->beginTransmission(addr);
+  return tlcWire->endTransmission();
+}
+
+static bool i2cProbe(uint8_t addr) {
+  return i2cProbeErr(addr) == 0;
+}
+
+static void tlcWireBegin() {
+  if (!tlcWireStarted) {
+    pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+    pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+    Wire1.setSDA(PIN_I2C_SDA);
+    Wire1.setSCL(PIN_I2C_SCL);
+    Wire1.begin();
+    Wire1.setTimeout(I2C_TIMEOUT_MS);
+    Wire1.setClock(100000);
+    tlcWire = &Wire1;
+    tlcWireStarted = true;
+    delay(2);
+  }
+}
+
+static void tlcSoftwareReset() {
+  tlcWire->beginTransmission(TLC_SWRST_ADDR);
+  tlcWire->write(0xA5);
+  tlcWire->write(0x5A);
+  tlcWire->endTransmission();
+  delay(2);
+}
+
 static bool tlcWriteReg(uint8_t addr, uint8_t reg, uint8_t val) {
-  Wire.beginTransmission(addr);
-  Wire.write(reg);
-  Wire.write(val);
-  return Wire.endTransmission() == 0;
+  tlcWire->beginTransmission(addr);
+  tlcWire->write(reg);
+  tlcWire->write(val);
+  return tlcWire->endTransmission() == 0;
+}
+
+static bool tlcReadReg(uint8_t addr, uint8_t reg, uint8_t* val) {
+  tlcWire->beginTransmission(addr);
+  tlcWire->write(reg);
+  if (tlcWire->endTransmission(false) != 0) return false;
+  if (tlcWire->requestFrom(addr, (uint8_t)1) != 1) return false;
+  *val = tlcWire->read();
+  return true;
+}
+
+static void tlcLoadDefaultAddrs() {
+  for (uint8_t i = 0; i < 4; i++) tlcAddrActive[i] = TLC_ADDR_DEFAULT[i];
+}
+
+static bool i2cFoundHas(uint8_t addr) {
+  for (uint8_t i = 0; i < i2cFoundCount; i++) {
+    if (i2cFound[i] == addr) return true;
+  }
+  return false;
+}
+
+static bool i2cFoundHasAll(const uint8_t* addrs, uint8_t count) {
+  for (uint8_t i = 0; i < count; i++) {
+    if (!i2cFoundHas(addrs[i])) return false;
+  }
+  return true;
+}
+
+static void tlcSetAddrs(const uint8_t* addrs, uint8_t count) {
+  tlcLoadDefaultAddrs();
+  const uint8_t use = (count > 4) ? 4 : count;
+  for (uint8_t i = 0; i < use; i++) tlcAddrActive[i] = addrs[i];
+}
+
+static bool tlcVerifyChip(uint8_t addr) {
+  if (!i2cProbe(addr)) return false;
+  if (!tlcWriteReg(addr, TLC_REG_MODE1, 0x01)) return false; // clear SLEEP
+  delayMicroseconds(500);
+  uint8_t mode1 = 0;
+  if (!tlcReadReg(addr, TLC_REG_MODE1, &mode1)) return false;
+  return (mode1 & 0x10) == 0;
+}
+
+static uint8_t i2cBusScan(uint8_t start, uint8_t end) {
+  i2cFoundCount = 0;
+  String found = "I2C bus scan:";
+  uint8_t n = 0;
+  for (uint8_t a = start; a <= end; a++) {
+    if (i2cProbe(a)) {
+      if (i2cFoundCount < I2C_FOUND_MAX) i2cFound[i2cFoundCount++] = a;
+      if (n == 0) found += " found";
+      found += " 0x";
+      if (a < 0x10) found += "0";
+      found += String(a, HEX);
+      n++;
+    }
+    if ((a & 0x0F) == 0x0F) {
+      yield();
+      hmWatchdogFeed();
+    }
+  }
+  if (n == 0) {
+    found += " (none; SDA=";
+    found += digitalRead(PIN_I2C_SDA) ? "H" : "L";
+    found += " SCL=";
+    found += digitalRead(PIN_I2C_SCL) ? "H" : "L";
+    found += ")";
+  }
+  wsLog(found);
+  return n;
+}
+
+static uint8_t tlcBindFromScan() {
+  if (i2cFoundHasAll(TLC_ADDR_SCL_BLOCK, 4)) {
+    tlcSetAddrs(TLC_ADDR_SCL_BLOCK, 4);
+    wsLog("TLC bind: block 0x20 0x21 0x22 0x23 (A1=SCL strap range)");
+    return 4;
+  }
+  if (i2cFoundHasAll(TLC_ADDR_DEFAULT, 4)) {
+    tlcSetAddrs(TLC_ADDR_DEFAULT, 4);
+    wsLog("TLC bind: block 0x40 0x42 0x44 0x46 (GND/VCC strap range)");
+    return 4;
+  }
+
+  uint8_t candidates[8];
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < i2cFoundCount && n < 8; i++) {
+    const uint8_t a = i2cFound[i];
+    if (a < TLC_ADDR_BIND_MIN || a > TLC_ADDR_BIND_MAX) continue;
+    if (a == TLC_SWRST_ADDR) continue;
+    candidates[n++] = a;
+  }
+  for (uint8_t i = 0; i + 1 < n; i++) {
+    for (uint8_t j = i + 1; j < n; j++) {
+      if (candidates[j] < candidates[i]) {
+        const uint8_t t = candidates[i];
+        candidates[i] = candidates[j];
+        candidates[j] = t;
+      }
+    }
+  }
+
+  uint8_t verified[4];
+  uint8_t v = 0;
+  for (uint8_t i = 0; i < n && v < 4; i++) {
+    if (tlcVerifyChip(candidates[i])) verified[v++] = candidates[i];
+    yield();
+    hmWatchdogFeed();
+  }
+  if (v >= 1) {
+    tlcSetAddrs(verified, v);
+    String msg = "TLC bind (verified):";
+    for (uint8_t i = 0; i < v; i++) {
+      msg += " 0x";
+      if (tlcAddrActive[i] < 0x10) msg += "0";
+      msg += String(tlcAddrActive[i], HEX);
+    }
+    wsLog(msg);
+    return v;
+  }
+
+  if (n >= 4) {
+    tlcSetAddrs(candidates, 4);
+    String msg = "TLC bind (unverified, first 4 in 0x20..0x5E):";
+    for (uint8_t i = 0; i < 4; i++) {
+      msg += " 0x";
+      if (tlcAddrActive[i] < 0x10) msg += "0";
+      msg += String(tlcAddrActive[i], HEX);
+    }
+    wsLog(msg);
+    return 4;
+  }
+
+  tlcLoadDefaultAddrs();
+  wsLog("TLC bind: no 4-chip block, using defaults 0x40 0x42 0x44 0x46");
+  return 0;
+}
+
+static void i2cScanLog() {
+  i2cBusScan(I2C_SCAN_MIN, I2C_SCAN_MAX);
+  tlcBindFromScan();
 }
 
 static bool tlcWritePwm(uint8_t chipIdx, uint8_t ch, uint8_t val) {
-  if (chipIdx >= 4 || ch >= 8) return false;
-  return tlcWriteReg(TLC_ADDR[chipIdx], TLC_REG_PWM0 + ch, val);
+  if (chipIdx >= 4 || ch >= 8 || !tlcChipOk[chipIdx]) return false;
+  return tlcWriteReg(tlcAddrActive[chipIdx], TLC_REG_PWM0 + ch, val);
 }
 
-static bool tlcInitChip(uint8_t addr) {
+static bool tlcInitChip(uint8_t chipIdx, uint8_t addr) {
+  tlcChipOk[chipIdx] = false;
+  if (!i2cProbe(addr)) return false;
   if (!tlcWriteReg(addr, TLC_REG_MODE1, 0x00)) return false;
   if (!tlcWriteReg(addr, TLC_REG_MODE2, 0x00)) return false;
-  if (!tlcWriteReg(addr, TLC_REG_LEDOUT, TLC_LEDOUT_INDIVIDUAL_PWM)) return false;
+  if (!tlcWriteReg(addr, TLC_REG_LEDOUT0, TLC_LEDOUT_INDIVIDUAL_PWM)) return false;
+  if (!tlcWriteReg(addr, TLC_REG_LEDOUT1, TLC_LEDOUT_INDIVIDUAL_PWM)) return false;
+  delayMicroseconds(500);
   for (uint8_t ch = 0; ch < 8; ch++) {
     if (!tlcWriteReg(addr, TLC_REG_PWM0 + ch, 0)) return false;
+    yield();
   }
+  tlcChipOk[chipIdx] = true;
   return true;
 }
 
-static bool tlcInitAll() {
-  Wire.setSDA(PIN_I2C_SDA);
-  Wire.setSCL(PIN_I2C_SCL);
-  Wire.begin();
-  Wire.setClock(400000);
-  for (uint8_t i = 0; i < 4; i++) {
-    if (!tlcInitChip(TLC_ADDR[i])) return false;
+static bool tlcInitAll(bool fullScan) {
+  tlcWireBegin();
+  if (fullScan) {
+    i2cScanLog();
+  } else {
+    String found = "I2C quick:";
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < 4; i++) {
+      const uint8_t addr = tlcAddrActive[i];
+      if (i2cProbe(addr)) {
+        if (n == 0) found += " ";
+        found += "0x";
+        if (addr < 0x10) found += "0";
+        found += String(addr, HEX);
+        n++;
+      }
+      yield();
+      hmWatchdogFeed();
+    }
+    if (n == 0) {
+      found += " (none @ bound addrs)";
+      wsLog(found);
+    }
   }
+
+  bool anyTlc = false;
+  for (uint8_t i = 0; i < 4; i++) {
+    if (i2cProbe(tlcAddrActive[i])) { anyTlc = true; break; }
+    yield();
+    hmWatchdogFeed();
+  }
+  if (anyTlc && i2cFoundHasAll(TLC_ADDR_SCL_BLOCK, 4)) tlcSoftwareReset();
+
+  uint8_t chipsOk = 0;
+  for (uint8_t i = 0; i < 4; i++) {
+    if (tlcInitChip(i, tlcAddrActive[i])) chipsOk++;
+    yield();
+    hmWatchdogFeed();
+  }
+  tlcReady = (chipsOk > 0);
+  if (!tlcReady) return false;
+  Wire1.setClock(400000);
   for (uint8_t i = 0; i < NUM_PWM; i++) tlcApplied[i] = 0xFF;
-  tlcReady = true;
+  if (chipsOk < 4) {
+    wsLog(String("TLC59208F: ") + chipsOk + "/4 chips OK");
+  } else {
+    wsLog("TLC59208F: 4/4 chips OK");
+  }
+  applyAllPwmLevels();
   return true;
+}
+
+static bool readDiHardware(uint8_t idx) {
+  if (idx >= NUM_DI) return false;
+  const bool pinHigh = (digitalRead(DI_PINS[idx]) == HIGH);
+  return DI_ACTIVE_HIGH[idx] ? pinHigh : !pinHigh;
+}
+
+static bool diLiveState(uint8_t mbIdx) {
+  bool val = readDiHardware(mbIdx);
+  if (diCfg[mbIdx].inverted) val = !val;
+  return val;
 }
 
 static void applyPwmChannel(uint8_t idx, uint16_t val) {
@@ -219,10 +478,11 @@ static void applyPwmChannel(uint8_t idx, uint16_t val) {
   if (val > 255) val = 255;
   const uint8_t v = (uint8_t)val;
   pwmLevel[idx] = val;
-  if (!tlcReady) return;
+  const uint8_t chipIdx = idx / 8;
+  if (!tlcReady || !tlcChipOk[chipIdx]) return;
   if (tlcApplied[idx] == v) return;
   tlcApplied[idx] = v;
-  tlcWritePwm(idx / 8, idx % 8, v);
+  tlcWritePwm(chipIdx, idx % 8, v);
 }
 
 static void applyPwmFromHoldingRegs() {
@@ -242,8 +502,8 @@ void setDefaults() {
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = {0, 0};
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = {0};
   for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = 0;
-  g_mb_address = 3;
-  g_mb_baud    = 19200;
+  g_mb_address = 21;
+  g_mb_baud = 115200;
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -334,10 +594,12 @@ void markCfgDirty();
 bool initFilesystemAndConfig() {
   if (!LittleFS.begin()) {
     wsLog("LittleFS mount failed. Formatting…");
+    yield();
     if (!LittleFS.format() || !LittleFS.begin()) {
       wsLog("FATAL: FS mount/format failed");
       return false;
     }
+    yield();
   }
 
   if (loadConfigFS()) {
@@ -353,10 +615,12 @@ bool initFilesystemAndConfig() {
   }
 
   wsLog("First save failed. Formatting FS…");
+  yield();
   if (!LittleFS.format() || !LittleFS.begin()) {
     wsLog("FATAL: FS format failed");
     return false;
   }
+  yield();
 
   setDefaults();
   if (saveConfigFS()) {
@@ -381,7 +645,7 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr;
   g_mb_baud = baud;
   mb.Hreg(HR_MB_ADDR, g_mb_address);
-  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
+  mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
 }
 
 void handleValues(JSONVar values) {
@@ -399,6 +663,7 @@ void handleValues(JSONVar values) {
       mb.Hreg(HR_PWM_BASE + i, v);
       applyPwmChannel(i, v);
     }
+    markCfgDirty();
   }
 
   wsLog("Modbus configuration updated");
@@ -445,12 +710,17 @@ void handleCommand(JSONVar obj) {
   } else if (act == "identify") {
     g_identifyUntilMs = millis() + IDENTIFY_MS;
     wsLog("Identify: status LEDs active for 5 s");
+  } else if (act == "i2c_scan" || act == "i2cscan") {
+    tlcWireBegin();
+    i2cScanLog();
+    if (!tlcInitAll(true)) wsLog("TLC init still failed after I2C scan");
   } else if (act == "off") {
     for (int i = 0; i < NUM_PWM; i++) {
       pwmLevel[i] = 0;
       mb.Hreg(HR_PWM_BASE + i, 0);
       applyPwmChannel(i, 0);
     }
+    markCfgDirty();
     wsLog("All output channels set to 0");
   } else {
     wsLog(String("Unknown command: ") + actC);
@@ -466,17 +736,18 @@ void handleUnifiedConfig(JSONVar obj) {
   bool changed = false;
 
   if (type == "in.enabled" || type == "inputEnable") {
-    for (int i = 0; i < NUM_DI && i < list.length(); i++) diCfg[i].enabled = (bool)list[i];
+    for (int i = 0; i < NUM_DI && i < list.length(); i++)
+      diCfg[i].enabled = (bool)list[i];
     wsLog("Input Enabled list updated");
     changed = true;
   } else if (type == "in.invert" || type == "inputInvert") {
-    for (int i = 0; i < NUM_DI && i < list.length(); i++) diCfg[i].inverted = (bool)list[i];
+    for (int i = 0; i < NUM_DI && i < list.length(); i++)
+      diCfg[i].inverted = (bool)list[i];
     wsLog("Input Invert list updated");
     changed = true;
   } else if (type == "in.action" || type == "inputAction") {
-    for (int i = 0; i < NUM_DI && i < list.length(); i++) {
+    for (int i = 0; i < NUM_DI && i < list.length(); i++)
       diCfg[i].action = (uint8_t)constrain((int)list[i], 0, 2);
-    }
     wsLog("Input Action list updated");
     changed = true;
   } else if (type == "in.target" || type == "inputTarget") {
@@ -512,7 +783,7 @@ void handleUnifiedConfig(JSONVar obj) {
       applyPwmChannel(i, v);
     }
     wsLog("Output levels updated");
-    sendWebCfg();               // без markCfgDirty(): яркости не персистим автоматически
+    changed = true;
   } else {
     wsLog(String("Unknown Config type: ") + t);
   }
@@ -549,9 +820,9 @@ inline void markCfgDirty() {
 }
 
 bool ledSourceActive(uint8_t source) {
-  if (source >= 10 && source <= 12) {
-    const int idx = source - 10;
-    if (idx >= 0 && idx < NUM_DI) return diState[idx];
+  if (source == 0) return false;
+  for (uint8_t i = 0; i < NUM_DI; i++) {
+    if (DI_PINS[i] == source) return diState[i];
   }
   return false;
 }
@@ -560,11 +831,10 @@ void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
-  st["map"]   = HM_MAP_VERSION;
+  st["map"]   = HM_MAP;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   WebSerial.send("status", st);
-  hmWatchdogFeed();
 }
 
 void sendWebCfg() {
@@ -582,7 +852,6 @@ void sendWebCfg() {
   }
   for (int i = 0; i < NUM_PWM; i++) cfg["ext"]["pwm"][i] = (int)pwmLevel[i];
   WebSerial.send("cfg", cfg);
-  hmWatchdogFeed();
 }
 
 void sendWebBootstrap() {
@@ -593,20 +862,24 @@ void sendWebBootstrap() {
 // ================== Setup ==================
 void setup() {
   Serial.begin(57600);
-  // 32-channel ext telemetry can fill the CDC TX buffer; waiting on flow control
-  // for multiple large packets exceeds the 4 s watchdog and reboots mid-Connect.
-  Serial.ignoreFlowControl(true);
 
   for (uint8_t i = 0; i < NUM_DI; i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i = 0; i < NUM_LED; i++) {
     pinMode(LED_PINS[i], OUTPUT);
     digitalWrite(LED_PINS[i], LOW);
   }
-  for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
+  for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT); // HIGH=pressed (CD4069)
+
+  WebSerial.on("values", handleValues);
+  WebSerial.on("Config", handleUnifiedConfig);
+  WebSerial.on("command", handleCommand);
+  for (uint8_t i = 0; i < 20; i++) {
+    yield();
+    delay(5);
+  }
 
   setDefaults();
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
-  if (!tlcInitAll()) wsLog("FATAL: TLC59208F init failed");
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
@@ -631,23 +904,37 @@ void setup() {
   mb.addHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD);
-  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
+  mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
-  WebSerial.on("values", handleValues);
-  WebSerial.on("Config", handleUnifiedConfig);
-  WebSerial.on("command", handleCommand);
-
-  wsLog("Boot OK (STR-3221-R1: 32ch TLC59208F @ HR400..431; IO1..IO3 @ DI1..3; buttons @ DI20..23)");
+  wsLog("Boot OK");
   sendWebBootstrap();
-  applyAllPwmLevels();
   hmWatchdogArm(4000);
+
+  tlcNextRetryMs = millis() + 300;
 }
 
 // ================== Main loop ==================
 void loop() {
   hmWatchdogFeed();
+  WebSerial.check();
+  yield();
+
+  if (!tlcReady && (int32_t)(millis() - tlcNextRetryMs) >= 0) {
+    tlcNextRetryMs = millis() + TLC_RETRY_MS;
+    static uint8_t tlcRetryLog = 0;
+    const bool fullScan = ((tlcRetryLog % 6) == 0);
+    if (!tlcInitAll(fullScan)) {
+      if (fullScan) {
+        wsLog("WARNING: TLC59208F still offline (retry every 5s, full I2C scan every 30s)");
+      }
+      tlcRetryLog++;
+    } else {
+      tlcRetryLog = 0;
+    }
+  }
+
   const uint32_t now = millis();
 
   mb.task();
@@ -668,7 +955,8 @@ void loop() {
     }
   }
   if (pwmChanged) {
-    applyPwmFromHoldingRegs();   // яркости не персистим: сохранение только по команде save/reset/factory
+    applyPwmFromHoldingRegs();
+    markCfgDirty();
   }
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
@@ -683,26 +971,51 @@ void loop() {
   }
 
   for (int i = 0; i < NUM_BTN; i++) {
-    const bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
+    const bool pressed = BUTTON_PRESSED_LOW
+      ? (digitalRead(BTN_PINS[i]) == LOW)
+      : (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i] = buttonState[i];
     buttonState[i] = pressed;
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
-  JSONVar inputs;
+  static int8_t prevIoIn[NUM_DI];
+  static bool prevIoInit = false;
+  if (!prevIoInit) {
+    for (int i = 0; i < NUM_DI; i++) prevIoIn[i] = -1;
+    prevIoInit = true;
+  }
+
+  for (int m = 0; m < NUM_DI; m++) {
+    const bool val = diLiveState(m);
+    const bool logical = diCfg[m].enabled ? val : false;
+    diPrev[m] = diState[m];
+    diState[m] = logical;
+    mb.setIsts(ISTS_DI_BASE + m, logical);
+  }
+
+  bool diUiChanged = false;
   for (int i = 0; i < NUM_DI; i++) {
-    bool val = false;
-    if (diCfg[i].enabled) {
-      val = (digitalRead(DI_PINS[i]) == HIGH);
-      if (diCfg[i].inverted) val = !val;
+    const int iv = diLiveState(i) ? 1 : 0;
+    if (prevIoIn[i] != iv) {
+      prevIoIn[i] = iv;
+      diUiChanged = true;
     }
-    diPrev[i] = diState[i];
-    diState[i] = val;
-    inputs[i] = val ? 1 : 0;
-    mb.setIsts(ISTS_DI_BASE + i, val);
   }
 
   const bool identifying = (int32_t)(g_identifyUntilMs - now) > 0;
+  static bool prevIdentifying = false;
+  if (identifying && tlcReady && tlcChipOk[0]) {
+    const uint8_t pulse = blinkPhase ? 200 : 0;
+    for (uint8_t i = 0; i < 8; i++) {
+      tlcWritePwm(0, i, pulse);
+      tlcApplied[i] = pulse;
+    }
+  } else if (prevIdentifying && tlcReady && tlcChipOk[0]) {
+    for (uint8_t i = 0; i < 8; i++) tlcApplied[i] = 0xFF;
+    for (uint8_t i = 0; i < 8; i++) applyPwmChannel(i, pwmLevel[i]);
+  }
+  prevIdentifying = identifying;
 
   JSONVar ledStates;
   for (int i = 0; i < NUM_LED; i++) {
@@ -718,29 +1031,30 @@ void loop() {
     mb.setIsts(ISTS_LED_BASE + i, phys);
   }
 
-  if (millis() - lastSend >= sendInterval) {
+  if (diUiChanged || (millis() - lastSend >= sendInterval)) {
     lastSend = millis();
     WebSerial.check();
-    hmWatchdogFeed();
+
+    sendWebStatus();
+
+    JSONVar inArr;
+    for (int i = 0; i < NUM_DI; i++) inArr[i] = diLiveState(i) ? 1 : 0;
+    JSONVar io;
+    io["in"] = inArr;
+    JSONVar btnArr;
+    for (int i = 0; i < NUM_BTN; i++) btnArr[i] = buttonState[i] ? 1 : 0;
+    io["btn"] = btnArr;
+    JSONVar ledArr;
+    for (int i = 0; i < NUM_LED; i++) ledArr[i] = ledStates[i];
+    io["led"] = ledArr;
+    WebSerial.send("io", io);
+
     if (hmUsbCanSend()) {
-      sendWebStatus();
-
-      JSONVar io;
-      for (int i = 0; i < NUM_DI; i++) io["in"][i] = inputs[i];
-      for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
-      for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledStates[i];
-      WebSerial.send("io", io);
-      hmWatchdogFeed();
-
-      // PWM snapshot is large — send at 1 Hz so Connect/handshake is not starved.
-      static uint32_t lastExtMs = 0;
-      if (now - lastExtMs >= 1000) {
-        lastExtMs = now;
-        JSONVar ext;
-        for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmLevel[i];
-        WebSerial.send("ext", ext);
-        hmWatchdogFeed();
-      }
+      JSONVar ext;
+      for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmLevel[i];
+      ext["tlc_ready"] = tlcReady ? 1 : 0;
+      for (int i = 0; i < 4; i++) ext["tlc_chip"][i] = tlcChipOk[i] ? 1 : 0;
+      WebSerial.send("ext", ext);
     }
   }
 }
