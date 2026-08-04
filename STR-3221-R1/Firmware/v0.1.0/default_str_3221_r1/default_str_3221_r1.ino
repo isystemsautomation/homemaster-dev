@@ -206,7 +206,11 @@ static bool tlcInitAll() {
   Wire.setSCL(PIN_I2C_SCL);
   Wire.begin();
   Wire.setClock(400000);
+  // Stream default is 1000 ms — a stuck I2C bus would freeze setup for tens of
+  // seconds without yield(), so USB CDC never finishes enumerating.
+  Wire.setTimeout(25, true);
   for (uint8_t i = 0; i < 4; i++) {
+    yield();
     if (!tlcInitChip(TLC_ADDR[i])) return false;
   }
   for (uint8_t i = 0; i < NUM_PWM; i++) tlcApplied[i] = 0xFF;
@@ -331,41 +335,19 @@ bool ledSourceActive(uint8_t source);
 void markCfgDirty();
 
 // ================== Filesystem init ==================
+// Never LittleFS.format() from setup(): it can run for seconds without
+// calling yield(), so TinyUSB never completes CDC enumeration (no COM port).
+// Format is deferred to the explicit save/factory path once the device is up.
 bool initFilesystemAndConfig() {
-  if (!LittleFS.begin()) {
-    wsLog("LittleFS mount failed. Formatting…");
-    if (!LittleFS.format() || !LittleFS.begin()) {
-      wsLog("FATAL: FS mount/format failed");
-      return false;
-    }
-  }
-
-  if (loadConfigFS()) {
+  if (LittleFS.begin() && loadConfigFS()) {
     wsLog("Config loaded from flash");
     return true;
   }
 
-  wsLog("No valid config. Using defaults.");
+  wsLog("No valid config — using RAM defaults (save from WebConfig to persist)");
   setDefaults();
-  if (saveConfigFS()) {
-    wsLog("Defaults saved");
-    return true;
-  }
-
-  wsLog("First save failed. Formatting FS…");
-  if (!LittleFS.format() || !LittleFS.begin()) {
-    wsLog("FATAL: FS format failed");
-    return false;
-  }
-
-  setDefaults();
-  if (saveConfigFS()) {
-    wsLog("FS formatted and config saved");
-    return true;
-  }
-
-  wsLog("FATAL: save still failing after format");
-  return false;
+  markCfgDirty();
+  return true;
 }
 
 // ================== Modbus / Web handlers ==================
@@ -417,6 +399,13 @@ void handleCommand(JSONVar obj) {
     delay(400);
     performReset();
   } else if (act == "save") {
+    if (!LittleFS.begin()) {
+      // Safe here: USB already enumerated; disable WDT for the format window.
+      watchdog_disable();
+      const bool ok = LittleFS.format() && LittleFS.begin();
+      hmWatchdogArm(4000);
+      if (!ok) { wsLog("ERROR: FS format failed"); return; }
+    }
     if (saveConfigFS()) wsLog("Configuration saved");
     else wsLog("ERROR: Save failed");
   } else if (act == "load") {
@@ -433,6 +422,12 @@ void handleCommand(JSONVar obj) {
     setDefaults();
     for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
     applyAllPwmLevels();
+    if (!LittleFS.begin()) {
+      watchdog_disable();
+      const bool ok = LittleFS.format() && LittleFS.begin();
+      hmWatchdogArm(4000);
+      if (!ok) { wsLog("ERROR: FS format failed"); return; }
+    }
     if (saveConfigFS()) {
       wsLog("Factory defaults restored & saved");
       sendWebBootstrap();
@@ -593,6 +588,11 @@ void sendWebBootstrap() {
 // ================== Setup ==================
 void setup() {
   Serial.begin(57600);
+  // delay() does not pump TinyUSB on this core — yield() does. Give the host
+  // time to enumerate CDC before any long FS/I2C work.
+  for (uint32_t t = millis(); millis() - t < 1500; ) {
+    yield();
+  }
 
   for (uint8_t i = 0; i < NUM_DI; i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i = 0; i < NUM_LED; i++) {
@@ -602,8 +602,8 @@ void setup() {
   for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
 
   setDefaults();
-  if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
-  if (!tlcInitAll()) wsLog("FATAL: TLC59208F init failed");
+  initFilesystemAndConfig();
+  if (!tlcInitAll()) wsLog("TLC59208F init failed — outputs inactive until I2C recovers");
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
@@ -674,9 +674,17 @@ void loop() {
   }
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    if (saveConfigFS()) wsLog("Configuration saved");
-    else wsLog("ERROR: Save failed");
-    cfgDirty = false;
+    if (!LittleFS.begin()) {
+      // Autosave must not format — that blocks USB/WDT. Wait for explicit Save.
+      cfgDirty = false;
+      wsLog("Config not persisted yet — use WebConfig Save once to format FS");
+    } else if (saveConfigFS()) {
+      wsLog("Configuration saved");
+      cfgDirty = false;
+    } else {
+      wsLog("ERROR: Save failed");
+      cfgDirty = false;
+    }
   }
 
   for (int i = 0; i < NUM_BTN; i++) {
