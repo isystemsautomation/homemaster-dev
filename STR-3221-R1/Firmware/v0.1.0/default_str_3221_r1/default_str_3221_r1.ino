@@ -15,7 +15,8 @@
  * Holding registers (FC=03/06/16):
  *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
  *   480       Modbus slave address (R/W)
- *   481       Modbus baud rate (R/W, whitelist 9600..115200)
+ *   481       Modbus baud rate (R/W, whitelist 9600..115200; хранится сырым значением,
+ *             115200 не представим в uint16 -> читается как 0, ставится только через WebConfig)
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
@@ -43,13 +44,14 @@
 #define HM_FW_MINOR   1
 #define HM_FW_PATCH   0
 #define HM_FW         "0.1.0"
-#define HM_MAP        1
 #define HM_MAP_VERSION 1
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
 #include <utility>
 #include "hardware/watchdog.h"
+
+struct PersistConfig;  // forward decl for Arduino auto-prototypes
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -123,8 +125,8 @@ uint32_t g_identifyUntilMs = 0;
 const uint32_t IDENTIFY_MS = 5000;
 
 // ================== Persisted Modbus settings ==================
-uint8_t  g_mb_address = 21;
-uint32_t g_mb_baud    = 115200;
+uint8_t  g_mb_address = 3;
+uint32_t g_mb_baud    = 19200;
 
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
@@ -240,8 +242,8 @@ void setDefaults() {
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = {0, 0};
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = {0};
   for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = 0;
-  g_mb_address = 21;
-  g_mb_baud = 115200;
+  g_mb_address = 3;
+  g_mb_baud    = 19200;
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -379,7 +381,7 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr;
   g_mb_baud = baud;
   mb.Hreg(HR_MB_ADDR, g_mb_address);
-  mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
+  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
 }
 
 void handleValues(JSONVar values) {
@@ -397,7 +399,6 @@ void handleValues(JSONVar values) {
       mb.Hreg(HR_PWM_BASE + i, v);
       applyPwmChannel(i, v);
     }
-    markCfgDirty();
   }
 
   wsLog("Modbus configuration updated");
@@ -450,7 +451,6 @@ void handleCommand(JSONVar obj) {
       mb.Hreg(HR_PWM_BASE + i, 0);
       applyPwmChannel(i, 0);
     }
-    markCfgDirty();
     wsLog("All output channels set to 0");
   } else {
     wsLog(String("Unknown command: ") + actC);
@@ -512,7 +512,7 @@ void handleUnifiedConfig(JSONVar obj) {
       applyPwmChannel(i, v);
     }
     wsLog("Output levels updated");
-    changed = true;
+    sendWebCfg();               // без markCfgDirty(): яркости не персистим автоматически
   } else {
     wsLog(String("Unknown Config type: ") + t);
   }
@@ -560,7 +560,7 @@ void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
-  st["map"]   = HM_MAP;
+  st["map"]   = HM_MAP_VERSION;
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   WebSerial.send("status", st);
@@ -626,7 +626,7 @@ void setup() {
   mb.addHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD);
-  mb.Hreg(HR_MB_BAUD, (uint16_t)g_mb_baud);
+  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
 
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 
@@ -663,8 +663,7 @@ void loop() {
     }
   }
   if (pwmChanged) {
-    applyPwmFromHoldingRegs();
-    markCfgDirty();
+    applyPwmFromHoldingRegs();   // яркости не персистим: сохранение только по команде save/reset/factory
   }
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
