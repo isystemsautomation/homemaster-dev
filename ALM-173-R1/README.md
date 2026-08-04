@@ -13,9 +13,9 @@
 
 ## 1. Overview
 
-The **ALM-173-R1** connects **17 wired sensors** to Home Assistant, a PLC, or any SCADA system from a single DIN-rail module — and powers those sensors itself from a built-in isolated **12 V rail**.
+The **ALM-173-R1** connects **17 wired sensors** to Home Assistant, a PLC, or any SCADA system from a single DIN-rail module — and powers those sensors itself from built-in isolated **+12 V** and **+5 V** rails.
 
-That second part is the one people usually discover too late. Wired PIR detectors, glass-break sensors and smoke detectors need power as well as a contact, which normally means a second PSU and another distribution block in the cabinet. Here it's on the module.
+That second part is the one people usually discover too late. Wired PIR detectors, glass-break sensors and smoke detectors need power as well as a contact, which normally means a second PSU and another distribution block in the cabinet. Here both sensor supplies are on the module.
 
 Seventeen opto-isolated inputs, three relays, an alarm engine that keeps running when the network doesn't, **RS-485 Modbus RTU** back to the controller, and configuration through a browser over USB-C. Open hardware, CE marked.
 
@@ -87,7 +87,7 @@ Alarm groups, zone types, local arming, and bell cut-off are described in [§3 A
 
 ## What You Can Connect
 
-The isolated **+12 V** rail (**PS/1**) runs detectors directly — no second power supply and no separate distribution block in the cabinet for those loads. Budget the **150 mA** total carefully.
+Isolated **+12 V** (**PS/1**) and **+5 V** (**PS/2**) rails run detectors directly — no second power supply and no separate distribution block in the cabinet for those loads. Budget the **150 mA** total on the 12 V rail carefully.
 
 ### Sensors powered by the module (12 V rail, 150 mA total)
 
@@ -300,7 +300,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | **RS-485** | A, B, COM | Modbus RTU | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | — | WebConfig / UF2 | Not a field power source |
 
-![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and 12 V sensor rail](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
+![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and isolated 12 V / 5 V sensor rails](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 
 **Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
