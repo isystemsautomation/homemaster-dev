@@ -15,7 +15,8 @@
  * Holding registers (FC=03/06/16):
  *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
  *   480       Modbus slave address (R/W)
- *   481       Modbus baud rate (R/W, whitelist 9600..115200)
+ *   481       Modbus baud rate (R/W, whitelist 9600..115200; хранится сырым значением,
+ *             115200 не представим в uint16 -> читается как 0, ставится только через WebConfig)
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
