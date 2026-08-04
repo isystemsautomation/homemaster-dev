@@ -112,8 +112,8 @@ uint16_t pwmLevel[NUM_PWM];
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 
-static inline void wsLog(const char* msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
-static inline void wsLog(const String& msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
+static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -206,11 +206,7 @@ static bool tlcInitAll() {
   Wire.setSCL(PIN_I2C_SCL);
   Wire.begin();
   Wire.setClock(400000);
-  // Stream default is 1000 ms — a stuck I2C bus would freeze setup for tens of
-  // seconds without yield(), so USB CDC never finishes enumerating.
-  Wire.setTimeout(25, true);
   for (uint8_t i = 0; i < 4; i++) {
-    yield();
     if (!tlcInitChip(TLC_ADDR[i])) return false;
   }
   for (uint8_t i = 0; i < NUM_PWM; i++) tlcApplied[i] = 0xFF;
@@ -335,19 +331,41 @@ bool ledSourceActive(uint8_t source);
 void markCfgDirty();
 
 // ================== Filesystem init ==================
-// Never LittleFS.format() from setup(): it can run for seconds without
-// calling yield(), so TinyUSB never completes CDC enumeration (no COM port).
-// Format is deferred to the explicit save/factory path once the device is up.
 bool initFilesystemAndConfig() {
-  if (LittleFS.begin() && loadConfigFS()) {
+  if (!LittleFS.begin()) {
+    wsLog("LittleFS mount failed. Formatting…");
+    if (!LittleFS.format() || !LittleFS.begin()) {
+      wsLog("FATAL: FS mount/format failed");
+      return false;
+    }
+  }
+
+  if (loadConfigFS()) {
     wsLog("Config loaded from flash");
     return true;
   }
 
-  wsLog("No valid config — using RAM defaults (save from WebConfig to persist)");
+  wsLog("No valid config. Using defaults.");
   setDefaults();
-  markCfgDirty();
-  return true;
+  if (saveConfigFS()) {
+    wsLog("Defaults saved");
+    return true;
+  }
+
+  wsLog("First save failed. Formatting FS…");
+  if (!LittleFS.format() || !LittleFS.begin()) {
+    wsLog("FATAL: FS format failed");
+    return false;
+  }
+
+  setDefaults();
+  if (saveConfigFS()) {
+    wsLog("FS formatted and config saved");
+    return true;
+  }
+
+  wsLog("FATAL: save still failing after format");
+  return false;
 }
 
 // ================== Modbus / Web handlers ==================
@@ -399,13 +417,6 @@ void handleCommand(JSONVar obj) {
     delay(400);
     performReset();
   } else if (act == "save") {
-    if (!LittleFS.begin()) {
-      // Safe here: USB already enumerated; disable WDT for the format window.
-      watchdog_disable();
-      const bool ok = LittleFS.format() && LittleFS.begin();
-      hmWatchdogArm(4000);
-      if (!ok) { wsLog("ERROR: FS format failed"); return; }
-    }
     if (saveConfigFS()) wsLog("Configuration saved");
     else wsLog("ERROR: Save failed");
   } else if (act == "load") {
@@ -422,12 +433,6 @@ void handleCommand(JSONVar obj) {
     setDefaults();
     for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
     applyAllPwmLevels();
-    if (!LittleFS.begin()) {
-      watchdog_disable();
-      const bool ok = LittleFS.format() && LittleFS.begin();
-      hmWatchdogArm(4000);
-      if (!ok) { wsLog("ERROR: FS format failed"); return; }
-    }
     if (saveConfigFS()) {
       wsLog("Factory defaults restored & saved");
       sendWebBootstrap();
@@ -552,7 +557,6 @@ bool ledSourceActive(uint8_t source) {
 }
 
 void sendWebStatus() {
-  if (!hmUsbCanSend()) return;
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
@@ -560,10 +564,10 @@ void sendWebStatus() {
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   WebSerial.send("status", st);
+  hmWatchdogFeed();
 }
 
 void sendWebCfg() {
-  if (!hmUsbCanSend()) return;
   JSONVar cfg;
   for (int i = 0; i < NUM_DI; i++) {
     cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
@@ -578,6 +582,7 @@ void sendWebCfg() {
   }
   for (int i = 0; i < NUM_PWM; i++) cfg["ext"]["pwm"][i] = (int)pwmLevel[i];
   WebSerial.send("cfg", cfg);
+  hmWatchdogFeed();
 }
 
 void sendWebBootstrap() {
@@ -588,11 +593,9 @@ void sendWebBootstrap() {
 // ================== Setup ==================
 void setup() {
   Serial.begin(57600);
-  // delay() does not pump TinyUSB on this core — yield() does. Give the host
-  // time to enumerate CDC before any long FS/I2C work.
-  for (uint32_t t = millis(); millis() - t < 1500; ) {
-    yield();
-  }
+  // 32-channel ext telemetry can fill the CDC TX buffer; waiting on flow control
+  // for multiple large packets exceeds the 4 s watchdog and reboots mid-Connect.
+  Serial.ignoreFlowControl(true);
 
   for (uint8_t i = 0; i < NUM_DI; i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i = 0; i < NUM_LED; i++) {
@@ -602,8 +605,8 @@ void setup() {
   for (uint8_t i = 0; i < NUM_BTN; i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
 
   setDefaults();
-  initFilesystemAndConfig();
-  if (!tlcInitAll()) wsLog("TLC59208F init failed — outputs inactive until I2C recovers");
+  if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
+  if (!tlcInitAll()) wsLog("FATAL: TLC59208F init failed");
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
@@ -674,17 +677,9 @@ void loop() {
   }
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    if (!LittleFS.begin()) {
-      // Autosave must not format — that blocks USB/WDT. Wait for explicit Save.
-      cfgDirty = false;
-      wsLog("Config not persisted yet — use WebConfig Save once to format FS");
-    } else if (saveConfigFS()) {
-      wsLog("Configuration saved");
-      cfgDirty = false;
-    } else {
-      wsLog("ERROR: Save failed");
-      cfgDirty = false;
-    }
+    if (saveConfigFS()) wsLog("Configuration saved");
+    else wsLog("ERROR: Save failed");
+    cfgDirty = false;
   }
 
   for (int i = 0; i < NUM_BTN; i++) {
@@ -726,6 +721,7 @@ void loop() {
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
+    hmWatchdogFeed();
     if (hmUsbCanSend()) {
       sendWebStatus();
 
@@ -734,10 +730,17 @@ void loop() {
       for (int i = 0; i < NUM_BTN; i++) io["btn"][i] = buttonState[i] ? 1 : 0;
       for (int i = 0; i < NUM_LED; i++) io["led"][i] = ledStates[i];
       WebSerial.send("io", io);
+      hmWatchdogFeed();
 
-      JSONVar ext;
-      for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmLevel[i];
-      WebSerial.send("ext", ext);
+      // PWM snapshot is large — send at 1 Hz so Connect/handshake is not starved.
+      static uint32_t lastExtMs = 0;
+      if (now - lastExtMs >= 1000) {
+        lastExtMs = now;
+        JSONVar ext;
+        for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmLevel[i];
+        WebSerial.send("ext", ext);
+        hmWatchdogFeed();
+      }
     }
   }
 }
