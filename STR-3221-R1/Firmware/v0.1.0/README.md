@@ -8,4 +8,4 @@ First public release: 32-channel stair LED controller firmware set.
 | `ConfigToolPage.html` | USB Web Serial configuration UI |
 | `default_str_3221_r1_plc/` | ESPHome Modbus package (32 outputs + 3 inputs) |
 
-Default Modbus: address **21**, baud **115200**.
+Default Modbus: address **3**, baud **19200**.

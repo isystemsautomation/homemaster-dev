@@ -66,10 +66,10 @@
             <label for="modbus-baud">Baud Rate</label>
             <select id="modbus-baud">
               <option value="9600">9600</option>
-              <option value="19200">19200</option>
+              <option value="19200" selected>19200</option>
               <option value="38400">38400</option>
               <option value="57600">57600</option>
-              <option value="115200" selected>115200</option>
+              <option value="115200">115200</option>
             </select>
           </div>
         </div>
@@ -119,9 +119,9 @@
     const NUM_DI = 3, NUM_BTN = 4, NUM_LED = 2, NUM_PWM = 32;
     const PWM_GROUPS = [
       { title: 'O1–O8 (U9, 0x40)', start: 1 },
-      { title: 'O9–O16 (U10, 0x41)', start: 9 },
-      { title: 'O17–O24 (U11, 0x42)', start: 17 },
-      { title: 'O25–O32 (U12, 0x43)', start: 25 },
+      { title: 'O9–O16 (U10, 0x42)', start: 9 },
+      { title: 'O17–O24 (U11, 0x44)', start: 17 },
+      { title: 'O25–O32 (U12, 0x46)', start: 25 },
     ];
     const pwmSliders = [];
     const pwmVals = [];
@@ -171,7 +171,7 @@
         o.textContent = i;
         sel.appendChild(o);
       }
-      sel.value = '21';
+      sel.value = '3';
     })();
 
     (function buildPwmGrid(){
@@ -276,9 +276,9 @@
     HMWebConfig.conn.on('ext', ext => { if (ext && ext.pwm) applyPwmFromDevice(ext.pwm); });
 
     $('modbus-address')?.addEventListener('input', () =>
-      HMWebConfig.sendValues(parseInt($('modbus-address').value || '21', 10), parseInt($('modbus-baud').value || '115200', 10)));
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
     $('modbus-baud')?.addEventListener('input', () =>
-      HMWebConfig.sendValues(parseInt($('modbus-address').value || '21', 10), parseInt($('modbus-baud').value || '115200', 10)));
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
 
     function sendInputEnable(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
     function sendInputInvert(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
