@@ -5,15 +5,21 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![ALM-173-R1 module photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
+![17-input wired sensor hub, DIN-rail module for Home Assistant and Modbus](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 
-**Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [Licensing](#open-source--licensing) · [§13 Compliance](#13-compliance--certifications) · [§14 Support](#14-support)
+**Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [What You Can Connect](#what-you-can-connect) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [Licensing](#open-source--licensing) · [§13 Compliance](#13-compliance--certifications) · [FAQ](#faq) · [§14 Support](#14-support)
 
 ---
 
 ## 1. Overview
 
-The **ALM-173-R1** is a high-density automation/monitoring I/O module: **17 opto-isolated inputs**, **AUX detector-loop power**, **3 relays**, and an on-board alarm engine that keeps running offline. It is **not a certified or insurance-grade intruder alarm**. Mounts on a **35 mm DIN rail**, talks **RS-485 Modbus RTU** to MiniPLC/MicroPLC (or any Modbus master), and is configured via **USB-C WebConfig**.
+The **ALM-173-R1** connects **17 wired sensors** to Home Assistant, a PLC, or any SCADA system from a single DIN-rail module — and powers those sensors itself from a built-in isolated **12 V rail**.
+
+That second part is the one people usually discover too late. Wired PIR detectors, glass-break sensors and smoke detectors need power as well as a contact, which normally means a second PSU and another distribution block in the cabinet. Here it's on the module.
+
+Seventeen opto-isolated inputs, three relays, an alarm engine that keeps running when the network doesn't, **RS-485 Modbus RTU** back to the controller, and configuration through a browser over USB-C. Open hardware, CE marked.
+
+It is **not a certified or insurance-grade intruder alarm**.
 
 **Key capabilities at a glance:**
 
@@ -56,13 +62,73 @@ Alarm groups, zone types, local arming, and bell cut-off are described in [§3 A
 
 ### Applications
 
-Typical uses for the ALM-173-R1:
+**Residential**
 
-- **Intrusion / zone alarm panels** — map PIR/door contacts to groups; drive sirens on latched groups
-- **Equipment-room annunciators** — aggregate fault inputs into summary relays and front-panel LEDs
-- **BMS / SCADA alarm expansion** — Modbus RTU endpoint with local ack and override
-- **Access-control supervision** — door contacts, strike monitoring, summary strobe
-- **Home Assistant** — via ESPHome on MiniPLC/MicroPLC; alarm entities and acknowledge automations
+- New-build wired sensor networks for Home Assistant
+- Intrusion and zone monitoring (PIR, door/window contacts, glass-break)
+- Water leak protection — a relay can close a solenoid valve when a leak contact trips
+- Heating system supervision — aggregate boiler, pump and heat pump fault contacts
+
+**Commercial and industrial**
+
+- Equipment-room fault signalling with summary relays and front-panel LEDs
+- BMS and SCADA alarm expansion over Modbus RTU with local ack and override
+- Machine and plant status monitoring
+- Pump stations and water treatment — dry-run, float and pressure switch inputs
+- Server rooms — door contacts, under-floor leak detection, UPS and generator status
+- Access-control supervision — door contacts, strike and lock status
+
+**Agriculture and other**
+
+- Greenhouses and barns — door contacts, equipment fault and environmental switch inputs
+- Cold storage — door contacts, defrost status and compressor fault monitoring
+
+---
+
+## What You Can Connect
+
+The isolated **+12 V** rail (**PS/1**) runs detectors directly — no second power supply and no separate distribution block in the cabinet for those loads. Budget the **150 mA** total carefully.
+
+### Sensors powered by the module (12 V rail, 150 mA total)
+
+| Sensor type | Typical current | How many fit |
+|-------------|----------------:|-------------:|
+| PIR motion detector | 10–20 mA | 6–10 |
+| Curtain PIR | 10–15 mA | 8–12 |
+| Dual-technology detector (PIR + microwave) | 20–30 mA | 4–6 |
+| Glass-break detector | 15–25 mA | 6–8 |
+| 12 V smoke detector with relay output | 20–50 mA | 3–6 |
+| Gas or CO detector with relay output | 30–60 mA | 2–4 |
+| Infrared beam sensor or photoelectric barrier | 20–40 mA | 3–6 |
+| Inductive or capacitive proximity sensor (NPN) | 5–15 mA | 8–15 |
+
+**150 mA total.** Eight PIRs at 15 mA is 120 mA and fits. Eight smoke detectors at 40 mA does not — use an external supply. An isolated **+5 V** rail (**PS/2**) is also available for low-power sensors that accept 5 V.
+
+### Dry-contact devices (no power needed)
+
+| Category | Devices |
+|----------|---------|
+| **Openings** | Door and window reed contacts, gate contacts, garage door position, roller shutter end positions, mailbox contacts |
+| **Water and fluids** | Contact-type leak detectors, float switches, level switches, flow switches, pressure switches |
+| **Heating and HVAC** | Thermostat contacts, frost stats, boiler fault contacts, pump fault contacts, heat pump alarm outputs, burner lockout |
+| **Security** | Tamper switches, vibration and shock sensors, key switches, panic buttons, door strike and lock status |
+| **Controls** | Momentary wall switches, push buttons, rotary and toggle switches, limit switches |
+| **Equipment status** | UPS alarm contacts, generator run and fault contacts, machine fault relays, filter-blocked switches, belt-break detectors |
+| **Weather** | Rain sensors and wind switches with contact output |
+
+### What you cannot connect
+
+| Signal / device | Use instead |
+|-----------------|-------------|
+| Mains voltage on an input | Interposing contactor or relay — inputs are SELV and dry contact only |
+| Analogue sensors 0–10 V / 4–20 mA / PT100 / PT1000 | **AIO-422-R1** |
+| Pulse counting from S0 meter outputs | **DIO-430-R1** |
+| Addressable fire alarm loops | Conventional detectors with relay output only |
+| End-of-line resistor supervision | Not supported — see the NC tip below |
+
+### Tip: get cable-cut detection for free
+
+There is no EOL resistor line-supervision. Wiring contacts **normally closed** with **Invert** enabled in WebConfig makes a cut or disconnected cable read the same as an activation, so a damaged loop is visible instead of failing silently. Any security zone should be wired NC.
 
 ---
 
@@ -154,7 +220,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Ingress protection | IP20 (panel interior) |
 | Operating temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
 
-![ALM-173-R1 Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
+![ALM-173-R1 DIN-rail wired sensor hub dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
 
 ### 4.4 Communication defaults
 
@@ -234,7 +300,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | **RS-485** | A, B, COM | Modbus RTU | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
 | **USB-C** | — | WebConfig / UF2 | Not a field power source |
 
-![Terminal labeling](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
+![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and 12 V sensor rail](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 
 **Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
@@ -254,7 +320,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 5.4 Front panel — buttons & LEDs
 
-![Button layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/buttons1.png)
+![ALM-173-R1 front-panel buttons and LEDs for alarm acknowledge and relay override](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/buttons1.png)
 
 | Control | Function |
 |---------|----------|
@@ -314,7 +380,7 @@ The module uses **24 V DC** primary (18–30 V DC nominal). Onboard regulation p
 
 | 24 V DC | Digital inputs | Relays | RS-485 |
 |:---:|:---:|:---:|:---:|
-| ![24 V](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![DI](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![Relays](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RS485Connection.png) |
+| ![24 V DC power wiring for ALM-173-R1 wired sensor hub](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![Wiring dry-contact and powered detectors to ALM-173-R1 digital inputs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![ALM-173-R1 relay output wiring for sirens, valves and summary loads](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485 Modbus wiring from ALM-173-R1 to MiniPLC or MicroPLC](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RS485Connection.png) |
 
 **Phase 2 — Configure (WebConfig)**
 
@@ -382,7 +448,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 ### Digital Inputs (17)
 
-![Digital inputs — enable, invert, alarm group, zone type (latched badge)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig4.png)
+![WebConfig — 17 wired sensor inputs: enable, invert, alarm group, zone type](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig4.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -755,6 +821,50 @@ The ALM-173-R1 is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 | Datasheet | [ALM-173-R1_Datasheet.pdf](Manuals/ALM-173-R1_Datasheet.pdf) |
 
 **HomeMaster®** — EUTM No. 019082911 (EUIPO, 15 January 2025).
+
+---
+
+## FAQ
+
+### Can I connect wired sensors to Home Assistant with this?
+
+Yes. The ALM-173-R1 exposes **17** opto-isolated inputs over **RS-485 Modbus RTU**. With a MiniPLC or MicroPLC running ESPHome, those inputs appear in Home Assistant as ready-made entities. Any Modbus master or SCADA system can poll the same registers.
+
+### Does it power the sensors, or do I need a separate supply?
+
+The module includes an isolated **+12 V** rail (**PS/1**, about **150 mA** usable) and an isolated **+5 V** rail (**PS/2**) for detector and sensor power. Many 12 V PIRs, glass-break and smoke detectors with relay outputs can run from the module. Budget the total current — if the load exceeds 150 mA on the 12 V rail, use an external supply.
+
+### How many motion sensors can I connect?
+
+Up to **17** inputs are available. On the 12 V rail, typical PIR detectors draw 10–20 mA each, so roughly **6–10** PIRs fit within the **150 mA** budget. The exact count depends on each detector's datasheet current.
+
+### Is this an alternative to Konnected?
+
+Similar idea, different design. Konnected targets retrofitting existing alarm panels; this is a DIN-rail module for new installations, with sensor power built in, RS-485 instead of Wi-Fi, and alarm logic on the module rather than the server.
+
+### Does it work if Home Assistant goes down?
+
+Yes for the on-board alarm engine. Groups, latching, relays and optional local arming continue on the module when the network or Home Assistant is offline. Full Home/Away/Night modes and codes still belong in Home Assistant.
+
+### Can I connect 230 V devices to the inputs?
+
+No. The inputs are SELV dry-contact / **5 V DC** signalling only. Use an interposing contactor or relay for mains voltages.
+
+### Can it detect a cut sensor cable?
+
+There is no EOL resistor line-supervision. Wiring contacts **normally closed** with **Invert** enabled in WebConfig makes a cut or disconnected cable read the same as an activation, so a damaged loop is visible instead of failing silently. Wire security zones NC.
+
+### Can I count pulses from a water or energy meter?
+
+No. This module does not provide pulse counting. Use the **DIO-430-R1** for S0 / pulse inputs.
+
+### What temperature and humidity sensors work with it?
+
+Dry-contact and relay-output detectors only. Analogue sensors (**0–10 V**, **4–20 mA**, **PT100**, **PT1000**) need the **AIO-422-R1**. Temperature and humidity I²C or 1-Wire sensors are not wired to this module's inputs.
+
+### Do I need special software to set it up?
+
+No. Configuration uses the browser-based WebConfig over USB-C in a Chromium-based browser. No app or login is required. Settings persist in on-device flash (LittleFS).
 
 ---
 
