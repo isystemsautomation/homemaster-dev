@@ -112,8 +112,8 @@ uint16_t pwmLevel[NUM_PWM];
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 
-static inline void wsLog(const char* msg) { WebSerial.send("log", msg); }
-static inline void wsLog(const String& msg) { WebSerial.send("log", msg); }
+static inline void wsLog(const char* msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
+static inline void wsLog(const String& msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -557,6 +557,7 @@ bool ledSourceActive(uint8_t source) {
 }
 
 void sendWebStatus() {
+  if (!hmUsbCanSend()) return;
   JSONVar st;
   st["model"] = HM_MODEL_ID;
   st["fw"]    = HM_FW;
@@ -567,6 +568,7 @@ void sendWebStatus() {
 }
 
 void sendWebCfg() {
+  if (!hmUsbCanSend()) return;
   JSONVar cfg;
   for (int i = 0; i < NUM_DI; i++) {
     cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
