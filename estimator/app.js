@@ -1599,12 +1599,22 @@ function mountConfigurator(root) {
   render();
 }
 
+function findRoot() {
+  if (typeof document === "undefined") return null;
+  return (
+    document.getElementById("hm-configurator") ||
+    document.getElementById("hm-system-builder") ||
+    document.querySelector("[data-hm-estimator]")
+  );
+}
+
 async function init() {
   ensureStylesheet();
   await loadRules();
   loadState();
-  const root = document.getElementById("hm-configurator");
+  const root = findRoot();
   if (root) mountConfigurator(root);
+  else console.error("HM estimator: mount node not found (#hm-configurator / #hm-system-builder)");
 }
 
 function ensureStylesheet() {
@@ -1621,7 +1631,7 @@ function ensureStylesheet() {
 
 function boot() {
   init().catch((err) => {
-    const root = document.getElementById("hm-configurator");
+    const root = findRoot();
     if (root) {
       root.innerHTML =
         `<p class="hm-warn">Estimator failed: ${err?.message || err}</p>`;
