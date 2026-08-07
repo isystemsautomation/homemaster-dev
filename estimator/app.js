@@ -602,7 +602,7 @@ function attachPrices(topologyResult, power, enclosure, rules, prices, assumptio
   };
 }
 
-  HM.estimate = estimate;
+HM.estimate = estimate;
 
 // ===== prices.js =====
 /**
@@ -834,11 +834,11 @@ function toEstimatePriceMap(prices) {
   return out;
 }
 
-  HM.parseProductLdJson = parseProductLdJson;
-  HM.detectShopCurrency = detectShopCurrency;
-  HM.fetchPrice = fetchPrice;
-  HM.fetchPrices = fetchPrices;
-  HM.toEstimatePriceMap = toEstimatePriceMap;
+HM.parseProductLdJson = parseProductLdJson;
+HM.detectShopCurrency = detectShopCurrency;
+HM.fetchPrice = fetchPrice;
+HM.fetchPrices = fetchPrices;
+HM.toEstimatePriceMap = toEstimatePriceMap;
 
 // ===== cart.js =====
 /**
@@ -931,10 +931,10 @@ function cartTotal(estimate, prices) {
   return { total: Math.round(total * 100) / 100, currency };
 }
 
-  HM.addCartLine = addCartLine;
-  HM.addAllToCart = addAllToCart;
-  HM.cartLineCount = cartLineCount;
-  HM.cartTotal = cartTotal;
+HM.addCartLine = addCartLine;
+HM.addAllToCart = addAllToCart;
+HM.cartLineCount = cartLineCount;
+HM.cartTotal = cartTotal;
 
 // ===== xlsx.js =====
 /**
@@ -1124,10 +1124,10 @@ function downloadCsv(estimate, filename = "homemaster-estimate.csv") {
   URL.revokeObjectURL(url);
 }
 
-  HM.buildEstimateXlsx = buildEstimateXlsx;
-  HM.downloadXlsx = downloadXlsx;
-  HM.estimateToCsv = estimateToCsv;
-  HM.downloadCsv = downloadCsv;
+HM.buildEstimateXlsx = buildEstimateXlsx;
+HM.downloadXlsx = downloadXlsx;
+HM.estimateToCsv = estimateToCsv;
+HM.downloadCsv = downloadCsv;
 
 // ===== ui.js =====
 /**
@@ -1649,18 +1649,10 @@ if (typeof document !== "undefined") {
   }
 }
 
-  HM.loadRules = loadRules;
-  HM.runEstimate = runEstimate;
-  HM.mountConfigurator = mountConfigurator;
-  HM.init = init;
+HM.loadRules = loadRules;
+HM.runEstimate = runEstimate;
+HM.mountConfigurator = mountConfigurator;
+HM.init = init;
 
 
-export const estimate = HM.estimate;
-export const loadRules = HM.loadRules;
-export const runEstimate = HM.runEstimate;
-export const mountConfigurator = HM.mountConfigurator;
-export const init = HM.init;
-export const fetchPrice = HM.fetchPrice;
-export const fetchPrices = HM.fetchPrices;
-export const addAllToCart = HM.addAllToCart;
-export const downloadXlsx = HM.downloadXlsx;
+export { estimate, loadRules, runEstimate, mountConfigurator, init, fetchPrice, fetchPrices, addAllToCart, downloadXlsx };
