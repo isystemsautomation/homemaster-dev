@@ -1,0 +1,294 @@
+{
+  "version": "1.0.0",
+  "bus": {
+    "requires_explicit_timings": true,
+    "segment_budget": 10.0,
+    "hard_max_modules": 15,
+    "warn_above": 12
+  },
+  "policy": {
+    "default_reserve_pct": 15,
+    "psu_headroom_pct": 30,
+    "psu_sizing_basis": "max",
+    "str_actuators_per_module": 16
+  },
+  "room_templates": {
+    "living": {
+      "light_groups": 2,
+      "keys": 1
+    },
+    "bedroom": {
+      "light_groups": 1,
+      "keys": 1
+    },
+    "kitchen": {
+      "light_groups": 0,
+      "keys": 1
+    },
+    "bath": {
+      "light_groups": 0,
+      "keys": 1
+    }
+  },
+  "demand_mapping": {
+    "light_groups": "relay_out_3a",
+    "keys": "di_dry",
+    "dimmer_groups": "dimmer_ac_ch",
+    "rgb_strips": "pwm_led_ch",
+    "underfloor_circuits": "out_24v_ch",
+    "shutters": "shutters",
+    "leak_zones": "leak_or_pulse",
+    "flow_pulses": "leak_or_pulse",
+    "opentherm_boilers": "opentherm",
+    "energy_meters": "energy_phase",
+    "alarm_zones": "alarm_zone",
+    "analog_sensors": "analog_in",
+    "analog_outputs": "analog_out",
+    "rtd_sensors": "rtd_input",
+    "presence_sensors": "presence_in",
+    "onewire_buses": "onewire",
+    "relay_needs_contactor": "relay_needs_contactor"
+  },
+  "allocate_order": [
+    "opentherm",
+    "energy_phase",
+    "alarm_zone",
+    "out_24v_ch",
+    "pwm_led_ch",
+    "dimmer_ac_ch",
+    "leak_or_pulse",
+    "rtd_input",
+    "analog_in",
+    "analog_out",
+    "presence_in",
+    "onewire"
+  ],
+  "specialty_modules": {
+    "opentherm": "OpenthermGateway",
+    "energy_phase": "ENM-223-R1",
+    "alarm_zone": "ALM-173-R1",
+    "out_24v_ch": "STR-3221-R1",
+    "pwm_led_ch": "RGB-621-R1",
+    "dimmer_ac_ch": "DIM-420-R1",
+    "leak_or_pulse": "WLD-521-R1",
+    "rtd_input": "AIO-422-R1",
+    "analog_in": "AIO-422-R1",
+    "analog_out": "AIO-422-R1",
+    "presence_in": "STR-3221-R1",
+    "onewire": "WLD-521-R1"
+  },
+  "controllers": {
+    "small": "MicroPLC",
+    "large": "MiniPLC",
+    "small_slave_threshold": 4
+  },
+  "terminators_per_segment": 2,
+  "esphome_defaults": {
+    "turnaround_time": "100ms",
+    "send_wait_time": "250ms",
+    "comment": "On ESPHome 2026.7.0 defaults (turnaround 600ms / send_wait 2000ms) a module may silently stop being polled — set turnaround_time: 100ms and send_wait_time: 250ms explicitly."
+  },
+  "modules": {
+    "DIO-430-R1": {
+      "product_template_id": 58,
+      "product_id": 58,
+      "sku": "HM-DIO-430-R1",
+      "shop_url": "/shop/dio-430-r1-relay-module-58",
+      "din_units": 4,
+      "length_mm": 70,
+      "provides": {
+        "relay_out_3a": 3,
+        "di_dry": 4
+      },
+      "features": [
+        "interlock_pair"
+      ],
+      "power_w_max": 3.0,
+      "poll_weight": 1.0,
+      "sources": {
+        "din_units": "datasheet",
+        "power_w_max": "README"
+      }
+    },
+    "DIM-420-R1": {
+      "product_template_id": 736,
+      "product_id": 736,
+      "sku": "HM-DIM-420-R1",
+      "shop_url": "/shop/dim-420-r1-dimmer-module-736",
+      "din_units": 9,
+      "length_mm": 158,
+      "provides": {
+        "dimmer_ac_ch": 2,
+        "di_dry": 4
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "poll_weight": 1.0,
+      "sources": {
+        "din_units": "datasheet",
+        "power_w_max": "README"
+      }
+    },
+    "RGB-621-R1": {
+      "product_template_id": 57,
+      "product_id": 57,
+      "sku": "HM-RGB-621-R1",
+      "shop_url": "/shop/rgb-621-r1-led-controller-57",
+      "din_units": null,
+      "provides": {
+        "pwm_led_ch": 5,
+        "relay_out_3a": 1,
+        "di_dry": 2
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "poll_weight": 1.2,
+      "sources": {
+        "power_w_max": "README"
+      }
+    },
+    "STR-3221-R1": {
+      "product_template_id": 66,
+      "product_id": 66,
+      "sku": "HM-STR-3221-R1",
+      "shop_url": "/shop/str-3221-r1-actuator-driver-66",
+      "din_units": null,
+      "provides": {
+        "out_24v_ch": 32,
+        "di_dry": 1,
+        "presence_in": 2
+      },
+      "features": [],
+      "power_w_max": 2.4,
+      "poll_weight": 2.0,
+      "sources": {
+        "power_w_max": "README"
+      }
+    },
+    "WLD-521-R1": {
+      "product_template_id": 1035,
+      "product_id": 1035,
+      "sku": "HM-WLD-521-R1",
+      "shop_url": "/shop/wld-521-r1-leak-detector-1035",
+      "din_units": null,
+      "provides": {
+        "leak_or_pulse": 5,
+        "relay_out_3a": 2,
+        "onewire": 1
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "poll_weight": 1.2,
+      "sources": {
+        "power_w_max": "README"
+      }
+    },
+    "ENM-223-R1": {
+      "product_template_id": 737,
+      "product_id": 737,
+      "sku": "HM-ENM-223-R1",
+      "shop_url": "/shop/enm-223-r1-energy-meter-737",
+      "din_units": 4,
+      "length_mm": 71.5,
+      "provides": {
+        "energy_phase": 3,
+        "relay_out_3a": 2
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "poll_weight": 2.0,
+      "sources": {
+        "din_units": "datasheet",
+        "power_w_max": "README"
+      }
+    },
+    "AIO-422-R1": {
+      "product_template_id": 735,
+      "product_id": 735,
+      "sku": "HM-AIO-422-R1",
+      "shop_url": "/shop/aio-422-r1-analog-io-rtd-735",
+      "din_units": null,
+      "provides": {
+        "analog_in": 4,
+        "analog_out": 2,
+        "rtd_input": 2
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "power_assumed": true,
+      "poll_weight": 1.5,
+      "sources": {
+        "power_w_max": "assumed"
+      }
+    },
+    "ALM-173-R1": {
+      "product_template_id": 733,
+      "product_id": 733,
+      "sku": "HM-ALM-173-R1",
+      "shop_url": "/shop/alm-173-r1-alarm-module-733",
+      "din_units": null,
+      "provides": {
+        "alarm_zone": 17
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "power_assumed": true,
+      "poll_weight": 1.5,
+      "sources": {
+        "power_w_max": "assumed"
+      }
+    },
+    "OpenthermGateway": {
+      "product_template_id": 59,
+      "product_id": 59,
+      "sku": "HM-OPENTHERM-GW",
+      "shop_url": "/shop/opentherm-gateway-59",
+      "din_units": null,
+      "provides": {
+        "opentherm": 1
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "poll_weight": 1.0,
+      "sources": {
+        "power_w_max": "README"
+      }
+    },
+    "MicroPLC": {
+      "product_template_id": 56,
+      "product_id": 56,
+      "sku": "HM-MICROPLC",
+      "shop_url": "/shop/microplc-rs485-controller-56",
+      "din_units": null,
+      "master": true,
+      "provides": {
+        "relay_out_3a": 1,
+        "di_dry": 1,
+        "onewire": 1
+      },
+      "features": [],
+      "power_w_max": 3.0,
+      "power_assumed": true,
+      "poll_weight": null,
+      "sources": {
+        "power_w_max": "assumed"
+      }
+    },
+    "MiniPLC": {
+      "product_template_id": 55,
+      "product_id": 55,
+      "sku": "HM-MINIPLC",
+      "shop_url": "/shop/esp32-miniplc-55",
+      "din_units": null,
+      "master": true,
+      "provides": {},
+      "features": [],
+      "power_w_max": 3.6,
+      "poll_weight": null,
+      "sources": {
+        "power_w_max": "README"
+      }
+    }
+  },
+  "generated_at": "2026-08-07"
+}
