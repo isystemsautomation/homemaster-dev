@@ -1600,20 +1600,43 @@ function mountConfigurator(root) {
 }
 
 async function init() {
+  ensureStylesheet();
   await loadRules();
   loadState();
   const root = document.getElementById("hm-configurator");
   if (root) mountConfigurator(root);
 }
 
-if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", () => {
-    init().catch((err) => {
-      const root = document.getElementById("hm-configurator");
-      if (root) root.textContent = "Estimator failed: " + err.message;
-      console.error(err);
-    });
+function ensureStylesheet() {
+  if (typeof document === "undefined") return;
+  const href = "https://config.home-master.eu/estimator/app.css";
+  if ([...document.querySelectorAll("link[rel='stylesheet']")].some((l) => l.href.includes("/estimator/app.css"))) {
+    return;
+  }
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function boot() {
+  init().catch((err) => {
+    const root = document.getElementById("hm-configurator");
+    if (root) {
+      root.innerHTML =
+        `<p class="hm-warn">Estimator failed: ${err?.message || err}</p>`;
+    }
+    console.error(err);
   });
+}
+
+if (typeof document !== "undefined") {
+  // Module scripts often load after DOMContentLoaded — do not wait forever.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
 }
 
   HM.loadRules = loadRules;
