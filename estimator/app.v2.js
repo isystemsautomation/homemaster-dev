@@ -622,6 +622,55 @@ function asArray(node) {
 }
 
 /**
+ * Infer session currency from visible shop price chrome (not ld+json offer order).
+ * Looks at span.oe_currency_value and nearby text (€, lei, EUR, RON, USD…).
+ * @param {string} html
+ * @returns {string|null}
+ */
+function detectCurrencyFromHtml(html) {
+  if (!html) return null;
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const nodes = [
+      ...doc.querySelectorAll("span.oe_currency_value"),
+      ...doc.querySelectorAll("[data-website_sale_currency]"),
+      ...doc.querySelectorAll(".product_price, .oe_price"),
+    ];
+    for (const node of nodes) {
+      const chunk = `${node.textContent || ""} ${node.parentElement?.textContent || ""}`;
+      const cur = currencyFromText(chunk);
+      if (cur) return cur;
+    }
+  } else {
+    // Node / no DOMParser: inspect text around the visible price widget only
+    // (do not scan whole-document ld+json — that lists every currency).
+    const re =
+      /<span[^>]*class="[^"]*oe_currency_value[^"]*"[^>]*>[\s\S]*?<\/span>([\s\S]{0,80})/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const cur = currencyFromText(m[0] + m[1]);
+      if (cur) return cur;
+    }
+    const dataCur = html.match(/data-website_sale_currency=["']([A-Z]{3})["']/i);
+    if (dataCur) return dataCur[1].toUpperCase();
+  }
+  return null;
+}
+
+/**
+ * @param {string} text
+ * @returns {string|null}
+ */
+function currencyFromText(text) {
+  if (!text) return null;
+  if (/€|\bEUR\b/i.test(text)) return "EUR";
+  if (/\blei\b|\bRON\b/i.test(text)) return "RON";
+  if (/\$|\bUSD\b/i.test(text)) return "USD";
+  if (/£|\bGBP\b/i.test(text)) return "GBP";
+  return null;
+}
+
+/**
  * Pick offer matching preferred currency; else first offer.
  * @param {object|object[]} offers
  * @param {string|null} preferredCurrency
@@ -654,9 +703,11 @@ function pickOffer(offers, preferredCurrency) {
  * @returns {{ sku: string, price: number, currency: string, available: boolean, currencyAmbiguous?: boolean } | null}
  */
 function parseProductLdJson(html, opts = {}) {
+  const preferred =
+    opts.preferredCurrency ?? detectCurrencyFromHtml(html) ?? null;
+
   if (typeof DOMParser === "undefined") {
-    // Node / tests without DOM — minimal fallback using JSON extract of script bodies only.
-    return parseProductLdJsonFallback(html, opts);
+    return parseProductLdJsonFallback(html, { ...opts, preferredCurrency: preferred });
   }
   const doc = new DOMParser().parseFromString(html, "text/html");
   const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
@@ -672,7 +723,7 @@ function parseProductLdJson(html, opts = {}) {
       if (!types.includes("Product")) continue;
       const sku = item.sku || item.mpn;
       if (!sku) continue;
-      const picked = pickOffer(item.offers, opts.preferredCurrency ?? null);
+      const picked = pickOffer(item.offers, preferred);
       if (!picked) continue;
       const price = Number(picked.offer.price);
       if (!Number.isFinite(price)) continue;
@@ -691,6 +742,8 @@ function parseProductLdJson(html, opts = {}) {
 
 /** Node-test helper without jsdom. */
 function parseProductLdJsonFallback(html, opts) {
+  const preferred =
+    opts.preferredCurrency ?? detectCurrencyFromHtml(html) ?? null;
   const marker = 'type="application/ld+json"';
   let from = 0;
   while (from < html.length) {
@@ -711,7 +764,7 @@ function parseProductLdJsonFallback(html, opts) {
       if (!types.includes("Product")) continue;
       const sku = item.sku || item.mpn;
       if (!sku) continue;
-      const picked = pickOffer(item.offers, opts.preferredCurrency ?? null);
+      const picked = pickOffer(item.offers, preferred);
       if (!picked) continue;
       const price = Number(picked.offer.price);
       if (!Number.isFinite(price)) continue;
@@ -748,25 +801,17 @@ function cacheSet(sku, info) {
 }
 
 /**
- * Detect shop session currency from the current page if possible.
+ * Detect shop session currency from the current page (visible price chrome).
  * @returns {string|null}
  */
 function detectShopCurrency() {
   if (typeof document === "undefined") return null;
-  const meta = document.querySelector('[data-website_sale_currency], .oe_currency_value');
-  // Prefer ld+json on the current page
-  const parsed = parseProductLdJson(document.documentElement?.outerHTML || "", {});
-  if (parsed?.currency) return parsed.currency;
-  const text = meta?.textContent || "";
-  if (text.includes("€") || /EUR/i.test(text)) return "EUR";
-  if (text.includes("lei") || /RON/i.test(text)) return "RON";
-  return null;
+  return detectCurrencyFromHtml(document.documentElement?.outerHTML || "");
 }
 
 /**
  * @param {string} shopUrl
  * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch }} [opts]
- * @returns {Promise<{ sku: string, price: number, currency: string, available: boolean, error?: string } | null>}
  */
 async function fetchPrice(shopUrl, opts = {}) {
   if (!shopUrl) return null;
@@ -779,7 +824,12 @@ async function fetchPrice(shopUrl, opts = {}) {
       return { sku: "", price: NaN, currency: "", available: false, error: `http_${res.status}` };
     }
     const html = await res.text();
-    const preferred = opts.preferredCurrency ?? detectShopCurrency();
+    // Prefer caller override, else currency from THIS product page's visible price,
+    // else currency from the configurator host page session.
+    const preferred =
+      opts.preferredCurrency ??
+      detectCurrencyFromHtml(html) ??
+      detectShopCurrency();
     const parsed = parseProductLdJson(html, { preferredCurrency: preferred });
     if (!parsed) {
       return { sku: "", price: NaN, currency: "", available: false, error: "no_ldjson" };
@@ -800,17 +850,19 @@ async function fetchPrice(shopUrl, opts = {}) {
 /**
  * @param {string[]} shopUrls
  * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch }} [opts]
- * @returns {Promise<Map<string, { sku: string, price: number, currency: string, available: boolean, error?: string }>>}
  */
 async function fetchPrices(shopUrls, opts = {}) {
   const map = new Map();
   const urls = [...new Set((shopUrls || []).filter(Boolean))];
+  const sessionCurrency = opts.preferredCurrency ?? detectShopCurrency();
   for (const url of urls) {
-    // Try cache by scanning — we only know sku after fetch; optional warm path skipped.
-    const info = await fetchPrice(url, opts);
-    if (info?.sku) {
-      const cached = cacheGet(info.sku);
-      map.set(info.sku, cached || info);
+    const info = await fetchPrice(url, {
+      ...opts,
+      preferredCurrency: opts.preferredCurrency ?? sessionCurrency,
+    });
+    if (info?.sku && Number.isFinite(info.price)) {
+      map.set(info.sku, info);
+      cacheSet(info.sku, info);
     } else if (info?.error) {
       map.set(url, info);
     }
@@ -820,8 +872,9 @@ async function fetchPrices(shopUrls, opts = {}) {
 
 /**
  * Convert Map / record from fetchPrices into the plain object `estimate()` expects.
+ * Always keeps numeric prices; currencyAmbiguous is preserved as a flag only.
  * @param {Map<string, any>|Record<string, any>} prices
- * @returns {Record<string, { amount: number, currency: string }>}
+ * @returns {Record<string, { amount: number, currency: string, currencyAmbiguous?: boolean }>}
  */
 function toEstimatePriceMap(prices) {
   const out = {};
@@ -829,11 +882,16 @@ function toEstimatePriceMap(prices) {
   for (const [key, info] of entries) {
     if (!info || info.error || !Number.isFinite(info.price)) continue;
     const sku = info.sku || key;
-    out[sku] = { amount: info.price, currency: info.currency || "EUR" };
+    out[sku] = {
+      amount: info.price,
+      currency: info.currency || "EUR",
+      currencyAmbiguous: !!info.currencyAmbiguous,
+    };
   }
   return out;
 }
 
+HM.detectCurrencyFromHtml = detectCurrencyFromHtml;
 HM.parseProductLdJson = parseProductLdJson;
 HM.detectShopCurrency = detectShopCurrency;
 HM.fetchPrice = fetchPrice;
@@ -912,23 +970,41 @@ function cartLineCount(estimate) {
 }
 
 /**
+ * Sum HomeMaster lines that have a numeric price. Missing prices do not
+ * null the whole subtotal; currencyAmbiguous never hides amounts.
  * @param {object} estimate
- * @param {Record<string, {amount: number, currency: string}>} prices
- * @returns {{total: number, currency: string} | null}
+ * @param {Record<string, {amount: number, currency: string, currencyAmbiguous?: boolean}>} prices
+ * @returns {{total: number, currency: string, pricedQty: number, missingSku: string[], currencyAmbiguous: boolean} | null}
  */
 function cartTotal(estimate, prices) {
   let total = 0;
-  let currency = "EUR";
-  let any = false;
-  for (const line of estimate.cart_lines ?? []) {
+  let currency = null;
+  let pricedQty = 0;
+  let currencyAmbiguous = false;
+  const missingSku = [];
+  const lines =
+    (estimate.cart_lines && estimate.cart_lines.length
+      ? estimate.cart_lines
+      : (estimate.modules || []).map((m) => ({ sku: m.sku, qty: m.qty }))) || [];
+  for (const line of lines) {
     const p = prices[line.sku];
-    if (!p) return null;
-    total += p.amount * line.qty;
-    currency = p.currency;
-    any = true;
+    if (!p || !Number.isFinite(p.amount)) {
+      if (line.sku) missingSku.push(line.sku);
+      continue;
+    }
+    total += p.amount * (line.qty || 1);
+    currency = p.currency || currency || "EUR";
+    pricedQty += line.qty || 1;
+    if (p.currencyAmbiguous) currencyAmbiguous = true;
   }
-  if (!any) return { total: 0, currency };
-  return { total: Math.round(total * 100) / 100, currency };
+  if (pricedQty === 0) return null;
+  return {
+    total: Math.round(total * 100) / 100,
+    currency: currency || "EUR",
+    pricedQty,
+    missingSku,
+    currencyAmbiguous,
+  };
 }
 
 HM.addCartLine = addCartLine;
@@ -1064,7 +1140,7 @@ async function buildEstimateXlsx(estimate, opts = {}) {
     "",
     "",
     {
-      f: `IF(OR(E${accSubRow}=0,E${workSubRow}=0),"заполните цены",E${hmSubRow}+E${accSubRow}+E${workSubRow})`,
+      f: `IF(OR(E${accSubRow}=0,E${workSubRow}=0),"fill in prices",E${hmSubRow}+E${accSubRow}+E${workSubRow})`,
     },
   ]);
 
@@ -1131,7 +1207,7 @@ HM.downloadCsv = downloadCsv;
 
 // ===== ui.js =====
 /**
- * Four-step UI: Object → Rooms → Engineering → Result.
+ * Four-step UI: Property → Rooms → Systems → Result.
  * Live summary; expert demand bypass; localStorage without prices.
  */
 
@@ -1147,14 +1223,17 @@ const RULES_URL =
 
 /** @type {object|null} */
 let rules = null;
-/** @type {Record<string, {amount:number, currency:string}>} */
+/** @type {Record<string, {amount:number, currency:string, currencyAmbiguous?:boolean}>} */
 let priceMap = {};
 /** @type {object} */
 let state = {
   step: 0,
   expert: false,
   object: { cabinets: 1, name: "" },
-  rooms: [{ template: "living", name: "Гостиная" }, { template: "bedroom", name: "Спальня" }],
+  rooms: [
+    { template: "living", name: "Living room" },
+    { template: "bedroom", name: "Bedroom" },
+  ],
   engineering: {
     shutters: 0,
     underfloor_circuits: 0,
@@ -1177,7 +1256,7 @@ let state = {
   rulesVersion: null,
 };
 
-const STEPS = ["Объект", "Помещения", "Инженерия", "Результат"];
+const STEPS = ["Property", "Rooms", "Systems", "Result"];
 
 async function loadRules(url = RULES_URL) {
   const res = await fetch(url);
@@ -1193,7 +1272,6 @@ function loadState() {
     const saved = JSON.parse(raw);
     if (saved.rulesVersion && rules && saved.rulesVersion !== rules.version) return;
     Object.assign(state, saved, { rulesVersion: rules?.version });
-    // never restore prices
   } catch {
     /* ignore */
   }
@@ -1201,7 +1279,7 @@ function loadState() {
 
 function saveState() {
   try {
-    const { /* prices omitted */ ...rest } = { ...state, rulesVersion: rules?.version };
+    const rest = { ...state, rulesVersion: rules?.version };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
   } catch {
     /* ignore */
@@ -1244,12 +1322,30 @@ function runEstimate(inputs, prices = priceMap) {
 }
 
 async function refreshPrices(result) {
-  const urls = (result.modules || [])
-    .map((m) => m.shop_url)
-    .filter(Boolean);
+  const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
   if (!urls.length) return;
   const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
   priceMap = toEstimatePriceMap(map);
+}
+
+function formatPrice(p) {
+  if (!p || typeof p.amount !== "number" || !Number.isFinite(p.amount)) {
+    return '<span class="hm-muted">price unavailable</span>';
+  }
+  const amb = p.currencyAmbiguous
+    ? ' <span class="hm-muted">(currency may not match shop session)</span>'
+    : "";
+  return `${p.amount} ${p.currency || ""}${amb}`;
+}
+
+function enclosureMessage(enclosure) {
+  if (!enclosure || enclosure.status !== "blocked") {
+    return `<p>DIN: ${enclosure?.din_total ?? "—"}</p>`;
+  }
+  if (enclosure.reason === "din_units_missing") {
+    return `<p class="hm-warn">Panel layout: blocked — DIN width unknown for some modules</p>`;
+  }
+  return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
 }
 
 function el(html) {
@@ -1267,8 +1363,8 @@ function mountConfigurator(root) {
     <div class="hm-estimator">
       <header class="hm-estimator__header">
         <h1>HomeMaster</h1>
-        <p class="hm-estimator__tagline">Конфигуратор щита — расчёт в браузере, цены с витрины</p>
-        <label class="hm-expert"><input type="checkbox" id="hm-expert"> Экспертный режим (прямой demand)</label>
+        <p class="hm-estimator__tagline">Panel configurator — calculated in your browser, prices from the shop</p>
+        <label class="hm-expert"><input type="checkbox" id="hm-expert"> Expert mode (direct demand)</label>
       </header>
       <nav class="hm-steps" id="hm-steps"></nav>
       <div class="hm-layout">
@@ -1321,33 +1417,33 @@ function mountConfigurator(root) {
     const mods = (result.modules || [])
       .map((m) => {
         const p = priceMap[m.sku];
-        const price = p
-          ? `${p.amount} ${p.currency}`
-          : '<span class="hm-muted">цена не загрузилась</span>';
-        return `<li><strong>${m.qty}×</strong> ${m.id}<br><span class="hm-muted">${price}</span></li>`;
+        return `<li><strong>${m.qty}×</strong> ${m.id}<br><span class="hm-muted">${formatPrice(p)}</span></li>`;
       })
       .join("");
-    const enc =
-      result.enclosure?.status === "blocked"
-        ? `<p class="hm-warn">Щит: blocked (${result.enclosure.reason})</p>`
-        : `<p>DIN: ${result.enclosure?.din_total ?? "—"}</p>`;
     const tot = cartTotal(result, priceMap);
+    let totalLine = "HomeMaster subtotal: —";
+    if (tot && typeof tot.total === "number") {
+      const amb = tot.currencyAmbiguous
+        ? ' <span class="hm-muted">(currency may not match shop session)</span>'
+        : "";
+      totalLine = `HomeMaster subtotal: ${tot.total} ${tot.currency} (incl. VAT)${amb}`;
+    }
     summary.innerHTML = `
-      <h2>Сводка</h2>
+      <h2>Summary</h2>
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
-      <p>Сегменты RS-485: ${result.topology?.segments?.length ?? 0}</p>
-      <p>Питание 24 В: ${result.power?.total_w ?? "—"} W</p>
-      ${enc}
-      <p class="hm-total">${tot ? `Итого HM: ${tot.total} ${tot.currency} (с НДС)` : "Итого HM: —"}</p>
+      <p>RS-485 segments: ${result.topology?.segments?.length ?? 0}</p>
+      <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
+      ${enclosureMessage(result.enclosure)}
+      <p class="hm-total">${totalLine}</p>
     `;
   }
 
   function renderObject() {
     main.innerHTML = `
-      <h2>Объект</h2>
-      <label>Название <input id="f-name" value="${state.object.name || ""}"></label>
-      <label>Число щитов / шкафов <input id="f-cab" type="number" min="1" value="${state.object.cabinets || 1}"></label>
-      <div class="hm-actions"><button type="button" id="hm-next">Далее</button></div>
+      <h2>Property</h2>
+      <label>Project name <input id="f-name" value="${state.object.name || ""}"></label>
+      <label>Number of panels <input id="f-cab" type="number" min="1" value="${state.object.cabinets || 1}"></label>
+      <div class="hm-actions"><button type="button" id="hm-next">Next</button></div>
     `;
     main.querySelector("#f-name").oninput = (e) => {
       state.object.name = e.target.value;
@@ -1368,24 +1464,29 @@ function mountConfigurator(root) {
 
   function renderRooms() {
     main.innerHTML = `
-      <h2>Помещения</h2>
+      <h2>Rooms</h2>
       <div id="room-list"></div>
-      <button type="button" id="add-room">+ помещение</button>
+      <button type="button" id="add-room">+ room</button>
       <div class="hm-actions">
-        <button type="button" id="hm-back">Назад</button>
-        <button type="button" id="hm-next">Далее</button>
+        <button type="button" id="hm-back">Back</button>
+        <button type="button" id="hm-next">Next</button>
       </div>
     `;
     const list = main.querySelector("#room-list");
-    const templates = Object.keys(rules.room_templates || {
-      living: 1, bedroom: 1, kitchen: 1, bath: 1,
-    });
+    const templates = Object.keys(
+      rules.room_templates || {
+        living: 1,
+        bedroom: 1,
+        kitchen: 1,
+        bath: 1,
+      },
+    );
     function paintRooms() {
       list.innerHTML = state.rooms
         .map(
           (r, i) => `
         <div class="hm-room-row" data-i="${i}">
-          <input data-k="name" value="${r.name || ""}" placeholder="Имя">
+          <input data-k="name" value="${r.name || ""}" placeholder="Name">
           <select data-k="template">${templates
             .map((t) => `<option value="${t}" ${t === r.template ? "selected" : ""}>${t}</option>`)
             .join("")}</select>
@@ -1431,24 +1532,24 @@ function mountConfigurator(root) {
 
   function renderEngineering() {
     const fields = [
-      ["shutters", "Рольставни / шторы (приводов)"],
-      ["underfloor_circuits", "Контуры тёплого пола"],
-      ["dimmer_groups", "Группы диммирования AC"],
-      ["pwm_led_ch", "Каналы LED PWM"],
-      ["leak_zone", "Зоны протечки"],
-      ["flow_pulse", "Импульсные счётчики"],
-      ["rtd_input", "RTD"],
-      ["analog_in", "Аналог. входы"],
-      ["analog_in_4_20", "Петли 4–20 мА"],
-      ["analog_out", "Аналог. выходы"],
-      ["alarm_zone_powered", "Охранные зоны (питаемые)"],
-      ["alarm_zone_dry", "Охранные зоны (сухие)"],
-      ["energy_phase", "Фазы учёта энергии"],
-      ["onewire_sensor", "1-Wire датчики"],
-      ["relay_needs_contactor", "Реле под контактор"],
+      ["shutters", "Shutters / blinds (drives)"],
+      ["underfloor_circuits", "Underfloor heating circuits"],
+      ["dimmer_groups", "AC dimmer groups"],
+      ["pwm_led_ch", "LED PWM channels"],
+      ["leak_zone", "Leak zones"],
+      ["flow_pulse", "Pulse meters"],
+      ["rtd_input", "RTD inputs"],
+      ["analog_in", "Analog inputs"],
+      ["analog_in_4_20", "4–20 mA loops"],
+      ["analog_out", "Analog outputs"],
+      ["alarm_zone_powered", "Alarm zones (powered)"],
+      ["alarm_zone_dry", "Alarm zones (dry contact)"],
+      ["energy_phase", "Energy metering phases"],
+      ["onewire_sensor", "1-Wire sensors"],
+      ["relay_needs_contactor", "Relays needing contactor"],
     ];
     main.innerHTML = `
-      <h2>Инженерия</h2>
+      <h2>Systems</h2>
       ${fields
         .map(
           ([k, label]) =>
@@ -1457,10 +1558,10 @@ function mountConfigurator(root) {
         .join("")}
       <label class="hm-check"><input data-eng-bool="opentherm" type="checkbox" ${
         state.engineering.opentherm ? "checked" : ""
-      }> OpenTherm котёл</label>
+      }> OpenTherm boiler</label>
       <div class="hm-actions">
-        <button type="button" id="hm-back">Назад</button>
-        <button type="button" id="hm-next">К результату</button>
+        <button type="button" id="hm-back">Back</button>
+        <button type="button" id="hm-next">To result</button>
       </div>
     `;
     main.querySelectorAll("[data-eng]").forEach((inp) => {
@@ -1490,11 +1591,11 @@ function mountConfigurator(root) {
 
   function renderExpert() {
     main.innerHTML = `
-      <h2>Экспертный demand (JSON)</h2>
+      <h2>Expert demand (JSON)</h2>
       <textarea id="expert-json" rows="16">${JSON.stringify(state.expertDemand, null, 2)}</textarea>
       <div class="hm-actions">
-        <button type="button" id="hm-apply">Применить</button>
-        <button type="button" id="hm-next">К результату</button>
+        <button type="button" id="hm-apply">Apply</button>
+        <button type="button" id="hm-next">To result</button>
       </div>
     `;
     main.querySelector("#hm-apply").onclick = () => {
@@ -1515,7 +1616,7 @@ function mountConfigurator(root) {
 
   async function renderResult() {
     let result = liveResult();
-    main.innerHTML = `<p>Загрузка цен с витрины…</p>`;
+    main.innerHTML = `<p>Loading prices from the shop…</p>`;
     await refreshPrices(result);
     result = liveResult();
     renderSummary(result);
@@ -1523,28 +1624,32 @@ function mountConfigurator(root) {
     const mods = (result.modules || [])
       .map((m) => {
         const p = priceMap[m.sku];
+        const priceCell =
+          p && typeof p.amount === "number"
+            ? `${p.amount} ${p.currency || ""}`
+            : "—";
         return `<tr>
           <td>${m.qty}×</td>
           <td><a href="${m.shop_url || "#"}">${m.id}</a></td>
           <td>${m.sku}</td>
-          <td>${p ? `${p.amount} ${p.currency}` : "—"}</td>
-          <td><button type="button" class="hm-why" data-sku="${m.sku}">почему</button></td>
+          <td>${priceCell}</td>
+          <td><button type="button" class="hm-why" data-sku="${m.sku}">why</button></td>
         </tr>`;
       })
       .join("");
 
     main.innerHTML = `
-      <h2>Результат</h2>
-      <table class="hm-table"><thead><tr><th>Кол-во</th><th>Модуль</th><th>SKU</th><th>Цена с НДС</th><th></th></tr></thead>
+      <h2>Result</h2>
+      <table class="hm-table"><thead><tr><th>Qty</th><th>Module</th><th>SKU</th><th>Price incl. VAT</th><th></th></tr></thead>
       <tbody>${mods}</tbody></table>
-      <details><summary>ESPHome YAML (тайминги шины)</summary>
+      <details><summary>ESPHome YAML (bus timings)</summary>
         <pre>${(result.topology?.esphome_yaml || "").replace(/</g, "&lt;")}</pre>
       </details>
       <div class="hm-actions">
-        <button type="button" id="hm-cart">В корзину</button>
-        <button type="button" id="hm-xlsx">Скачать .xlsx</button>
+        <button type="button" id="hm-cart">Add to cart</button>
+        <button type="button" id="hm-xlsx">Download .xlsx</button>
         <button type="button" id="hm-csv">CSV</button>
-        <button type="button" id="hm-back">Назад</button>
+        <button type="button" id="hm-back">Back</button>
       </div>
       <div id="hm-cart-status"></div>
     `;
@@ -1566,15 +1671,15 @@ function mountConfigurator(root) {
     };
     main.querySelector("#hm-cart").onclick = async () => {
       const status = main.querySelector("#hm-cart-status");
-      status.textContent = "Добавляем…";
+      status.textContent = "Adding…";
       const { added, failed } = await addAllToCart(result.cart_lines || []);
       if (failed) {
         status.innerHTML = `
-          <p class="hm-warn">Добавлено ${added.length} поз., ошибка на ${failed.line?.sku}: ${failed.error}</p>
-          <p><a href="/shop/cart">Открыть корзину</a> · можно скачать смету</p>`;
+          <p class="hm-warn">Added ${added.length} item(s); failed on ${failed.line?.sku}: ${failed.error}</p>
+          <p><a href="/shop/cart">Open cart</a> · you can still download the estimate</p>`;
         return;
       }
-      status.innerHTML = `<p>Готово: ${added.length} позиций. <a href="/shop/cart">Перейти в корзину</a></p>`;
+      status.innerHTML = `<p>Done: ${added.length} item(s). <a href="/shop/cart">Go to cart</a></p>`;
     };
   }
 
@@ -1620,7 +1725,11 @@ async function init() {
 function ensureStylesheet() {
   if (typeof document === "undefined") return;
   const href = "https://config.home-master.eu/estimator/app.css";
-  if ([...document.querySelectorAll("link[rel='stylesheet']")].some((l) => l.href.includes("/estimator/app.css"))) {
+  if (
+    [...document.querySelectorAll("link[rel='stylesheet']")].some((l) =>
+      l.href.includes("/estimator/app.css"),
+    )
+  ) {
     return;
   }
   const link = document.createElement("link");
@@ -1633,15 +1742,13 @@ function boot() {
   init().catch((err) => {
     const root = findRoot();
     if (root) {
-      root.innerHTML =
-        `<p class="hm-warn">Estimator failed: ${err?.message || err}</p>`;
+      root.innerHTML = `<p class="hm-warn">Estimator failed: ${err?.message || err}</p>`;
     }
     console.error(err);
   });
 }
 
 if (typeof document !== "undefined") {
-  // Module scripts often load after DOMContentLoaded — do not wait forever.
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
