@@ -37,7 +37,7 @@ function estimate(inputs, rules, prices = EMPTY) {
 
 function normalize(inputs, rules, assumptions) {
   const out = {
-    cabinets: inputs.cabinets ?? 1,
+    cabinets: Math.max(1, Number(inputs.cabinets) || 1),
     mode: inputs.mode ?? "rooms",
     demand: {},
     shutters: 0,
@@ -59,12 +59,13 @@ function normalize(inputs, rules, assumptions) {
 
   if (inputs.rooms) {
     for (const room of inputs.rooms) {
-      const tpl = templates[room.template ?? room.type] ?? room;
-      for (const [field, channel] of Object.entries(mapping)) {
-        if (channel === "shutters" || channel === "relay_needs_contactor") continue;
-        const count = (tpl[field] ?? room[field] ?? 0) * (room.count ?? 1);
-        if (count > 0) addDemand(out.demand, channel, count);
-      }
+      // Draft / placeholder rows (no name) do not contribute demand.
+      if (!String(room?.name ?? "").trim()) continue;
+      const type = room.template ?? room.type ?? "living";
+      const tpl = templates[type] ?? EMPTY;
+      // Template defaults, then per-room overrides. Type is never inferred from name.
+      const merged = { ...tpl, ...room, template: type };
+      applyRoomDemand(out, merged, room);
     }
   }
 
@@ -72,7 +73,7 @@ function normalize(inputs, rules, assumptions) {
     addDemand(out.demand, "out_24v_ch", inputs.underfloor_circuits);
   }
   if (inputs.shutters != null) {
-    out.shutters = inputs.shutters;
+    out.shutters += inputs.shutters;
   }
   if (inputs.relay_needs_contactor != null) {
     out.relay_needs_contactor = inputs.relay_needs_contactor;
@@ -86,20 +87,93 @@ function normalize(inputs, rules, assumptions) {
     "shutters",
     "relay_needs_contactor",
     "underfloor_circuits",
+    "name",
   ]);
 
   for (const [field, channel] of Object.entries(mapping)) {
     if (explicitFields.has(field)) continue;
     if (inputs[field] != null && channel !== "shutters" && channel !== "relay_needs_contactor") {
-      addDemand(out.demand, channel, inputs[field]);
+      const n = Number(inputs[field]);
+      if (Number.isFinite(n) && n !== 0) addDemand(out.demand, channel, n);
+      else if (inputs[field] === true) addDemand(out.demand, channel, 1);
     }
   }
 
   return out;
 }
 
+/**
+ * Map one named room card onto the demand bag / shutter count.
+ * @param {{ demand: object, shutters: number }} out
+ * @param {object} room merged template + overrides
+ * @param {object} [raw] original room object (for legacy field detection)
+ */
+function applyRoomDemand(out, room, raw = room) {
+  const lights = Math.max(0, Number(room.lights_onoff) || 0);
+  const dimmable = Math.min(lights, Math.max(0, Number(room.lights_dimmable) || 0));
+  const onOff = lights - dimmable;
+  if (onOff > 0) addDemand(out.demand, "relay_out_3a", onOff);
+  if (dimmable > 0) addDemand(out.demand, "dimmer_ac_ch", dimmable);
+
+  const strips = Math.max(0, Number(room.led_strips) || 0);
+  const ch = Math.max(3, Math.min(5, Number(room.led_strip_channels) || 4));
+  if (strips > 0) addDemand(out.demand, "pwm_led_ch", strips * ch);
+
+  const single = Math.max(0, Number(room.led_single) || 0);
+  if (single > 0) addDemand(out.demand, "pwm_led_ch", single);
+
+  const switches = Math.max(0, Number(room.switches) || 0);
+  if (switches > 0) addDemand(out.demand, "di_dry", switches);
+
+  const shutters = Math.max(0, Number(room.shutters) || 0);
+  if (shutters > 0) out.shutters += shutters;
+
+  const ufh = Math.max(0, Number(room.ufh_loops) || 0);
+  if (ufh > 0) addDemand(out.demand, "out_24v_ch", ufh);
+
+  const ufhEl = Math.max(0, Number(room.ufh_electric) || 0);
+  if (ufhEl > 0) addDemand(out.demand, "relay_out_3a", ufhEl);
+
+  const v010 = Math.max(0, Number(room.lights_0_10v) || 0);
+  if (v010 > 0) addDemand(out.demand, "analog_out", v010);
+
+  const temp = String(room.temp_sensor || "none").toUpperCase();
+  if (temp === "DS18B20") addDemand(out.demand, "onewire", 1);
+  else if (temp === "PT100" || temp === "PT1000") addDemand(out.demand, "rtd_input", 1);
+
+  const leak = Math.max(0, Number(room.leak_sensors) || 0);
+  if (leak > 0) addDemand(out.demand, "leak_or_pulse", leak);
+
+  const motion = Math.max(0, Number(room.motion_sensors) || 0);
+  if (motion > 0) addDemand(out.demand, "presence_in", motion);
+
+  const presence = Math.max(0, Number(room.presence_sensors) || 0);
+  if (presence > 0) addDemand(out.demand, "presence_in", presence);
+
+  const doors = Math.max(0, Number(room.door_contacts) || 0);
+  if (doors > 0) addDemand(out.demand, "di_dry", doors);
+
+  const sockets = Math.max(0, Number(room.smart_sockets) || 0);
+  if (sockets > 0) addDemand(out.demand, "relay_out_3a", sockets);
+
+  const fan = Math.max(0, Number(room.extract_fan) || 0);
+  if (fan > 0) addDemand(out.demand, "relay_out_3a", fan);
+
+  // Legacy fixture fields — only when the new card fields were not supplied.
+  if (raw.lights_onoff == null && raw.light_groups != null) {
+    const legacyLights = Math.max(0, Number(raw.light_groups) || 0);
+    if (legacyLights > 0) addDemand(out.demand, "relay_out_3a", legacyLights);
+  }
+  if (raw.switches == null && raw.keys != null) {
+    const legacyKeys = Math.max(0, Number(raw.keys) || 0);
+    if (legacyKeys > 0) addDemand(out.demand, "di_dry", legacyKeys);
+  }
+}
+
 function addDemand(bag, channel, qty) {
-  bag[channel] = (bag[channel] ?? 0) + qty;
+  const n = Number(qty);
+  if (!Number.isFinite(n) || n === 0) return;
+  bag[channel] = (bag[channel] ?? 0) + n;
 }
 
 // ── Stage 2: demand ─────────────────────────────────────────────────
@@ -288,11 +362,13 @@ function buildTopology(allocated, normalized, rules, assumptions) {
   const slaves = slaveIds.flatMap((id) => {
     const spec = moduleSpecs[id];
     const qty = allocated.modules[id];
+    if (typeof qty !== "number") return [];
+    const weight = Number(spec.poll_weight);
     const lines = [];
     for (let i = 0; i < qty; i++) {
       lines.push({
         id,
-        poll_weight: spec.poll_weight ?? 0,
+        poll_weight: Number.isFinite(weight) ? weight : 0,
         sku: spec.sku,
         tmpl_id: spec.product_template_id,
         product_id: spec.product_id,
@@ -310,10 +386,16 @@ function buildTopology(allocated, normalized, rules, assumptions) {
 
   const controllers = rules.controllers ?? EMPTY;
   const threshold = controllers.small_slave_threshold ?? 4;
-  const moduleMap = { ...allocated.modules };
+  const moduleMap = {};
+  for (const [id, qty] of Object.entries(allocated.modules)) {
+    if (id === "_sources") continue;
+    if (typeof qty === "number") moduleMap[id] = qty;
+  }
 
   for (const seg of segments) {
+    // One controller per non-empty segment. Empty pads are never created.
     const slaveCount = seg.slaves.length;
+    if (slaveCount === 0) continue;
     const ctrlId =
       slaveCount <= threshold ? controllers.small ?? "MicroPLC" : controllers.large ?? "MiniPLC";
     seg.controller = ctrlId;
@@ -353,14 +435,14 @@ function buildTopology(allocated, normalized, rules, assumptions) {
   };
 }
 
+/**
+ * Pack slaves into RS-485 segments.
+ * Segment count comes from poll_weight vs budget, hard_max_modules, and
+ * cabinets as a minimum — but never from the room count, and never by
+ * creating empty segments (those previously spawned extra controllers).
+ */
 function packSegments(slaves, budget, hardMax, minSegments) {
-  if (slaves.length === 0) {
-    const segs = [];
-    for (let i = 0; i < minSegments; i++) {
-      segs.push({ slaves: [], poll_weight: 0 });
-    }
-    return segs;
-  }
+  if (slaves.length === 0) return [];
 
   // First-fit decreasing by poll_weight.
   const sorted = [...slaves].sort((a, b) => b.poll_weight - a.poll_weight);
@@ -383,11 +465,19 @@ function packSegments(slaves, budget, hardMax, minSegments) {
     }
   }
 
-  while (segments.length < minSegments) {
-    segments.push({ slaves: [], poll_weight: 0 });
+  // Honour cabinets as a floor only while every segment still has ≥1 slave.
+  const target = Math.min(Math.max(1, minSegments), slaves.length);
+  while (segments.length < target) {
+    const donor = segments.reduce((a, b) =>
+      b.slaves.length > a.slaves.length ? b : a,
+    );
+    if (donor.slaves.length <= 1) break;
+    const moved = donor.slaves.pop();
+    donor.poll_weight = donor.slaves.reduce((s, sl) => s + sl.poll_weight, 0);
+    segments.push({ slaves: [moved], poll_weight: moved.poll_weight });
   }
 
-  return segments;
+  return segments.filter((seg) => seg.slaves.length > 0);
 }
 
 function buildEsphomeYaml(segments, rules) {
@@ -608,6 +698,12 @@ HM.estimate = estimate;
 /**
  * Runtime prices from Odoo shop Product ld+json.
  * Never baked into rules.json or the published artifact.
+ *
+ * Currency selection (in order):
+ * 1. Caller / host-page session preference
+ * 2. Visible shop price on the product HTML (oe_currency_value amount
+ *    matched to an offer; else currency text next to that widget)
+ * 3. First offer + currencyAmbiguous when multiple offers exist
  */
 
 const CACHE_PREFIX = "hm_price_";
@@ -619,42 +715,6 @@ const CACHE_PREFIX = "hm_price_";
 function asArray(node) {
   if (node == null) return [];
   return Array.isArray(node) ? node : [node];
-}
-
-/**
- * Infer session currency from visible shop price chrome (not ld+json offer order).
- * Looks at span.oe_currency_value and nearby text (€, lei, EUR, RON, USD…).
- * @param {string} html
- * @returns {string|null}
- */
-function detectCurrencyFromHtml(html) {
-  if (!html) return null;
-  if (typeof DOMParser !== "undefined") {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const nodes = [
-      ...doc.querySelectorAll("span.oe_currency_value"),
-      ...doc.querySelectorAll("[data-website_sale_currency]"),
-      ...doc.querySelectorAll(".product_price, .oe_price"),
-    ];
-    for (const node of nodes) {
-      const chunk = `${node.textContent || ""} ${node.parentElement?.textContent || ""}`;
-      const cur = currencyFromText(chunk);
-      if (cur) return cur;
-    }
-  } else {
-    // Node / no DOMParser: inspect text around the visible price widget only
-    // (do not scan whole-document ld+json — that lists every currency).
-    const re =
-      /<span[^>]*class="[^"]*oe_currency_value[^"]*"[^>]*>[\s\S]*?<\/span>([\s\S]{0,80})/gi;
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      const cur = currencyFromText(m[0] + m[1]);
-      if (cur) return cur;
-    }
-    const dataCur = html.match(/data-website_sale_currency=["']([A-Z]{3})["']/i);
-    if (dataCur) return dataCur[1].toUpperCase();
-  }
-  return null;
 }
 
 /**
@@ -671,23 +731,101 @@ function currencyFromText(text) {
 }
 
 /**
- * Pick offer matching preferred currency; else first offer.
- * @param {object|object[]} offers
- * @param {string|null} preferredCurrency
+ * Parse a shop price amount from visible widget text (handles "1,464.10").
+ * @param {string} text
+ * @returns {number|null}
  */
-function pickOffer(offers, preferredCurrency) {
-  const list = asArray(offers).flatMap((o) => {
-    if (o && typeof o === "object" && Array.isArray(o.offers)) return o.offers;
-    return [o];
-  }).filter(Boolean);
+function parseVisibleAmount(text) {
+  if (!text) return null;
+  const m = String(text).replace(/\s/g, "").match(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const n = Number(m[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Read the visible product price widget — not ld+json offer order.
+ * @param {string} html
+ * @returns {{ amount: number|null, currency: string|null }}
+ */
+function detectVisiblePrice(html) {
+  if (!html) return { amount: null, currency: null };
+
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const nodes = [
+      ...doc.querySelectorAll("span.oe_currency_value"),
+      ...doc.querySelectorAll("[data-website_sale_currency]"),
+      ...doc.querySelectorAll(".product_price .oe_currency_value, .oe_price .oe_currency_value"),
+    ];
+    for (const node of nodes) {
+      const amount = parseVisibleAmount(node.textContent || "");
+      const chunk = `${node.textContent || ""} ${node.parentElement?.textContent || ""}`;
+      const currency = currencyFromText(chunk);
+      if (amount != null || currency) return { amount, currency };
+    }
+    return { amount: null, currency: null };
+  }
+
+  const re =
+    /<span[^>]*class="[^"]*oe_currency_value[^"]*"[^>]*>([\s\S]*?)<\/span>([\s\S]{0,80})/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const amount = parseVisibleAmount(m[1]);
+    const currency = currencyFromText(m[0] + m[2]);
+    if (amount != null || currency) return { amount, currency };
+  }
+  return { amount: null, currency: null };
+}
+
+/**
+ * Infer session currency from visible shop price chrome.
+ * @param {string} html
+ * @returns {string|null}
+ */
+function detectCurrencyFromHtml(html) {
+  return detectVisiblePrice(html).currency;
+}
+
+/**
+ * @param {object|object[]} offers
+ * @param {{ preferredCurrency?: string|null, visibleAmount?: number|null }} opts
+ */
+function pickOffer(offers, opts = {}) {
+  const list = asArray(offers)
+    .flatMap((o) => {
+      if (o && typeof o === "object" && Array.isArray(o.offers)) return o.offers;
+      return [o];
+    })
+    .filter(Boolean);
 
   if (!list.length) return null;
-  if (preferredCurrency) {
-    const match = list.find(
-      (o) => String(o.priceCurrency || "").toUpperCase() === preferredCurrency.toUpperCase(),
-    );
-    if (match) return { offer: match, currencyChosen: match.priceCurrency, ambiguous: false };
+
+  const visibleAmount = opts.visibleAmount;
+  if (visibleAmount != null && Number.isFinite(visibleAmount)) {
+    const byAmount = list.find((o) => {
+      const p = Number(o.price);
+      return Number.isFinite(p) && Math.abs(p - visibleAmount) < 0.021;
+    });
+    if (byAmount) {
+      return {
+        offer: byAmount,
+        currencyChosen: byAmount.priceCurrency || null,
+        ambiguous: false,
+      };
+    }
   }
+
+  const preferred = opts.preferredCurrency;
+  if (preferred) {
+    const match = list.find(
+      (o) => String(o.priceCurrency || "").toUpperCase() === preferred.toUpperCase(),
+    );
+    if (match) {
+      return { offer: match, currencyChosen: match.priceCurrency, ambiguous: false };
+    }
+  }
+
   const first = list[0];
   return {
     offer: first,
@@ -697,17 +835,18 @@ function pickOffer(offers, preferredCurrency) {
 }
 
 /**
- * Parse Product ld+json from HTML via DOMParser (no regex over markup).
  * @param {string} html
  * @param {{ preferredCurrency?: string|null }} [opts]
- * @returns {{ sku: string, price: number, currency: string, available: boolean, currencyAmbiguous?: boolean } | null}
  */
 function parseProductLdJson(html, opts = {}) {
-  const preferred =
-    opts.preferredCurrency ?? detectCurrencyFromHtml(html) ?? null;
+  const visible = detectVisiblePrice(html);
+  const preferred = opts.preferredCurrency ?? visible.currency ?? null;
 
   if (typeof DOMParser === "undefined") {
-    return parseProductLdJsonFallback(html, { ...opts, preferredCurrency: preferred });
+    return parseProductLdJsonFallback(html, {
+      preferredCurrency: preferred,
+      visibleAmount: visible.amount,
+    });
   }
   const doc = new DOMParser().parseFromString(html, "text/html");
   const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
@@ -723,7 +862,10 @@ function parseProductLdJson(html, opts = {}) {
       if (!types.includes("Product")) continue;
       const sku = item.sku || item.mpn;
       if (!sku) continue;
-      const picked = pickOffer(item.offers, preferred);
+      const picked = pickOffer(item.offers, {
+        preferredCurrency: preferred,
+        visibleAmount: visible.amount,
+      });
       if (!picked) continue;
       const price = Number(picked.offer.price);
       if (!Number.isFinite(price)) continue;
@@ -740,10 +882,9 @@ function parseProductLdJson(html, opts = {}) {
   return null;
 }
 
-/** Node-test helper without jsdom. */
 function parseProductLdJsonFallback(html, opts) {
-  const preferred =
-    opts.preferredCurrency ?? detectCurrencyFromHtml(html) ?? null;
+  const preferred = opts.preferredCurrency ?? null;
+  const visibleAmount = opts.visibleAmount ?? null;
   const marker = 'type="application/ld+json"';
   let from = 0;
   while (from < html.length) {
@@ -764,7 +905,7 @@ function parseProductLdJsonFallback(html, opts) {
       if (!types.includes("Product")) continue;
       const sku = item.sku || item.mpn;
       if (!sku) continue;
-      const picked = pickOffer(item.offers, preferred);
+      const picked = pickOffer(item.offers, { preferredCurrency: preferred, visibleAmount });
       if (!picked) continue;
       const price = Number(picked.offer.price);
       if (!Number.isFinite(price)) continue;
@@ -781,16 +922,6 @@ function parseProductLdJsonFallback(html, opts) {
   return null;
 }
 
-function cacheGet(sku) {
-  try {
-    if (typeof sessionStorage === "undefined") return null;
-    const raw = sessionStorage.getItem(CACHE_PREFIX + sku);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
 function cacheSet(sku, info) {
   try {
     if (typeof sessionStorage === "undefined") return;
@@ -801,12 +932,27 @@ function cacheSet(sku, info) {
 }
 
 /**
- * Detect shop session currency from the current page (visible price chrome).
+ * Detect shop session currency from the current page.
+ * Prefers a visible price widget; falls back to active pricelist label.
  * @returns {string|null}
  */
 function detectShopCurrency() {
   if (typeof document === "undefined") return null;
-  return detectCurrencyFromHtml(document.documentElement?.outerHTML || "");
+  const html = document.documentElement?.outerHTML || "";
+  const fromPrice = detectCurrencyFromHtml(html);
+  if (fromPrice) return fromPrice;
+
+  // Active pricelist label (e.g. "Romania" → often RON; "Europe" / "EU" → EUR)
+  const active =
+    document.querySelector(".o_pricelist_dropdown .dropdown-item.active .switcher_pricelist") ||
+    document.querySelector(".o_pricelist_dropdown .dropdown-toggle");
+  if (active) {
+    const label = (active.textContent || "").trim();
+    if (/romania|ron|lei/i.test(label)) return "RON";
+    if (/europe|euro|\bEU\b|\bEUR\b/i.test(label)) return "EUR";
+    if (/usd|dollar/i.test(label)) return "USD";
+  }
+  return null;
 }
 
 /**
@@ -824,12 +970,9 @@ async function fetchPrice(shopUrl, opts = {}) {
       return { sku: "", price: NaN, currency: "", available: false, error: `http_${res.status}` };
     }
     const html = await res.text();
-    // Prefer caller override, else currency from THIS product page's visible price,
-    // else currency from the configurator host page session.
-    const preferred =
-      opts.preferredCurrency ??
-      detectCurrencyFromHtml(html) ??
-      detectShopCurrency();
+    // Host/session preference first; product page visible price is the
+    // authority inside parseProductLdJson (amount → matching offer).
+    const preferred = opts.preferredCurrency ?? detectShopCurrency();
     const parsed = parseProductLdJson(html, { preferredCurrency: preferred });
     if (!parsed) {
       return { sku: "", price: NaN, currency: "", available: false, error: "no_ldjson" };
@@ -871,10 +1014,7 @@ async function fetchPrices(shopUrls, opts = {}) {
 }
 
 /**
- * Convert Map / record from fetchPrices into the plain object `estimate()` expects.
- * Always keeps numeric prices; currencyAmbiguous is preserved as a flag only.
  * @param {Map<string, any>|Record<string, any>} prices
- * @returns {Record<string, { amount: number, currency: string, currencyAmbiguous?: boolean }>}
  */
 function toEstimatePriceMap(prices) {
   const out = {};
@@ -891,6 +1031,7 @@ function toEstimatePriceMap(prices) {
   return out;
 }
 
+HM.detectVisiblePrice = detectVisiblePrice;
 HM.detectCurrencyFromHtml = detectCurrencyFromHtml;
 HM.parseProductLdJson = parseProductLdJson;
 HM.detectShopCurrency = detectShopCurrency;
@@ -1214,12 +1355,42 @@ HM.downloadCsv = downloadCsv;
 
 
 
-const STORAGE_KEY = "hm_configurator_v1";
+const STORAGE_KEY = "hm_configurator_v2";
 
 const RULES_URL =
   (typeof globalThis !== "undefined" &&
     (globalThis.HM_ESTIMATOR_RULES_URL || globalThis.HM_RULES_URL)) ||
   "https://config.home-master.eu/estimator/rules.json";
+
+const ROOM_FIELDS_MAIN = [
+  ["lights_onoff", "Light groups (on/off)", "number"],
+  ["lights_dimmable", "of which dimmable 230 V", "number"],
+  ["led_strips", "RGB / RGBW / RGBCCT strips", "number"],
+  ["led_strip_channels", "Strip channels", "channels"],
+  ["led_single", "Single-colour strips 12–24 V", "number"],
+  ["switches", "Wall switch gangs", "number"],
+  ["shutters", "Blinds / roller shutters", "number"],
+  ["ufh_loops", "Underfloor heating loops", "number"],
+];
+
+const ROOM_FIELDS_MORE = [
+  ["ufh_electric", "Electric underfloor heating", "number"],
+  ["lights_0_10v", "0–10 V ballast lights", "number"],
+  ["temp_sensor", "Temperature sensor", "temp"],
+  ["leak_sensors", "Leak sensors", "number"],
+  ["motion_sensors", "Motion detectors (powered)", "number"],
+  ["presence_sensors", "Presence sensors", "number"],
+  ["door_contacts", "Door / window contacts", "number"],
+  ["smart_sockets", "Switched sockets", "number"],
+  ["extract_fan", "Extract fan", "number"],
+];
+
+const TEMP_OPTIONS = [
+  ["none", "None"],
+  ["DS18B20", "DS18B20"],
+  ["PT100", "PT100"],
+  ["PT1000", "PT1000"],
+];
 
 /** @type {object|null} */
 let rules = null;
@@ -1230,10 +1401,7 @@ let state = {
   step: 0,
   expert: false,
   object: { cabinets: 1, name: "" },
-  rooms: [
-    { template: "living", name: "Living room" },
-    { template: "bedroom", name: "Bedroom" },
-  ],
+  rooms: [],
   engineering: {
     shutters: 0,
     underfloor_circuits: 0,
@@ -1265,6 +1433,51 @@ async function loadRules(url = RULES_URL) {
   return rules;
 }
 
+function roomTypeLabel(type) {
+  return rules?.room_type_labels?.[type] || type;
+}
+
+function roomDefaults(type = "living") {
+  const tpl = rules?.room_templates?.[type] || rules?.room_templates?.living || {};
+  return {
+    name: "",
+    template: type,
+    lights_onoff: tpl.lights_onoff ?? 0,
+    lights_dimmable: tpl.lights_dimmable ?? 0,
+    led_strips: tpl.led_strips ?? 0,
+    led_strip_channels: tpl.led_strip_channels ?? 4,
+    led_single: tpl.led_single ?? 0,
+    switches: tpl.switches ?? 0,
+    shutters: tpl.shutters ?? 0,
+    ufh_loops: tpl.ufh_loops ?? 0,
+    ufh_electric: tpl.ufh_electric ?? 0,
+    lights_0_10v: tpl.lights_0_10v ?? 0,
+    temp_sensor: tpl.temp_sensor ?? "none",
+    leak_sensors: tpl.leak_sensors ?? 0,
+    motion_sensors: tpl.motion_sensors ?? 0,
+    presence_sensors: tpl.presence_sensors ?? 0,
+    door_contacts: tpl.door_contacts ?? 0,
+    smart_sockets: tpl.smart_sockets ?? 0,
+    extract_fan: tpl.extract_fan ?? 0,
+  };
+}
+
+function ensureDefaultRooms() {
+  if (state.rooms?.length) {
+    state.rooms = state.rooms.map((r) => ({
+      ...roomDefaults(r.template || "living"),
+      ...r,
+      template: r.template || "living",
+    }));
+    return;
+  }
+  state.rooms = [
+    { ...roomDefaults("living"), name: "Living room" },
+    { ...roomDefaults("bedroom"), name: "Bedroom" },
+    { ...roomDefaults("bedroom"), name: "Bedroom 2" },
+  ];
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -1294,9 +1507,10 @@ function buildInputs() {
       expert: { demand: { ...state.expertDemand } },
     };
   }
+  // Pass full room cards; engine skips unnamed drafts.
   return {
     cabinets: state.object.cabinets || 1,
-    rooms: state.rooms.map((r) => ({ template: r.template, name: r.name })),
+    rooms: state.rooms.map((r) => ({ ...r })),
     shutters: state.engineering.shutters || 0,
     underfloor_circuits: state.engineering.underfloor_circuits || 0,
     dimmer_groups: state.engineering.dimmer_groups || 0,
@@ -1352,6 +1566,13 @@ function el(html) {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
   return t.content.firstElementChild;
+}
+
+function escapeAttr(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
 }
 
 /**
@@ -1428,10 +1649,15 @@ function mountConfigurator(root) {
         : "";
       totalLine = `HomeMaster subtotal: ${tot.total} ${tot.currency} (incl. VAT)${amb}`;
     }
+    const segCount = result.topology?.segments?.length ?? 0;
+    const ctrlCount = (result.modules || [])
+      .filter((m) => rules?.modules?.[m.id]?.master)
+      .reduce((s, m) => s + m.qty, 0);
     summary.innerHTML = `
       <h2>Summary</h2>
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
-      <p>RS-485 segments: ${result.topology?.segments?.length ?? 0}</p>
+      <p>RS-485 segments: ${segCount}</p>
+      <p>Controllers: ${ctrlCount}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
       ${enclosureMessage(result.enclosure)}
       <p class="hm-total">${totalLine}</p>
@@ -1441,8 +1667,9 @@ function mountConfigurator(root) {
   function renderObject() {
     main.innerHTML = `
       <h2>Property</h2>
-      <label>Project name <input id="f-name" value="${state.object.name || ""}"></label>
+      <label>Project name <input id="f-name" value="${escapeAttr(state.object.name || "")}"></label>
       <label>Number of panels <input id="f-cab" type="number" min="1" value="${state.object.cabinets || 1}"></label>
+      <p class="hm-muted">Panels set the minimum number of RS-485 segments when there are enough modules. Room count does not create segments.</p>
       <div class="hm-actions"><button type="button" id="hm-next">Next</button></div>
     `;
     main.querySelector("#f-name").oninput = (e) => {
@@ -1451,7 +1678,7 @@ function mountConfigurator(root) {
       bump();
     };
     main.querySelector("#f-cab").oninput = (e) => {
-      state.object.cabinets = Number(e.target.value) || 1;
+      state.object.cabinets = Math.max(1, Number(e.target.value) || 1);
       saveState();
       bump();
     };
@@ -1462,9 +1689,33 @@ function mountConfigurator(root) {
     };
   }
 
+  function fieldControl(room, key, kind) {
+    if (kind === "channels") {
+      const v = room.led_strip_channels || 4;
+      return `<select data-k="${key}">
+        ${[3, 4, 5].map((n) => `<option value="${n}" ${n === v ? "selected" : ""}>${n} channels</option>`).join("")}
+      </select>`;
+    }
+    if (kind === "temp") {
+      const v = room.temp_sensor || "none";
+      return `<select data-k="${key}">
+        ${TEMP_OPTIONS.map(([val, lab]) => `<option value="${val}" ${val === v ? "selected" : ""}>${lab}</option>`).join("")}
+      </select>`;
+    }
+    return `<input data-k="${key}" type="number" min="0" value="${Number(room[key]) || 0}">`;
+  }
+
   function renderRooms() {
+    const templates = Object.keys(rules.room_templates || {
+      living: 1,
+      bedroom: 1,
+      kitchen: 1,
+      bath: 1,
+    });
+
     main.innerHTML = `
       <h2>Rooms</h2>
+      <p class="hm-muted">Rooms without a name are drafts and are not included in the estimate. Type is chosen explicitly — never inferred from the name.</p>
       <div id="room-list"></div>
       <button type="button" id="add-room">+ room</button>
       <div class="hm-actions">
@@ -1473,37 +1724,76 @@ function mountConfigurator(root) {
       </div>
     `;
     const list = main.querySelector("#room-list");
-    const templates = Object.keys(
-      rules.room_templates || {
-        living: 1,
-        bedroom: 1,
-        kitchen: 1,
-        bath: 1,
-      },
-    );
+
     function paintRooms() {
       list.innerHTML = state.rooms
-        .map(
-          (r, i) => `
-        <div class="hm-room-row" data-i="${i}">
-          <input data-k="name" value="${r.name || ""}" placeholder="Name">
-          <select data-k="template">${templates
-            .map((t) => `<option value="${t}" ${t === r.template ? "selected" : ""}>${t}</option>`)
-            .join("")}</select>
-          <button type="button" data-rm="${i}">×</button>
-        </div>`,
-        )
+        .map((r, i) => {
+          const typeOpts = templates
+            .map(
+              (t) =>
+                `<option value="${t}" ${t === r.template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
+            )
+            .join("");
+          const mainFields = ROOM_FIELDS_MAIN.map(
+            ([k, label, kind]) =>
+              `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
+          ).join("");
+          const moreFields = ROOM_FIELDS_MORE.map(
+            ([k, label, kind]) =>
+              `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
+          ).join("");
+          return `
+          <article class="hm-room-card" data-i="${i}">
+            <header class="hm-room-card__head">
+              <label>Name <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name"></label>
+              <label>Type <select data-k="template">${typeOpts}</select></label>
+              <button type="button" class="hm-room-remove" data-rm="${i}" aria-label="Remove room">×</button>
+            </header>
+            <div class="hm-room-card__grid">${mainFields}</div>
+            <details class="hm-room-more">
+              <summary>More</summary>
+              <div class="hm-room-card__grid">${moreFields}</div>
+            </details>
+          </article>`;
+        })
         .join("");
-      list.querySelectorAll(".hm-room-row").forEach((row) => {
-        const i = Number(row.dataset.i);
-        row.querySelectorAll("[data-k]").forEach((inp) => {
-          inp.onchange = inp.oninput = () => {
-            state.rooms[i][inp.dataset.k] = inp.value;
+
+      list.querySelectorAll(".hm-room-card").forEach((card) => {
+        const i = Number(card.dataset.i);
+        card.querySelectorAll("[data-k]").forEach((inp) => {
+          const apply = () => {
+            const key = inp.dataset.k;
+            if (key === "template") {
+              // Explicit type change only — reset counts to that template's defaults.
+              const name = state.rooms[i].name;
+              state.rooms[i] = { ...roomDefaults(inp.value), name };
+              saveState();
+              paintRooms();
+              bump();
+              return;
+            }
+            if (key === "name") {
+              state.rooms[i].name = inp.value;
+            } else if (key === "temp_sensor") {
+              state.rooms[i].temp_sensor = inp.value;
+            } else if (key === "led_strip_channels") {
+              state.rooms[i].led_strip_channels = Number(inp.value) || 4;
+            } else {
+              state.rooms[i][key] = Number(inp.value) || 0;
+              if (key === "lights_onoff" || key === "lights_dimmable") {
+                const lights = Number(state.rooms[i].lights_onoff) || 0;
+                if ((Number(state.rooms[i].lights_dimmable) || 0) > lights) {
+                  state.rooms[i].lights_dimmable = lights;
+                }
+              }
+            }
             saveState();
             bump();
           };
+          inp.onchange = apply;
+          inp.oninput = apply;
         });
-        row.querySelector("[data-rm]").onclick = () => {
+        card.querySelector("[data-rm]").onclick = () => {
           state.rooms.splice(i, 1);
           saveState();
           paintRooms();
@@ -1511,9 +1801,10 @@ function mountConfigurator(root) {
         };
       });
     }
+
     paintRooms();
     main.querySelector("#add-room").onclick = () => {
-      state.rooms.push({ template: "living", name: "" });
+      state.rooms.push(roomDefaults("living"));
       saveState();
       paintRooms();
       bump();
@@ -1717,6 +2008,7 @@ async function init() {
   ensureStylesheet();
   await loadRules();
   loadState();
+  ensureDefaultRooms();
   const root = findRoot();
   if (root) mountConfigurator(root);
   else console.error("HM estimator: mount node not found (#hm-configurator / #hm-system-builder)");

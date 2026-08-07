@@ -126,11 +126,54 @@ body {
   margin: 0.5rem 0 1rem;
 }
 
-.hm-room-row {
+.hm-room-card {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+  background: #fbfcfe;
+}
+
+.hm-room-card__head {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
-  gap: 0.4rem;
-  margin-bottom: 0.45rem;
+  gap: 0.5rem;
+  align-items: end;
+  margin-bottom: 0.65rem;
+}
+
+.hm-room-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.55rem 0.75rem;
+}
+
+.hm-room-field {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.hm-room-more {
+  margin-top: 0.65rem;
+}
+
+.hm-room-more summary {
+  cursor: pointer;
+  color: var(--hm-muted);
+  font-size: 0.95rem;
+}
+
+.hm-room-remove {
+  border: 1px solid var(--hm-line);
+  background: transparent;
+  border-radius: 6px;
+  width: 2.2rem;
+  height: 2.2rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .hm-actions {
