@@ -26,6 +26,7 @@ function estimate(inputs, rules, prices = EMPTY) {
   const normalized = normalize(inputs, rules, assumptions);
   const demand = buildDemand(normalized, rules);
   const allocated = allocate(demand, rules, assumptions);
+  warnAlmRail(allocated, normalized, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
   const power = computePower(topology.modules, rules, assumptions);
   const companions = buildCompanions(
@@ -52,12 +53,35 @@ function estimate(inputs, rules, prices = EMPTY) {
 // ── Stage 1: normalize ──────────────────────────────────────────────
 
 function normalize(inputs, rules, assumptions) {
+  const systems = inputs.systems || EMPTY;
+  const systemCfg = systems.system || EMPTY;
   const out = {
-    cabinets: Math.max(1, Number(inputs.cabinets) || 1),
+    cabinets: Math.max(
+      1,
+      Number(systemCfg.cabinets ?? inputs.cabinets) || 1,
+    ),
     mode: inputs.mode ?? "rooms",
     demand: {},
     shutters: 0,
     relay_needs_contactor: 0,
+    room_ufh_loops: 0,
+    reserve_pct: clamp(
+      Number(systemCfg.reserve_pct ?? rules.policy?.default_reserve_pct ?? 15),
+      0,
+      30,
+    ),
+    stage: inputs.stage || "design",
+    property_type: inputs.property_type || "",
+    floor_area_m2: Number(inputs.floor_area_m2) || 0,
+    floors: Math.max(1, Number(inputs.floors) || 1),
+    manual_control: systemCfg.manual_control !== false,
+    ha_server: systemCfg.ha_server || "needed",
+    alarm_ma: 0,
+    meta: {
+      stage: inputs.stage || "design",
+      ha_server: systemCfg.ha_server || "needed",
+      manual_control: systemCfg.manual_control !== false,
+    },
   };
 
   if (inputs.expert?.demand) {
@@ -70,32 +94,44 @@ function normalize(inputs, rules, assumptions) {
     return out;
   }
 
-  const mapping = rules.demand_mapping ?? EMPTY;
   const templates = rules.room_templates ?? EMPTY;
 
   if (inputs.rooms) {
     for (const room of inputs.rooms) {
-      // Draft / placeholder rows (no name) do not contribute demand.
       if (!String(room?.name ?? "").trim()) continue;
       const type = room.template ?? room.type ?? "living";
       const tpl = templates[type] ?? EMPTY;
-      // Template defaults, then per-room overrides. Type is never inferred from name.
       const merged = { ...tpl, ...room, template: type };
       applyRoomDemand(out, merged, room);
     }
   }
 
-  if (inputs.underfloor_circuits != null) {
-    addDemand(out.demand, "out_24v_ch", inputs.underfloor_circuits);
-  }
-  if (inputs.shutters != null) {
-    out.shutters += inputs.shutters;
-  }
-  if (inputs.relay_needs_contactor != null) {
-    out.relay_needs_contactor = inputs.relay_needs_contactor;
+  applySystemsDemand(out, systems, rules, assumptions);
+
+  // Collector loops: max(house Systems value, sum of per-room ufh_loops).
+  const houseLoops = Math.max(
+    0,
+    Number(systems.heating?.collector_loops) || 0,
+    Number(inputs.underfloor_circuits) || 0,
+  );
+  const loops = Math.max(out.room_ufh_loops, houseLoops);
+  if (loops > 0) addDemand(out.demand, "out_24v_ch", loops);
+  if (houseLoops > 0 || out.room_ufh_loops > 0) {
+    assumptions.push(
+      `Collector loops: max(rooms ${out.room_ufh_loops}, house ${houseLoops}) = ${loops}.`,
+    );
   }
 
-  const explicitFields = new Set([
+  if (inputs.shutters != null) {
+    out.shutters += Number(inputs.shutters) || 0;
+  }
+  if (inputs.relay_needs_contactor != null) {
+    out.relay_needs_contactor += Number(inputs.relay_needs_contactor) || 0;
+  }
+
+  // Legacy top-level channel shortcuts (fixtures).
+  const mapping = rules.demand_mapping ?? EMPTY;
+  const skip = new Set([
     "cabinets",
     "rooms",
     "mode",
@@ -104,10 +140,14 @@ function normalize(inputs, rules, assumptions) {
     "relay_needs_contactor",
     "underfloor_circuits",
     "name",
+    "systems",
+    "stage",
+    "property_type",
+    "floor_area_m2",
+    "floors",
   ]);
-
   for (const [field, channel] of Object.entries(mapping)) {
-    if (explicitFields.has(field)) continue;
+    if (skip.has(field)) continue;
     if (inputs[field] != null && channel !== "shutters" && channel !== "relay_needs_contactor") {
       const n = Number(inputs[field]);
       if (Number.isFinite(n) && n !== 0) addDemand(out.demand, channel, n);
@@ -116,6 +156,87 @@ function normalize(inputs, rules, assumptions) {
   }
 
   return out;
+}
+
+function clamp(n, lo, hi) {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function addRelay(out, qty) {
+  const n = Math.max(0, Number(qty) || 0);
+  if (n > 0) addDemand(out.demand, "relay_out_3a", n);
+}
+
+/**
+ * Screen 3 equipment → channel bag (never shown as channel counts in UI).
+ */
+function applySystemsDemand(out, systems, rules, assumptions) {
+  if (!systems || typeof systems !== "object") return;
+  const h = systems.heating || EMPTY;
+  const v = systems.ventilation || EMPTY;
+  const w = systems.water || EMPTY;
+  const e = systems.electrical || EMPTY;
+  const s = systems.security || EMPTY;
+  const L = systems.lighting_scenes || EMPTY;
+
+  const boiler = String(h.boiler || "none").toLowerCase();
+  if (boiler === "opentherm") addDemand(out.demand, "opentherm", 1);
+  else if (boiler === "relay") addRelay(out, 1);
+
+  // collector_loops applied later via max()
+  addRelay(out, h.heating_pumps);
+  addRelay(out, h.fan_coils);
+  addRelay(out, h.heat_pump);
+  addRelay(out, h.fireplace);
+  if (h.pt100_sensors) addDemand(out.demand, "rtd_input", h.pt100_sensors);
+  if (h.ds18b20_sensors) addDemand(out.demand, "onewire", h.ds18b20_sensors);
+
+  addRelay(out, v.ahu);
+  addRelay(out, v.recuperator);
+  addRelay(out, v.extract_fans);
+  if (v.dampers_0_10v) addDemand(out.demand, "analog_out", v.dampers_0_10v);
+  if (v.sensors_0_10v) addDemand(out.demand, "analog_in", v.sensors_0_10v);
+  if (v.sensors_4_20ma) addDemand(out.demand, "analog_in", v.sensors_4_20ma);
+
+  if (w.leak_zones) addDemand(out.demand, "leak_or_pulse", w.leak_zones);
+  addRelay(out, w.shutoff_valves);
+  if (w.water_meters) addDemand(out.demand, "leak_or_pulse", w.water_meters);
+  addRelay(out, w.irrigation);
+  addRelay(out, w.water_pumps);
+  addRelay(out, w.dhw_recirc);
+  addRelay(out, w.gas_valve);
+
+  if (e.energy_phases) addDemand(out.demand, "energy_phase", e.energy_phases);
+  addRelay(out, e.load_shed);
+  if (e.ev_chargers) {
+    addRelay(out, e.ev_chargers);
+    out.relay_needs_contactor += Math.max(0, Number(e.ev_chargers) || 0);
+  }
+  if (e.pv_inverters) addDemand(out.demand, "di_dry", e.pv_inverters);
+  if (e.fault_contacts) addDemand(out.demand, "di_dry", e.fault_contacts);
+
+  const sensorTypes = rules.alarm_sensor_types || EMPTY;
+  let alarmZones = 0;
+  let alarmMa = 0;
+  for (const row of s.powered_sensors || []) {
+    const qty = Math.max(0, Number(row.qty) || 0);
+    if (!qty) continue;
+    const spec = sensorTypes[row.type] || { ma: 20 };
+    alarmZones += qty;
+    alarmMa += qty * (Number(spec.ma) || 20);
+  }
+  if (alarmZones) addDemand(out.demand, "alarm_zone", alarmZones);
+  out.alarm_ma = alarmMa;
+
+  if (s.dry_contacts) addDemand(out.demand, "alarm_zone", s.dry_contacts);
+  addRelay(out, s.gates);
+  if (s.gates) addDemand(out.demand, "di_dry", s.gates);
+  addRelay(out, s.locks);
+  if (s.panic_buttons) addDemand(out.demand, "alarm_zone", s.panic_buttons);
+
+  if (L.stair_steps) addDemand(out.demand, "pwm_led_ch", L.stair_steps);
+  if (L.accent_zones) addDemand(out.demand, "pwm_led_ch", L.accent_zones);
+  addRelay(out, L.garden_lights);
 }
 
 /**
@@ -144,8 +265,9 @@ function applyRoomDemand(out, room, raw = room) {
   const shutters = Math.max(0, Number(room.shutters) || 0);
   if (shutters > 0) out.shutters += shutters;
 
+  // Room collector loops — accumulated for max() with house Systems value.
   const ufh = Math.max(0, Number(room.ufh_loops) || 0);
-  if (ufh > 0) addDemand(out.demand, "out_24v_ch", ufh);
+  if (ufh > 0) out.room_ufh_loops += ufh;
 
   const ufhEl = Math.max(0, Number(room.ufh_electric) || 0);
   if (ufhEl > 0) addDemand(out.demand, "relay_out_3a", ufhEl);
@@ -199,7 +321,26 @@ function buildDemand(normalized, _rules) {
     ...normalized.demand,
     shutters: normalized.shutters,
     relay_needs_contactor: normalized.relay_needs_contactor,
+    _reserve_pct: normalized.reserve_pct,
   };
+}
+
+function warnAlmRail(allocated, normalized, rules, assumptions) {
+  const ma = normalized.alarm_ma || 0;
+  if (ma <= 0) return;
+  const rail = rules.alm_rail_ma ?? 150;
+  const almQty = allocated.modules["ALM-173-R1"] || 0;
+  const budget = rail * Math.max(almQty, 1);
+  if (ma > budget) {
+    assumptions.push(
+      `ALM 12 V rail: ${ma} mA sensor draw exceeds ${budget} mA ` +
+        `(${rail} mA × ${Math.max(almQty, 1)} module(s)). Use an external supply or more ALM modules.`,
+    );
+  } else {
+    assumptions.push(
+      `ALM 12 V rail: ${ma} mA of ${budget} mA budget (${rail} mA per module).`,
+    );
+  }
 }
 
 // ── Stage 3: allocate ───────────────────────────────────────────────
@@ -209,8 +350,13 @@ function allocate(demand, rules, assumptions) {
   const accessories = [];
   const provenance = [];
   const remaining = { ...demand };
+  const reservePct =
+    remaining._reserve_pct != null
+      ? remaining._reserve_pct
+      : (rules.policy?.default_reserve_pct ?? 15);
   delete remaining.shutters;
   delete remaining.relay_needs_contactor;
+  delete remaining._reserve_pct;
 
   const moduleSpecs = rules.modules ?? EMPTY;
   const slaves = Object.entries(moduleSpecs).filter(([, s]) => !s.master);
@@ -344,8 +490,8 @@ function allocate(demand, rules, assumptions) {
 
   // Reserve AFTER allocation: add whole modules (not by inflating demand).
   // Math.round so small BOMs (e.g. 2×DIO × 15% → 0) stay unchanged.
-  const reservePct = rules.policy?.default_reserve_pct ?? 15;
   for (const [id, qty] of Object.entries({ ...modules })) {
+    if (id === "_sources") continue;
     const extra = Math.round(qty * reservePct / 100);
     if (extra > 0) {
       addModule(modules, id, extra, "reserve");
@@ -1528,13 +1674,13 @@ HM.downloadCsv = downloadCsv;
 // ===== ui.js =====
 /**
  * Four-step UI: Property → Rooms → Systems → Result.
- * Live summary; expert demand bypass; localStorage without prices.
+ * See odoo/configurator/configurator-ui-spec.md.
  */
 
 
 
 
-const STORAGE_KEY = "hm_configurator_v2";
+const STORAGE_KEY = "hm_configurator_v3";
 
 const RULES_URL =
   (typeof globalThis !== "undefined" &&
@@ -1549,7 +1695,7 @@ const ROOM_FIELDS_MAIN = [
   ["led_single", "Single-colour strips 12–24 V", "number"],
   ["switches", "Wall switch gangs", "number"],
   ["shutters", "Blinds / roller shutters", "number"],
-  ["ufh_loops", "Underfloor heating loops", "number"],
+  ["ufh_loops", "Underfloor heating loops (collector)", "number"],
 ];
 
 const ROOM_FIELDS_MORE = [
@@ -1571,6 +1717,93 @@ const TEMP_OPTIONS = [
   ["PT1000", "PT1000"],
 ];
 
+const PROPERTY_TYPES = [
+  ["apartment", "Apartment"],
+  ["house", "House"],
+  ["townhouse", "Townhouse"],
+  ["commercial", "Commercial"],
+];
+
+const STAGES = [
+  ["design", "Design"],
+  ["construction", "Construction"],
+  ["renovation", "Renovation"],
+  ["existing", "Existing building"],
+];
+
+const SYSTEM_SECTIONS = [
+  {
+    id: "heating",
+    title: "Heating",
+    fields: [
+      ["boiler", "Boiler", "boiler"],
+      ["collector_loops", "Collector loops (house total)", "number"],
+      ["heating_pumps", "Circulation pumps", "number"],
+      ["fan_coils", "Fan coil units", "number"],
+      ["heat_pump", "Heat pump", "number"],
+      ["fireplace", "Fireplace / stove actuator", "number"],
+      ["pt100_sensors", "PT100 / PT1000 sensors", "number"],
+      ["ds18b20_sensors", "DS18B20 sensors", "number"],
+    ],
+  },
+  {
+    id: "ventilation",
+    title: "Ventilation & climate",
+    fields: [
+      ["ahu", "Supply AHU / air handling", "number"],
+      ["recuperator", "Recuperator", "number"],
+      ["extract_fans", "Extract fans", "number"],
+      ["dampers_0_10v", "0–10 V dampers", "number"],
+      ["sensors_0_10v", "0–10 V sensors", "number"],
+      ["sensors_4_20ma", "4–20 mA sensors", "number"],
+    ],
+  },
+  {
+    id: "water",
+    title: "Water",
+    fields: [
+      ["leak_zones", "Leak zones", "number"],
+      ["shutoff_valves", "Shut-off valves (actuators)", "number"],
+      ["water_meters", "Water meters (pulse)", "number"],
+      ["irrigation", "Irrigation valves", "number"],
+      ["water_pumps", "Water / well pumps", "number"],
+      ["dhw_recirc", "DHW recirculation", "number"],
+      ["gas_valve", "Gas valve", "number"],
+    ],
+  },
+  {
+    id: "electrical",
+    title: "Electrical supply",
+    fields: [
+      ["energy_phases", "Energy metering phases", "number"],
+      ["load_shed", "Load-shed contactors", "number"],
+      ["ev_chargers", "EV chargers", "number"],
+      ["pv_inverters", "PV / inverter status contacts", "number"],
+      ["fault_contacts", "Equipment fault contacts", "number"],
+    ],
+  },
+  {
+    id: "security",
+    title: "Security & access",
+    fields: [
+      ["powered_sensors", "Powered alarm sensors", "powered_sensors"],
+      ["dry_contacts", "Dry-contact zones", "number"],
+      ["gates", "Gates / garage doors", "number"],
+      ["locks", "Electric locks", "number"],
+      ["panic_buttons", "Panic / alarm buttons", "number"],
+    ],
+  },
+  {
+    id: "lighting_scenes",
+    title: "Lighting scenes",
+    fields: [
+      ["stair_steps", "Staircase step lights", "number"],
+      ["accent_zones", "Accent / cove lighting zones", "number"],
+      ["garden_lights", "Garden / outdoor lighting", "number"],
+    ],
+  },
+];
+
 /** @type {object|null} */
 let rules = null;
 /** @type {Record<string, {amount:number, currency:string, currencyAmbiguous?:boolean}>} */
@@ -1579,31 +1812,78 @@ let priceMap = {};
 let state = {
   step: 0,
   expert: false,
-  object: { cabinets: 1, name: "" },
-  rooms: [],
-  engineering: {
-    shutters: 0,
-    underfloor_circuits: 0,
-    dimmer_groups: 0,
-    pwm_led_ch: 0,
-    leak_zone: 0,
-    flow_pulse: 0,
-    rtd_input: 0,
-    analog_in: 0,
-    analog_in_4_20: 0,
-    analog_out: 0,
-    alarm_zone_powered: 0,
-    alarm_zone_dry: 0,
-    energy_phase: 0,
-    onewire_sensor: 0,
-    opentherm: false,
-    relay_needs_contactor: 0,
+  object: {
+    name: "",
+    property_type: "apartment",
+    floor_area_m2: 60,
+    floors: 1,
+    stage: "design",
   },
+  rooms: [],
+  rooms_user_edited: false,
+  systems: emptySystems(),
   expertDemand: {},
   rulesVersion: null,
 };
 
 const STEPS = ["Property", "Rooms", "Systems", "Result"];
+
+function emptySystems() {
+  return {
+    heating: {
+      boiler: "none",
+      collector_loops: 0,
+      heating_pumps: 0,
+      fan_coils: 0,
+      heat_pump: 0,
+      fireplace: 0,
+      pt100_sensors: 0,
+      ds18b20_sensors: 0,
+    },
+    ventilation: {
+      ahu: 0,
+      recuperator: 0,
+      extract_fans: 0,
+      dampers_0_10v: 0,
+      sensors_0_10v: 0,
+      sensors_4_20ma: 0,
+    },
+    water: {
+      leak_zones: 0,
+      shutoff_valves: 0,
+      water_meters: 0,
+      irrigation: 0,
+      water_pumps: 0,
+      dhw_recirc: 0,
+      gas_valve: 0,
+    },
+    electrical: {
+      energy_phases: 0,
+      load_shed: 0,
+      ev_chargers: 0,
+      pv_inverters: 0,
+      fault_contacts: 0,
+    },
+    security: {
+      powered_sensors: [],
+      dry_contacts: 0,
+      gates: 0,
+      locks: 0,
+      panic_buttons: 0,
+    },
+    lighting_scenes: {
+      stair_steps: 0,
+      accent_zones: 0,
+      garden_lights: 0,
+    },
+    system: {
+      cabinets: 1,
+      reserve_pct: 15,
+      manual_control: true,
+      ha_server: "needed",
+    },
+  };
+}
 
 async function loadRules(url = RULES_URL) {
   const res = await fetch(url);
@@ -1641,8 +1921,36 @@ function roomDefaults(type = "living") {
   };
 }
 
-function ensureDefaultRooms() {
-  if (state.rooms?.length) {
+/** Seed Screen 2 from property type + area (+ floors). */
+function seedRoomsFromProperty(propertyType, floorArea, floors) {
+  const tpl = rules?.property_templates?.[propertyType];
+  if (!tpl) {
+    return [
+      { ...roomDefaults("living"), name: "Living room" },
+      { ...roomDefaults("bedroom"), name: "Bedroom" },
+      { ...roomDefaults("kitchen"), name: "Kitchen" },
+      { ...roomDefaults("bath"), name: "Bathroom" },
+    ];
+  }
+  const list = [...(tpl.base || [])];
+  const seen = new Set(list.map((r) => r.name));
+  for (const extra of tpl.extras || []) {
+    const when = extra.when || {};
+    let ok = true;
+    if (when.floor_area_m2_ge != null && floorArea < when.floor_area_m2_ge) ok = false;
+    if (when.floors_ge != null && floors < when.floors_ge) ok = false;
+    if (!ok) continue;
+    for (const r of extra.rooms || []) {
+      if (seen.has(r.name)) continue;
+      seen.add(r.name);
+      list.push(r);
+    }
+  }
+  return list.map((r) => ({ ...roomDefaults(r.template), name: r.name, template: r.template }));
+}
+
+function ensureRoomsSeeded() {
+  if (state.rooms?.length && state.rooms_user_edited) {
     state.rooms = state.rooms.map((r) => ({
       ...roomDefaults(r.template || "living"),
       ...r,
@@ -1650,11 +1958,12 @@ function ensureDefaultRooms() {
     }));
     return;
   }
-  state.rooms = [
-    { ...roomDefaults("living"), name: "Living room" },
-    { ...roomDefaults("bedroom"), name: "Bedroom" },
-    { ...roomDefaults("bedroom"), name: "Bedroom 2" },
-  ];
+  state.rooms = seedRoomsFromProperty(
+    state.object.property_type || "apartment",
+    Number(state.object.floor_area_m2) || 0,
+    Number(state.object.floors) || 1,
+  );
+  state.rooms_user_edited = false;
 }
 
 function loadState() {
@@ -1664,6 +1973,11 @@ function loadState() {
     const saved = JSON.parse(raw);
     if (saved.rulesVersion && rules && saved.rulesVersion !== rules.version) return;
     Object.assign(state, saved, { rulesVersion: rules?.version });
+    if (!state.systems) state.systems = emptySystems();
+    state.systems = { ...emptySystems(), ...state.systems };
+    for (const k of Object.keys(emptySystems())) {
+      state.systems[k] = { ...emptySystems()[k], ...(saved.systems?.[k] || {}) };
+    }
   } catch {
     /* ignore */
   }
@@ -1671,8 +1985,10 @@ function loadState() {
 
 function saveState() {
   try {
-    const rest = { ...state, rulesVersion: rules?.version };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...state, rulesVersion: rules?.version }),
+    );
   } catch {
     /* ignore */
   }
@@ -1681,31 +1997,21 @@ function saveState() {
 function buildInputs() {
   if (state.expert) {
     return {
-      cabinets: state.object.cabinets || 1,
+      cabinets: state.systems.system.cabinets || 1,
       mode: "expert",
       expert: { demand: { ...state.expertDemand } },
+      stage: state.object.stage,
     };
   }
-  // Pass full room cards; engine skips unnamed drafts.
   return {
-    cabinets: state.object.cabinets || 1,
+    cabinets: state.systems.system.cabinets || 1,
+    property_type: state.object.property_type,
+    floor_area_m2: state.object.floor_area_m2,
+    floors: state.object.floors,
+    stage: state.object.stage,
+    name: state.object.name,
     rooms: state.rooms.map((r) => ({ ...r })),
-    shutters: state.engineering.shutters || 0,
-    underfloor_circuits: state.engineering.underfloor_circuits || 0,
-    dimmer_groups: state.engineering.dimmer_groups || 0,
-    pwm_led_ch: state.engineering.pwm_led_ch || 0,
-    leak_zone: state.engineering.leak_zone || 0,
-    flow_pulse: state.engineering.flow_pulse || 0,
-    rtd_input: state.engineering.rtd_input || 0,
-    analog_in: state.engineering.analog_in || 0,
-    analog_in_4_20: state.engineering.analog_in_4_20 || 0,
-    analog_out: state.engineering.analog_out || 0,
-    alarm_zone_powered: state.engineering.alarm_zone_powered || 0,
-    alarm_zone_dry: state.engineering.alarm_zone_dry || 0,
-    energy_phase: state.engineering.energy_phase || 0,
-    onewire_sensor: state.engineering.onewire_sensor || 0,
-    opentherm: !!state.engineering.opentherm,
-    relay_needs_contactor: state.engineering.relay_needs_contactor || 0,
+    systems: JSON.parse(JSON.stringify(state.systems)),
   };
 }
 
@@ -1830,40 +2136,82 @@ function mountConfigurator(root) {
         : "";
       totalLine = `HomeMaster subtotal: ${tot.total} ${tot.currency} (incl. VAT)${amb}`;
     }
-    const segCount = result.topology?.segments?.length ?? 0;
-    const ctrlCount = (result.modules || [])
-      .filter((m) => rules?.modules?.[m.id]?.master)
-      .reduce((s, m) => s + m.qty, 0);
+    const warns = (result.assumptions || [])
+      .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
+      .map((a) => `<p class="hm-warn">${escapeAttr(a)}</p>`)
+      .join("");
     summary.innerHTML = `
       <h2>Summary</h2>
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
-      <p>RS-485 segments: ${segCount}</p>
-      <p>Controllers: ${ctrlCount}</p>
+      <p>RS-485 segments: ${result.topology?.segments?.length ?? 0}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
       ${enclosureMessage(result.enclosure)}
+      ${warns}
       <p class="hm-total">${totalLine}</p>
     `;
   }
 
+  function reseedRooms(force) {
+    if (!force && state.rooms_user_edited) return;
+    state.rooms = seedRoomsFromProperty(
+      state.object.property_type,
+      Number(state.object.floor_area_m2) || 0,
+      Number(state.object.floors) || 1,
+    );
+    state.rooms_user_edited = false;
+  }
+
   function renderObject() {
+    const o = state.object;
     main.innerHTML = `
       <h2>Property</h2>
-      <label>Project name <input id="f-name" value="${escapeAttr(state.object.name || "")}"></label>
-      <label>Number of panels <input id="f-cab" type="number" min="1" value="${state.object.cabinets || 1}"></label>
-      <p class="hm-muted">Panels set the minimum number of RS-485 segments when there are enough modules. Room count does not create segments.</p>
+      <label>Project name <input id="f-name" value="${escapeAttr(o.name || "")}"></label>
+      <label>Property type
+        <select id="f-ptype">${PROPERTY_TYPES.map(
+          ([v, lab]) =>
+            `<option value="${v}" ${v === o.property_type ? "selected" : ""}>${lab}</option>`,
+        ).join("")}</select>
+      </label>
+      <label>Floor area m² <input id="f-area" type="number" min="0" value="${o.floor_area_m2 ?? 60}"></label>
+      <label>Number of floors <input id="f-floors" type="number" min="1" value="${o.floors || 1}"></label>
+      <label>Project stage
+        <select id="f-stage">${STAGES.map(
+          ([v, lab]) =>
+            `<option value="${v}" ${v === o.stage ? "selected" : ""}>${lab}</option>`,
+        ).join("")}</select>
+      </label>
+      <p class="hm-muted">Property type and floor area choose a room template and pre-fill the Rooms step. Stage goes to the quote only — it does not change the module list.</p>
       <div class="hm-actions"><button type="button" id="hm-next">Next</button></div>
     `;
+    const bumpProperty = () => {
+      reseedRooms(false);
+      saveState();
+      bump();
+    };
     main.querySelector("#f-name").oninput = (e) => {
       state.object.name = e.target.value;
       saveState();
-      bump();
     };
-    main.querySelector("#f-cab").oninput = (e) => {
-      state.object.cabinets = Math.max(1, Number(e.target.value) || 1);
+    main.querySelector("#f-ptype").onchange = (e) => {
+      state.object.property_type = e.target.value;
+      reseedRooms(true);
       saveState();
       bump();
     };
+    main.querySelector("#f-area").oninput = (e) => {
+      state.object.floor_area_m2 = Number(e.target.value) || 0;
+      bumpProperty();
+    };
+    main.querySelector("#f-floors").oninput = (e) => {
+      state.object.floors = Math.max(1, Number(e.target.value) || 1);
+      bumpProperty();
+    };
+    main.querySelector("#f-stage").onchange = (e) => {
+      state.object.stage = e.target.value;
+      saveState();
+    };
     main.querySelector("#hm-next").onclick = () => {
+      if (!state.rooms_user_edited) reseedRooms(true);
       state.step = state.expert ? 3 : 1;
       saveState();
       render();
@@ -1873,32 +2221,27 @@ function mountConfigurator(root) {
   function fieldControl(room, key, kind) {
     if (kind === "channels") {
       const v = room.led_strip_channels || 4;
-      return `<select data-k="${key}">
-        ${[3, 4, 5].map((n) => `<option value="${n}" ${n === v ? "selected" : ""}>${n} channels</option>`).join("")}
-      </select>`;
+      return `<select data-k="${key}">${[3, 4, 5]
+        .map((n) => `<option value="${n}" ${n === v ? "selected" : ""}>${n} channels</option>`)
+        .join("")}</select>`;
     }
     if (kind === "temp") {
       const v = room.temp_sensor || "none";
-      return `<select data-k="${key}">
-        ${TEMP_OPTIONS.map(([val, lab]) => `<option value="${val}" ${val === v ? "selected" : ""}>${lab}</option>`).join("")}
-      </select>`;
+      return `<select data-k="${key}">${TEMP_OPTIONS.map(
+        ([val, lab]) => `<option value="${val}" ${val === v ? "selected" : ""}>${lab}</option>`,
+      ).join("")}</select>`;
     }
     return `<input data-k="${key}" type="number" min="0" value="${Number(room[key]) || 0}">`;
   }
 
   function renderRooms() {
-    const templates = Object.keys(rules.room_templates || {
-      living: 1,
-      bedroom: 1,
-      kitchen: 1,
-      bath: 1,
-    });
-
+    const templates = Object.keys(rules.room_templates || {});
     main.innerHTML = `
       <h2>Rooms</h2>
-      <p class="hm-muted">Rooms without a name are drafts and are not included in the estimate. Type is chosen explicitly — never inferred from the name.</p>
+      <p class="hm-muted">Pre-filled from the property on step 1. Rooms without a name are drafts and are ignored. Type is never inferred from the name.</p>
       <div id="room-list"></div>
       <button type="button" id="add-room">+ room</button>
+      <button type="button" id="reset-rooms">Reset rooms from property</button>
       <div class="hm-actions">
         <button type="button" id="hm-back">Back</button>
         <button type="button" id="hm-next">Next</button>
@@ -1915,10 +2258,13 @@ function mountConfigurator(root) {
                 `<option value="${t}" ${t === r.template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
             )
             .join("");
-          const mainFields = ROOM_FIELDS_MAIN.map(
-            ([k, label, kind]) =>
-              `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
-          ).join("");
+          const mainFields = ROOM_FIELDS_MAIN.map(([k, label, kind]) => {
+            const hint =
+              k === "ufh_loops"
+                ? `<span class="hm-hint">House-wide collector loops on Systems use the <strong>maximum</strong> of room totals and the Systems value — not the sum.</span>`
+                : "";
+            return `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}${hint}</label>`;
+          }).join("");
           const moreFields = ROOM_FIELDS_MORE.map(
             ([k, label, kind]) =>
               `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
@@ -1931,8 +2277,7 @@ function mountConfigurator(root) {
               <button type="button" class="hm-room-remove" data-rm="${i}" aria-label="Remove room">×</button>
             </header>
             <div class="hm-room-card__grid">${mainFields}</div>
-            <details class="hm-room-more">
-              <summary>More</summary>
+            <details class="hm-room-more"><summary>More</summary>
               <div class="hm-room-card__grid">${moreFields}</div>
             </details>
           </article>`;
@@ -1943,9 +2288,9 @@ function mountConfigurator(root) {
         const i = Number(card.dataset.i);
         card.querySelectorAll("[data-k]").forEach((inp) => {
           const apply = () => {
+            state.rooms_user_edited = true;
             const key = inp.dataset.k;
             if (key === "template") {
-              // Explicit type change only — reset counts to that template's defaults.
               const name = state.rooms[i].name;
               state.rooms[i] = { ...roomDefaults(inp.value), name };
               saveState();
@@ -1953,13 +2298,11 @@ function mountConfigurator(root) {
               bump();
               return;
             }
-            if (key === "name") {
-              state.rooms[i].name = inp.value;
-            } else if (key === "temp_sensor") {
-              state.rooms[i].temp_sensor = inp.value;
-            } else if (key === "led_strip_channels") {
+            if (key === "name") state.rooms[i].name = inp.value;
+            else if (key === "temp_sensor") state.rooms[i].temp_sensor = inp.value;
+            else if (key === "led_strip_channels")
               state.rooms[i].led_strip_channels = Number(inp.value) || 4;
-            } else {
+            else {
               state.rooms[i][key] = Number(inp.value) || 0;
               if (key === "lights_onoff" || key === "lights_dimmable") {
                 const lights = Number(state.rooms[i].lights_onoff) || 0;
@@ -1975,6 +2318,7 @@ function mountConfigurator(root) {
           inp.oninput = apply;
         });
         card.querySelector("[data-rm]").onclick = () => {
+          state.rooms_user_edited = true;
           state.rooms.splice(i, 1);
           saveState();
           paintRooms();
@@ -1985,7 +2329,14 @@ function mountConfigurator(root) {
 
     paintRooms();
     main.querySelector("#add-room").onclick = () => {
+      state.rooms_user_edited = true;
       state.rooms.push(roomDefaults("living"));
+      saveState();
+      paintRooms();
+      bump();
+    };
+    main.querySelector("#reset-rooms").onclick = () => {
+      reseedRooms(true);
       saveState();
       paintRooms();
       bump();
@@ -2002,53 +2353,155 @@ function mountConfigurator(root) {
     };
   }
 
+  function sysFieldControl(sectionId, key, kind, value) {
+    if (kind === "boiler") {
+      return `<select data-sys="${sectionId}.${key}">
+        <option value="none" ${value === "none" ? "selected" : ""}>None</option>
+        <option value="opentherm" ${value === "opentherm" ? "selected" : ""}>OpenTherm</option>
+        <option value="relay" ${value === "relay" ? "selected" : ""}>Relay</option>
+      </select>`;
+    }
+    if (kind === "powered_sensors") return ""; // custom block
+    return `<input data-sys="${sectionId}.${key}" type="number" min="0" value="${Number(value) || 0}">`;
+  }
+
+  function renderPoweredSensors(container) {
+    const types = rules.alarm_sensor_types || {};
+    const rows = state.systems.security.powered_sensors || [];
+    container.innerHTML = `
+      <div class="hm-sensor-list">
+        ${rows
+          .map(
+            (row, i) => `
+          <div class="hm-sensor-row" data-si="${i}">
+            <select data-sk="type">${Object.entries(types)
+              .map(
+                ([k, v]) =>
+                  `<option value="${k}" ${k === row.type ? "selected" : ""}>${v.label || k}</option>`,
+              )
+              .join("")}</select>
+            <input data-sk="qty" type="number" min="0" value="${row.qty || 0}">
+            <button type="button" data-srm="${i}">×</button>
+          </div>`,
+          )
+          .join("")}
+        <button type="button" id="add-sensor">+ powered sensor</button>
+        <p class="hm-hint">ALM rail budget 150 mA per module — the estimate warns if sensor current exceeds it.</p>
+      </div>`;
+    container.querySelectorAll(".hm-sensor-row").forEach((row) => {
+      const i = Number(row.dataset.si);
+      row.querySelectorAll("[data-sk]").forEach((inp) => {
+        inp.onchange = inp.oninput = () => {
+          const k = inp.dataset.sk;
+          if (k === "type") state.systems.security.powered_sensors[i].type = inp.value;
+          else state.systems.security.powered_sensors[i].qty = Number(inp.value) || 0;
+          saveState();
+          bump();
+        };
+      });
+      row.querySelector("[data-srm]").onclick = () => {
+        state.systems.security.powered_sensors.splice(i, 1);
+        saveState();
+        renderPoweredSensors(container);
+        bump();
+      };
+    });
+    container.querySelector("#add-sensor").onclick = () => {
+      const first = Object.keys(types)[0] || "pir";
+      state.systems.security.powered_sensors.push({ type: first, qty: 1 });
+      saveState();
+      renderPoweredSensors(container);
+      bump();
+    };
+  }
+
   function renderEngineering() {
-    const fields = [
-      ["shutters", "Shutters / blinds (drives)"],
-      ["underfloor_circuits", "Underfloor heating circuits"],
-      ["dimmer_groups", "AC dimmer groups"],
-      ["pwm_led_ch", "LED PWM channels"],
-      ["leak_zone", "Leak zones"],
-      ["flow_pulse", "Pulse meters"],
-      ["rtd_input", "RTD inputs"],
-      ["analog_in", "Analog inputs"],
-      ["analog_in_4_20", "4–20 mA loops"],
-      ["analog_out", "Analog outputs"],
-      ["alarm_zone_powered", "Alarm zones (powered)"],
-      ["alarm_zone_dry", "Alarm zones (dry contact)"],
-      ["energy_phase", "Energy metering phases"],
-      ["onewire_sensor", "1-Wire sensors"],
-      ["relay_needs_contactor", "Relays needing contactor"],
-    ];
+    const sys = state.systems;
+    const sectionsHtml = SYSTEM_SECTIONS.map((sec) => {
+      const fields = sec.fields
+        .map(([key, label, kind]) => {
+          if (kind === "powered_sensors") {
+            return `<div class="hm-sys-field"><span>${label}</span><div data-powered-host></div></div>`;
+          }
+          const hint =
+            sec.id === "heating" && key === "collector_loops"
+              ? `<span class="hm-hint">Compared with the sum of per-room underfloor loops; the engine uses the <strong>maximum</strong>, not the sum.</span>`
+              : "";
+          return `<label class="hm-sys-field">${label}${sysFieldControl(
+            sec.id,
+            key,
+            kind,
+            sys[sec.id]?.[key],
+          )}${hint}</label>`;
+        })
+        .join("");
+      return `<details class="hm-sys-section" open>
+        <summary>${sec.title}</summary>
+        <div class="hm-sys-grid">${fields}</div>
+      </details>`;
+    }).join("");
+
+    const s = sys.system;
     main.innerHTML = `
       <h2>Systems</h2>
-      ${fields
-        .map(
-          ([k, label]) =>
-            `<label>${label} <input data-eng="${k}" type="number" min="0" value="${state.engineering[k] || 0}"></label>`,
-        )
-        .join("")}
-      <label class="hm-check"><input data-eng-bool="opentherm" type="checkbox" ${
-        state.engineering.opentherm ? "checked" : ""
-      }> OpenTherm boiler</label>
+      <p class="hm-muted">Describe equipment — the engine converts it to channel demand. You never enter channel counts here.</p>
+      ${sectionsHtml}
+      <details class="hm-sys-section" open>
+        <summary>System</summary>
+        <div class="hm-sys-grid">
+          <label class="hm-sys-field">Number of panels
+            <input data-sys="system.cabinets" type="number" min="1" value="${s.cabinets || 1}">
+            <span class="hm-hint">Minimum RS-485 segments when there are enough modules.</span>
+          </label>
+          <label class="hm-sys-field">Channel reserve
+            <input data-sys="system.reserve_pct" type="range" min="0" max="30" value="${s.reserve_pct ?? 15}">
+            <span id="reserve-val">${s.reserve_pct ?? 15}%</span>
+          </label>
+          <label class="hm-sys-field">Manual controls on modules
+            <select data-sys="system.manual_control">
+              <option value="yes" ${s.manual_control !== false ? "selected" : ""}>Yes</option>
+              <option value="no" ${s.manual_control === false ? "selected" : ""}>No</option>
+            </select>
+          </label>
+          <label class="hm-sys-field">Home Assistant server
+            <select data-sys="system.ha_server">
+              <option value="needed" ${s.ha_server === "needed" ? "selected" : ""}>Needed</option>
+              <option value="own" ${s.ha_server === "own" ? "selected" : ""}>Have my own</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <div class="hm-actions">
         <button type="button" id="hm-back">Back</button>
         <button type="button" id="hm-next">To result</button>
       </div>
     `;
-    main.querySelectorAll("[data-eng]").forEach((inp) => {
-      inp.oninput = () => {
-        state.engineering[inp.dataset.eng] = Number(inp.value) || 0;
+
+    const poweredHost = main.querySelector("[data-powered-host]");
+    if (poweredHost) renderPoweredSensors(poweredHost);
+
+    main.querySelectorAll("[data-sys]").forEach((inp) => {
+      const apply = () => {
+        const [sec, key] = inp.dataset.sys.split(".");
+        if (key === "manual_control") {
+          state.systems.system.manual_control = inp.value === "yes";
+        } else if (key === "ha_server" || key === "boiler") {
+          if (sec === "heating") state.systems.heating.boiler = inp.value;
+          else state.systems[sec][key] = inp.value;
+        } else if (key === "reserve_pct") {
+          state.systems.system.reserve_pct = Number(inp.value) || 0;
+          const lab = main.querySelector("#reserve-val");
+          if (lab) lab.textContent = `${state.systems.system.reserve_pct}%`;
+        } else {
+          state.systems[sec][key] = Number(inp.value) || 0;
+        }
         saveState();
         bump();
       };
+      inp.onchange = apply;
+      inp.oninput = apply;
     });
-    const ot = main.querySelector("[data-eng-bool]");
-    ot.onchange = () => {
-      state.engineering.opentherm = ot.checked;
-      saveState();
-      bump();
-    };
+
     main.querySelector("#hm-back").onclick = () => {
       state.step = 1;
       saveState();
@@ -2097,11 +2550,8 @@ function mountConfigurator(root) {
       .map((m) => {
         const p = priceMap[m.sku];
         const priceCell =
-          p && typeof p.amount === "number"
-            ? `${p.amount} ${p.currency || ""}`
-            : "—";
-        const din =
-          m.din_units != null ? `${m.din_units} M` : "—";
+          p && typeof p.amount === "number" ? `${p.amount} ${p.currency || ""}` : "—";
+        const din = m.din_units != null ? `${m.din_units} M` : "—";
         return `<tr>
           <td>${m.qty}×</td>
           <td><a href="${m.shop_url || "#"}">${m.id}</a></td>
@@ -2127,8 +2577,14 @@ function mountConfigurator(root) {
       })
       .join("");
 
+    const almWarn = (result.assumptions || [])
+      .filter((a) => /ALM 12 V rail/i.test(a))
+      .map((a) => `<p class="${/exceeds/i.test(a) ? "hm-warn" : "hm-muted"}">${escapeAttr(a)}</p>`)
+      .join("");
+
     main.innerHTML = `
       <h2>Result</h2>
+      ${almWarn}
       <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th><th></th></tr></thead>
       <tbody>${mods}${companions}</tbody></table>
       <details><summary>ESPHome YAML (bus timings)</summary>
@@ -2206,7 +2662,7 @@ async function init() {
   ensureStylesheet();
   await loadRules();
   loadState();
-  ensureDefaultRooms();
+  ensureRoomsSeeded();
   const root = findRoot();
   if (root) mountConfigurator(root);
   else console.error("HM estimator: mount node not found (#hm-configurator / #hm-system-builder)");
@@ -2247,6 +2703,7 @@ if (typeof document !== "undefined") {
 }
 
 HM.loadRules = loadRules;
+HM.seedRoomsFromProperty = seedRoomsFromProperty;
 HM.runEstimate = runEstimate;
 HM.mountConfigurator = mountConfigurator;
 HM.init = init;

@@ -46,90 +46,6 @@
     "psu_din_100w": "DIN PSU 100 W",
     "terminal_block": "Terminal block"
   },
-  "room_templates": {
-    "living": {
-      "lights_onoff": 2,
-      "lights_dimmable": 0,
-      "led_strips": 0,
-      "led_strip_channels": 4,
-      "led_single": 0,
-      "switches": 1,
-      "shutters": 0,
-      "ufh_loops": 0,
-      "ufh_electric": 0,
-      "lights_0_10v": 0,
-      "temp_sensor": "none",
-      "leak_sensors": 0,
-      "motion_sensors": 0,
-      "presence_sensors": 0,
-      "door_contacts": 0,
-      "smart_sockets": 0,
-      "extract_fan": 0
-    },
-    "bedroom": {
-      "lights_onoff": 1,
-      "lights_dimmable": 0,
-      "led_strips": 0,
-      "led_strip_channels": 4,
-      "led_single": 0,
-      "switches": 1,
-      "shutters": 0,
-      "ufh_loops": 0,
-      "ufh_electric": 0,
-      "lights_0_10v": 0,
-      "temp_sensor": "none",
-      "leak_sensors": 0,
-      "motion_sensors": 0,
-      "presence_sensors": 0,
-      "door_contacts": 0,
-      "smart_sockets": 0,
-      "extract_fan": 0
-    },
-    "kitchen": {
-      "lights_onoff": 0,
-      "lights_dimmable": 0,
-      "led_strips": 0,
-      "led_strip_channels": 4,
-      "led_single": 0,
-      "switches": 1,
-      "shutters": 0,
-      "ufh_loops": 0,
-      "ufh_electric": 0,
-      "lights_0_10v": 0,
-      "temp_sensor": "none",
-      "leak_sensors": 0,
-      "motion_sensors": 0,
-      "presence_sensors": 0,
-      "door_contacts": 0,
-      "smart_sockets": 0,
-      "extract_fan": 0
-    },
-    "bath": {
-      "lights_onoff": 0,
-      "lights_dimmable": 0,
-      "led_strips": 0,
-      "led_strip_channels": 4,
-      "led_single": 0,
-      "switches": 1,
-      "shutters": 0,
-      "ufh_loops": 0,
-      "ufh_electric": 0,
-      "lights_0_10v": 0,
-      "temp_sensor": "none",
-      "leak_sensors": 0,
-      "motion_sensors": 0,
-      "presence_sensors": 0,
-      "door_contacts": 0,
-      "smart_sockets": 0,
-      "extract_fan": 0
-    }
-  },
-  "room_type_labels": {
-    "living": "Living room",
-    "bedroom": "Bedroom",
-    "kitchen": "Kitchen",
-    "bath": "Bathroom"
-  },
   "demand_mapping": {
     "dimmer_groups": "dimmer_ac_ch",
     "rgb_strips": "pwm_led_ch",
@@ -198,6 +114,426 @@
     "send_wait_time": "250ms",
     "comment": "On ESPHome 2026.7.0 defaults (turnaround 600ms / send_wait 2000ms) a module may silently stop being polled — set turnaround_time: 100ms and send_wait_time: 250ms explicitly."
   },
+  "room_type_labels": {
+    "living": "Living room",
+    "bedroom": "Bedroom",
+    "kitchen": "Kitchen",
+    "bath": "Bathroom",
+    "hallway": "Hallway",
+    "boiler_room": "Boiler room",
+    "garage": "Garage",
+    "office": "Office",
+    "nursery": "Nursery",
+    "dressing": "Dressing room",
+    "terrace": "Terrace"
+  },
+  "room_templates": {
+    "living": {
+      "lights_onoff": 2,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "bedroom": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "kitchen": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 1,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 1
+    },
+    "bath": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 1,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 1
+    },
+    "hallway": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 1,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "boiler_room": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "DS18B20",
+      "leak_sensors": 1,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "garage": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 1,
+      "presence_sensors": 0,
+      "door_contacts": 1,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "office": {
+      "lights_onoff": 2,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "nursery": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "dressing": {
+      "lights_onoff": 1,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 0,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    },
+    "terrace": {
+      "lights_onoff": 0,
+      "lights_dimmable": 0,
+      "led_strips": 0,
+      "led_strip_channels": 4,
+      "led_single": 1,
+      "switches": 1,
+      "shutters": 0,
+      "ufh_loops": 0,
+      "ufh_electric": 0,
+      "lights_0_10v": 0,
+      "temp_sensor": "none",
+      "leak_sensors": 0,
+      "motion_sensors": 0,
+      "presence_sensors": 0,
+      "door_contacts": 0,
+      "smart_sockets": 0,
+      "extract_fan": 0
+    }
+  },
+  "property_templates": {
+    "apartment": {
+      "base": [
+        {
+          "name": "Living room",
+          "template": "living"
+        },
+        {
+          "name": "Bedroom",
+          "template": "bedroom"
+        },
+        {
+          "name": "Kitchen",
+          "template": "kitchen"
+        },
+        {
+          "name": "Bathroom",
+          "template": "bath"
+        },
+        {
+          "name": "Hallway",
+          "template": "hallway"
+        }
+      ],
+      "extras": [
+        {
+          "when": {
+            "floor_area_m2_ge": 90
+          },
+          "rooms": [
+            {
+              "name": "Bedroom 2",
+              "template": "bedroom"
+            }
+          ]
+        }
+      ]
+    },
+    "house": {
+      "base": [
+        {
+          "name": "Living room",
+          "template": "living"
+        },
+        {
+          "name": "Bedroom",
+          "template": "bedroom"
+        },
+        {
+          "name": "Bedroom 2",
+          "template": "bedroom"
+        },
+        {
+          "name": "Kitchen",
+          "template": "kitchen"
+        },
+        {
+          "name": "Bathroom",
+          "template": "bath"
+        },
+        {
+          "name": "Hallway",
+          "template": "hallway"
+        },
+        {
+          "name": "Boiler room",
+          "template": "boiler_room"
+        }
+      ],
+      "extras": [
+        {
+          "when": {
+            "floor_area_m2_ge": 140
+          },
+          "rooms": [
+            {
+              "name": "Nursery",
+              "template": "nursery"
+            },
+            {
+              "name": "Terrace",
+              "template": "terrace"
+            }
+          ]
+        },
+        {
+          "when": {
+            "floors_ge": 2
+          },
+          "rooms": [
+            {
+              "name": "Nursery",
+              "template": "nursery"
+            },
+            {
+              "name": "Terrace",
+              "template": "terrace"
+            }
+          ]
+        }
+      ]
+    },
+    "townhouse": {
+      "base": [
+        {
+          "name": "Living room",
+          "template": "living"
+        },
+        {
+          "name": "Bedroom",
+          "template": "bedroom"
+        },
+        {
+          "name": "Bedroom 2",
+          "template": "bedroom"
+        },
+        {
+          "name": "Kitchen",
+          "template": "kitchen"
+        },
+        {
+          "name": "Bathroom",
+          "template": "bath"
+        },
+        {
+          "name": "Hallway",
+          "template": "hallway"
+        },
+        {
+          "name": "Boiler room",
+          "template": "boiler_room"
+        },
+        {
+          "name": "Terrace",
+          "template": "terrace"
+        }
+      ],
+      "extras": []
+    },
+    "commercial": {
+      "base": [
+        {
+          "name": "Office",
+          "template": "office"
+        },
+        {
+          "name": "Office 2",
+          "template": "office"
+        },
+        {
+          "name": "Hallway",
+          "template": "hallway"
+        },
+        {
+          "name": "Bathroom",
+          "template": "bath"
+        },
+        {
+          "name": "Kitchen",
+          "template": "kitchen"
+        }
+      ],
+      "extras": []
+    }
+  },
+  "alarm_sensor_types": {
+    "pir": {
+      "label": "PIR 10–20 mA",
+      "ma": 15
+    },
+    "curtain_pir": {
+      "label": "Curtain PIR 10–15 mA",
+      "ma": 12
+    },
+    "dual_tech": {
+      "label": "Dual-tech 20–30 mA",
+      "ma": 25
+    },
+    "glass_break": {
+      "label": "Glass break 15–25 mA",
+      "ma": 20
+    },
+    "smoke": {
+      "label": "Smoke 20–50 mA",
+      "ma": 35
+    },
+    "gas_co": {
+      "label": "Gas / CO 30–60 mA",
+      "ma": 45
+    },
+    "ir_beam": {
+      "label": "IR beam 20–40 mA",
+      "ma": 30
+    }
+  },
+  "alm_rail_ma": 150,
   "modules": {
     "DIO-430-R1": {
       "product_template_id": 58,

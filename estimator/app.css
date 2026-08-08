@@ -176,6 +176,53 @@ body {
   line-height: 1;
 }
 
+.hm-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--hm-muted);
+  font-weight: 400;
+}
+
+.hm-sys-section {
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 0.5rem 0.85rem 0.85rem;
+  margin-bottom: 0.65rem;
+  background: #fbfcfe;
+}
+
+.hm-sys-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.35rem 0;
+}
+
+.hm-sys-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.55rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.hm-sys-field {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.hm-sensor-row {
+  display: grid;
+  grid-template-columns: 1fr 5rem auto;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+#reset-rooms {
+  margin-left: 0.35rem;
+}
+
 .hm-actions {
   display: flex;
   flex-wrap: wrap;
