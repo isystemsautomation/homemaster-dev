@@ -15,6 +15,15 @@ HM.RULES_URL = HM_RULES_URL;
 
 const EMPTY = Object.freeze({});
 
+const SYSTEM_SECTION_IDS = [
+  "heating",
+  "ventilation",
+  "water",
+  "electrical",
+  "security",
+  "lighting_scenes",
+];
+
 /**
  * @param {object} inputs
  * @param {object} rules
@@ -22,8 +31,50 @@ const EMPTY = Object.freeze({});
  * @returns {object}
  */
 function estimate(inputs, rules, prices = EMPTY) {
+  const panels = resolvePanels(inputs);
+  const panelResults = panels.map((panel) => {
+    const sliced = sliceInputsForPanel(inputs, panel, panels);
+    const one = estimatePanel(sliced, rules, prices);
+    return {
+      id: panel.id,
+      name: panel.name,
+      location: panel.location || "",
+      ...one,
+    };
+  });
+
+  const aggregated = aggregatePanelResults(panelResults, rules);
+
+  let split_warning = null;
+  if (panels.length > 1) {
+    const merged = estimatePanel(mergeInputsToSinglePanel(inputs, panels), rules, prices);
+    split_warning = buildSplitWarning(panelResults, merged, rules, panels.length);
+  }
+
+  return {
+    ...aggregated,
+    panels: panelResults,
+    split_warning,
+  };
+}
+
+/** Single-panel pipeline (cabinets / enclosure = 1). */
+function estimatePanel(inputs, rules, prices = EMPTY) {
   const assumptions = [];
-  const normalized = normalize(inputs, rules, assumptions);
+  // Each panel is one enclosure; segment floor is 1.
+  const forced = {
+    ...inputs,
+    cabinets: 1,
+    systems: {
+      ...(inputs.systems || {}),
+      system: {
+        ...((inputs.systems && inputs.systems.system) || {}),
+        cabinets: 1,
+      },
+    },
+  };
+  const normalized = normalize(forced, rules, assumptions);
+  normalized.cabinets = 1;
   const demand = buildDemand(normalized, rules);
   const allocated = allocate(demand, rules, assumptions, normalized);
   warnAlmRail(allocated, normalized, rules, assumptions);
@@ -37,12 +88,7 @@ function estimate(inputs, rules, prices = EMPTY) {
     rules,
     assumptions,
   );
-  const enclosure = computeEnclosure(
-    topology.modules,
-    companions,
-    rules,
-    normalized.cabinets,
-  );
+  const enclosure = computeEnclosure(topology.modules, companions, rules, 1);
   const channel_usage = computeChannelUsage(
     demand,
     topology.modules,
@@ -60,6 +106,272 @@ function estimate(inputs, rules, prices = EMPTY) {
   );
   priced.channel_usage = channel_usage;
   return priced;
+}
+
+function newPanelId(index) {
+  return `panel-${index + 1}`;
+}
+
+/** Panels from inputs, or one migrated "Main panel". */
+function resolvePanels(inputs) {
+  const raw = inputs?.panels;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map((p, i) => ({
+      id: String(p.id || newPanelId(i)),
+      name: String(p.name || `Panel ${i + 1}`).trim() || `Panel ${i + 1}`,
+      location: String(p.location || "").trim(),
+    }));
+  }
+  return [{ id: "panel-1", name: "Main panel", location: "" }];
+}
+
+function defaultPanelId(panels) {
+  return panels[0]?.id || "panel-1";
+}
+
+function sliceInputsForPanel(inputs, panel, panels) {
+  const fallback = defaultPanelId(panels);
+  const rooms = (inputs.rooms || []).filter((r) => {
+    const pid = r.panel_id || fallback;
+    return pid === panel.id;
+  });
+
+  const systemsIn = inputs.systems || {};
+  const systemsOut = {
+    system: { ...(systemsIn.system || {}), cabinets: 1 },
+  };
+  for (const sec of SYSTEM_SECTION_IDS) {
+    const src = systemsIn[sec] || {};
+    const secPanel = src.panel_id || fallback;
+    if (secPanel === panel.id) {
+      systemsOut[sec] = { ...src };
+    } else {
+      systemsOut[sec] = emptySystemSection(sec);
+    }
+  }
+
+  const isFirst = panel.id === fallback;
+  return {
+    ...inputs,
+    cabinets: 1,
+    rooms,
+    systems: systemsOut,
+    // Legacy top-level demand shortcuts apply to the first panel only.
+    underfloor_circuits: isFirst ? inputs.underfloor_circuits : 0,
+    shutters: isFirst ? inputs.shutters : 0,
+    light_groups: isFirst ? inputs.light_groups : 0,
+    lights_onoff: isFirst ? inputs.lights_onoff : 0,
+    expert: isFirst ? inputs.expert : undefined,
+    mode: isFirst ? inputs.mode : inputs.mode,
+  };
+}
+
+function emptySystemSection(sec) {
+  if (sec === "heating") {
+    return {
+      panel_id: "",
+      boiler: "none",
+      collector_loops: 0,
+      heating_pumps: 0,
+      fan_coils: 0,
+      heat_pump: 0,
+      fireplace: 0,
+      pt100_sensors: 0,
+      ds18b20_sensors: 0,
+    };
+  }
+  if (sec === "security") {
+    return {
+      panel_id: "",
+      powered_sensors: [],
+      dry_contacts: 0,
+      gates: 0,
+      locks: 0,
+      panic_buttons: 0,
+    };
+  }
+  return { panel_id: "" };
+}
+
+function mergeInputsToSinglePanel(inputs, panels) {
+  const mainId = defaultPanelId(panels);
+  const rooms = (inputs.rooms || []).map((r) => ({ ...r, panel_id: mainId }));
+  const systemsIn = inputs.systems || {};
+  const systemsOut = {
+    system: { ...(systemsIn.system || {}), cabinets: 1 },
+  };
+  for (const sec of SYSTEM_SECTION_IDS) {
+    const src = systemsIn[sec] || {};
+    systemsOut[sec] = { ...src, panel_id: mainId };
+  }
+  return {
+    ...inputs,
+    cabinets: 1,
+    panels: [{ id: mainId, name: "Combined", location: "" }],
+    rooms,
+    systems: systemsOut,
+  };
+}
+
+function moduleQtyMap(modules) {
+  const map = {};
+  for (const m of modules || []) {
+    map[m.id] = (map[m.id] || 0) + (m.qty || 0);
+  }
+  return map;
+}
+
+function countByMaster(modules, rules, wantMaster) {
+  const specs = rules.modules || EMPTY;
+  let n = 0;
+  for (const m of modules || []) {
+    const master = !!specs[m.id]?.master;
+    if (master === wantMaster) n += m.qty || 0;
+  }
+  return n;
+}
+
+function buildSplitWarning(panelResults, merged, rules, panelCount) {
+  const splitCtrl = panelResults.reduce(
+    (s, p) => s + countByMaster(p.modules, rules, true),
+    0,
+  );
+  const splitSlaves = panelResults.reduce(
+    (s, p) => s + countByMaster(p.modules, rules, false),
+    0,
+  );
+  const oneCtrl = countByMaster(merged.modules, rules, true);
+  const oneSlaves = countByMaster(merged.modules, rules, false);
+  const extraCtrl = splitCtrl - oneCtrl;
+  const extraMods = splitSlaves - oneSlaves;
+  if (extraCtrl <= 0 && extraMods <= 0) return null;
+  return (
+    `Splitting into ${panelCount} panels adds ${Math.max(0, extraCtrl)} controllers` +
+    ` and ${Math.max(0, extraMods)} modules compared with a single panel.`
+  );
+}
+
+function aggregatePanelResults(panelResults, rules) {
+  const modMap = {};
+  const accMap = {};
+  const cartMap = {};
+  const channelMap = {};
+  let powerW = 0;
+  let segments = 0;
+  let dinTotal = 0;
+  let dinNeeded = 0;
+  let dinCapacity = 0;
+  let dinModules = 0;
+  let dinCompanions = 0;
+  let enclosureBlocked = false;
+  const blockedMods = [];
+  const assumptions = [];
+  const provenance = [];
+  const lines = [];
+
+  for (const p of panelResults) {
+    for (const m of p.modules || []) {
+      if (!modMap[m.id]) modMap[m.id] = { ...m, qty: 0 };
+      modMap[m.id].qty += m.qty || 0;
+    }
+    for (const a of p.accessories || []) {
+      const key = a.id || a.label;
+      if (!accMap[key]) accMap[key] = { ...a, qty: 0 };
+      accMap[key].qty += a.qty || 0;
+    }
+    for (const c of p.cart_lines || []) {
+      if (!cartMap[c.sku]) cartMap[c.sku] = { ...c, qty: 0 };
+      cartMap[c.sku].qty += c.qty || 0;
+    }
+    for (const row of p.channel_usage || []) {
+      if (!channelMap[row.channel]) {
+        channelMap[row.channel] = {
+          channel: row.channel,
+          label: row.label,
+          needed: 0,
+          supplied: 0,
+          spare: 0,
+        };
+      }
+      channelMap[row.channel].needed += row.needed || 0;
+      channelMap[row.channel].supplied += row.supplied || 0;
+    }
+    powerW += p.power?.total_w || 0;
+    segments += p.topology?.segments?.length || 0;
+    if (p.enclosure?.status === "blocked") {
+      enclosureBlocked = true;
+      blockedMods.push(...(p.enclosure.modules || []));
+    } else if (p.enclosure) {
+      dinTotal += p.enclosure.din_total || 0;
+      dinNeeded += p.enclosure.din_needed || 0;
+      dinCapacity += p.enclosure.capacity || 0;
+      dinModules += p.enclosure.din_modules || 0;
+      dinCompanions += p.enclosure.din_companions || 0;
+    }
+    for (const a of p.assumptions || []) {
+      assumptions.push(`[${p.name}] ${a}`);
+    }
+    provenance.push({ panel: p.id, items: p.provenance });
+    for (const line of p.lines || []) {
+      lines.push({ ...line, panel_id: p.id, panel_name: p.name });
+    }
+  }
+
+  for (const row of Object.values(channelMap)) {
+    row.spare = row.supplied - row.needed;
+  }
+
+  const modules = Object.values(modMap);
+  // Prefer first occurrence's price/sku metadata; qty already summed.
+  for (const m of modules) {
+    const spec = rules.modules?.[m.id];
+    if (spec) {
+      m.sku = m.sku || spec.sku;
+      m.din_units = spec.din_units ?? m.din_units;
+      m.shop_url = m.shop_url || spec.shop_url;
+      m.tmpl_id = m.tmpl_id ?? spec.product_template_id;
+      m.product_id = m.product_id ?? spec.product_id;
+    }
+  }
+
+  return {
+    modules,
+    accessories: Object.values(accMap),
+    cart_lines: Object.values(cartMap),
+    channel_usage: Object.values(channelMap).sort((a, b) =>
+      a.label.localeCompare(b.label),
+    ),
+    power: { total_w: Math.round(powerW * 100) / 100 },
+    topology: {
+      segment_count: segments,
+      segments: Array.from({ length: segments }, () => ({})),
+    },
+    enclosure: enclosureBlocked
+      ? {
+          status: "blocked",
+          reason: "din_units_missing",
+          modules: [...new Set(blockedMods)],
+        }
+      : panelResults.length === 1 && panelResults[0].enclosure
+        ? {
+            ...panelResults[0].enclosure,
+            panels: 1,
+          }
+        : {
+            status: "ok",
+            din_modules: Math.round(dinModules * 100) / 100,
+            din_companions: Math.round(dinCompanions * 100) / 100,
+            din_total: Math.round(dinTotal * 100) / 100,
+            din_needed: dinNeeded,
+            capacity: dinCapacity,
+            panels: panelResults.length,
+            reserve_pct: panelResults[0]?.enclosure?.reserve_pct ?? 25,
+          },
+    lines,
+    assumptions,
+    provenance,
+    panel_count: panelResults.length,
+  };
 }
 
 // ── Stage 1: normalize ──────────────────────────────────────────────
@@ -145,6 +457,7 @@ function normalize(inputs, rules, assumptions) {
   const mapping = rules.demand_mapping ?? EMPTY;
   const skip = new Set([
     "cabinets",
+    "panels",
     "rooms",
     "mode",
     "expert",
@@ -1182,6 +1495,7 @@ function attachPrices(
 }
 
 HM.estimate = estimate;
+HM.resolvePanels = resolvePanels;
 
 // ===== prices.js =====
 /**
@@ -1673,13 +1987,13 @@ async function buildEstimateXlsx(estimate, opts = {}) {
   rows.push(["HomeMaster estimate"]);
   rows.push([`Currency: ${currency}`]);
   rows.push(["Prices include VAT, same as the shopfront"]);
+  if (estimate.split_warning) rows.push([estimate.split_warning]);
   rows.push([]);
   rows.push(["Section", "SKU / requirement", "Qty", "Unit price", "Line total"]);
 
-  const sectionStarts = {};
-  let r = 6; // 1-based excel row of first data line after header (row 5)
+  let r = rows.length + 1; // 1-based next data row
 
-  function pushSection(title, lines, priceColFilled) {
+  function pushSection(title, lines) {
     rows.push([title, "", "", "", ""]);
     r += 1;
     const start = r;
@@ -1687,20 +2001,10 @@ async function buildEstimateXlsx(estimate, opts = {}) {
       const qty = line.qty ?? 1;
       const price = line.unit_price;
       const priceCell = price != null && price !== "" ? Number(price) : "";
-      rows.push([
-        "",
-        line.label || line.sku || line.requirement || "",
-        qty,
-        priceCell,
-        // Formula D*E — SheetJS stores formula string
-        { f: `D${r}*E${r}`.replace("D", "C").replace(/E(\d+)/, `D$1`) },
-      ]);
-      // Fix: columns are A section, B label, C qty, D unit, E total → E_r = C_r*D_r
-      rows[rows.length - 1][4] = { f: `C${r}*D${r}` };
+      rows.push(["", line.label || line.sku || line.requirement || "", qty, priceCell, { f: `C${r}*D${r}` }]);
       r += 1;
     }
     const end = r - 1;
-    sectionStarts[title] = { start, end };
     if (end >= start) {
       rows.push(["", `${title} subtotal`, "", "", { f: `SUM(E${start}:E${end})` }]);
     } else {
@@ -1709,69 +2013,54 @@ async function buildEstimateXlsx(estimate, opts = {}) {
     r += 1;
     rows.push([]);
     r += 1;
+    return r - 2;
   }
 
-  const hm = (estimate.lines || []).filter((l) => l.kind === "homemaster" || l.sku);
-  const acc = (estimate.lines || []).filter((l) => l.kind === "accessory" || l.kind === "companion");
-  const work = (estimate.lines || []).filter((l) => l.kind === "labor" || l.kind === "work");
-  const req = (estimate.lines || []).filter((l) => l.kind === "requirement" || l.requirement);
+  const panels = estimate.panels || [];
+  const subRows = [];
 
-  // Fallback buckets from modules / accessories if lines thin
-  const hmLines =
-    hm.length > 0
-      ? hm
-      : (estimate.modules || []).map((m) => ({
-          kind: "homemaster",
-          sku: m.sku,
-          label: m.id,
-          qty: m.qty,
-          unit_price: m.unit_price ?? "",
-        }));
-  const accLines =
-    acc.length > 0
-      ? acc
-      : (estimate.accessories || []).map((a) => ({
-          kind: "accessory",
-          label: a.label || a.requirement || "Accessory",
-          qty: a.qty ?? 1,
-          unit_price: "",
-        }));
-  const workLines = work.length
-    ? work
-    : [{ kind: "work", label: "Installation / commissioning (user)", qty: 1, unit_price: "" }];
-  const reqLines = req.length
-    ? req
-    : (estimate.power?.requirements || []).map((t) => ({
-        kind: "requirement",
-        label: t,
-        qty: 1,
+  if (panels.length > 0) {
+    for (const panel of panels) {
+      const hmLines = (panel.modules || []).map((m) => ({
+        sku: m.sku,
+        label: m.id,
+        qty: m.qty,
+        unit_price: m.price?.amount ?? m.unit_price ?? "",
+      }));
+      const accLines = (panel.accessories || []).map((a) => ({
+        label: a.label || a.id || "Accessory",
+        qty: a.qty ?? 1,
         unit_price: "",
       }));
+      const title = panel.location
+        ? `${panel.name} (${panel.location})`
+        : panel.name || "Panel";
+      subRows.push(pushSection(title, [...hmLines, ...accLines]));
+    }
+  } else {
+    const hmLines = (estimate.modules || []).map((m) => ({
+      sku: m.sku,
+      label: m.id,
+      qty: m.qty,
+      unit_price: m.unit_price ?? "",
+    }));
+    subRows.push(pushSection("HomeMaster", hmLines));
+  }
 
-  pushSection("HomeMaster", hmLines, true);
-  const hmSubRow = r - 2;
-  pushSection("Companion / materials", accLines, false);
-  const accSubRow = r - 2;
-  pushSection("Labor", workLines, false);
-  const workSubRow = r - 2;
-  pushSection("Requirements & assumptions", reqLines, false);
+  const projectHm = (estimate.modules || []).map((m) => ({
+    sku: m.sku,
+    label: m.id,
+    qty: m.qty,
+    unit_price: m.price?.amount ?? m.unit_price ?? "",
+  }));
+  const projectSub = pushSection("Project total (HomeMaster)", projectHm);
 
-  rows.push(["VAT rate % (optional, user-filled)", "", "", "", ""]);
-  const vatRateRow = r;
-  r += 1;
-  rows.push(["VAT amount (optional)", "", "", "", { f: `IF(D${vatRateRow}="", "", (E${hmSubRow}+E${accSubRow}+E${workSubRow})*D${vatRateRow}/100)` }]);
-  r += 1;
-  rows.push([]);
-  r += 1;
-  // Grand total: show text until all priced sections have numbers — formula awakens when filled
   rows.push([
-    "Grand total",
+    "Grand total (HomeMaster)",
     "",
     "",
     "",
-    {
-      f: `IF(OR(E${accSubRow}=0,E${workSubRow}=0),"fill in prices",E${hmSubRow}+E${accSubRow}+E${workSubRow})`,
-    },
+    { f: `E${projectSub}` },
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -1799,16 +2088,43 @@ async function downloadXlsx(estimate, filename = "homemaster-estimate.xlsx") {
 
 /** CSV fallback when SheetJS CDN is blocked */
 function estimateToCsv(estimate) {
-  const rows = [["Kind", "SKU", "Label", "Qty", "Unit price", "Currency"]];
-  for (const line of estimate.lines ?? []) {
-    rows.push([
-      line.kind ?? "",
-      line.sku ?? "",
-      line.label ?? "",
-      String(line.qty ?? ""),
-      line.unit_price != null ? String(line.unit_price) : "",
-      line.currency ?? "",
-    ]);
+  const rows = [["Panel", "Kind", "SKU", "Label", "Qty", "Unit price", "Currency"]];
+  for (const panel of estimate.panels || []) {
+    for (const m of panel.modules || []) {
+      rows.push([
+        panel.name,
+        "module",
+        m.sku ?? "",
+        m.id ?? "",
+        String(m.qty ?? ""),
+        m.price?.amount != null ? String(m.price.amount) : "",
+        m.price?.currency ?? "",
+      ]);
+    }
+    for (const a of panel.accessories || []) {
+      rows.push([
+        panel.name,
+        "companion",
+        "",
+        a.label || a.id || "",
+        String(a.qty ?? ""),
+        "",
+        "",
+      ]);
+    }
+  }
+  if (!(estimate.panels || []).length) {
+    for (const line of estimate.lines ?? []) {
+      rows.push([
+        "",
+        line.kind ?? "",
+        line.sku ?? "",
+        line.label ?? "",
+        String(line.qty ?? ""),
+        line.unit_price != null ? String(line.unit_price) : "",
+        line.currency ?? "",
+      ]);
+    }
   }
   return rows.map((r) => r.map(escapeCsv).join(",")).join("\n");
 }
@@ -1844,7 +2160,7 @@ HM.downloadCsv = downloadCsv;
 
 
 
-const STORAGE_KEY = "hm_configurator_v4";
+const STORAGE_KEY = "hm_configurator_v5";
 
 const RULES_URL =
   (typeof globalThis !== "undefined" &&
@@ -1997,10 +2313,14 @@ let state = {
     floors: 1,
     stage: "design",
   },
+  panels: defaultPanels(),
+  panels_expanded: 0,
   rooms: [],
   rooms_user_edited: false,
   /** Index of the single expanded room card; others stay collapsed. */
   rooms_expanded: 0,
+  /** Banner after panel delete migrates rooms. */
+  panel_migrate_notice: "",
   systems: emptySystems(),
   expertDemand: {},
   rulesVersion: null,
@@ -2008,9 +2328,14 @@ let state = {
 
 const STEPS = ["Property", "Rooms", "Systems", "Result"];
 
-function emptySystems() {
+function defaultPanels() {
+  return [{ id: "panel-1", name: "Main panel", location: "" }];
+}
+
+function emptySystems(panelId = "panel-1") {
   return {
     heating: {
+      panel_id: panelId,
       boiler: "none",
       collector_loops: 0,
       heating_pumps: 0,
@@ -2021,6 +2346,7 @@ function emptySystems() {
       ds18b20_sensors: 0,
     },
     ventilation: {
+      panel_id: panelId,
       ahu: 0,
       recuperator: 0,
       extract_fans: 0,
@@ -2029,6 +2355,7 @@ function emptySystems() {
       sensors_4_20ma: 0,
     },
     water: {
+      panel_id: panelId,
       leak_zones: 0,
       shutoff_valves: 0,
       water_meters: 0,
@@ -2038,6 +2365,7 @@ function emptySystems() {
       gas_valve: 0,
     },
     electrical: {
+      panel_id: panelId,
       energy_phases: 0,
       load_shed: 0,
       ev_chargers: 0,
@@ -2045,6 +2373,7 @@ function emptySystems() {
       fault_contacts: 0,
     },
     security: {
+      panel_id: panelId,
       powered_sensors: [],
       dry_contacts: 0,
       gates: 0,
@@ -2052,17 +2381,35 @@ function emptySystems() {
       panic_buttons: 0,
     },
     lighting_scenes: {
+      panel_id: panelId,
       stair_steps: 0,
       accent_zones: 0,
       garden_lights: 0,
     },
     system: {
-      cabinets: 1,
       reserve_pct: 15,
       manual_control: true,
       ha_server: "needed",
     },
   };
+}
+
+function firstPanelId() {
+  return state.panels[0]?.id || "panel-1";
+}
+
+function panelById(id) {
+  return state.panels.find((p) => p.id === id) || state.panels[0];
+}
+
+function panelSelectHtml(selectedId, dataAttr) {
+  const sel = selectedId || firstPanelId();
+  return `<select ${dataAttr}>${state.panels
+    .map(
+      (p) =>
+        `<option value="${escapeAttr(p.id)}" ${p.id === sel ? "selected" : ""}>${escapeAttr(p.name)}</option>`,
+    )
+    .join("")}</select>`;
 }
 
 async function loadRules(url = RULES_URL) {
@@ -2105,11 +2452,12 @@ function roomDefaults(type = "living") {
 function seedRoomsFromProperty(propertyType, floorArea, floors) {
   const tpl = rules?.property_templates?.[propertyType];
   if (!tpl) {
+    const panelId = firstPanelId();
     return [
-      { ...roomDefaults("living"), name: "Living room", template: "living" },
-      { ...roomDefaults("bedroom"), name: "Bedroom", template: "bedroom" },
-      { ...roomDefaults("kitchen"), name: "Kitchen", template: "kitchen" },
-      { ...roomDefaults("bath"), name: "Bathroom", template: "bath" },
+      { ...roomDefaults("living"), name: "Living room", template: "living", panel_id: panelId },
+      { ...roomDefaults("bedroom"), name: "Bedroom", template: "bedroom", panel_id: panelId },
+      { ...roomDefaults("kitchen"), name: "Kitchen", template: "kitchen", panel_id: panelId },
+      { ...roomDefaults("bath"), name: "Bathroom", template: "bath", panel_id: panelId },
     ];
   }
   // Copy seed entries so we never mutate rules.property_templates in place.
@@ -2127,10 +2475,16 @@ function seedRoomsFromProperty(propertyType, floorArea, floors) {
       list.push({ ...r });
     }
   }
+  const panelId = firstPanelId();
   return list.map((r) => {
     const template =
       r.template && rules?.room_templates?.[r.template] ? r.template : "living";
-    return { ...roomDefaults(template), name: r.name, template };
+    return {
+      ...roomDefaults(template),
+      name: r.name,
+      template,
+      panel_id: panelId,
+    };
   });
 }
 
@@ -2179,6 +2533,7 @@ function ensureRoomsSeeded() {
       ...roomDefaults(r.template || "living"),
       ...r,
       template: r.template || "living",
+      panel_id: r.panel_id || firstPanelId(),
     }));
     return;
   }
@@ -2190,18 +2545,58 @@ function ensureRoomsSeeded() {
   state.rooms_user_edited = false;
 }
 
+/** Migrate v4 and older: cabinets → one Main panel. */
+function migrateState(saved) {
+  if (!Array.isArray(saved.panels) || saved.panels.length === 0) {
+    saved.panels = defaultPanels();
+  }
+  const mainId = saved.panels[0].id || "panel-1";
+  saved.panels = saved.panels.map((p, i) => ({
+    id: String(p.id || `panel-${i + 1}`),
+    name: String(p.name || (i === 0 ? "Main panel" : `Panel ${i + 1}`)),
+    location: String(p.location || ""),
+  }));
+  if (Array.isArray(saved.rooms)) {
+    saved.rooms = saved.rooms.map((r) => ({
+      ...r,
+      panel_id: r.panel_id || mainId,
+    }));
+  }
+  if (saved.systems) {
+    const defaults = emptySystems(mainId);
+    for (const k of Object.keys(defaults)) {
+      saved.systems[k] = { ...defaults[k], ...(saved.systems[k] || {}) };
+      if (k !== "system" && !saved.systems[k].panel_id) {
+        saved.systems[k].panel_id = mainId;
+      }
+    }
+    if (saved.systems.system) {
+      delete saved.systems.system.cabinets;
+    }
+  }
+  return saved;
+}
+
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Prefer v5; fall back to v4 for one-shot migration.
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) raw = localStorage.getItem("hm_configurator_v4");
     if (!raw) return;
-    const saved = JSON.parse(raw);
+    const saved = migrateState(JSON.parse(raw));
     if (saved.rulesVersion && rules && saved.rulesVersion !== rules.version) return;
     Object.assign(state, saved, { rulesVersion: rules?.version });
-    if (!state.systems) state.systems = emptySystems();
-    state.systems = { ...emptySystems(), ...state.systems };
-    for (const k of Object.keys(emptySystems())) {
-      state.systems[k] = { ...emptySystems()[k], ...(saved.systems?.[k] || {}) };
+    if (!state.panels?.length) state.panels = defaultPanels();
+    if (!state.systems) state.systems = emptySystems(firstPanelId());
+    const defaults = emptySystems(firstPanelId());
+    state.systems = { ...defaults, ...state.systems };
+    for (const k of Object.keys(defaults)) {
+      state.systems[k] = { ...defaults[k], ...(saved.systems?.[k] || {}) };
+      if (k !== "system" && !state.systems[k].panel_id) {
+        state.systems[k].panel_id = firstPanelId();
+      }
     }
+    delete state.systems.system?.cabinets;
   } catch {
     /* ignore */
   }
@@ -2219,22 +2614,29 @@ function saveState() {
 }
 
 function buildInputs() {
+  const panels = resolvePanels({ panels: state.panels });
   if (state.expert) {
     return {
-      cabinets: state.systems.system.cabinets || 1,
+      panels,
       mode: "expert",
       expert: { demand: { ...state.expertDemand } },
       stage: state.object.stage,
+      systems: {
+        system: { ...state.systems.system },
+      },
     };
   }
   return {
-    cabinets: state.systems.system.cabinets || 1,
+    panels,
     property_type: state.object.property_type,
     floor_area_m2: state.object.floor_area_m2,
     floors: state.object.floors,
     stage: state.object.stage,
     name: state.object.name,
-    rooms: state.rooms.map((r) => ({ ...r })),
+    rooms: state.rooms.map((r) => ({
+      ...r,
+      panel_id: r.panel_id || firstPanelId(),
+    })),
     systems: JSON.parse(JSON.stringify(state.systems)),
   };
 }
@@ -2245,7 +2647,9 @@ function runEstimate(inputs, prices = priceMap) {
 }
 
 async function refreshPrices(result) {
-  const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
+  const fromPanels = (result.panels || []).flatMap((p) => p.modules || []);
+  const mods = fromPanels.length ? fromPanels : result.modules || [];
+  const urls = mods.map((m) => m.shop_url).filter(Boolean);
   if (!urls.length) return;
   const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
   priceMap = toEstimatePriceMap(map);
@@ -2261,7 +2665,7 @@ function formatPrice(p) {
   return `${p.amount} ${p.currency || ""}${amb}`;
 }
 
-function enclosureMessage(enclosure) {
+function enclosureMessage(enclosure, { compact = false } = {}) {
   if (!enclosure) return `<p>Enclosure: —</p>`;
   if (enclosure.status === "blocked") {
     if (enclosure.reason === "din_units_missing") {
@@ -2270,14 +2674,12 @@ function enclosureMessage(enclosure) {
     }
     return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
   }
-  const cabinets = enclosure.cabinets || 1;
+  if (compact || enclosure.panels > 1) {
+    return `<p>DIN units (all panels): ${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve → ${enclosure.capacity} M capacity</p>`;
+  }
   const each = enclosure.capacity_each ?? enclosure.capacity;
   const layout = `${enclosure.rows} rows × ${enclosure.row_width}`;
-  const box =
-    cabinets === 1
-      ? `1× enclosure ${each} M (${layout})`
-      : `${cabinets}× enclosure ${each} M each (${layout})`;
-  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → ${box}</p>`;
+  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → 1× enclosure ${each} M (${layout})</p>`;
 }
 
 function channelUsageTable(usage) {
@@ -2388,13 +2790,20 @@ function mountConfigurator(root) {
       .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
       .map((a) => `<p class="hm-warn">${escapeAttr(a)}</p>`)
       .join("");
+    const split = result.split_warning
+      ? `<p class="hm-warn">${escapeAttr(result.split_warning)}</p>`
+      : "";
+    const segs =
+      result.topology?.segment_count ?? result.topology?.segments?.length ?? 0;
     summary.innerHTML = `
       <h2>Summary</h2>
       ${channelUsageTable(result.channel_usage)}
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
-      <p>RS-485 segments: ${result.topology?.segments?.length ?? 0}</p>
+      <p>Panels: ${result.panel_count ?? state.panels.length}</p>
+      <p>RS-485 segments: ${segs}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
-      ${enclosureMessage(result.enclosure)}
+      ${enclosureMessage(result.enclosure, { compact: true })}
+      ${split}
       ${warns}
       <p class="hm-total">${totalLine}</p>
     `;
@@ -2413,6 +2822,10 @@ function mountConfigurator(root) {
 
   function renderObject() {
     const o = state.object;
+    const s = state.systems.system;
+    if (state.panels_expanded == null || state.panels_expanded >= state.panels.length) {
+      state.panels_expanded = 0;
+    }
     main.innerHTML = `
       <h2>Property</h2>
       <label>Project name <input id="f-name" value="${escapeAttr(o.name || "")}"></label>
@@ -2431,8 +2844,184 @@ function mountConfigurator(root) {
         ).join("")}</select>
       </label>
       <p class="hm-muted">Property type and floor area choose a room template and pre-fill the Rooms step. Stage goes to the quote only — it does not change the module list.</p>
+
+      <h3>Panels</h3>
+      <p class="hm-muted">Each panel is calculated independently — its own controller, bus, PSU and enclosure.</p>
+      <div id="panel-notice" class="hm-room-undo" ${state.panel_migrate_notice ? "" : "hidden"}>${
+        state.panel_migrate_notice
+          ? `<span>${escapeAttr(state.panel_migrate_notice)}</span>`
+          : ""
+      }</div>
+      <div id="panel-list"></div>
+      <button type="button" id="add-panel">+ panel</button>
+
+      <details class="hm-sys-section" open>
+        <summary>System</summary>
+        <div class="hm-sys-grid">
+          <div class="hm-room-field">
+            <div class="hm-room-field__label"><span>Channel reserve</span></div>
+            <input id="f-reserve" type="range" min="0" max="30" value="${s.reserve_pct ?? 15}">
+            <span id="reserve-val">${s.reserve_pct ?? 15}%</span>
+          </div>
+          <div class="hm-room-field">
+            <div class="hm-room-field__label"><span>Manual controls on modules</span></div>
+            <select id="f-manual">
+              <option value="yes" ${s.manual_control !== false ? "selected" : ""}>Yes</option>
+              <option value="no" ${s.manual_control === false ? "selected" : ""}>No</option>
+            </select>
+          </div>
+          <div class="hm-room-field">
+            <div class="hm-room-field__label"><span>Home Assistant server</span></div>
+            <select id="f-ha">
+              <option value="needed" ${s.ha_server === "needed" ? "selected" : ""}>Needed</option>
+              <option value="own" ${s.ha_server === "own" ? "selected" : ""}>Have my own</option>
+            </select>
+          </div>
+        </div>
+      </details>
       <div class="hm-actions"><button type="button" id="hm-next">Next</button></div>
     `;
+
+    const panelList = main.querySelector("#panel-list");
+    function paintPanels() {
+      panelList.innerHTML = state.panels
+        .map((p, i) => {
+          const open = i === state.panels_expanded;
+          if (!open) {
+            const loc = p.location ? ` · ${p.location}` : "";
+            return `<button type="button" class="hm-room-collapsed" data-pexpand="${i}">
+              <span class="hm-room-icon">Panel</span>
+              <span class="hm-room-collapsed__text"><strong>${escapeAttr(p.name)}</strong>
+                <span class="hm-muted">${escapeAttr(loc)}</span></span>
+              <span class="hm-room-chevron">▾</span>
+            </button>`;
+          }
+          const canDelete = state.panels.length > 1;
+          return `<article class="hm-room-card hm-room-card--open" data-pi="${i}">
+            <header class="hm-room-card__toolbar">
+              <button type="button" class="hm-room-collapse" data-pcollapse="${i}" aria-label="Collapse">▴</button>
+              <h3 class="hm-room-card__title">${escapeAttr(p.name || "Panel")}</h3>
+              ${
+                canDelete
+                  ? `<button type="button" class="hm-room-delete" data-prm="${i}">
+                <svg class="hm-room-delete__icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18M8 6V4h8v2M9 10v8M12 10v8M15 10v8M6 6l1 14h10l1-14"/>
+                </svg>
+                Delete panel
+              </button>`
+                  : ""
+              }
+            </header>
+            <div class="hm-room-card__identity">
+              <div class="hm-room-field">
+                <div class="hm-room-field__label"><span>Name</span></div>
+                <input data-pk="name" value="${escapeAttr(p.name || "")}" placeholder="e.g. Floor 1">
+              </div>
+              <div class="hm-room-field">
+                <div class="hm-room-field__label"><span>Location <span class="hm-muted">(optional)</span></span></div>
+                <input data-pk="location" value="${escapeAttr(p.location || "")}" placeholder="e.g. Utility room">
+              </div>
+            </div>
+          </article>`;
+        })
+        .join("");
+
+      panelList.querySelectorAll("[data-pexpand]").forEach((btn) => {
+        btn.onclick = () => {
+          state.panels_expanded = Number(btn.dataset.pexpand);
+          saveState();
+          paintPanels();
+        };
+      });
+      panelList.querySelectorAll("[data-pcollapse]").forEach((btn) => {
+        btn.onclick = () => {
+          state.panels_expanded = -1;
+          saveState();
+          paintPanels();
+        };
+      });
+      panelList.querySelectorAll(".hm-room-card").forEach((card) => {
+        const i = Number(card.dataset.pi);
+        card.querySelectorAll("[data-pk]").forEach((inp) => {
+          const apply = () => {
+            const k = inp.dataset.pk;
+            state.panels[i][k] = inp.value;
+            if (k === "name") {
+              const t = card.querySelector(".hm-room-card__title");
+              if (t) t.textContent = inp.value.trim() || "Panel";
+            }
+            saveState();
+            bump();
+          };
+          inp.oninput = inp.onchange = apply;
+        });
+        const rm = card.querySelector("[data-prm]");
+        if (rm) {
+          rm.onclick = () => {
+            if (state.panels.length <= 1) return;
+            const removed = state.panels[i];
+            const fallback = state.panels[i === 0 ? 1 : 0].id;
+            state.panels.splice(i, 1);
+            let moved = 0;
+            for (const room of state.rooms) {
+              if (room.panel_id === removed.id) {
+                room.panel_id = fallback;
+                moved += 1;
+              }
+            }
+            for (const sec of SYSTEM_SECTIONS) {
+              if (state.systems[sec.id]?.panel_id === removed.id) {
+                state.systems[sec.id].panel_id = fallback;
+              }
+            }
+            if (state.panels_expanded >= state.panels.length) {
+              state.panels_expanded = state.panels.length - 1;
+            }
+            state.panel_migrate_notice =
+              moved > 0
+                ? `${moved} room(s) from “${removed.name}” moved to “${panelById(fallback).name}”.`
+                : "";
+            saveState();
+            renderObject();
+            bump();
+          };
+        }
+      });
+    }
+    paintPanels();
+
+    main.querySelector("#add-panel").onclick = () => {
+      const n = state.panels.length + 1;
+      state.panels.push({
+        id: `panel-${Date.now().toString(36)}`,
+        name: `Panel ${n}`,
+        location: "",
+      });
+      state.panels_expanded = state.panels.length - 1;
+      state.panel_migrate_notice = "";
+      saveState();
+      paintPanels();
+      bump();
+    };
+
+    const reserve = main.querySelector("#f-reserve");
+    const reserveVal = main.querySelector("#reserve-val");
+    reserve.oninput = reserve.onchange = () => {
+      state.systems.system.reserve_pct = Number(reserve.value) || 0;
+      reserveVal.textContent = `${state.systems.system.reserve_pct}%`;
+      saveState();
+      bump();
+    };
+    main.querySelector("#f-manual").onchange = (e) => {
+      state.systems.system.manual_control = e.target.value === "yes";
+      saveState();
+      bump();
+    };
+    main.querySelector("#f-ha").onchange = (e) => {
+      state.systems.system.ha_server = e.target.value;
+      saveState();
+      bump();
+    };
     const bumpProperty = () => {
       reseedRooms(false);
       saveState();
@@ -2569,13 +3158,15 @@ function mountConfigurator(root) {
           const summary = roomSummaryBits(r);
           const summaryText = summary || "no equipment set";
           const title = r.name?.trim() || "Untitled room";
+          const roomPanelId = r.panel_id || firstPanelId();
+          const roomPanelName = panelById(roomPanelId)?.name || "Main panel";
           if (!expanded) {
             return `
             <button type="button" class="hm-room-collapsed" data-expand="${i}">
               <span class="hm-room-icon" aria-hidden="true">${roomTypeIcon(template)}</span>
               <span class="hm-room-collapsed__text">
                 <strong>${escapeAttr(title)}</strong>
-                <span class="hm-muted"> · ${escapeAttr(summaryText)}</span>
+                <span class="hm-muted"> · ${escapeAttr(roomPanelName)}${summaryText ? ` · ${escapeAttr(summaryText)}` : ""}</span>
               </span>
               <span class="hm-room-chevron" aria-hidden="true">▾</span>
             </button>`;
@@ -2600,7 +3191,7 @@ function mountConfigurator(root) {
                 Delete room
               </button>
             </header>
-            <div class="hm-room-card__identity">
+            <div class="hm-room-card__identity hm-room-card__identity--3">
               <div class="hm-room-field">
                 <div class="hm-room-field__label"><span>Name</span></div>
                 <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name">
@@ -2608,6 +3199,10 @@ function mountConfigurator(root) {
               <div class="hm-room-field">
                 <div class="hm-room-field__label"><span>Type</span></div>
                 <select data-k="template">${typeOpts}</select>
+              </div>
+              <div class="hm-room-field">
+                <div class="hm-room-field__label"><span>Panel</span></div>
+                ${panelSelectHtml(roomPanelId, 'data-k="panel_id"')}
               </div>
             </div>
             <div class="hm-room-card__grid">${mainFields}</div>
@@ -2658,6 +3253,8 @@ function mountConfigurator(root) {
               if (titleEl) {
                 titleEl.textContent = inp.value.trim() || "Untitled room";
               }
+            } else if (key === "panel_id") {
+              state.rooms[i].panel_id = inp.value;
             } else if (key === "temp_sensor") state.rooms[i].temp_sensor = inp.value;
             else if (key === "led_strip_channels")
               state.rooms[i].led_strip_channels = Number(inp.value) || 4;
@@ -2703,7 +3300,11 @@ function mountConfigurator(root) {
     main.querySelector("#add-room").onclick = () => {
       clearUndo();
       state.rooms_user_edited = true;
-      state.rooms.push({ ...roomDefaults("living"), template: "living" });
+      state.rooms.push({
+        ...roomDefaults("living"),
+        template: "living",
+        panel_id: firstPanelId(),
+      });
       state.rooms_expanded = state.rooms.length - 1;
       saveState();
       paintRooms();
@@ -2795,59 +3396,36 @@ function mountConfigurator(root) {
   function renderEngineering() {
     const sys = state.systems;
     const sectionsHtml = SYSTEM_SECTIONS.map((sec) => {
+      const secPanel = sys[sec.id]?.panel_id || firstPanelId();
       const fields = sec.fields
         .map(([key, label, kind]) => {
           if (kind === "powered_sensors") {
             return `<div class="hm-sys-field"><span>${label}</span><div data-powered-host></div></div>`;
           }
-          const hint =
+          const tip =
             sec.id === "heating" && key === "collector_loops"
-              ? `<span class="hm-hint">Compared with the sum of per-room underfloor loops; the engine uses the <strong>maximum</strong>, not the sum.</span>`
+              ? `<button type="button" class="hm-field-tip" title="Compared with the sum of per-room underfloor loops; the engine uses the maximum, not the sum." aria-label="Help">?</button>`
               : "";
-          return `<label class="hm-sys-field">${label}${sysFieldControl(
-            sec.id,
-            key,
-            kind,
-            sys[sec.id]?.[key],
-          )}${hint}</label>`;
+          return `<div class="hm-room-field">
+            <div class="hm-room-field__label"><span>${escapeAttr(label)}</span>${tip}</div>
+            ${sysFieldControl(sec.id, key, kind, sys[sec.id]?.[key])}
+          </div>`;
         })
         .join("");
       return `<details class="hm-sys-section" open>
         <summary>${sec.title}</summary>
+        <div class="hm-room-field hm-sys-panel-pick">
+          <div class="hm-room-field__label"><span>Panel</span></div>
+          ${panelSelectHtml(secPanel, `data-sys-panel="${sec.id}"`)}
+        </div>
         <div class="hm-sys-grid">${fields}</div>
       </details>`;
     }).join("");
 
-    const s = sys.system;
     main.innerHTML = `
       <h2>Systems</h2>
-      <p class="hm-muted">Describe equipment — the engine converts it to channel demand. You never enter channel counts here.</p>
+      <p class="hm-muted">Describe equipment — the engine converts it to channel demand. Each section is assigned to a panel. You never enter channel counts here.</p>
       ${sectionsHtml}
-      <details class="hm-sys-section" open>
-        <summary>System</summary>
-        <div class="hm-sys-grid">
-          <label class="hm-sys-field">Number of panels
-            <input data-sys="system.cabinets" type="number" min="1" value="${s.cabinets || 1}">
-            <span class="hm-hint">Minimum RS-485 segments when there are enough modules.</span>
-          </label>
-          <label class="hm-sys-field">Channel reserve
-            <input data-sys="system.reserve_pct" type="range" min="0" max="30" value="${s.reserve_pct ?? 15}">
-            <span id="reserve-val">${s.reserve_pct ?? 15}%</span>
-          </label>
-          <label class="hm-sys-field">Manual controls on modules
-            <select data-sys="system.manual_control">
-              <option value="yes" ${s.manual_control !== false ? "selected" : ""}>Yes</option>
-              <option value="no" ${s.manual_control === false ? "selected" : ""}>No</option>
-            </select>
-          </label>
-          <label class="hm-sys-field">Home Assistant server
-            <select data-sys="system.ha_server">
-              <option value="needed" ${s.ha_server === "needed" ? "selected" : ""}>Needed</option>
-              <option value="own" ${s.ha_server === "own" ? "selected" : ""}>Have my own</option>
-            </select>
-          </label>
-        </div>
-      </details>
       <div class="hm-actions">
         <button type="button" id="hm-back">Back</button>
         <button type="button" id="hm-next">To result</button>
@@ -2857,18 +3435,20 @@ function mountConfigurator(root) {
     const poweredHost = main.querySelector("[data-powered-host]");
     if (poweredHost) renderPoweredSensors(poweredHost);
 
+    main.querySelectorAll("[data-sys-panel]").forEach((sel) => {
+      sel.onchange = () => {
+        const sec = sel.dataset.sysPanel;
+        state.systems[sec].panel_id = sel.value;
+        saveState();
+        bump();
+      };
+    });
+
     main.querySelectorAll("[data-sys]").forEach((inp) => {
       const apply = () => {
         const [sec, key] = inp.dataset.sys.split(".");
-        if (key === "manual_control") {
-          state.systems.system.manual_control = inp.value === "yes";
-        } else if (key === "ha_server" || key === "boiler") {
-          if (sec === "heating") state.systems.heating.boiler = inp.value;
-          else state.systems[sec][key] = inp.value;
-        } else if (key === "reserve_pct") {
-          state.systems.system.reserve_pct = Number(inp.value) || 0;
-          const lab = main.querySelector("#reserve-val");
-          if (lab) lab.textContent = `${state.systems.system.reserve_pct}%`;
+        if (key === "boiler") {
+          state.systems.heating.boiler = inp.value;
         } else {
           state.systems[sec][key] = Number(inp.value) || 0;
         }
@@ -2916,14 +3496,10 @@ function mountConfigurator(root) {
     };
   }
 
-  async function renderResult() {
-    let result = liveResult();
-    main.innerHTML = `<p>Loading prices from the shop…</p>`;
-    await refreshPrices(result);
-    result = liveResult();
-    renderSummary(result);
-
-    const mods = (result.modules || [])
+  function panelResultBlock(panel) {
+    const ctrl = (panel.modules || []).filter((m) => rules.modules?.[m.id]?.master);
+    const slaves = (panel.modules || []).filter((m) => !rules.modules?.[m.id]?.master);
+    const modRows = [...ctrl, ...slaves]
       .map((m) => {
         const p = priceMap[m.sku];
         const priceCell =
@@ -2935,40 +3511,77 @@ function mountConfigurator(root) {
           <td>${m.sku || ""}</td>
           <td>${din}</td>
           <td>${priceCell}</td>
-          <td><button type="button" class="hm-why" data-sku="${m.sku}">why</button></td>
         </tr>`;
       })
       .join("");
-
-    const companions = (result.accessories || [])
+    const companions = (panel.accessories || [])
       .map((a) => {
         const din = a.din_units != null ? `${a.din_units} M` : "—";
         return `<tr>
           <td>${a.qty}×</td>
-          <td>${a.label || a.id}</td>
+          <td>${escapeAttr(a.label || a.id)}</td>
           <td class="hm-muted">requirement</td>
           <td>${din}</td>
-          <td></td>
           <td></td>
         </tr>`;
       })
       .join("");
+    const segs = panel.topology?.segments?.length ?? 0;
+    const terms = (panel.topology?.segments || []).reduce(
+      (s, seg) => s + (seg.terminators || 0),
+      0,
+    );
+    const psu = (panel.power?.requirements || [])
+      .filter((r) => r.kind === "psu" || /PSU|power supply/i.test(r.text || ""))
+      .map((r) => r.text || JSON.stringify(r))
+      .join("; ");
+    const loc = panel.location ? ` · ${escapeAttr(panel.location)}` : "";
+    const yaml = (panel.topology?.esphome_yaml || "").replace(/</g, "&lt;");
+    return `
+      <section class="hm-panel-result">
+        <h3>${escapeAttr(panel.name)}${loc}</h3>
+        ${enclosureMessage(panel.enclosure)}
+        <p class="hm-muted">RS-485: ${segs} segment(s), ${terms} terminator(s) · 24 V: ${panel.power?.total_w ?? "—"} W${psu ? ` · ${escapeAttr(psu)}` : ""}</p>
+        <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th></tr></thead>
+        <tbody>${modRows}${companions}</tbody></table>
+        ${channelUsageTable(panel.channel_usage)}
+        <details><summary>ESPHome YAML</summary><pre>${yaml}</pre></details>
+      </section>`;
+  }
+
+  async function renderResult() {
+    let result = liveResult();
+    main.innerHTML = `<p>Loading prices from the shop…</p>`;
+    await refreshPrices(result);
+    result = liveResult();
+    renderSummary(result);
+
+    const panelBlocks = (result.panels || [])
+      .map((p) => panelResultBlock(p))
+      .join("");
 
     const almWarn = (result.assumptions || [])
-      .filter((a) => /ALM 12 V rail/i.test(a))
+      .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
       .map((a) => `<p class="${/exceeds/i.test(a) ? "hm-warn" : "hm-muted"}">${escapeAttr(a)}</p>`)
       .join("");
+    const split = result.split_warning
+      ? `<p class="hm-warn">${escapeAttr(result.split_warning)}</p>`
+      : "";
+    const tot = cartTotal(result, priceMap);
+    let totalLine = "";
+    if (tot && typeof tot.total === "number") {
+      totalLine = `<p class="hm-total">Project total (HomeMaster): ${tot.total} ${tot.currency} (incl. VAT)</p>`;
+    }
 
     main.innerHTML = `
       <h2>Result</h2>
+      ${split}
       ${almWarn}
+      ${panelBlocks || "<p>No panels.</p>"}
+      <h3>Project total</h3>
       ${channelUsageTable(result.channel_usage)}
-      ${enclosureMessage(result.enclosure)}
-      <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th><th></th></tr></thead>
-      <tbody>${mods}${companions}</tbody></table>
-      <details><summary>ESPHome YAML (bus timings)</summary>
-        <pre>${(result.topology?.esphome_yaml || "").replace(/</g, "&lt;")}</pre>
-      </details>
+      ${enclosureMessage(result.enclosure, { compact: true })}
+      ${totalLine}
       <div class="hm-actions">
         <button type="button" id="hm-cart">Add to cart</button>
         <button type="button" id="hm-xlsx">Download .xlsx</button>
@@ -2977,13 +3590,6 @@ function mountConfigurator(root) {
       </div>
       <div id="hm-cart-status"></div>
     `;
-
-    main.querySelectorAll(".hm-why").forEach((btn) => {
-      btn.onclick = () => {
-        const m = result.modules.find((x) => x.sku === btn.dataset.sku);
-        alert(JSON.stringify(m?.provenance || result.provenance || {}, null, 2));
-      };
-    });
 
     main.querySelector("#hm-xlsx").onclick = () =>
       downloadXlsx(result).catch(() => downloadCsv(result));

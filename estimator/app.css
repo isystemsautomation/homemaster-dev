@@ -162,6 +162,27 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.hm-room-card__identity--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 720px) {
+  .hm-room-card__identity--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hm-panel-result {
+  margin: 1.25rem 0 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--hm-line);
+}
+
+.hm-panel-result h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
 .hm-room-delete {
   display: inline-flex;
   align-items: center;
@@ -362,11 +383,28 @@ body {
   padding: 0.35rem 0;
 }
 
+.hm-sys-panel-pick {
+  max-width: 16rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
 .hm-sys-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.55rem 0.75rem;
   margin-top: 0.5rem;
+  align-items: start;
+}
+
+.hm-sys-grid .hm-room-field input[type="range"] {
+  width: 100%;
+  align-self: center;
+  margin-top: 0.35rem;
+}
+
+.hm-sys-grid #reserve-val {
+  font-size: 0.9rem;
+  color: var(--hm-muted);
 }
 
 .hm-sys-field {
