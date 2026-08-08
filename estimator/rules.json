@@ -10,7 +10,41 @@
     "default_reserve_pct": 15,
     "psu_headroom_pct": 30,
     "psu_sizing_basis": "max",
-    "str_actuators_per_module": 16
+    "str_actuators_per_module": 16,
+    "enclosure_reserve_pct": 25
+  },
+  "companion_din_units": {
+    "mcb_1p": 1,
+    "mcb_1p_n": 2,
+    "mcb_3p": 3,
+    "rcd_2p": 2,
+    "rcd_4p": 4,
+    "rcbo_1p_n": 2,
+    "contactor_modular": 2,
+    "psu_din_60w": 4,
+    "psu_din_100w": 6,
+    "terminal_block": 0.35
+  },
+  "enclosure_sizes": [
+    12,
+    18,
+    24,
+    36,
+    48,
+    54,
+    72
+  ],
+  "companion_labels": {
+    "mcb_1p": "MCB 1P",
+    "mcb_1p_n": "MCB 1P+N",
+    "mcb_3p": "MCB 3P",
+    "rcd_2p": "RCD 2P",
+    "rcd_4p": "RCD 4P",
+    "rcbo_1p_n": "RCBO 1P+N",
+    "contactor_modular": "Modular contactor",
+    "psu_din_60w": "DIN PSU 60 W",
+    "psu_din_100w": "DIN PSU 100 W",
+    "terminal_block": "Terminal block"
   },
   "room_templates": {
     "living": {
@@ -171,7 +205,6 @@
       "sku": "HM-DIO-430-R1",
       "shop_url": "/shop/dio-430-r1-relay-module-58",
       "din_units": 4,
-      "length_mm": 70,
       "provides": {
         "relay_out_3a": 3,
         "di_dry": 4
@@ -192,7 +225,6 @@
       "sku": "HM-DIM-420-R1",
       "shop_url": "/shop/dim-420-r1-dimmer-module-736",
       "din_units": 9,
-      "length_mm": 158,
       "provides": {
         "dimmer_ac_ch": 2,
         "di_dry": 4
@@ -265,7 +297,6 @@
       "sku": "HM-ENM-223-R1",
       "shop_url": "/shop/enm-223-r1-energy-meter-737",
       "din_units": 4,
-      "length_mm": 71.5,
       "provides": {
         "energy_phase": 3,
         "relay_out_3a": 2
@@ -366,5 +397,5 @@
       }
     }
   },
-  "generated_at": "2026-08-07"
+  "generated_at": "2026-08-08"
 }

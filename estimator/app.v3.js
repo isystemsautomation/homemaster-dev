@@ -28,8 +28,24 @@ function estimate(inputs, rules, prices = EMPTY) {
   const allocated = allocate(demand, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
   const power = computePower(topology.modules, rules, assumptions);
-  const enclosure = computeEnclosure(topology.modules, rules);
-  const priced = attachPrices(topology, power, enclosure, rules, prices, assumptions);
+  const companions = buildCompanions(
+    allocated,
+    topology.modules,
+    power,
+    normalized,
+    rules,
+    assumptions,
+  );
+  const enclosure = computeEnclosure(topology.modules, companions, rules);
+  const priced = attachPrices(
+    topology,
+    companions,
+    power,
+    enclosure,
+    rules,
+    prices,
+    assumptions,
+  );
   return priced;
 }
 
@@ -212,13 +228,13 @@ function allocate(demand, rules, assumptions) {
     });
   }
 
-  // Contactors accessory lines.
+  // Contactors — companion line (DIN width from companion_din_units).
   const contactorCount = demand.relay_needs_contactor ?? 0;
   if (contactorCount > 0) {
     accessories.push({
-      id: "contactor",
+      id: "contactor_modular",
       qty: contactorCount,
-      label: "External contactor (relay-driven load)",
+      label: "Modular contactor",
       requirement: true,
     });
     provenance.push({ kind: "relay_needs_contactor", qty: contactorCount });
@@ -595,17 +611,130 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+// ── Companions (panel hardware without SKU) ─────────────────────────
+
+/**
+ * Build companion BOM lines that contribute DIN width but never prices.
+ * Protection / terminals are assumptions (not load-calculated breakers).
+ */
+function buildCompanions(allocated, modulesList, power, normalized, rules, assumptions) {
+  const labels = rules.companion_labels ?? EMPTY;
+  const dinMap = rules.companion_din_units ?? EMPTY;
+  const out = [];
+
+  for (const a of allocated.accessories || []) {
+    out.push({
+      id: a.id,
+      qty: a.qty,
+      label: a.label || labels[a.id] || a.id,
+      requirement: !!a.requirement,
+      din_units: dinMap[a.id] ?? null,
+      sku: "",
+    });
+  }
+
+  const watts = power.total_w ?? 0;
+  if (watts > 0) {
+    if (watts <= 60) {
+      out.push({
+        id: "psu_din_60w",
+        qty: 1,
+        label: labels.psu_din_60w || "DIN PSU 60 W",
+        requirement: true,
+        din_units: dinMap.psu_din_60w ?? 4,
+        sku: "",
+      });
+    } else {
+      const qty = Math.max(1, Math.ceil(watts / 100));
+      out.push({
+        id: "psu_din_100w",
+        qty,
+        label: labels.psu_din_100w || "DIN PSU 100 W",
+        requirement: true,
+        din_units: dinMap.psu_din_100w ?? 6,
+        sku: "",
+      });
+    }
+  }
+
+  const cabinets = Math.max(1, normalized.cabinets || 1);
+  // Assumed incomer protection per panel — not a load calculation.
+  out.push({
+    id: "mcb_1p_n",
+    qty: cabinets,
+    label: labels.mcb_1p_n || "MCB 1P+N",
+    requirement: true,
+    din_units: dinMap.mcb_1p_n ?? 2,
+    sku: "",
+  });
+  out.push({
+    id: "rcd_2p",
+    qty: cabinets,
+    label: labels.rcd_2p || "RCD 2P",
+    requirement: true,
+    din_units: dinMap.rcd_2p ?? 2,
+    sku: "",
+  });
+  assumptions.push(
+    `Incomer protection: ${cabinets}× MCB 1P+N + ${cabinets}× RCD 2P (assumption per panel, not load-sized).`,
+  );
+
+  const modCount = modulesList.reduce((s, l) => s + (l.qty || 0), 0);
+  const terminals = Math.max(10, modCount * 4);
+  out.push({
+    id: "terminal_block",
+    qty: terminals,
+    label: labels.terminal_block || "Terminal block",
+    requirement: true,
+    din_units: dinMap.terminal_block ?? 0.35,
+    sku: "",
+  });
+  assumptions.push(
+    `Terminal blocks: ${terminals}× (assumption: max(10, 4 × module count)).`,
+  );
+
+  return out;
+}
+
 // ── Stage 6: enclosure ──────────────────────────────────────────────
 
-function computeEnclosure(modulesList, rules) {
+function dinWidthForModule(line, moduleSpecs) {
+  const spec = moduleSpecs[line.id];
+  if (!spec) return { width: null, missing: true };
+  if (spec.din_units == null) return { width: null, missing: true };
+  return { width: Number(spec.din_units) * line.qty, missing: false };
+}
+
+function pickEnclosureLayout(needed, sizes) {
+  let best = null;
+  for (const rowWidth of sizes) {
+    const rows = Math.ceil(needed / rowWidth);
+    const capacity = rows * rowWidth;
+    if (
+      !best ||
+      capacity < best.capacity ||
+      (capacity === best.capacity && rows < best.rows) ||
+      (capacity === best.capacity && rows === best.rows && rowWidth < best.row_width)
+    ) {
+      best = { row_width: rowWidth, rows, capacity };
+    }
+  }
+  return best;
+}
+
+/**
+ * Sum DIN units across HomeMaster modules + companions, apply reserve,
+ * pick cabinet layout from enclosure_sizes. Blocked only when a
+ * HomeMaster module lacks din_units — missing companion prices never block.
+ */
+function computeEnclosure(modulesList, companions, rules) {
   const moduleSpecs = rules.modules ?? EMPTY;
+  const dinMap = rules.companion_din_units ?? EMPTY;
   const missing = [];
 
   for (const line of modulesList) {
-    const spec = moduleSpecs[line.id];
-    if (!spec || spec.din_units == null) {
-      missing.push(line.id);
-    }
+    const { missing: miss } = dinWidthForModule(line, moduleSpecs);
+    if (miss) missing.push(line.id);
   }
 
   if (missing.length > 0) {
@@ -616,32 +745,75 @@ function computeEnclosure(modulesList, rules) {
     };
   }
 
-  let dinTotal = 0;
+  let dinModules = 0;
+  const breakdown = [];
   for (const line of modulesList) {
-    const spec = moduleSpecs[line.id];
-    dinTotal += (spec.din_units ?? 0) * line.qty;
+    const w = Number(moduleSpecs[line.id].din_units) * line.qty;
+    dinModules += w;
+    breakdown.push({ id: line.id, qty: line.qty, din_units: moduleSpecs[line.id].din_units, din_total: w, kind: "module" });
   }
 
-  const rows = Math.ceil(dinTotal / 24);
+  let dinCompanions = 0;
+  for (const c of companions || []) {
+    const unit = c.din_units != null ? Number(c.din_units) : Number(dinMap[c.id]);
+    if (!Number.isFinite(unit) || !c.qty) continue;
+    const w = unit * c.qty;
+    dinCompanions += w;
+    breakdown.push({
+      id: c.id,
+      label: c.label,
+      qty: c.qty,
+      din_units: unit,
+      din_total: w,
+      kind: "companion",
+    });
+  }
+
+  const dinTotal = dinModules + dinCompanions;
+  const reservePct = rules.policy?.enclosure_reserve_pct ?? 25;
+  const dinNeeded = Math.ceil(dinTotal * (1 + reservePct / 100));
+  const sizes = rules.enclosure_sizes ?? [12, 18, 24, 36, 48, 54, 72];
+  const layout = pickEnclosureLayout(dinNeeded, sizes);
 
   return {
     status: "ok",
-    din_total: dinTotal,
-    rows,
+    din_modules: round2(dinModules),
+    din_companions: round2(dinCompanions),
+    din_total: round2(dinTotal),
+    reserve_pct: reservePct,
+    din_needed: dinNeeded,
+    row_width: layout.row_width,
+    rows: layout.rows,
+    capacity: layout.capacity,
+    breakdown,
   };
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
 }
 
 // ── Stage 7: price ──────────────────────────────────────────────────
 
-function attachPrices(topologyResult, power, enclosure, rules, prices, assumptions) {
+function attachPrices(
+  topologyResult,
+  companions,
+  power,
+  enclosure,
+  rules,
+  prices,
+  assumptions,
+) {
+  const moduleSpecs = rules.modules ?? EMPTY;
   const modules = topologyResult.modules.map((m) => ({
     ...m,
+    din_units: moduleSpecs[m.id]?.din_units ?? null,
     price: prices[m.sku] ?? null,
   }));
 
-  const accessories = topologyResult.accessories.map((a) => ({
+  const accessories = (companions || []).map((a) => ({
     ...a,
-    price: a.sku ? (prices[a.sku] ?? null) : null,
+    price: null,
   }));
 
   const cart_lines = modules
@@ -659,24 +831,31 @@ function attachPrices(topologyResult, power, enclosure, rules, prices, assumptio
       sku: m.sku,
       label: m.id,
       qty: m.qty,
+      din_units: m.din_units,
       unit_price: m.price?.amount ?? null,
       currency: m.price?.currency ?? null,
       shop_url: m.shop_url,
+      requirement: false,
     })),
     ...accessories.map((a) => ({
-      kind: "accessory",
-      sku: a.sku ?? "",
+      kind: "companion",
+      sku: "",
       label: a.label ?? a.id,
       qty: a.qty,
-      unit_price: a.price?.amount ?? null,
-      currency: a.price?.currency ?? null,
-      requirement: a.requirement ?? false,
-    })),
-    ...power.requirements.map((r) => ({
-      kind: "requirement",
-      label: r.text,
+      din_units: a.din_units,
+      unit_price: null,
+      currency: null,
       requirement: true,
     })),
+    ...power.requirements
+      .filter((r) => r.kind !== "psu")
+      .map((r) => ({
+        kind: "requirement",
+        label: r.text,
+        requirement: true,
+        din_units: null,
+        unit_price: null,
+      })),
   ];
 
   return {
@@ -1553,13 +1732,15 @@ function formatPrice(p) {
 }
 
 function enclosureMessage(enclosure) {
-  if (!enclosure || enclosure.status !== "blocked") {
-    return `<p>DIN: ${enclosure?.din_total ?? "—"}</p>`;
+  if (!enclosure) return `<p>Enclosure: —</p>`;
+  if (enclosure.status === "blocked") {
+    if (enclosure.reason === "din_units_missing") {
+      const mods = (enclosure.modules || []).join(", ");
+      return `<p class="hm-warn">Panel layout: blocked — DIN width unknown for ${mods || "some HomeMaster modules"}</p>`;
+    }
+    return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
   }
-  if (enclosure.reason === "din_units_missing") {
-    return `<p class="hm-warn">Panel layout: blocked — DIN width unknown for some modules</p>`;
-  }
-  return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
+  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → ${enclosure.rows}× ${enclosure.row_width} M (${enclosure.capacity} M)</p>`;
 }
 
 function el(html) {
@@ -1919,20 +2100,37 @@ function mountConfigurator(root) {
           p && typeof p.amount === "number"
             ? `${p.amount} ${p.currency || ""}`
             : "—";
+        const din =
+          m.din_units != null ? `${m.din_units} M` : "—";
         return `<tr>
           <td>${m.qty}×</td>
           <td><a href="${m.shop_url || "#"}">${m.id}</a></td>
-          <td>${m.sku}</td>
+          <td>${m.sku || ""}</td>
+          <td>${din}</td>
           <td>${priceCell}</td>
           <td><button type="button" class="hm-why" data-sku="${m.sku}">why</button></td>
         </tr>`;
       })
       .join("");
 
+    const companions = (result.accessories || [])
+      .map((a) => {
+        const din = a.din_units != null ? `${a.din_units} M` : "—";
+        return `<tr>
+          <td>${a.qty}×</td>
+          <td>${a.label || a.id}</td>
+          <td class="hm-muted">requirement</td>
+          <td>${din}</td>
+          <td></td>
+          <td></td>
+        </tr>`;
+      })
+      .join("");
+
     main.innerHTML = `
       <h2>Result</h2>
-      <table class="hm-table"><thead><tr><th>Qty</th><th>Module</th><th>SKU</th><th>Price incl. VAT</th><th></th></tr></thead>
-      <tbody>${mods}</tbody></table>
+      <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th><th></th></tr></thead>
+      <tbody>${mods}${companions}</tbody></table>
       <details><summary>ESPHome YAML (bus timings)</summary>
         <pre>${(result.topology?.esphome_yaml || "").replace(/</g, "&lt;")}</pre>
       </details>
