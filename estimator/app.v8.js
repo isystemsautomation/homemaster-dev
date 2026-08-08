@@ -1853,13 +1853,20 @@ const RULES_URL =
 
 const ROOM_FIELDS_MAIN = [
   ["lights_onoff", "Light groups (on/off)", "number"],
-  ["lights_dimmable", "of which dimmable 230 V", "number"],
+  ["lights_dimmable", "of which dimmable 230 V", "number", { parent: "lights_onoff" }],
   ["led_strips", "RGB / RGBW / RGBCCT strips", "number"],
-  ["led_strip_channels", "Strip channels", "channels"],
+  ["led_strip_channels", "Strip channels", "channels", { parent: "led_strips" }],
   ["led_single", "Single-colour strips 12–24 V", "number"],
   ["switches", "Wall switch gangs", "number"],
   ["shutters", "Blinds / roller shutters", "number"],
-  ["ufh_loops", "Underfloor heating loops (collector)", "number"],
+  [
+    "ufh_loops",
+    "Underfloor heating loops (collector)",
+    "number",
+    {
+      tip: "House-wide collector loops on Systems use the maximum of room totals and the Systems value — not the sum.",
+    },
+  ],
 ];
 
 const ROOM_FIELDS_MORE = [
@@ -1873,6 +1880,13 @@ const ROOM_FIELDS_MORE = [
   ["smart_sockets", "Switched sockets", "number"],
   ["extract_fan", "Extract fan", "number"],
 ];
+
+/** Parent field must be > 0 for the child to show. */
+function roomFieldVisible(room, field) {
+  const parent = field[3]?.parent;
+  if (!parent) return true;
+  return (Number(room[parent]) || 0) > 0;
+}
 
 const TEMP_OPTIONS = [
   ["none", "None"],
@@ -2470,14 +2484,30 @@ function mountConfigurator(root) {
     return `<input data-k="${key}" type="number" min="0" value="${Number(room[key]) || 0}">`;
   }
 
+  function roomFieldHtml(room, field) {
+    if (!roomFieldVisible(room, field)) return "";
+    const [k, label, kind, opts] = field;
+    const tip = opts?.tip
+      ? `<button type="button" class="hm-field-tip" title="${escapeAttr(opts.tip)}" aria-label="${escapeAttr(opts.tip)}">?</button>`
+      : "";
+    return `<div class="hm-room-field">
+      <div class="hm-room-field__label"><span>${escapeAttr(label)}</span>${tip}</div>
+      ${fieldControl(room, k, kind)}
+    </div>`;
+  }
+
   function renderRooms() {
     const templates = Object.keys(rules.room_templates || {});
     if (state.rooms_expanded == null || state.rooms_expanded >= state.rooms.length) {
       state.rooms_expanded = Math.max(0, state.rooms.length - 1);
     }
+    /** @type {{ room: object, index: number, timer: ReturnType<typeof setTimeout> } | null} */
+    let undoDelete = null;
+
     main.innerHTML = `
       <h2>Rooms</h2>
       <p class="hm-muted">Pre-filled from the property on step 1 — each room keeps the type from that template. Rooms without a name are drafts and are ignored. When you rename a room by hand, type is not inferred from the name; pick Type yourself.</p>
+      <div id="room-undo" class="hm-room-undo" hidden></div>
       <div id="room-list"></div>
       <button type="button" id="add-room">+ room</button>
       <button type="button" id="reset-rooms">Reset rooms from property</button>
@@ -2487,6 +2517,44 @@ function mountConfigurator(root) {
       </div>
     `;
     const list = main.querySelector("#room-list");
+    const undoBar = main.querySelector("#room-undo");
+
+    function clearUndo() {
+      if (undoDelete?.timer) clearTimeout(undoDelete.timer);
+      undoDelete = null;
+      undoBar.hidden = true;
+      undoBar.innerHTML = "";
+    }
+
+    function showUndo(room, index) {
+      if (undoDelete?.timer) clearTimeout(undoDelete.timer);
+      undoDelete = {
+        room,
+        index,
+        timer: setTimeout(() => {
+          undoDelete = null;
+          undoBar.hidden = true;
+          undoBar.innerHTML = "";
+        }, 5000),
+      };
+      const label = room.name?.trim() || "Untitled room";
+      undoBar.hidden = false;
+      undoBar.innerHTML = `
+        <span>Deleted <strong>${escapeAttr(label)}</strong>.</span>
+        <button type="button" id="hm-undo-delete">Undo</button>`;
+      undoBar.querySelector("#hm-undo-delete").onclick = () => {
+        if (!undoDelete) return;
+        const { room: restored, index: at } = undoDelete;
+        clearUndo();
+        state.rooms_user_edited = true;
+        const insertAt = Math.min(Math.max(0, at), state.rooms.length);
+        state.rooms.splice(insertAt, 0, restored);
+        state.rooms_expanded = insertAt;
+        saveState();
+        paintRooms();
+        bump();
+      };
+    }
 
     function paintRooms() {
       if (state.rooms_expanded >= state.rooms.length) {
@@ -2500,12 +2568,13 @@ function mountConfigurator(root) {
           const expanded = i === state.rooms_expanded;
           const summary = roomSummaryBits(r);
           const summaryText = summary || "no equipment set";
+          const title = r.name?.trim() || "Untitled room";
           if (!expanded) {
             return `
             <button type="button" class="hm-room-collapsed" data-expand="${i}">
               <span class="hm-room-icon" aria-hidden="true">${roomTypeIcon(template)}</span>
               <span class="hm-room-collapsed__text">
-                <strong>${escapeAttr(r.name || "Untitled")}</strong>
+                <strong>${escapeAttr(title)}</strong>
                 <span class="hm-muted"> · ${escapeAttr(summaryText)}</span>
               </span>
               <span class="hm-room-chevron" aria-hidden="true">▾</span>
@@ -2517,25 +2586,30 @@ function mountConfigurator(root) {
                 `<option value="${t}" ${t === template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
             )
             .join("");
-          const mainFields = ROOM_FIELDS_MAIN.map(([k, label, kind]) => {
-            const hint =
-              k === "ufh_loops"
-                ? `<span class="hm-hint">House-wide collector loops on Systems use the <strong>maximum</strong> of room totals and the Systems value — not the sum.</span>`
-                : "";
-            return `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}${hint}</label>`;
-          }).join("");
-          const moreFields = ROOM_FIELDS_MORE.map(
-            ([k, label, kind]) =>
-              `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
-          ).join("");
+          const mainFields = ROOM_FIELDS_MAIN.map((f) => roomFieldHtml(r, f)).join("");
+          const moreFields = ROOM_FIELDS_MORE.map((f) => roomFieldHtml(r, f)).join("");
           return `
           <article class="hm-room-card hm-room-card--open" data-i="${i}">
-            <header class="hm-room-card__head">
+            <header class="hm-room-card__toolbar">
               <button type="button" class="hm-room-collapse" data-collapse="${i}" aria-label="Collapse room">▴</button>
-              <label>Name <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name"></label>
-              <label>Type <select data-k="template">${typeOpts}</select></label>
-              <button type="button" class="hm-room-remove" data-rm="${i}" aria-label="Remove room">×</button>
+              <h3 class="hm-room-card__title">${escapeAttr(title)}</h3>
+              <button type="button" class="hm-room-delete" data-rm="${i}">
+                <svg class="hm-room-delete__icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18M8 6V4h8v2M9 10v8M12 10v8M15 10v8M6 6l1 14h10l1-14"/>
+                </svg>
+                Delete room
+              </button>
             </header>
+            <div class="hm-room-card__identity">
+              <div class="hm-room-field">
+                <div class="hm-room-field__label"><span>Name</span></div>
+                <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name">
+              </div>
+              <div class="hm-room-field">
+                <div class="hm-room-field__label"><span>Type</span></div>
+                <select data-k="template">${typeOpts}</select>
+              </div>
+            </div>
             <div class="hm-room-card__grid">${mainFields}</div>
             <details class="hm-room-more"><summary>More</summary>
               <div class="hm-room-card__grid">${moreFields}</div>
@@ -2562,7 +2636,7 @@ function mountConfigurator(root) {
       list.querySelectorAll(".hm-room-card").forEach((card) => {
         const i = Number(card.dataset.i);
         card.querySelectorAll("[data-k]").forEach((inp) => {
-          const apply = () => {
+          const apply = (opts = {}) => {
             state.rooms_user_edited = true;
             const key = inp.dataset.k;
             if (key === "template") {
@@ -2578,8 +2652,13 @@ function mountConfigurator(root) {
               bump();
               return;
             }
-            if (key === "name") state.rooms[i].name = inp.value;
-            else if (key === "temp_sensor") state.rooms[i].temp_sensor = inp.value;
+            if (key === "name") {
+              state.rooms[i].name = inp.value;
+              const titleEl = card.querySelector(".hm-room-card__title");
+              if (titleEl) {
+                titleEl.textContent = inp.value.trim() || "Untitled room";
+              }
+            } else if (key === "temp_sensor") state.rooms[i].temp_sensor = inp.value;
             else if (key === "led_strip_channels")
               state.rooms[i].led_strip_channels = Number(inp.value) || 4;
             else {
@@ -2592,20 +2671,27 @@ function mountConfigurator(root) {
               }
             }
             saveState();
+            // After blur/change on a parent count, refresh dependent field visibility.
+            if (
+              opts.commit &&
+              (key === "lights_onoff" || key === "led_strips")
+            ) {
+              paintRooms();
+            }
             bump();
           };
-          inp.onchange = apply;
-          if (inp.tagName !== "SELECT") inp.oninput = apply;
+          inp.onchange = () => apply({ commit: true });
+          if (inp.tagName !== "SELECT") inp.oninput = () => apply({ commit: false });
         });
         const rm = card.querySelector("[data-rm]");
         if (rm) {
           rm.onclick = () => {
             state.rooms_user_edited = true;
-            state.rooms.splice(i, 1);
-            if (state.rooms_expanded >= state.rooms.length) {
-              state.rooms_expanded = Math.max(0, state.rooms.length - 1);
-            }
+            const [removed] = state.rooms.splice(i, 1);
+            if (state.rooms_expanded === i) state.rooms_expanded = -1;
+            else if (state.rooms_expanded > i) state.rooms_expanded -= 1;
             saveState();
+            showUndo(removed, i);
             paintRooms();
             bump();
           };
@@ -2615,6 +2701,7 @@ function mountConfigurator(root) {
 
     paintRooms();
     main.querySelector("#add-room").onclick = () => {
+      clearUndo();
       state.rooms_user_edited = true;
       state.rooms.push({ ...roomDefaults("living"), template: "living" });
       state.rooms_expanded = state.rooms.length - 1;
@@ -2623,17 +2710,20 @@ function mountConfigurator(root) {
       bump();
     };
     main.querySelector("#reset-rooms").onclick = () => {
+      clearUndo();
       reseedRooms(true);
       saveState();
       paintRooms();
       bump();
     };
     main.querySelector("#hm-back").onclick = () => {
+      clearUndo();
       state.step = 0;
       saveState();
       render();
     };
     main.querySelector("#hm-next").onclick = () => {
+      clearUndo();
       state.step = 2;
       saveState();
       render();
