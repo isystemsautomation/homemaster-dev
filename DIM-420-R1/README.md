@@ -616,7 +616,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Material              | PC/ABS, V-0                       |
 | Color / Finish        | Light Gray / Smoke, Matte         |
 | Dimensions (L×W×H)    | 157.4 × 91 × 58.4 mm              |
-| Division Units        | 9M                                |
+| DIN width | 4 modules (4 × 17.5 mm) |
 | Net Weight            | 420 g                             |
 | Terminal Specs        | 26–12 AWG, 0.5–0.6 Nm torque       |
 

@@ -216,6 +216,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | RTC | PCF8563 |
 | 1-Wire | 1 channel (ESD/OVP protected) |
 | Mounting | DIN-rail |
+| DIN width | 2 modules (2 × 17.5 mm) |
 | Operating temperature | 0 °C to +40 °C |
 | Storage temperature | −10 °C to +55 °C |
 | Relative humidity | 0–90 % RH, non-condensing |

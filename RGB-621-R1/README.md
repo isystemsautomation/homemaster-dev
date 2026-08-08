@@ -170,6 +170,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 - **Protections:** PTC fuses, TVS diodes, reverse polarity & ESD networks  
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
+- **DIN width:** 3 modules (3 × 17.5 mm)
 
 ![Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB-621-R1Dimensions.png)
 

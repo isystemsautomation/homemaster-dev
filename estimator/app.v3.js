@@ -453,6 +453,25 @@ function allocate(demand, rules, assumptions) {
     });
   }
 
+  // Credit onboard I/O of the small controller (MicroPLC). Topology may later
+  // pick MiniPLC for a large segment; MiniPLC provides no universal channels.
+  const smallId = rules.controllers?.small ?? "MicroPLC";
+  const smallProvides = moduleSpecs[smallId]?.provides ?? EMPTY;
+  for (const ch of ["relay_out_3a", "di_dry"]) {
+    const have = Number(smallProvides[ch]) || 0;
+    const need = remaining[ch] ?? 0;
+    if (have <= 0 || need <= 0) continue;
+    const credit = Math.min(have, need);
+    remaining[ch] = need - credit;
+    if (remaining[ch] === 0) delete remaining[ch];
+    provenance.push({
+      kind: "controller_credit",
+      module: smallId,
+      channel: ch,
+      credited: credit,
+    });
+  }
+
   // Universal relay_out_3a and di_dry — greedy by density, combined per module.
   const universalChannels = ["relay_out_3a", "di_dry"];
   const universalNeed = {};

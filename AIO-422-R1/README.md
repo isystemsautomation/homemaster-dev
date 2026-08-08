@@ -95,7 +95,8 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 
 | Property | Specification |
 |----------|---------------|
-| Mounting | DIN-rail 35 mm, **3 modules** wide |
+| Mounting | DIN-rail 35 mm |
+| DIN width | 4 modules (4 × 17.5 mm) |
 | Ingress | IP20 (panel interior) |
 
 ### 3.4 Communication defaults

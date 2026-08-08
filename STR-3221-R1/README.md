@@ -201,6 +201,7 @@ Follow all safety and wiring practices described below.
 - **DIN Mounting:**  
   Mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress.
 
+**DIN width: 9 modules (9 × 17.5 mm).**
 - **Isolation Domains:**  
   The module uses separate power domains:
   - **Field Power (24 VDC_FUSED)** for outputs and inputs  

@@ -148,8 +148,9 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | Property | Specification |
 |-----------|---------------|
 | **Mounting** | DIN rail EN 50022 (35 mm) |
+| DIN width | 4 modules (4 × 17.5 mm) |
 | **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
-| **Dimensions (L × W × H)** | 71.5 × 90 × 59 mm (4 division units, ≈ 72 mm DIN mounting width) |
+| **Dimensions (L × W × H)** | 71.5 × 90 × 59 mm |
 | **Weight** | See product label / packing slip |
 | **Terminals** | Pluggable screw, pitch 5.08 mm / 0.2–2.5 mm² (AWG 24–12) / torque 0.4 Nm (max) |
 | **Ingress Protection** | IP20 (EN 60529) |

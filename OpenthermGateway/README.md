@@ -120,6 +120,9 @@ The table below lists boilers users have successfully run with this hardware (or
 
 ## Mechanical and Environmental
 
+- **DIN width:** 2 modules (2 × 17.5 mm)
+
+
 - Operating temperature: `0 °C` to `+40 °C`
 - Storage temperature: `-10 °C` to `+55 °C`
 - Relative humidity: `0–90 % RH`, non-condensing

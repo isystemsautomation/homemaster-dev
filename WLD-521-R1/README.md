@@ -904,6 +904,9 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 
 ## 5.7 Mechanical Details
 
+- **DIN width:** 4 modules (4 × 17.5 mm)
+
+
 - **Mounting:** DIN rail EN 50022, 35 mm  
 - **Enclosure:** PC/ABS, V‑0, light gray/black, matte  
 - **Terminals:** 5.08 mm pitch; 26–12 AWG (to 2.5 mm²); **0.5–0.6 Nm** torque

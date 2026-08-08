@@ -50,6 +50,8 @@
     "dimmer_groups": "dimmer_ac_ch",
     "rgb_strips": "pwm_led_ch",
     "underfloor_circuits": "out_24v_ch",
+    "light_groups": "relay_out_3a",
+    "lights_onoff": "relay_out_3a",
     "shutters": "shutters",
     "leak_zones": "leak_or_pulse",
     "leak_zone": "leak_or_pulse",
@@ -551,7 +553,7 @@
       "power_w_max": 3.0,
       "poll_weight": 1.0,
       "sources": {
-        "din_units": "datasheet",
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -560,7 +562,7 @@
       "product_id": 736,
       "sku": "HM-DIM-420-R1",
       "shop_url": "/shop/dim-420-r1-dimmer-module-736",
-      "din_units": 9,
+      "din_units": 4,
       "provides": {
         "dimmer_ac_ch": 2,
         "di_dry": 4
@@ -569,7 +571,7 @@
       "power_w_max": 3.0,
       "poll_weight": 1.0,
       "sources": {
-        "din_units": "datasheet",
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -578,7 +580,7 @@
       "product_id": 57,
       "sku": "HM-RGB-621-R1",
       "shop_url": "/shop/rgb-621-r1-led-controller-57",
-      "din_units": null,
+      "din_units": 3,
       "provides": {
         "pwm_led_ch": 5,
         "relay_out_3a": 1,
@@ -588,6 +590,7 @@
       "power_w_max": 3.0,
       "poll_weight": 1.2,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -596,7 +599,7 @@
       "product_id": 66,
       "sku": "HM-STR-3221-R1",
       "shop_url": "/shop/str-3221-r1-actuator-driver-66",
-      "din_units": null,
+      "din_units": 9,
       "provides": {
         "out_24v_ch": 32,
         "di_dry": 1,
@@ -606,6 +609,7 @@
       "power_w_max": 2.4,
       "poll_weight": 2.0,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -614,7 +618,7 @@
       "product_id": 1035,
       "sku": "HM-WLD-521-R1",
       "shop_url": "/shop/wld-521-r1-leak-detector-1035",
-      "din_units": null,
+      "din_units": 4,
       "provides": {
         "leak_or_pulse": 5,
         "relay_out_3a": 2,
@@ -624,6 +628,7 @@
       "power_w_max": 3.0,
       "poll_weight": 1.2,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -641,7 +646,7 @@
       "power_w_max": 3.0,
       "poll_weight": 2.0,
       "sources": {
-        "din_units": "datasheet",
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -650,7 +655,7 @@
       "product_id": 735,
       "sku": "HM-AIO-422-R1",
       "shop_url": "/shop/aio-422-r1-analog-io-rtd-735",
-      "din_units": null,
+      "din_units": 4,
       "provides": {
         "analog_in": 4,
         "analog_out": 2,
@@ -661,6 +666,7 @@
       "power_assumed": true,
       "poll_weight": 1.5,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "assumed"
       }
     },
@@ -669,7 +675,7 @@
       "product_id": 733,
       "sku": "HM-ALM-173-R1",
       "shop_url": "/shop/alm-173-r1-alarm-module-733",
-      "din_units": null,
+      "din_units": 9,
       "provides": {
         "alarm_zone": 17
       },
@@ -678,6 +684,7 @@
       "power_assumed": true,
       "poll_weight": 1.5,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "assumed"
       }
     },
@@ -686,7 +693,7 @@
       "product_id": 59,
       "sku": "HM-OPENTHERM-GW",
       "shop_url": "/shop/opentherm-gateway-59",
-      "din_units": null,
+      "din_units": 2,
       "provides": {
         "opentherm": 1
       },
@@ -694,6 +701,7 @@
       "power_w_max": 3.0,
       "poll_weight": 1.0,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "README"
       }
     },
@@ -702,7 +710,7 @@
       "product_id": 56,
       "sku": "HM-MICROPLC",
       "shop_url": "/shop/microplc-rs485-controller-56",
-      "din_units": null,
+      "din_units": 2,
       "master": true,
       "provides": {
         "relay_out_3a": 1,
@@ -714,6 +722,7 @@
       "power_assumed": true,
       "poll_weight": null,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "assumed"
       }
     },
@@ -722,13 +731,14 @@
       "product_id": 55,
       "sku": "HM-MINIPLC",
       "shop_url": "/shop/esp32-miniplc-55",
-      "din_units": null,
+      "din_units": 9,
       "master": true,
       "provides": {},
       "features": [],
       "power_w_max": 3.6,
       "poll_weight": null,
       "sources": {
+        "din_units": "measured",
         "power_w_max": "README"
       }
     }

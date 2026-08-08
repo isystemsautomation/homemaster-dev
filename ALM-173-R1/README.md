@@ -214,6 +214,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Property | Specification |
 |----------|---------------|
 | Mounting | DIN-rail EN 50022 (35 mm) |
+| DIN width | 9 modules (9 × 17.5 mm) |
 | Enclosure | PC/ABS V-0 |
 | Dimensions | 157.4 × 91 × 58.4 mm (W × H × D) |
 | Terminals | Pluggable 5.08 mm; 0.2–2.5 mm²; 0.4 Nm max |

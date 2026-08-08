@@ -135,7 +135,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 - Relative humidity: `0–90 % RH`, non-condensing
 - Protection rating: `IP20` (inside cabinet)
 - Dimensions: `157.4 × 91 × 58.4 mm` (L × W × H)
-- DIN width: `9 DIN modules` (≈ 160 mm)
+- **DIN width:** 9 modules (9 × 17.5 mm)
 - Mounting: `35 mm DIN rail`
 - Net weight: `300 g` · Gross weight: `450 g`
 - Pack size: `230 × 140 × 87 mm` (L × W × H)
