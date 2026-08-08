@@ -25,7 +25,7 @@ function estimate(inputs, rules, prices = EMPTY) {
   const assumptions = [];
   const normalized = normalize(inputs, rules, assumptions);
   const demand = buildDemand(normalized, rules);
-  const allocated = allocate(demand, rules, assumptions);
+  const allocated = allocate(demand, rules, assumptions, normalized);
   warnAlmRail(allocated, normalized, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
   const power = computePower(topology.modules, rules, assumptions);
@@ -37,7 +37,18 @@ function estimate(inputs, rules, prices = EMPTY) {
     rules,
     assumptions,
   );
-  const enclosure = computeEnclosure(topology.modules, companions, rules);
+  const enclosure = computeEnclosure(
+    topology.modules,
+    companions,
+    rules,
+    normalized.cabinets,
+  );
+  const channel_usage = computeChannelUsage(
+    demand,
+    topology.modules,
+    rules,
+    allocated,
+  );
   const priced = attachPrices(
     topology,
     companions,
@@ -47,6 +58,7 @@ function estimate(inputs, rules, prices = EMPTY) {
     prices,
     assumptions,
   );
+  priced.channel_usage = channel_usage;
   return priced;
 }
 
@@ -343,39 +355,87 @@ function warnAlmRail(allocated, normalized, rules, assumptions) {
   }
 }
 
-// ── Stage 3: allocate ───────────────────────────────────────────────
+// ── Stage 3: allocate (supply-pool / deficit) ────────────────────────
 
-function allocate(demand, rules, assumptions) {
+/** Effective channel provides for one module instance. */
+function effectiveProvides(modId, rules) {
+  const spec = (rules.modules ?? EMPTY)[modId];
+  if (!spec) return {};
+  const out = {};
+  for (const [ch, n] of Object.entries(spec.provides || {})) {
+    const v = Number(n) || 0;
+    if (v <= 0) continue;
+    if (ch === "out_24v_ch") {
+      const policyCap = rules.policy?.str_actuators_per_module ?? 16;
+      out[ch] = Math.min(v, policyCap);
+    } else {
+      out[ch] = v;
+    }
+  }
+  return out;
+}
+
+function addProvides(supply, provides, qty = 1) {
+  for (const [ch, n] of Object.entries(provides || {})) {
+    supply[ch] = (supply[ch] || 0) + n * qty;
+  }
+}
+
+function channelDeficit(needed, supply, shutterNeed) {
+  const def = {};
+  for (const [ch, n] of Object.entries(needed)) {
+    const d = n - (supply[ch] || 0);
+    if (d > 0) def[ch] = d;
+  }
+  if (shutterNeed > 0) def.shutter_interlock = shutterNeed;
+  return def;
+}
+
+/**
+ * Pick which deficit channel to cover next.
+ * Specialty order first, then shutters, then universal relay/DI.
+ */
+function pickDeficitChannel(def, allocateOrder) {
+  for (const ch of allocateOrder || []) {
+    if (def[ch] > 0) return ch;
+  }
+  if (def.shutter_interlock > 0) return "shutter_interlock";
+  if (def.relay_out_3a > 0) return "relay_out_3a";
+  if (def.di_dry > 0) return "di_dry";
+  return Object.keys(def)[0] || null;
+}
+
+function moduleForChannel(channel, rules) {
+  if (channel === "shutter_interlock" || channel === "relay_out_3a" || channel === "di_dry") {
+    return "DIO-430-R1";
+  }
+  return (rules.specialty_modules ?? EMPTY)[channel] || null;
+}
+
+/**
+ * Allocate slaves by growing a shared supply pool.
+ * Controller provides are injected first (controller is chosen before slaves).
+ * A module is added only while some channel still has deficit; every channel
+ * it provides joins the pool (side channels included).
+ */
+function allocateWithPool(demand, rules, assumptions, controllerSupply) {
   const modules = {};
   const accessories = [];
   const provenance = [];
-  const remaining = { ...demand };
   const reservePct =
-    remaining._reserve_pct != null
-      ? remaining._reserve_pct
+    demand._reserve_pct != null
+      ? demand._reserve_pct
       : (rules.policy?.default_reserve_pct ?? 15);
-  delete remaining.shutters;
-  delete remaining.relay_needs_contactor;
-  delete remaining._reserve_pct;
 
-  const moduleSpecs = rules.modules ?? EMPTY;
-  const slaves = Object.entries(moduleSpecs).filter(([, s]) => !s.master);
-
-  // Shutters: each consumes one interlock_pair (2 relays) on a DIO.
-  const shutterCount = demand.shutters ?? 0;
-  let freeRelaysFromShutters = 0;
-  if (shutterCount > 0) {
-    addModule(modules, "DIO-430-R1", shutterCount, "shutter_interlock");
-    freeRelaysFromShutters = shutterCount;
-    provenance.push({
-      kind: "shutters",
-      qty: shutterCount,
-      note: `Each shutter uses one interlock_pair on a DIO; ${freeRelaysFromShutters} free relay_out_3a credited toward relay demand.`,
-    });
+  const needed = {};
+  for (const [ch, n] of Object.entries(demand)) {
+    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    const v = Number(n) || 0;
+    if (v > 0) needed[ch] = v;
   }
+  let shutterNeed = Math.max(0, Number(demand.shutters) || 0);
 
-  // Contactors — companion line (DIN width from companion_din_units).
-  const contactorCount = demand.relay_needs_contactor ?? 0;
+  const contactorCount = Math.max(0, Number(demand.relay_needs_contactor) || 0);
   if (contactorCount > 0) {
     accessories.push({
       id: "contactor_modular",
@@ -386,141 +446,141 @@ function allocate(demand, rules, assumptions) {
     provenance.push({ kind: "relay_needs_contactor", qty: contactorCount });
   }
 
-  // Specialty channels in configured order.
+  const supply = {};
+  addProvides(supply, controllerSupply);
+  provenance.push({
+    kind: "controller_supply",
+    supply: { ...controllerSupply },
+  });
+
   const order = rules.allocate_order ?? [];
-  const specialtyMap = rules.specialty_modules ?? EMPTY;
+  let guard = 0;
+  while (guard++ < 200) {
+    const def = channelDeficit(needed, supply, shutterNeed);
+    const channel = pickDeficitChannel(def, order);
+    if (!channel) break;
 
-  for (const channel of order) {
-    const need = remaining[channel] ?? 0;
-    if (need <= 0) continue;
-
-    const modId = specialtyMap[channel];
-    if (!modId) continue;
-
-    const spec = moduleSpecs[modId];
-    if (!spec) continue;
-
-    let capacity;
-    if (channel === "out_24v_ch") {
-      const strCap = spec.provides?.out_24v_ch ?? 0;
-      const policyCap = rules.policy?.str_actuators_per_module ?? 16;
-      capacity = Math.min(strCap, policyCap);
-    } else if (channel === "alarm_zone") {
-      capacity = spec.provides?.alarm_zone ?? 0;
-    } else if (channel === "energy_phase") {
-      capacity = spec.provides?.energy_phase ?? 0;
-    } else if (channel === "leak_or_pulse") {
-      capacity = spec.provides?.leak_or_pulse ?? 0;
-    } else if (channel === "pwm_led_ch") {
-      capacity = spec.provides?.pwm_led_ch ?? 0;
-    } else if (channel === "dimmer_ac_ch") {
-      capacity = spec.provides?.dimmer_ac_ch ?? 0;
-    } else if (channel === "opentherm") {
-      capacity = spec.provides?.opentherm ?? 0;
-    } else if (channel === "rtd_input") {
-      capacity = spec.provides?.rtd_input ?? 0;
-    } else if (channel === "analog_in") {
-      capacity = spec.provides?.analog_in ?? 0;
-    } else if (channel === "analog_out") {
-      capacity = spec.provides?.analog_out ?? 0;
-    } else if (channel === "presence_in") {
-      capacity = spec.provides?.presence_in ?? 0;
-    } else if (channel === "onewire") {
-      capacity = spec.provides?.onewire ?? 0;
-    } else {
-      capacity = spec.provides?.[channel] ?? 0;
+    const modId = moduleForChannel(channel, rules);
+    if (!modId) {
+      assumptions.push(`No module covers channel ${channel} (deficit ${def[channel]}).`);
+      break;
     }
 
-    if (capacity <= 0) continue;
+    const caps = effectiveProvides(modId, rules);
+    if (channel === "shutter_interlock") {
+      // One DIO per shutter (interlock pair). Free 3rd relay + all DI enter the pool.
+      addModule(modules, modId, 1, "shutter_interlock");
+      shutterNeed -= 1;
+      supply.relay_out_3a = (supply.relay_out_3a || 0) + 1;
+      supply.di_dry = (supply.di_dry || 0) + (caps.di_dry || 0);
+      provenance.push({
+        kind: "shutter_interlock",
+        module: modId,
+        note: "Interlock pair on DIO; 1 free relay_out_3a + DI enter supply pool.",
+      });
+      continue;
+    }
 
-    const qty = Math.ceil(need / capacity);
-    addModule(modules, modId, qty, `specialty:${channel}`);
-    remaining[channel] = 0;
-    provenance.push({ kind: "specialty", channel, module: modId, qty, need });
-  }
+    if ((caps[channel] || 0) <= 0 && channel !== "shutter_interlock") {
+      assumptions.push(`Module ${modId} does not provide ${channel}.`);
+      break;
+    }
 
-  // Credit free relays from shutter DIOs toward relay_out_3a demand.
-  let relayNeed = remaining.relay_out_3a ?? 0;
-  if (freeRelaysFromShutters > 0 && relayNeed > 0) {
-    const credit = Math.min(freeRelaysFromShutters, relayNeed);
-    relayNeed -= credit;
-    remaining.relay_out_3a = relayNeed;
-    if (relayNeed === 0) delete remaining.relay_out_3a;
+    addModule(modules, modId, 1, `deficit:${channel}`);
+    addProvides(supply, caps);
     provenance.push({
-      kind: "shutter_relay_credit",
-      credited: credit,
-      remaining_relay_out_3a: relayNeed,
+      kind: "deficit",
+      channel,
+      module: modId,
+      added_provides: caps,
+      deficit_before: def[channel],
     });
   }
 
-  // Credit onboard I/O of the small controller (MicroPLC). Topology may later
-  // pick MiniPLC for a large segment; MiniPLC provides no universal channels.
-  const smallId = rules.controllers?.small ?? "MicroPLC";
-  const smallProvides = moduleSpecs[smallId]?.provides ?? EMPTY;
-  for (const ch of ["relay_out_3a", "di_dry"]) {
-    const have = Number(smallProvides[ch]) || 0;
-    const need = remaining[ch] ?? 0;
-    if (have <= 0 || need <= 0) continue;
-    const credit = Math.min(have, need);
-    remaining[ch] = need - credit;
-    if (remaining[ch] === 0) delete remaining[ch];
-    provenance.push({
-      kind: "controller_credit",
-      module: smallId,
-      channel: ch,
-      credited: credit,
-    });
-  }
-
-  // Universal relay_out_3a and di_dry — greedy by density, combined per module.
-  const universalChannels = ["relay_out_3a", "di_dry"];
-  const universalNeed = {};
-  for (const ch of universalChannels) {
-    const need = remaining[ch] ?? 0;
-    if (need > 0) universalNeed[ch] = need;
-  }
-
-  if (Object.keys(universalNeed).length > 0) {
-    const candidates = slaves
-      .map(([id, s]) => {
-        const caps = {};
-        let score = 0;
-        for (const ch of universalChannels) {
-          caps[ch] = s.provides?.[ch] ?? 0;
-          if (caps[ch] > 0 && universalNeed[ch]) score += caps[ch];
-        }
-        return { id, caps, score };
-      })
-      .filter((c) => c.score > 0)
-      .sort((a, b) => b.score - a.score);
-
-    if (candidates.length > 0) {
-      const best = candidates[0];
-      let qty = 0;
-      for (const [ch, need] of Object.entries(universalNeed)) {
-        const cap = best.caps[ch] ?? 0;
-        if (cap > 0) qty = Math.max(qty, Math.ceil(need / cap));
-      }
-      addModule(modules, best.id, qty, "universal:relay_di");
-      for (const ch of universalChannels) delete remaining[ch];
-      provenance.push({ kind: "universal", channels: universalChannels, module: best.id, qty, need: universalNeed });
-    }
-  }
-
-  // Reserve AFTER allocation: add whole modules (not by inflating demand).
-  // Math.round so small BOMs (e.g. 2×DIO × 15% → 0) stay unchanged.
-  for (const [id, qty] of Object.entries({ ...modules })) {
+  // Reserve is a recommendation only — do not inflate the BOM qty.
+  for (const [id, qty] of Object.entries(modules)) {
     if (id === "_sources") continue;
     const extra = Math.round(qty * reservePct / 100);
     if (extra > 0) {
-      addModule(modules, id, extra, "reserve");
       assumptions.push(
-        `Reserve: +${extra}× ${id} (${reservePct}% of ${qty} allocated).`,
+        `Reserve suggestion: +${extra}× ${id} (${reservePct}% of ${qty} allocated; not added to BOM).`,
       );
     }
   }
 
-  return { modules, accessories, provenance, remaining };
+  return {
+    modules,
+    accessories,
+    provenance,
+    supply,
+    needed,
+    shutter_need_remaining: shutterNeed,
+    remaining: channelDeficit(needed, supply, shutterNeed),
+  };
+}
+
+function controllerProvidesForSegments(segmentSlaveCounts, rules) {
+  const small = rules.controllers?.small ?? "MicroPLC";
+  const large = rules.controllers?.large ?? "MiniPLC";
+  const threshold = rules.controllers?.small_slave_threshold ?? 4;
+  const supply = {};
+  const picks = [];
+  if (segmentSlaveCounts.length === 0) {
+    addProvides(supply, effectiveProvides(small, rules));
+    picks.push(small);
+    return { supply, picks };
+  }
+  for (const n of segmentSlaveCounts) {
+    const id = n <= threshold ? small : large;
+    addProvides(supply, effectiveProvides(id, rules));
+    picks.push(id);
+  }
+  return { supply, picks };
+}
+
+function allocate(demand, rules, assumptions, normalized = EMPTY) {
+  const moduleSpecs = rules.modules ?? EMPTY;
+  const small = rules.controllers?.small ?? "MicroPLC";
+  const segmentBudget = rules.bus?.segment_budget ?? 10;
+  const hardMax = rules.bus?.hard_max_modules ?? 15;
+  const minSegments = Math.max(1, Number(normalized.cabinets) || 1);
+
+  // Step 1 — controller first (provisional MicroPLC), its channels seed the pool.
+  let ctrl = controllerProvidesForSegments([], rules);
+  let result = allocateWithPool(demand, rules, assumptions, ctrl.supply);
+
+  // Infer segments from the slave BOM, then re-allocate with real controller supply.
+  const slaveLines = [];
+  for (const [id, qty] of Object.entries(result.modules)) {
+    if (id === "_sources" || typeof qty !== "number") continue;
+    if (moduleSpecs[id]?.master) continue;
+    for (let i = 0; i < qty; i++) {
+      const w = Number(moduleSpecs[id]?.poll_weight);
+      slaveLines.push({
+        id,
+        poll_weight: Number.isFinite(w) ? w : 0,
+      });
+    }
+  }
+  const segments = packSegments(slaveLines, segmentBudget, hardMax, minSegments);
+  ctrl = controllerProvidesForSegments(
+    segments.map((s) => s.slaves.length),
+    rules,
+  );
+  // Always at least one controller when the project has any demand or cabinets.
+  if (ctrl.picks.length === 0) {
+    addProvides(ctrl.supply, effectiveProvides(small, rules));
+    ctrl.picks.push(small);
+  }
+  result = allocateWithPool(demand, rules, assumptions, ctrl.supply);
+  result.controller_picks = ctrl.picks;
+  provenanceController(result, ctrl);
+  return result;
+}
+
+function provenanceController(result, ctrl) {
+  result.provenance = result.provenance.filter((p) => p.kind !== "controller_picks");
+  result.provenance.push({ kind: "controller_picks", picks: ctrl.picks });
 }
 
 function addModule(bag, id, qty, source) {
@@ -563,22 +623,34 @@ function buildTopology(allocated, normalized, rules, assumptions) {
   const hardMax = rules.bus?.hard_max_modules ?? 15;
   const minSegments = normalized.cabinets ?? 1;
 
-  const segments = packSegments(slaves, segmentBudget, hardMax, minSegments);
+  let segments = packSegments(slaves, segmentBudget, hardMax, minSegments);
 
   const controllers = rules.controllers ?? EMPTY;
   const threshold = controllers.small_slave_threshold ?? 4;
+  const small = controllers.small ?? "MicroPLC";
   const moduleMap = {};
   for (const [id, qty] of Object.entries(allocated.modules)) {
     if (id === "_sources") continue;
     if (typeof qty === "number") moduleMap[id] = qty;
   }
 
+  // Controller-only project (e.g. onboard 1-Wire on MicroPLC): still one panel.
+  if (segments.length === 0) {
+    const n = Math.max(1, minSegments);
+    segments = Array.from({ length: n }, () => ({
+      slaves: [],
+      poll_weight: 0,
+    }));
+  }
+
   for (const seg of segments) {
-    // One controller per non-empty segment. Empty pads are never created.
     const slaveCount = seg.slaves.length;
-    if (slaveCount === 0) continue;
     const ctrlId =
-      slaveCount <= threshold ? controllers.small ?? "MicroPLC" : controllers.large ?? "MiniPLC";
+      slaveCount === 0
+        ? small
+        : slaveCount <= threshold
+          ? small
+          : controllers.large ?? "MiniPLC";
     seg.controller = ctrlId;
     addModule(moduleMap, ctrlId, 1, "topology:controller");
   }
@@ -870,18 +942,34 @@ function dinWidthForModule(line, moduleSpecs) {
   return { width: Number(spec.din_units) * line.qty, missing: false };
 }
 
+/**
+ * Pick one enclosure layout: prefer standard row widths 12/18, then the
+ * full series. Minimise capacity (rows × row_width) that fits `needed`.
+ */
 function pickEnclosureLayout(needed, sizes) {
+  const preferred = [12, 18];
+  const series = [
+    ...preferred.filter((s) => sizes.includes(s)),
+    ...sizes.filter((s) => !preferred.includes(s)),
+  ];
   let best = null;
-  for (const rowWidth of sizes) {
+  for (const rowWidth of series) {
     const rows = Math.ceil(needed / rowWidth);
     const capacity = rows * rowWidth;
+    const preferredBonus = preferred.includes(rowWidth) ? 0 : 1;
     if (
       !best ||
       capacity < best.capacity ||
-      (capacity === best.capacity && rows < best.rows) ||
-      (capacity === best.capacity && rows === best.rows && rowWidth < best.row_width)
+      (capacity === best.capacity && preferredBonus < best.preferredBonus) ||
+      (capacity === best.capacity &&
+        preferredBonus === best.preferredBonus &&
+        rows < best.rows) ||
+      (capacity === best.capacity &&
+        preferredBonus === best.preferredBonus &&
+        rows === best.rows &&
+        rowWidth < best.row_width)
     ) {
-      best = { row_width: rowWidth, rows, capacity };
+      best = { row_width: rowWidth, rows, capacity, preferredBonus };
     }
   }
   return best;
@@ -889,13 +977,13 @@ function pickEnclosureLayout(needed, sizes) {
 
 /**
  * Sum DIN units across HomeMaster modules + companions, apply reserve,
- * pick cabinet layout from enclosure_sizes. Blocked only when a
- * HomeMaster module lacks din_units — missing companion prices never block.
+ * pick ONE enclosure (or N if the user set cabinets > 1), each with rows.
  */
-function computeEnclosure(modulesList, companions, rules) {
+function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
   const moduleSpecs = rules.modules ?? EMPTY;
   const dinMap = rules.companion_din_units ?? EMPTY;
   const missing = [];
+  const cabinetCount = Math.max(1, Number(cabinets) || 1);
 
   for (const line of modulesList) {
     const { missing: miss } = dinWidthForModule(line, moduleSpecs);
@@ -937,8 +1025,9 @@ function computeEnclosure(modulesList, companions, rules) {
   const dinTotal = dinModules + dinCompanions;
   const reservePct = rules.policy?.enclosure_reserve_pct ?? 25;
   const dinNeeded = Math.ceil(dinTotal * (1 + reservePct / 100));
+  const perCabinet = Math.ceil(dinNeeded / cabinetCount);
   const sizes = rules.enclosure_sizes ?? [12, 18, 24, 36, 48, 54, 72];
-  const layout = pickEnclosureLayout(dinNeeded, sizes);
+  const layout = pickEnclosureLayout(perCabinet, sizes);
 
   return {
     status: "ok",
@@ -947,11 +1036,67 @@ function computeEnclosure(modulesList, companions, rules) {
     din_total: round2(dinTotal),
     reserve_pct: reservePct,
     din_needed: dinNeeded,
+    cabinets: cabinetCount,
     row_width: layout.row_width,
     rows: layout.rows,
-    capacity: layout.capacity,
+    capacity_each: layout.capacity,
+    capacity: layout.capacity * cabinetCount,
     breakdown,
   };
+}
+
+const CHANNEL_LABELS = {
+  relay_out_3a: "Relay ≤3 A",
+  di_dry: "Dry inputs",
+  out_24v_ch: "24 V outputs",
+  onewire: "1-Wire",
+  pwm_led_ch: "LED PWM channels",
+  dimmer_ac_ch: "Dimmer channels",
+  leak_or_pulse: "Leak / pulse inputs",
+  energy_phase: "Energy phases",
+  alarm_zone: "Alarm zones",
+  opentherm: "OpenTherm",
+  analog_in: "Analog inputs",
+  analog_out: "Analog outputs",
+  rtd_input: "RTD inputs",
+  presence_in: "Presence inputs",
+  shutter_interlock: "Shutter interlocks",
+};
+
+/**
+ * Channel usage from the allocate supply pool (controller + modules, with
+ * shutter free-relay accounting already applied).
+ */
+function computeChannelUsage(demand, _modulesList, _rules, allocated) {
+  const needed = {};
+  for (const [ch, n] of Object.entries(demand || {})) {
+    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    const v = Number(n) || 0;
+    if (v > 0) needed[ch] = v;
+  }
+  const shutters = Math.max(0, Number(demand?.shutters) || 0);
+  if (shutters > 0) needed.shutter_interlock = shutters;
+
+  const supplied = { ...(allocated?.supply || {}) };
+  if (shutters > 0) {
+    const remaining = Math.max(0, Number(allocated?.shutter_need_remaining) || 0);
+    supplied.shutter_interlock = shutters - remaining;
+  }
+
+  const rows = [];
+  for (const ch of Object.keys(needed)) {
+    const need = needed[ch];
+    const have = supplied[ch] || 0;
+    rows.push({
+      channel: ch,
+      label: CHANNEL_LABELS[ch] || ch,
+      needed: need,
+      supplied: have,
+      spare: have - need,
+    });
+  }
+  rows.sort((a, b) => a.label.localeCompare(b.label));
+  return rows;
 }
 
 function round2(n) {
@@ -1699,7 +1844,7 @@ HM.downloadCsv = downloadCsv;
 
 
 
-const STORAGE_KEY = "hm_configurator_v3";
+const STORAGE_KEY = "hm_configurator_v4";
 
 const RULES_URL =
   (typeof globalThis !== "undefined" &&
@@ -1840,6 +1985,8 @@ let state = {
   },
   rooms: [],
   rooms_user_edited: false,
+  /** Index of the single expanded room card; others stay collapsed. */
+  rooms_expanded: 0,
   systems: emptySystems(),
   expertDemand: {},
   rulesVersion: null,
@@ -1945,13 +2092,14 @@ function seedRoomsFromProperty(propertyType, floorArea, floors) {
   const tpl = rules?.property_templates?.[propertyType];
   if (!tpl) {
     return [
-      { ...roomDefaults("living"), name: "Living room" },
-      { ...roomDefaults("bedroom"), name: "Bedroom" },
-      { ...roomDefaults("kitchen"), name: "Kitchen" },
-      { ...roomDefaults("bath"), name: "Bathroom" },
+      { ...roomDefaults("living"), name: "Living room", template: "living" },
+      { ...roomDefaults("bedroom"), name: "Bedroom", template: "bedroom" },
+      { ...roomDefaults("kitchen"), name: "Kitchen", template: "kitchen" },
+      { ...roomDefaults("bath"), name: "Bathroom", template: "bath" },
     ];
   }
-  const list = [...(tpl.base || [])];
+  // Copy seed entries so we never mutate rules.property_templates in place.
+  const list = (tpl.base || []).map((r) => ({ ...r }));
   const seen = new Set(list.map((r) => r.name));
   for (const extra of tpl.extras || []) {
     const when = extra.when || {};
@@ -1962,10 +2110,53 @@ function seedRoomsFromProperty(propertyType, floorArea, floors) {
     for (const r of extra.rooms || []) {
       if (seen.has(r.name)) continue;
       seen.add(r.name);
-      list.push(r);
+      list.push({ ...r });
     }
   }
-  return list.map((r) => ({ ...roomDefaults(r.template), name: r.name, template: r.template }));
+  return list.map((r) => {
+    const template =
+      r.template && rules?.room_templates?.[r.template] ? r.template : "living";
+    return { ...roomDefaults(template), name: r.name, template };
+  });
+}
+
+/** Collapsed-row summary: only non-zero counts, short labels. */
+function roomSummaryBits(room) {
+  const bits = [];
+  const n = (k) => Math.max(0, Number(room[k]) || 0);
+  if (n("lights_onoff")) bits.push(`${n("lights_onoff")} lights`);
+  if (n("lights_dimmable")) bits.push(`${n("lights_dimmable")} dim`);
+  if (n("led_strips")) bits.push(`${n("led_strips")} strip`);
+  if (n("led_single")) bits.push(`${n("led_single")} LED`);
+  if (n("switches")) bits.push(`${n("switches")} gangs`);
+  if (n("shutters")) bits.push(`${n("shutters")} shutters`);
+  if (n("ufh_loops")) bits.push(`${n("ufh_loops")} UFH`);
+  if (n("leak_sensors")) bits.push(`${n("leak_sensors")} leak`);
+  if (n("motion_sensors")) bits.push(`${n("motion_sensors")} motion`);
+  if (n("presence_sensors")) bits.push(`${n("presence_sensors")} presence`);
+  if (n("door_contacts")) bits.push(`${n("door_contacts")} contacts`);
+  if (n("smart_sockets")) bits.push(`${n("smart_sockets")} sockets`);
+  if (n("extract_fan")) bits.push(`${n("extract_fan")} fan`);
+  const temp = String(room.temp_sensor || "none");
+  if (temp && temp !== "none") bits.push(temp);
+  return bits.join(", ");
+}
+
+function roomTypeIcon(template) {
+  const map = {
+    living: "Lounge",
+    bedroom: "Bed",
+    kitchen: "Cook",
+    bath: "Bath",
+    hallway: "Hall",
+    boiler_room: "Plant",
+    garage: "Garage",
+    office: "Office",
+    nursery: "Kids",
+    dressing: "Dress",
+    terrace: "Patio",
+  };
+  return map[template] || "Room";
 }
 
 function ensureRoomsSeeded() {
@@ -2065,7 +2256,31 @@ function enclosureMessage(enclosure) {
     }
     return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
   }
-  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → ${enclosure.rows}× ${enclosure.row_width} M (${enclosure.capacity} M)</p>`;
+  const cabinets = enclosure.cabinets || 1;
+  const each = enclosure.capacity_each ?? enclosure.capacity;
+  const layout = `${enclosure.rows} rows × ${enclosure.row_width}`;
+  const box =
+    cabinets === 1
+      ? `1× enclosure ${each} M (${layout})`
+      : `${cabinets}× enclosure ${each} M each (${layout})`;
+  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → ${box}</p>`;
+}
+
+function channelUsageTable(usage) {
+  const rows = (usage || []).filter((r) => r.needed > 0);
+  if (!rows.length) return "";
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeAttr(r.label)}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`,
+    )
+    .join("");
+  return `
+    <h3 class="hm-channel-heading">Channel usage</h3>
+    <table class="hm-table hm-channel-table">
+      <thead><tr><th>Channel type</th><th>Needed</th><th>Supplied</th><th>Spare</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
 }
 
 function el(html) {
@@ -2161,6 +2376,7 @@ function mountConfigurator(root) {
       .join("");
     summary.innerHTML = `
       <h2>Summary</h2>
+      ${channelUsageTable(result.channel_usage)}
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
       <p>RS-485 segments: ${result.topology?.segments?.length ?? 0}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
@@ -2178,6 +2394,7 @@ function mountConfigurator(root) {
       Number(state.object.floors) || 1,
     );
     state.rooms_user_edited = false;
+    state.rooms_expanded = 0;
   }
 
   function renderObject() {
@@ -2255,9 +2472,12 @@ function mountConfigurator(root) {
 
   function renderRooms() {
     const templates = Object.keys(rules.room_templates || {});
+    if (state.rooms_expanded == null || state.rooms_expanded >= state.rooms.length) {
+      state.rooms_expanded = Math.max(0, state.rooms.length - 1);
+    }
     main.innerHTML = `
       <h2>Rooms</h2>
-      <p class="hm-muted">Pre-filled from the property on step 1. Rooms without a name are drafts and are ignored. Type is never inferred from the name.</p>
+      <p class="hm-muted">Pre-filled from the property on step 1 — each room keeps the type from that template. Rooms without a name are drafts and are ignored. When you rename a room by hand, type is not inferred from the name; pick Type yourself.</p>
       <div id="room-list"></div>
       <button type="button" id="add-room">+ room</button>
       <button type="button" id="reset-rooms">Reset rooms from property</button>
@@ -2269,12 +2489,32 @@ function mountConfigurator(root) {
     const list = main.querySelector("#room-list");
 
     function paintRooms() {
+      if (state.rooms_expanded >= state.rooms.length) {
+        state.rooms_expanded = Math.max(0, state.rooms.length - 1);
+      }
       list.innerHTML = state.rooms
         .map((r, i) => {
+          const template =
+            r.template && rules.room_templates?.[r.template] ? r.template : "living";
+          if (r.template !== template) r.template = template;
+          const expanded = i === state.rooms_expanded;
+          const summary = roomSummaryBits(r);
+          const summaryText = summary || "no equipment set";
+          if (!expanded) {
+            return `
+            <button type="button" class="hm-room-collapsed" data-expand="${i}">
+              <span class="hm-room-icon" aria-hidden="true">${roomTypeIcon(template)}</span>
+              <span class="hm-room-collapsed__text">
+                <strong>${escapeAttr(r.name || "Untitled")}</strong>
+                <span class="hm-muted"> · ${escapeAttr(summaryText)}</span>
+              </span>
+              <span class="hm-room-chevron" aria-hidden="true">▾</span>
+            </button>`;
+          }
           const typeOpts = templates
             .map(
               (t) =>
-                `<option value="${t}" ${t === r.template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
+                `<option value="${t}" ${t === template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
             )
             .join("");
           const mainFields = ROOM_FIELDS_MAIN.map(([k, label, kind]) => {
@@ -2289,8 +2529,9 @@ function mountConfigurator(root) {
               `<label class="hm-room-field">${label}${fieldControl(r, k, kind)}</label>`,
           ).join("");
           return `
-          <article class="hm-room-card" data-i="${i}">
+          <article class="hm-room-card hm-room-card--open" data-i="${i}">
             <header class="hm-room-card__head">
+              <button type="button" class="hm-room-collapse" data-collapse="${i}" aria-label="Collapse room">▴</button>
               <label>Name <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name"></label>
               <label>Type <select data-k="template">${typeOpts}</select></label>
               <button type="button" class="hm-room-remove" data-rm="${i}" aria-label="Remove room">×</button>
@@ -2303,6 +2544,21 @@ function mountConfigurator(root) {
         })
         .join("");
 
+      list.querySelectorAll("[data-expand]").forEach((btn) => {
+        btn.onclick = () => {
+          state.rooms_expanded = Number(btn.dataset.expand);
+          saveState();
+          paintRooms();
+        };
+      });
+      list.querySelectorAll("[data-collapse]").forEach((btn) => {
+        btn.onclick = () => {
+          state.rooms_expanded = -1;
+          saveState();
+          paintRooms();
+        };
+      });
+
       list.querySelectorAll(".hm-room-card").forEach((card) => {
         const i = Number(card.dataset.i);
         card.querySelectorAll("[data-k]").forEach((inp) => {
@@ -2311,7 +2567,12 @@ function mountConfigurator(root) {
             const key = inp.dataset.k;
             if (key === "template") {
               const name = state.rooms[i].name;
-              state.rooms[i] = { ...roomDefaults(inp.value), name };
+              const next = inp.value;
+              state.rooms[i] = {
+                ...roomDefaults(next),
+                name,
+                template: next,
+              };
               saveState();
               paintRooms();
               bump();
@@ -2334,22 +2595,29 @@ function mountConfigurator(root) {
             bump();
           };
           inp.onchange = apply;
-          inp.oninput = apply;
+          if (inp.tagName !== "SELECT") inp.oninput = apply;
         });
-        card.querySelector("[data-rm]").onclick = () => {
-          state.rooms_user_edited = true;
-          state.rooms.splice(i, 1);
-          saveState();
-          paintRooms();
-          bump();
-        };
+        const rm = card.querySelector("[data-rm]");
+        if (rm) {
+          rm.onclick = () => {
+            state.rooms_user_edited = true;
+            state.rooms.splice(i, 1);
+            if (state.rooms_expanded >= state.rooms.length) {
+              state.rooms_expanded = Math.max(0, state.rooms.length - 1);
+            }
+            saveState();
+            paintRooms();
+            bump();
+          };
+        }
       });
     }
 
     paintRooms();
     main.querySelector("#add-room").onclick = () => {
       state.rooms_user_edited = true;
-      state.rooms.push(roomDefaults("living"));
+      state.rooms.push({ ...roomDefaults("living"), template: "living" });
+      state.rooms_expanded = state.rooms.length - 1;
       saveState();
       paintRooms();
       bump();
@@ -2604,6 +2872,8 @@ function mountConfigurator(root) {
     main.innerHTML = `
       <h2>Result</h2>
       ${almWarn}
+      ${channelUsageTable(result.channel_usage)}
+      ${enclosureMessage(result.enclosure)}
       <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th><th></th></tr></thead>
       <tbody>${mods}${companions}</tbody></table>
       <details><summary>ESPHome YAML (bus timings)</summary>

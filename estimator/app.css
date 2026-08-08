@@ -136,10 +136,70 @@ body {
 
 .hm-room-card__head {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: auto 1fr 1fr auto;
   gap: 0.5rem;
   align-items: end;
   margin-bottom: 0.65rem;
+}
+
+.hm-room-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-radius);
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.5rem;
+  background: #fbfcfe;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.hm-room-collapsed:hover {
+  border-color: var(--hm-accent, #2a6);
+}
+
+.hm-room-collapsed__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hm-room-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.2rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  background: #eef2f6;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--hm-muted);
+}
+
+.hm-room-chevron,
+.hm-room-collapse {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--hm-muted);
+  padding: 0.25rem;
+}
+
+.hm-channel-heading {
+  font-size: 1rem;
+  margin: 0 0 0.4rem;
+}
+
+.hm-channel-table {
+  margin-bottom: 1rem;
 }
 
 .hm-room-card__grid {

@@ -723,7 +723,8 @@
       "poll_weight": null,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "assumed"
+        "power_w_max": "assumed",
+        "provides": "README"
       }
     },
     "MiniPLC": {
@@ -733,13 +734,21 @@
       "shop_url": "/shop/esp32-miniplc-55",
       "din_units": 9,
       "master": true,
-      "provides": {},
+      "provides": {
+        "relay_out_3a": 6,
+        "di_dry": 4,
+        "analog_in": 4,
+        "analog_out": 1,
+        "rtd_input": 2,
+        "onewire": 2
+      },
       "features": [],
       "power_w_max": 3.6,
       "poll_weight": null,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README"
       }
     }
   },
