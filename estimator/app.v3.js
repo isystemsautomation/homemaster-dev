@@ -76,10 +76,26 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
   const normalized = normalize(forced, rules, assumptions);
   normalized.cabinets = 1;
   const demand = buildDemand(normalized, rules);
-  const allocated = allocate(demand, rules, assumptions, normalized);
+  const allocated = allocate(demand, rules, assumptions, normalized, prices);
   warnAlmRail(allocated, normalized, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
+  warnOnewireRails(demand, topology.modules, rules, assumptions);
+  noteRelayNcMounting(demand, topology.modules, rules, assumptions);
   const power = computePower(topology.modules, rules, assumptions);
+  if (
+    (Number(demand.relay_out_nc) || 0) > 0 &&
+    (topology.modules || []).some(
+      (m) => (Number(rules.modules?.[m.id]?.provides?.relay_out_nc) || 0) > 0,
+    )
+  ) {
+    power.requirements = power.requirements || [];
+    if (!power.requirements.some((r) => r.kind === "relay_out_nc_mounting")) {
+      power.requirements.unshift({
+        kind: "relay_out_nc_mounting",
+        text: RELAY_NC_MOUNTING,
+      });
+    }
+  }
   const companions = buildCompanions(
     allocated,
     topology.modules,
@@ -257,6 +273,7 @@ function aggregatePanelResults(panelResults, rules) {
   const cartMap = {};
   const channelMap = {};
   let powerW = 0;
+  const powerRequirements = [];
   let segments = 0;
   let dinTotal = 0;
   let dinNeeded = 0;
@@ -297,6 +314,11 @@ function aggregatePanelResults(panelResults, rules) {
       channelMap[row.channel].supplied += row.supplied || 0;
     }
     powerW += p.power?.total_w || 0;
+    for (const req of p.power?.requirements || []) {
+      powerRequirements.push(
+        p.name ? { ...req, text: `[${p.name}] ${req.text || ""}` } : req,
+      );
+    }
     segments += p.topology?.segments?.length || 0;
     if (p.enclosure?.status === "blocked") {
       enclosureBlocked = true;
@@ -341,11 +363,24 @@ function aggregatePanelResults(panelResults, rules) {
     channel_usage: Object.values(channelMap).sort((a, b) =>
       a.label.localeCompare(b.label),
     ),
-    power: { total_w: Math.round(powerW * 100) / 100 },
-    topology: {
-      segment_count: segments,
-      segments: Array.from({ length: segments }, () => ({})),
-    },
+    power:
+      panelResults.length === 1 && panelResults[0].power
+        ? { ...panelResults[0].power }
+        : {
+            total_w: Math.round(powerW * 100) / 100,
+            requirements: powerRequirements,
+          },
+    topology:
+      panelResults.length === 1 && panelResults[0].topology
+        ? {
+            ...panelResults[0].topology,
+            segment_count:
+              panelResults[0].topology.segments?.length ?? segments,
+          }
+        : {
+            segment_count: segments,
+            segments: Array.from({ length: segments }, () => ({})),
+          },
     enclosure: enclosureBlocked
       ? {
           status: "blocked",
@@ -668,6 +703,75 @@ function warnAlmRail(allocated, normalized, rules, assumptions) {
   }
 }
 
+/**
+ * 1-Wire aux rail budget across modules that feed onewire (OTG 50 mA, WLD 150 mA, …).
+ * Rails with budget_ma null (MISSING) are noted but not counted.
+ */
+function warnOnewireRails(demand, modulesList, rules, assumptions) {
+  const sensors = Math.max(0, Number(demand.onewire) || 0);
+  if (sensors <= 0) return;
+  const designMa = rules.policy?.onewire_sensor_design_ma ?? 5;
+  const draw = sensors * designMa;
+  let budget = 0;
+  const parts = [];
+  const missing = [];
+  const specs = rules.modules ?? EMPTY;
+
+  for (const line of modulesList || []) {
+    const rails = specs[line.id]?.sensor_rails;
+    if (!Array.isArray(rails)) continue;
+    for (const rail of rails) {
+      if (!(rail.feeds || []).includes("onewire")) continue;
+      if (rail.budget_ma == null || !Number.isFinite(Number(rail.budget_ma))) {
+        missing.push(line.id);
+        continue;
+      }
+      const railQty = Math.max(1, Number(rail.qty) || 1) * (line.qty || 1);
+      const ma = Number(rail.budget_ma) * railQty;
+      budget += ma;
+      const vNote = rail.also_voltage_v
+        ? `${rail.voltage_v}/${rail.also_voltage_v} V`
+        : `${rail.voltage_v} V`;
+      parts.push(`${line.qty}× ${line.id} ${vNote} @ ${rail.budget_ma} mA`);
+    }
+  }
+
+  if (missing.length) {
+    assumptions.push(
+      `1-Wire aux rail: current limit MISSING in specs for ${[...new Set(missing)].join(", ")}.`,
+    );
+  }
+  if (budget <= 0) {
+    if (!missing.length) {
+      assumptions.push(
+        `1-Wire: ${sensors} sensor(s) × ${designMa} mA design = ${draw} mA — no module rail budget available.`,
+      );
+    }
+    return;
+  }
+  if (draw > budget) {
+    assumptions.push(
+      `1-Wire sensor rail: ${draw} mA design draw (${sensors}× ${designMa} mA) exceeds ${budget} mA (${parts.join("; ")}). Use fewer sensors or an external supply.`,
+    );
+  } else {
+    assumptions.push(
+      `1-Wire sensor rail: ${draw} mA of ${budget} mA budget (${parts.join("; ")}).`,
+    );
+  }
+}
+
+/** Mounting note when an NC-only relay channel is in demand. */
+function noteRelayNcMounting(demand, modulesList, rules, assumptions) {
+  const need = Math.max(0, Number(demand.relay_out_nc) || 0);
+  if (need <= 0) return;
+  const hasNc = (modulesList || []).some((m) => {
+    const n = rules.modules?.[m.id]?.provides?.relay_out_nc;
+    return (Number(n) || 0) > 0 && (m.qty || 0) > 0;
+  });
+  if (!hasNc) return;
+  assumptions.push(RELAY_NC_MOUNTING);
+}
+
 // ── Stage 3: allocate (supply-pool / deficit) ────────────────────────
 
 /** Effective channel provides for one module instance. */
@@ -722,19 +826,25 @@ function moduleForChannel(channel, rules) {
   if (channel === "shutter_interlock" || channel === "relay_out_3a" || channel === "di_dry") {
     return "DIO-430-R1";
   }
+  // relay_out_nc is NOT interchangeable with relay_out_3a — specialty only.
   return (rules.specialty_modules ?? EMPTY)[channel] || null;
 }
 
 /**
  * Allocate slaves by growing a shared supply pool.
- * Controller provides are injected first (controller is chosen before slaves).
+ * Controller provides are injected first when known.
  * A module is added only while some channel still has deficit; every channel
  * it provides joins the pool (side channels included).
+ *
+ * @param {{ recordReserve?: boolean, trackInstances?: boolean }} [opts]
  */
-function allocateWithPool(demand, rules, assumptions, controllerSupply) {
+function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {}) {
+  const recordReserve = opts.recordReserve !== false;
+  const trackInstances = opts.trackInstances === true;
   const modules = {};
   const accessories = [];
   const provenance = [];
+  const instances = [];
   const reservePct =
     demand._reserve_pct != null
       ? demand._reserve_pct
@@ -783,6 +893,7 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply) {
     if (channel === "shutter_interlock") {
       // One DIO per shutter (interlock pair). Free 3rd relay + all DI enter the pool.
       addModule(modules, modId, 1, "shutter_interlock");
+      if (trackInstances) instances.push({ id: modId, shutter: true });
       shutterNeed -= 1;
       supply.relay_out_3a = (supply.relay_out_3a || 0) + 1;
       supply.di_dry = (supply.di_dry || 0) + (caps.di_dry || 0);
@@ -800,6 +911,7 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply) {
     }
 
     addModule(modules, modId, 1, `deficit:${channel}`);
+    if (trackInstances) instances.push({ id: modId, shutter: false });
     addProvides(supply, caps);
     provenance.push({
       kind: "deficit",
@@ -811,8 +923,273 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply) {
   }
 
   // Reserve is a recommendation only — do not inflate the BOM qty.
-  for (const [id, qty] of Object.entries(modules)) {
-    if (id === "_sources") continue;
+  if (recordReserve) {
+    for (const [id, qty] of Object.entries(modules)) {
+      if (id === "_sources") continue;
+      const extra = Math.round(qty * reservePct / 100);
+      if (extra > 0) {
+        assumptions.push(
+          `Reserve suggestion: +${extra}× ${id} (${reservePct}% of ${qty} allocated; not added to BOM).`,
+        );
+      }
+    }
+  }
+
+  return {
+    modules,
+    accessories,
+    provenance,
+    instances,
+    supply,
+    needed,
+    shutter_need_remaining: shutterNeed,
+    remaining: channelDeficit(needed, supply, shutterNeed),
+  };
+}
+
+function controllerCandidates(rules) {
+  const list = rules.controllers?.candidates;
+  if (Array.isArray(list) && list.length > 0) return list;
+  return ["MicroPLC", "MiniPLC"];
+}
+
+/** Price + DIN score for one controller + its slave modules. */
+function scoreControllerCombo(ctrlId, modulesBag, rules, prices) {
+  let money = 0;
+  let din = 0;
+  let priced = true;
+  const add = (id, qty) => {
+    const spec = (rules.modules ?? EMPTY)[id];
+    if (!spec) {
+      priced = false;
+      return;
+    }
+    const d = Number(spec.din_units);
+    if (Number.isFinite(d)) din += d * qty;
+    else priced = false;
+    const p = prices?.[spec.sku];
+    if (p && typeof p.amount === "number") money += p.amount * qty;
+    else priced = false;
+  };
+  add(ctrlId, 1);
+  for (const [id, qty] of Object.entries(modulesBag || {})) {
+    if (id === "_sources" || typeof qty !== "number") continue;
+    if ((rules.modules ?? EMPTY)[id]?.master) continue;
+    add(id, qty);
+  }
+  return { money, din, priced };
+}
+
+function comboBetter(a, b) {
+  if (!b) return true;
+  if (a.priced && b.priced) {
+    if (a.money !== b.money) return a.money < b.money;
+    return a.din < b.din;
+  }
+  return a.din < b.din;
+}
+
+/**
+ * Pick MicroPLC or MiniPLC for a segment demand by trying both + slave modules.
+ * Cheaper by shop prices; ties / missing prices → fewer DIN units.
+ */
+function pickControllerForDemand(segDemand, rules, prices, assumptions) {
+  const candidates = controllerCandidates(rules);
+  let best = null;
+  for (const ctrlId of candidates) {
+    const trialAssumptions = [];
+    const alloc = allocateWithPool(
+      segDemand,
+      rules,
+      trialAssumptions,
+      effectiveProvides(ctrlId, rules),
+      { recordReserve: false, trackInstances: false },
+    );
+    const score = scoreControllerCombo(ctrlId, alloc.modules, rules, prices);
+    if (!best || comboBetter(score, best.score)) {
+      best = { id: ctrlId, alloc, score };
+    }
+  }
+  if (!best) {
+    const fallback = candidates[0] || "MicroPLC";
+    const alloc = allocateWithPool(segDemand, rules, assumptions, {}, {
+      recordReserve: false,
+    });
+    return { id: fallback, alloc, score: scoreControllerCombo(fallback, alloc.modules, rules, prices) };
+  }
+  assumptions.push(
+    `Controller ${best.id}: ` +
+      (best.score.priced
+        ? `${best.score.money} price units, ${best.score.din} M`
+        : `${best.score.din} M (prices incomplete — DIN only)`),
+  );
+  return best;
+}
+
+function slaveLinesFromBare(bare, rules) {
+  const moduleSpecs = rules.modules ?? EMPTY;
+  if (bare.instances?.length) {
+    return bare.instances.map((inst) => {
+      const w = Number(moduleSpecs[inst.id]?.poll_weight);
+      return {
+        id: inst.id,
+        shutter: !!inst.shutter,
+        poll_weight: Number.isFinite(w) ? w : 0,
+      };
+    });
+  }
+  const lines = [];
+  for (const [id, qty] of Object.entries(bare.modules || {})) {
+    if (id === "_sources" || typeof qty !== "number") continue;
+    if (moduleSpecs[id]?.master) continue;
+    const w = Number(moduleSpecs[id]?.poll_weight);
+    for (let i = 0; i < qty; i++) {
+      lines.push({
+        id,
+        shutter: false,
+        poll_weight: Number.isFinite(w) ? w : 0,
+      });
+    }
+  }
+  return lines;
+}
+
+/**
+ * Attribute panel channel demand to packed segments by claiming each slave's
+ * provides (and shutter flags) from the remaining global demand.
+ */
+function splitDemandAcrossSegments(demand, segments, rules) {
+  const remaining = {};
+  for (const [ch, n] of Object.entries(demand || {})) {
+    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    const v = Number(n) || 0;
+    if (v > 0) remaining[ch] = v;
+  }
+  let shuttersLeft = Math.max(0, Number(demand.shutters) || 0);
+  const reserve = demand._reserve_pct;
+  const out = [];
+
+  for (const seg of segments) {
+    const segD = {};
+    if (reserve != null) segD._reserve_pct = reserve;
+    let segShutters = 0;
+    for (const slave of seg.slaves) {
+      if (slave.shutter) {
+        segShutters += 1;
+        // Shutter DIO interlock uses two relays; the free third relay + all DI
+        // enter the supply pool — claim those against remaining demand here.
+        const takeRelay = Math.min(1, remaining.relay_out_3a || 0);
+        if (takeRelay > 0) {
+          segD.relay_out_3a = (segD.relay_out_3a || 0) + takeRelay;
+          remaining.relay_out_3a -= takeRelay;
+          if (remaining.relay_out_3a <= 0) delete remaining.relay_out_3a;
+        }
+        const diCap = effectiveProvides(slave.id, rules).di_dry || 0;
+        const takeDi = Math.min(diCap, remaining.di_dry || 0);
+        if (takeDi > 0) {
+          segD.di_dry = (segD.di_dry || 0) + takeDi;
+          remaining.di_dry -= takeDi;
+          if (remaining.di_dry <= 0) delete remaining.di_dry;
+        }
+        continue;
+      }
+      const caps = effectiveProvides(slave.id, rules);
+      for (const [ch, n] of Object.entries(caps)) {
+        const take = Math.min(n, remaining[ch] || 0);
+        if (take > 0) {
+          segD[ch] = (segD[ch] || 0) + take;
+          remaining[ch] -= take;
+          if (remaining[ch] <= 0) delete remaining[ch];
+        }
+      }
+    }
+    const takeSh = Math.min(segShutters, shuttersLeft);
+    if (takeSh > 0) {
+      segD.shutters = takeSh;
+      shuttersLeft -= takeSh;
+    }
+    out.push(segD);
+  }
+
+  // Demand covered only via side-channels of modules already claimed: fold leftovers
+  // into the first segment so nothing is dropped.
+  if (out.length > 0) {
+    for (const [ch, n] of Object.entries(remaining)) {
+      if (n > 0) out[0][ch] = (out[0][ch] || 0) + n;
+    }
+    if (shuttersLeft > 0) {
+      out[0].shutters = (out[0].shutters || 0) + shuttersLeft;
+    }
+  }
+  return out;
+}
+
+function mergeModuleBags(into, from) {
+  for (const [id, qty] of Object.entries(from || {})) {
+    if (id === "_sources" || typeof qty !== "number") continue;
+    into[id] = (into[id] || 0) + qty;
+  }
+}
+
+/**
+ * Allocate slaves, then choose each segment's controller by channel economics
+ * (MicroPLC vs MiniPLC + add-on modules). Segment count comes from bare-module
+ * poll_weight packing — not from controller type.
+ */
+function allocate(demand, rules, assumptions, normalized = EMPTY, prices = EMPTY) {
+  const segmentBudget = rules.bus?.segment_budget ?? 10;
+  const hardMax = rules.bus?.hard_max_modules ?? 15;
+  const minSegments = Math.max(1, Number(normalized.cabinets) || 1);
+
+  // Contactors once for the whole panel.
+  const contactorDemand = {
+    relay_needs_contactor: demand.relay_needs_contactor || 0,
+  };
+  const contactorPart = allocateWithPool(contactorDemand, rules, assumptions, {}, {
+    recordReserve: false,
+  });
+
+  // Bare slave BOM (no controller I/O) — drives segment packing / count.
+  const bareDemand = { ...demand, relay_needs_contactor: 0 };
+  const bare = allocateWithPool(bareDemand, rules, [], {}, {
+    recordReserve: false,
+    trackInstances: true,
+  });
+  const slaveLines = slaveLinesFromBare(bare, rules);
+  let segments = packSegments(slaveLines, segmentBudget, hardMax, minSegments);
+
+  const mergedModules = {};
+  const provenance = [...(contactorPart.provenance || [])];
+  const picks = [];
+  const segmentPlans = [];
+
+  if (segments.length === 0) {
+    // Controller-only (or empty) panel — still one controller on the cabinet.
+    const pick = pickControllerForDemand(bareDemand, rules, prices, assumptions);
+    picks.push(pick.id);
+    mergeModuleBags(mergedModules, pick.alloc.modules);
+    provenance.push(...(pick.alloc.provenance || []));
+    segmentPlans.push({ controller: pick.id, modules: { ...pick.alloc.modules } });
+  } else {
+    const segDemands = splitDemandAcrossSegments(bareDemand, segments, rules);
+    for (let i = 0; i < segments.length; i++) {
+      const pick = pickControllerForDemand(segDemands[i], rules, prices, assumptions);
+      picks.push(pick.id);
+      mergeModuleBags(mergedModules, pick.alloc.modules);
+      provenance.push(...(pick.alloc.provenance || []));
+      segmentPlans.push({
+        controller: pick.id,
+        modules: { ...pick.alloc.modules },
+      });
+    }
+  }
+
+  // Final reserve suggestions on the merged slave BOM.
+  const reservePct =
+    demand._reserve_pct != null
+      ? demand._reserve_pct
+      : (rules.policy?.default_reserve_pct ?? 15);
+  for (const [id, qty] of Object.entries(mergedModules)) {
     const extra = Math.round(qty * reservePct / 100);
     if (extra > 0) {
       assumptions.push(
@@ -821,79 +1198,16 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply) {
     }
   }
 
-  return {
-    modules,
-    accessories,
+  const result = {
+    modules: mergedModules,
+    accessories: contactorPart.accessories || [],
     provenance,
-    supply,
-    needed,
-    shutter_need_remaining: shutterNeed,
-    remaining: channelDeficit(needed, supply, shutterNeed),
+    controller_picks: picks,
+    segment_plans: segmentPlans,
   };
-}
-
-function controllerProvidesForSegments(segmentSlaveCounts, rules) {
-  const small = rules.controllers?.small ?? "MicroPLC";
-  const large = rules.controllers?.large ?? "MiniPLC";
-  const threshold = rules.controllers?.small_slave_threshold ?? 4;
-  const supply = {};
-  const picks = [];
-  if (segmentSlaveCounts.length === 0) {
-    addProvides(supply, effectiveProvides(small, rules));
-    picks.push(small);
-    return { supply, picks };
-  }
-  for (const n of segmentSlaveCounts) {
-    const id = n <= threshold ? small : large;
-    addProvides(supply, effectiveProvides(id, rules));
-    picks.push(id);
-  }
-  return { supply, picks };
-}
-
-function allocate(demand, rules, assumptions, normalized = EMPTY) {
-  const moduleSpecs = rules.modules ?? EMPTY;
-  const small = rules.controllers?.small ?? "MicroPLC";
-  const segmentBudget = rules.bus?.segment_budget ?? 10;
-  const hardMax = rules.bus?.hard_max_modules ?? 15;
-  const minSegments = Math.max(1, Number(normalized.cabinets) || 1);
-
-  // Step 1 — controller first (provisional MicroPLC), its channels seed the pool.
-  let ctrl = controllerProvidesForSegments([], rules);
-  let result = allocateWithPool(demand, rules, assumptions, ctrl.supply);
-
-  // Infer segments from the slave BOM, then re-allocate with real controller supply.
-  const slaveLines = [];
-  for (const [id, qty] of Object.entries(result.modules)) {
-    if (id === "_sources" || typeof qty !== "number") continue;
-    if (moduleSpecs[id]?.master) continue;
-    for (let i = 0; i < qty; i++) {
-      const w = Number(moduleSpecs[id]?.poll_weight);
-      slaveLines.push({
-        id,
-        poll_weight: Number.isFinite(w) ? w : 0,
-      });
-    }
-  }
-  const segments = packSegments(slaveLines, segmentBudget, hardMax, minSegments);
-  ctrl = controllerProvidesForSegments(
-    segments.map((s) => s.slaves.length),
-    rules,
-  );
-  // Always at least one controller when the project has any demand or cabinets.
-  if (ctrl.picks.length === 0) {
-    addProvides(ctrl.supply, effectiveProvides(small, rules));
-    ctrl.picks.push(small);
-  }
-  result = allocateWithPool(demand, rules, assumptions, ctrl.supply);
-  result.controller_picks = ctrl.picks;
-  provenanceController(result, ctrl);
-  return result;
-}
-
-function provenanceController(result, ctrl) {
   result.provenance = result.provenance.filter((p) => p.kind !== "controller_picks");
-  result.provenance.push({ kind: "controller_picks", picks: ctrl.picks });
+  result.provenance.push({ kind: "controller_picks", picks });
+  return result;
 }
 
 function addModule(bag, id, qty, source) {
@@ -906,76 +1220,85 @@ function addModule(bag, id, qty, source) {
 
 // ── Stage 4: topology ───────────────────────────────────────────────
 
-function buildTopology(allocated, normalized, rules, assumptions) {
+function expandPlanSlaves(modulesBag, rules) {
   const moduleSpecs = rules.modules ?? EMPTY;
-  const slaveIds = Object.keys(allocated.modules).filter((id) => {
+  const lines = [];
+  for (const [id, qty] of Object.entries(modulesBag || {})) {
+    if (id === "_sources" || typeof qty !== "number") continue;
+    if (moduleSpecs[id]?.master) continue;
     const spec = moduleSpecs[id];
-    return spec && !spec.master;
-  });
-
-  const slaves = slaveIds.flatMap((id) => {
-    const spec = moduleSpecs[id];
-    const qty = allocated.modules[id];
-    if (typeof qty !== "number") return [];
-    const weight = Number(spec.poll_weight);
-    const lines = [];
+    const weight = Number(spec?.poll_weight);
     for (let i = 0; i < qty; i++) {
       lines.push({
         id,
         poll_weight: Number.isFinite(weight) ? weight : 0,
-        sku: spec.sku,
-        tmpl_id: spec.product_template_id,
-        product_id: spec.product_id,
-        shop_url: spec.shop_url,
+        sku: spec?.sku,
+        tmpl_id: spec?.product_template_id,
+        product_id: spec?.product_id,
+        shop_url: spec?.shop_url,
       });
     }
-    return lines;
-  });
-
-  const segmentBudget = rules.bus?.segment_budget ?? 10;
-  const hardMax = rules.bus?.hard_max_modules ?? 15;
-  const minSegments = normalized.cabinets ?? 1;
-
-  let segments = packSegments(slaves, segmentBudget, hardMax, minSegments);
-
-  const controllers = rules.controllers ?? EMPTY;
-  const threshold = controllers.small_slave_threshold ?? 4;
-  const small = controllers.small ?? "MicroPLC";
-  const moduleMap = {};
-  for (const [id, qty] of Object.entries(allocated.modules)) {
-    if (id === "_sources") continue;
-    if (typeof qty === "number") moduleMap[id] = qty;
   }
+  return lines;
+}
 
-  // Controller-only project (e.g. onboard 1-Wire on MicroPLC): still one panel.
-  if (segments.length === 0) {
-    const n = Math.max(1, minSegments);
-    segments = Array.from({ length: n }, () => ({
-      slaves: [],
-      poll_weight: 0,
-    }));
-  }
-
-  for (const seg of segments) {
-    const slaveCount = seg.slaves.length;
-    const ctrlId =
-      slaveCount === 0
-        ? small
-        : slaveCount <= threshold
-          ? small
-          : controllers.large ?? "MiniPLC";
-    seg.controller = ctrlId;
-    addModule(moduleMap, ctrlId, 1, "topology:controller");
-  }
-
+function buildTopology(allocated, normalized, rules, assumptions) {
+  const moduleSpecs = rules.modules ?? EMPTY;
   const terminatorsPer = rules.terminators_per_segment ?? 2;
-  for (const seg of segments) {
-    seg.terminators = terminatorsPer;
-    seg.poll_weight = seg.slaves.reduce((s, sl) => s + sl.poll_weight, 0);
+  const warnAbove = rules.bus?.warn_above ?? 12;
+  const minSegments = Math.max(1, Number(normalized.cabinets) || 1);
+  const fallbackCtrl = controllerCandidates(rules)[0] || "MicroPLC";
+
+  const moduleMap = {};
+  const segments = [];
+  const plans = allocated.segment_plans;
+
+  if (Array.isArray(plans) && plans.length > 0) {
+    for (const plan of plans) {
+      const slaves = expandPlanSlaves(plan.modules, rules);
+      const ctrlId = plan.controller || fallbackCtrl;
+      segments.push({
+        slaves,
+        controller: ctrlId,
+        poll_weight: slaves.reduce((s, sl) => s + sl.poll_weight, 0),
+        terminators: terminatorsPer,
+      });
+      addModule(moduleMap, ctrlId, 1, "topology:controller");
+      for (const [id, qty] of Object.entries(plan.modules || {})) {
+        if (id === "_sources" || typeof qty !== "number") continue;
+        addModule(moduleMap, id, qty, "allocate");
+      }
+    }
+  } else {
+    // Legacy path: pack slaves, one fallback controller each.
+    const slaves = expandPlanSlaves(allocated.modules, rules);
+    let packed = packSegments(
+      slaves,
+      rules.bus?.segment_budget ?? 10,
+      rules.bus?.hard_max_modules ?? 15,
+      minSegments,
+    );
+    if (packed.length === 0) {
+      packed = Array.from({ length: minSegments }, () => ({
+        slaves: [],
+        poll_weight: 0,
+      }));
+    }
+    for (const seg of packed) {
+      seg.controller = fallbackCtrl;
+      seg.terminators = terminatorsPer;
+      seg.poll_weight = seg.slaves.reduce((s, sl) => s + sl.poll_weight, 0);
+      segments.push(seg);
+      addModule(moduleMap, fallbackCtrl, 1, "topology:controller");
+    }
+    for (const [id, qty] of Object.entries(allocated.modules || {})) {
+      if (id === "_sources" || typeof qty !== "number") continue;
+      if (moduleSpecs[id]?.master) continue;
+      addModule(moduleMap, id, qty, "allocate");
+    }
   }
 
   const warnings = [];
-  const warnAbove = rules.bus?.warn_above ?? 12;
   for (const seg of segments) {
     if (seg.slaves.length > warnAbove) {
       warnings.push(`Segment has ${seg.slaves.length} slaves (warn above ${warnAbove}).`);
@@ -1121,9 +1444,15 @@ function computePower(modulesList, rules, assumptions) {
     if (line.id === "WLD-521-R1" && line.qty > 0) {
       requirements.push({
         kind: "wld_supply",
-        text: `${line.qty}× WLD-521-R1: ~150 mA sensor supply budget per module.`,
+        text: `${line.qty}× WLD-521-R1: ~150 mA sensor supply budget per module (+12 V / +5 V ISO shared).`,
       });
       fieldW += 3.6 * line.qty;
+    }
+    if (line.id === "OpenthermGateway" && line.qty > 0) {
+      requirements.push({
+        kind: "otg_5v",
+        text: `${line.qty}× OpenthermGateway: +5 V aux for 1-Wire sensors, max 50 mA per module.`,
+      });
     }
     if (line.id === "AIO-422-R1" && line.qty > 0) {
       requirements.push({
@@ -1359,7 +1688,8 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
 }
 
 const CHANNEL_LABELS = {
-  relay_out_3a: "Relay ≤3 A",
+  relay_out_3a: "Relay ≤3 A (NO/SPDT)",
+  relay_out_nc: "Relay NC-only (on when de-energised)",
   di_dry: "Dry inputs",
   out_24v_ch: "24 V outputs",
   onewire: "1-Wire",
@@ -1375,6 +1705,9 @@ const CHANNEL_LABELS = {
   presence_in: "Presence inputs",
   shutter_interlock: "Shutter interlocks",
 };
+
+const RELAY_NC_MOUNTING =
+  "NC contact only — load is powered when the relay is de-energised. Verify fail-safe behaviour for this load.";
 
 /**
  * Channel usage from the allocate supply pool (controller + modules, with
@@ -1489,7 +1822,9 @@ function attachPrices(
     power,
     enclosure,
     lines,
-    assumptions: [...topologyResult.assumptions, ...assumptions],
+    // topologyResult.assumptions is the same array as `assumptions` in the
+    // normal pipeline — do not concatenate or every note is doubled.
+    assumptions: assumptions || topologyResult.assumptions || [],
     provenance: topologyResult.provenance,
   };
 }
@@ -2151,16 +2486,571 @@ HM.downloadXlsx = downloadXlsx;
 HM.estimateToCsv = estimateToCsv;
 HM.downloadCsv = downloadCsv;
 
+// ===== simple.js =====
+/**
+ * Simple-mode helpers: room-count → rooms[], weighted distribution, totals sync.
+ * Pure — no DOM. Used by ui.js and unit tests.
+ */
+
+/** Room types shown as count sliders in Simple (utility → boiler_room). */
+const SIMPLE_ROOM_TYPES = [
+  { id: "bedroom", label: "Bedrooms" },
+  { id: "bath", label: "Bathrooms" },
+  { id: "living", label: "Living rooms" },
+  { id: "kitchen", label: "Kitchen" },
+  { id: "hallway", label: "Hallways" },
+  { id: "office", label: "Office" },
+  { id: "garage", label: "Garage" },
+  { id: "boiler_room", label: "Utility" },
+];
+
+/** House totals distributed into rooms[] by template weights. */
+const SIMPLE_DISTRIBUTE_FIELDS = [
+  "lights_onoff",
+  "lights_dimmable",
+  "led_strips",
+  "switches",
+  "shutters",
+  "ufh_loops",
+  "leak_sensors",
+  "motion_sensors",
+  "door_contacts",
+  "smart_sockets",
+];
+
+function defaultSimpleRoomCounts() {
+  return {
+    bedroom: 2,
+    bath: 1,
+    living: 1,
+    kitchen: 1,
+    hallway: 1,
+    office: 0,
+    garage: 0,
+    boiler_room: 0,
+  };
+}
+
+function defaultSimpleTotals() {
+  return {
+    lights_onoff: 8,
+    lights_dimmable: 2,
+    led_strips: 0,
+    switches: 10,
+    shutters: 0,
+    ufh_loops: 0,
+    leak_sensors: 2,
+    motion_sensors: 1,
+    door_contacts: 0,
+    smart_sockets: 0,
+  };
+}
+
+function defaultSimpleToggles() {
+  return {
+    boiler: "none",
+    ventilation: false,
+    energy_metering: false,
+    security: false,
+    garden_watering: false,
+    gates: false,
+  };
+}
+
+/**
+ * Deterministic weighted distribution of `total` integer units across `n` slots.
+ * weights[i] ≥ 0. Remainder goes to highest weight first, ties by lower index.
+ * @returns {number[]}
+ */
+function distributeByWeights(total, weights) {
+  const n = weights.length;
+  const out = Array(n).fill(0);
+  const T = Math.max(0, Math.floor(Number(total) || 0));
+  if (n === 0 || T === 0) return out;
+
+  const w = weights.map((x) => Math.max(0, Number(x) || 0));
+  let W = w.reduce((s, x) => s + x, 0);
+  if (W <= 0) {
+    // Equal share when every weight is zero — still deterministic.
+    const base = Math.floor(T / n);
+    let rem = T - base * n;
+    for (let i = 0; i < n; i++) out[i] = base;
+    for (let i = 0; i < n && rem > 0; i++, rem--) out[i] += 1;
+    return out;
+  }
+
+  let assigned = 0;
+  for (let i = 0; i < n; i++) {
+    out[i] = Math.floor((T * w[i]) / W);
+    assigned += out[i];
+  }
+  let rem = T - assigned;
+  const order = w
+    .map((weight, index) => ({ weight, index }))
+    .sort((a, b) => b.weight - a.weight || a.index - b.index);
+  for (const { index } of order) {
+    if (rem <= 0) break;
+    out[index] += 1;
+    rem -= 1;
+  }
+  return out;
+}
+
+/**
+ * Build named rooms from Simple type counts. Always numbered (Bedroom 1, …).
+ */
+function buildRoomsFromCounts(counts, roomTypeLabels, roomDefaultsFn, panelId) {
+  const rooms = [];
+  for (const { id } of SIMPLE_ROOM_TYPES) {
+    const n = Math.max(0, Math.floor(Number(counts[id]) || 0));
+    const baseLabel = roomTypeLabels?.[id] || id;
+    for (let i = 1; i <= n; i++) {
+      const room = roomDefaultsFn(id);
+      room.name = `${baseLabel} ${i}`;
+      room.template = id;
+      room.panel_id = panelId;
+      room.manual = {};
+      rooms.push(room);
+    }
+  }
+  return rooms;
+}
+
+/**
+ * Sum a numeric room field across rooms.
+ */
+function sumRoomField(rooms, field) {
+  return (rooms || []).reduce((s, r) => s + (Math.max(0, Number(r[field]) || 0)), 0);
+}
+
+/**
+ * Sync Simple slider totals from current rooms (Advanced → Simple).
+ */
+function totalsFromRooms(rooms) {
+  const totals = defaultSimpleTotals();
+  for (const field of SIMPLE_DISTRIBUTE_FIELDS) {
+    totals[field] = sumRoomField(rooms, field);
+  }
+  return totals;
+}
+
+/**
+ * Count rooms by template for Simple sliders.
+ */
+function countsFromRooms(rooms) {
+  const counts = defaultSimpleRoomCounts();
+  for (const k of Object.keys(counts)) counts[k] = 0;
+  for (const r of rooms || []) {
+    const t = r.template;
+    if (t in counts) counts[t] += 1;
+  }
+  return counts;
+}
+
+/**
+ * Distribute one field onto rooms, respecting manual locks.
+ * @returns {{ rooms: object[], undistributed: number }}
+ */
+function distributeFieldToRooms(rooms, field, total, roomTemplates) {
+  const next = (rooms || []).map((r) => ({
+    ...r,
+    manual: { ...(r.manual || {}) },
+  }));
+  const T = Math.max(0, Math.floor(Number(total) || 0));
+
+  let lockedSum = 0;
+  const editableIdx = [];
+  for (let i = 0; i < next.length; i++) {
+    if (next[i].manual?.[field]) {
+      lockedSum += Math.max(0, Number(next[i][field]) || 0);
+    } else {
+      editableIdx.push(i);
+    }
+  }
+
+  let pool = T - lockedSum;
+  if (pool < 0) pool = 0;
+
+  if (editableIdx.length === 0) {
+    for (const i of editableIdx) next[i][field] = 0;
+    return { rooms: next, undistributed: pool > 0 ? pool : Math.max(0, T - lockedSum) };
+  }
+
+  const weights = editableIdx.map((i) => {
+    const tpl = roomTemplates?.[next[i].template] || {};
+    return Math.max(0, Number(tpl[field]) || 0);
+  });
+  const shares = distributeByWeights(pool, weights);
+  for (let k = 0; k < editableIdx.length; k++) {
+    next[editableIdx[k]][field] = shares[k];
+  }
+
+  // Dimmable cannot exceed on/off lights in the same room.
+  if (field === "lights_dimmable") {
+    for (const room of next) {
+      if (room.manual?.lights_dimmable) continue;
+      const max = Math.max(0, Number(room.lights_onoff) || 0);
+      room.lights_dimmable = Math.min(Math.max(0, Number(room.lights_dimmable) || 0), max);
+    }
+  }
+
+  const sumEditable = editableIdx.reduce(
+    (s, i) => s + (Math.max(0, Number(next[i][field]) || 0)),
+    0,
+  );
+  const undistributed = Math.max(0, pool - sumEditable);
+  return { rooms: next, undistributed };
+}
+
+/**
+ * Apply all Simple totals onto rooms. Rebuilds room list when counts change.
+ * Preserves manual values by matching (template, ordinal) when possible.
+ * @returns {{ rooms: object[], warnings: string[] }}
+ */
+function applySimpleDistribution({
+  counts,
+  totals,
+  rooms,
+  roomTypeLabels,
+  roomTemplates,
+  roomDefaultsFn,
+  panelId,
+}) {
+  const warnings = [];
+  const desired = buildRoomsFromCounts(counts, roomTypeLabels, roomDefaultsFn, panelId);
+
+  // Carry manual flags + values from previous rooms of same type/order.
+  const prevByType = {};
+  for (const r of rooms || []) {
+    const t = r.template || "living";
+    if (!prevByType[t]) prevByType[t] = [];
+    prevByType[t].push(r);
+  }
+  for (const room of desired) {
+    const bucket = prevByType[room.template] || [];
+    const prev = bucket.shift();
+    if (!prev) continue;
+    room.manual = { ...(prev.manual || {}) };
+    for (const field of SIMPLE_DISTRIBUTE_FIELDS) {
+      if (room.manual[field]) {
+        room[field] = prev[field];
+      }
+    }
+    if (prev.panel_id) room.panel_id = prev.panel_id;
+  }
+
+  let current = desired;
+  for (const field of SIMPLE_DISTRIBUTE_FIELDS) {
+    const { rooms: next, undistributed } = distributeFieldToRooms(
+      current,
+      field,
+      totals[field] ?? 0,
+      roomTemplates,
+    );
+    current = next;
+    if (undistributed > 0) {
+      warnings.push(
+        `${undistributed} units could not be distributed — edit rooms in Advanced mode`,
+      );
+    }
+  }
+
+  // Re-clamp dimmable after lights may have changed.
+  const dim = distributeFieldToRooms(
+    current,
+    "lights_dimmable",
+    totals.lights_dimmable ?? 0,
+    roomTemplates,
+  );
+  current = dim.rooms;
+  if (dim.undistributed > 0) {
+    warnings.push(
+      `${dim.undistributed} units could not be distributed — edit rooms in Advanced mode`,
+    );
+  }
+
+  // One warning line per distinct count (avoid spam when several fields fail).
+  const byCount = new Map();
+  for (const w of warnings) {
+    const m = w.match(/^(\d+) /);
+    const n = m ? Number(m[1]) : 0;
+    byCount.set(n, w);
+  }
+  return { rooms: current, warnings: [...byCount.values()] };
+}
+
+/**
+ * Apply Simple system toggles onto systems object (mutates copy).
+ */
+function applySimpleToggles(systems, toggles) {
+  const out = structuredClone(systems);
+  out.heating = out.heating || {};
+  out.ventilation = out.ventilation || {};
+  out.water = out.water || {};
+  out.electrical = out.electrical || {};
+  out.security = out.security || {};
+
+  const boiler = toggles.boiler || "none";
+  out.heating.boiler = boiler === "opentherm" || boiler === "relay" ? boiler : "none";
+
+  if (toggles.ventilation) {
+    if (!(Number(out.ventilation.ahu) > 0) && !(Number(out.ventilation.recuperator) > 0)) {
+      out.ventilation.recuperator = 1;
+    }
+  } else {
+    out.ventilation.ahu = 0;
+    out.ventilation.recuperator = 0;
+  }
+
+  out.electrical.energy_phases = toggles.energy_metering
+    ? Math.max(3, Number(out.electrical.energy_phases) || 0)
+    : 0;
+
+  if (toggles.security) {
+    if (!(Number(out.security.dry_contacts) > 0) && !(out.security.powered_sensors || []).length) {
+      out.security.dry_contacts = 4;
+    }
+  } else {
+    out.security.dry_contacts = 0;
+    out.security.powered_sensors = [];
+  }
+
+  out.water.irrigation = toggles.garden_watering
+    ? Math.max(1, Number(out.water.irrigation) || 0)
+    : 0;
+
+  out.security.gates = toggles.gates ? Math.max(1, Number(out.security.gates) || 0) : 0;
+
+  // Collector loops from room ufh sum are handled by engine max(); mirror house total.
+  return out;
+}
+
+/** Infer Simple toggles from systems (Advanced → Simple). */
+function togglesFromSystems(systems) {
+  const s = systems || {};
+  const boiler = String(s.heating?.boiler || "none").toLowerCase();
+  return {
+    boiler: boiler === "opentherm" || boiler === "relay" ? boiler : "none",
+    ventilation:
+      (Number(s.ventilation?.ahu) || 0) > 0 || (Number(s.ventilation?.recuperator) || 0) > 0,
+    energy_metering: (Number(s.electrical?.energy_phases) || 0) > 0,
+    security:
+      (Number(s.security?.dry_contacts) || 0) > 0 ||
+      (s.security?.powered_sensors || []).length > 0,
+    garden_watering: (Number(s.water?.irrigation) || 0) > 0,
+    gates: (Number(s.security?.gates) || 0) > 0,
+  };
+}
+
+/**
+ * Preset room counts + totals for property type / examples.
+ */
+function simplePreset(kind, roomTemplates) {
+  const presets = {
+    apartment: {
+      property_type: "apartment",
+      floor_area_m2: 70,
+      floors: 1,
+      counts: {
+        bedroom: 2,
+        bath: 1,
+        living: 1,
+        kitchen: 1,
+        hallway: 1,
+        office: 0,
+        garage: 0,
+        boiler_room: 0,
+      },
+      totals: {
+        lights_onoff: 10,
+        lights_dimmable: 2,
+        led_strips: 0,
+        switches: 12,
+        shutters: 0,
+        ufh_loops: 0,
+        leak_sensors: 2,
+        motion_sensors: 1,
+        door_contacts: 2,
+        smart_sockets: 0,
+      },
+      toggles: {
+        boiler: "none",
+        ventilation: false,
+        energy_metering: false,
+        security: false,
+        garden_watering: false,
+        gates: false,
+      },
+    },
+    house: {
+      property_type: "house",
+      floor_area_m2: 160,
+      floors: 2,
+      counts: {
+        bedroom: 3,
+        bath: 2,
+        living: 1,
+        kitchen: 1,
+        hallway: 1,
+        office: 0,
+        garage: 1,
+        boiler_room: 1,
+      },
+      totals: {
+        lights_onoff: 18,
+        lights_dimmable: 4,
+        led_strips: 1,
+        switches: 22,
+        shutters: 4,
+        ufh_loops: 10,
+        leak_sensors: 3,
+        motion_sensors: 3,
+        door_contacts: 4,
+        smart_sockets: 2,
+      },
+      toggles: {
+        boiler: "opentherm",
+        ventilation: true,
+        energy_metering: true,
+        security: false,
+        garden_watering: false,
+        gates: true,
+      },
+    },
+    villa: {
+      property_type: "house",
+      floor_area_m2: 320,
+      floors: 2,
+      counts: {
+        bedroom: 5,
+        bath: 3,
+        living: 2,
+        kitchen: 1,
+        hallway: 2,
+        office: 1,
+        garage: 1,
+        boiler_room: 1,
+      },
+      totals: {
+        lights_onoff: 36,
+        lights_dimmable: 10,
+        led_strips: 3,
+        switches: 40,
+        shutters: 12,
+        ufh_loops: 20,
+        leak_sensors: 5,
+        motion_sensors: 8,
+        door_contacts: 10,
+        smart_sockets: 6,
+      },
+      toggles: {
+        boiler: "opentherm",
+        ventilation: true,
+        energy_metering: true,
+        security: true,
+        garden_watering: true,
+        gates: true,
+      },
+    },
+  };
+  const p = presets[kind] || presets.apartment;
+  // Scale default totals lightly from template weights when kind is "default".
+  if (kind === "default" && roomTemplates) {
+    return simplePreset("apartment", roomTemplates);
+  }
+  return structuredClone(p);
+}
+
+/**
+ * Customer-facing summary lines (no SKUs) from Simple inputs + systems.
+ */
+function simpleCustomerSummary(totals, toggles, systems) {
+  const lines = [];
+  const lights = Number(totals.lights_onoff) || 0;
+  const dim = Number(totals.lights_dimmable) || 0;
+  const rgb = Number(totals.led_strips) || 0;
+  if (lights || dim || rgb) {
+    let t = `Lighting — ${lights} groups`;
+    if (dim) t += `, ${dim} dimmable`;
+    if (rgb) t += `, ${rgb} RGB strip${rgb === 1 ? "" : "s"}`;
+    lines.push(t);
+  }
+  const shutters = Number(totals.shutters) || 0;
+  if (shutters) lines.push(`Blinds — ${shutters} drive${shutters === 1 ? "" : "s"}`);
+
+  const ufh = Number(totals.ufh_loops) || 0;
+  const boiler = toggles.boiler || systems?.heating?.boiler || "none";
+  if (ufh || boiler === "opentherm" || boiler === "relay") {
+    const parts = [];
+    if (ufh) parts.push(`${ufh} underfloor loop${ufh === 1 ? "" : "s"}`);
+    if (boiler === "opentherm") parts.push("OpenTherm boiler");
+    else if (boiler === "relay") parts.push("relay boiler");
+    lines.push(`Heating — ${parts.join(", ")}`);
+  }
+
+  const leak = Number(totals.leak_sensors) || 0;
+  const valves = Number(systems?.water?.shutoff_valves) || 0;
+  const irrig = toggles.garden_watering || (Number(systems?.water?.irrigation) || 0) > 0;
+  if (leak || valves || irrig) {
+    const parts = [];
+    if (leak) parts.push(`${leak} leak zone${leak === 1 ? "" : "s"}`);
+    if (valves) parts.push(`${valves} shut-off valve${valves === 1 ? "" : "s"}`);
+    if (irrig) parts.push("garden watering");
+    lines.push(`Water — ${parts.join(", ")}`);
+  }
+
+  const sw = Number(totals.switches) || 0;
+  if (sw) lines.push(`Switches — ${sw} wall gang${sw === 1 ? "" : "s"}`);
+
+  const motion = Number(totals.motion_sensors) || 0;
+  const doors = Number(totals.door_contacts) || 0;
+  if (toggles.security || motion || doors) {
+    const parts = [];
+    if (motion) parts.push(`${motion} motion detector${motion === 1 ? "" : "s"}`);
+    if (doors) parts.push(`${doors} door contact${doors === 1 ? "" : "s"}`);
+    if (toggles.security && !parts.length) parts.push("security zones");
+    lines.push(`Security — ${parts.join(", ")}`);
+  }
+
+  if (toggles.energy_metering) lines.push("Electrical — energy metering");
+  if (toggles.ventilation) lines.push("Ventilation — mechanical ventilation");
+  if (toggles.gates) lines.push("Access — gates / garage doors");
+
+  const sockets = Number(totals.smart_sockets) || 0;
+  if (sockets) lines.push(`Sockets — ${sockets} switched`);
+
+  return lines;
+}
+
+HM.defaultSimpleRoomCounts = defaultSimpleRoomCounts;
+HM.defaultSimpleTotals = defaultSimpleTotals;
+HM.defaultSimpleToggles = defaultSimpleToggles;
+HM.distributeByWeights = distributeByWeights;
+HM.buildRoomsFromCounts = buildRoomsFromCounts;
+HM.sumRoomField = sumRoomField;
+HM.totalsFromRooms = totalsFromRooms;
+HM.countsFromRooms = countsFromRooms;
+HM.distributeFieldToRooms = distributeFieldToRooms;
+HM.applySimpleDistribution = applySimpleDistribution;
+HM.applySimpleToggles = applySimpleToggles;
+HM.togglesFromSystems = togglesFromSystems;
+HM.simplePreset = simplePreset;
+HM.simpleCustomerSummary = simpleCustomerSummary;
+HM.SIMPLE_ROOM_TYPES = SIMPLE_ROOM_TYPES;
+HM.SIMPLE_DISTRIBUTE_FIELDS = SIMPLE_DISTRIBUTE_FIELDS;
+
 // ===== ui.js =====
 /**
- * Four-step UI: Property → Rooms → Systems → Result.
+ * Configurator UI: Simple (one screen) or Advanced (Property → Rooms → Systems → Result).
  * See odoo/configurator/configurator-ui-spec.md.
  */
 
 
 
 
-const STORAGE_KEY = "hm_configurator_v5";
+
+const STORAGE_KEY = "hm_configurator_v6";
+const MODE_KEY = "hm_configurator_ui_mode";
 
 const RULES_URL =
   (typeof globalThis !== "undefined" &&
@@ -2305,6 +3195,8 @@ let priceMap = {};
 /** @type {object} */
 let state = {
   step: 0,
+  /** @type {"simple"|"advanced"} */
+  ui_mode: "simple",
   expert: false,
   object: {
     name: "",
@@ -2324,6 +3216,12 @@ let state = {
   systems: emptySystems(),
   expertDemand: {},
   rulesVersion: null,
+  simple: {
+    counts: defaultSimpleRoomCounts(),
+    totals: defaultSimpleTotals(),
+    toggles: defaultSimpleToggles(),
+    warnings: [],
+  },
 };
 
 const STEPS = ["Property", "Rooms", "Systems", "Result"];
@@ -2528,12 +3426,26 @@ function roomTypeIcon(template) {
 }
 
 function ensureRoomsSeeded() {
+  if (state.ui_mode === "simple") {
+    if (!state.rooms?.length) runSimpleSync();
+    else {
+      state.rooms = state.rooms.map((r) => ({
+        ...roomDefaults(r.template || "living"),
+        ...r,
+        template: r.template || "living",
+        panel_id: r.panel_id || firstPanelId(),
+        manual: r.manual && typeof r.manual === "object" ? r.manual : {},
+      }));
+    }
+    return;
+  }
   if (state.rooms?.length && state.rooms_user_edited) {
     state.rooms = state.rooms.map((r) => ({
       ...roomDefaults(r.template || "living"),
       ...r,
       template: r.template || "living",
       panel_id: r.panel_id || firstPanelId(),
+      manual: r.manual && typeof r.manual === "object" ? r.manual : {},
     }));
     return;
   }
@@ -2541,11 +3453,11 @@ function ensureRoomsSeeded() {
     state.object.property_type || "apartment",
     Number(state.object.floor_area_m2) || 0,
     Number(state.object.floors) || 1,
-  );
+  ).map((r) => ({ ...r, manual: r.manual || {} }));
   state.rooms_user_edited = false;
 }
 
-/** Migrate v4 and older: cabinets → one Main panel. */
+/** Migrate v4/v5: cabinets → panels; ensure room.manual + simple block. */
 function migrateState(saved) {
   if (!Array.isArray(saved.panels) || saved.panels.length === 0) {
     saved.panels = defaultPanels();
@@ -2560,6 +3472,7 @@ function migrateState(saved) {
     saved.rooms = saved.rooms.map((r) => ({
       ...r,
       panel_id: r.panel_id || mainId,
+      manual: r.manual && typeof r.manual === "object" ? r.manual : {},
     }));
   }
   if (saved.systems) {
@@ -2574,15 +3487,39 @@ function migrateState(saved) {
       delete saved.systems.system.cabinets;
     }
   }
+  if (!saved.simple || typeof saved.simple !== "object") {
+    saved.simple = {
+      counts: defaultSimpleRoomCounts(),
+      totals: defaultSimpleTotals(),
+      toggles: defaultSimpleToggles(),
+      warnings: [],
+    };
+  } else {
+    saved.simple = {
+      counts: { ...defaultSimpleRoomCounts(), ...(saved.simple.counts || {}) },
+      totals: { ...defaultSimpleTotals(), ...(saved.simple.totals || {}) },
+      toggles: { ...defaultSimpleToggles(), ...(saved.simple.toggles || {}) },
+      warnings: Array.isArray(saved.simple.warnings) ? saved.simple.warnings : [],
+    };
+  }
+  if (saved.ui_mode !== "advanced") saved.ui_mode = "simple";
   return saved;
 }
 
 function loadState() {
   try {
-    // Prefer v5; fall back to v4 for one-shot migration.
     let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) raw = localStorage.getItem("hm_configurator_v5");
     if (!raw) raw = localStorage.getItem("hm_configurator_v4");
-    if (!raw) return;
+    if (!raw) {
+      try {
+        const mode = localStorage.getItem(MODE_KEY);
+        if (mode === "advanced" || mode === "simple") state.ui_mode = mode;
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     const saved = migrateState(JSON.parse(raw));
     if (saved.rulesVersion && rules && saved.rulesVersion !== rules.version) return;
     Object.assign(state, saved, { rulesVersion: rules?.version });
@@ -2597,9 +3534,68 @@ function loadState() {
       }
     }
     delete state.systems.system?.cabinets;
+    if (!state.simple) {
+      state.simple = {
+        counts: defaultSimpleRoomCounts(),
+        totals: defaultSimpleTotals(),
+        toggles: defaultSimpleToggles(),
+        warnings: [],
+      };
+    }
+    if (state.ui_mode !== "advanced") state.ui_mode = "simple";
   } catch {
     /* ignore */
   }
+}
+
+function markRoomFieldManual(room, key) {
+  if (!room.manual || typeof room.manual !== "object") room.manual = {};
+  if (SIMPLE_DISTRIBUTE_FIELDS.includes(key) || key === "lights_dimmable") {
+    room.manual[key] = true;
+  }
+}
+
+function runSimpleSync({ rebuildCounts = false } = {}) {
+  if (rebuildCounts) {
+    /* keep state.simple.counts as set by sliders */
+  }
+  const { rooms, warnings } = applySimpleDistribution({
+    counts: state.simple.counts,
+    totals: state.simple.totals,
+    rooms: state.rooms,
+    roomTypeLabels: rules?.room_type_labels,
+    roomTemplates: rules?.room_templates,
+    roomDefaultsFn: (t) => roomDefaults(t),
+    panelId: firstPanelId(),
+  });
+  state.rooms = rooms;
+  state.rooms_user_edited = true;
+  state.simple.warnings = warnings;
+  state.systems = applySimpleToggles(state.systems, state.simple.toggles);
+  // Mirror UFH house total from slider for Systems collector field.
+  state.systems.heating.collector_loops = Math.max(
+    0,
+    Number(state.simple.totals.ufh_loops) || 0,
+  );
+}
+
+function syncSimpleSlidersFromRooms() {
+  state.simple.totals = totalsFromRooms(state.rooms);
+  state.simple.counts = countsFromRooms(state.rooms);
+  state.simple.toggles = togglesFromSystems(state.systems);
+  state.simple.warnings = [];
+}
+
+function applyPreset(kind) {
+  const p = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
+  state.object.property_type = p.property_type;
+  state.object.floor_area_m2 = p.floor_area_m2;
+  state.object.floors = p.floors;
+  state.simple.counts = p.counts;
+  state.simple.totals = p.totals;
+  state.simple.toggles = p.toggles;
+  state.rooms = [];
+  runSimpleSync();
 }
 
 function saveState() {
@@ -2720,12 +3716,17 @@ function mountConfigurator(root) {
   const shell = el(`
     <div class="hm-estimator">
       <header class="hm-estimator__header">
-        <h1>HomeMaster</h1>
-        <p class="hm-estimator__tagline">Panel configurator — calculated in your browser, prices from the shop</p>
-        <label class="hm-expert"><input type="checkbox" id="hm-expert"> Expert mode (direct demand)</label>
+        <h1>How much does a HomeMaster system cost?</h1>
+        <p class="hm-estimator__tagline">Get an instant estimate for your home</p>
+        <div class="hm-mode-toggle" role="group" aria-label="Configurator mode">
+          <button type="button" id="hm-mode-simple" class="hm-mode-btn">Simple</button>
+          <button type="button" id="hm-mode-advanced" class="hm-mode-btn">Advanced</button>
+        </div>
+        <label class="hm-expert" id="hm-expert-wrap"><input type="checkbox" id="hm-expert"> Expert mode (direct demand)</label>
       </header>
+      <div class="hm-examples" id="hm-examples"></div>
       <nav class="hm-steps" id="hm-steps"></nav>
-      <div class="hm-layout">
+      <div class="hm-layout" id="hm-layout">
         <main class="hm-main" id="hm-main"></main>
         <aside class="hm-summary" id="hm-summary"></aside>
       </div>
@@ -2736,7 +3737,32 @@ function mountConfigurator(root) {
   const stepsNav = shell.querySelector("#hm-steps");
   const main = shell.querySelector("#hm-main");
   const summary = shell.querySelector("#hm-summary");
+  const layout = shell.querySelector("#hm-layout");
+  const examplesEl = shell.querySelector("#hm-examples");
   const expertCb = shell.querySelector("#hm-expert");
+  const expertWrap = shell.querySelector("#hm-expert-wrap");
+  const modeSimpleBtn = shell.querySelector("#hm-mode-simple");
+  const modeAdvancedBtn = shell.querySelector("#hm-mode-advanced");
+
+  function setUiMode(mode, { syncFromRooms = false } = {}) {
+    const next = mode === "advanced" ? "advanced" : "simple";
+    if (next === "simple" && state.ui_mode === "advanced") {
+      syncSimpleSlidersFromRooms();
+    }
+    // Simple → Advanced: do not redistribute.
+    state.ui_mode = next;
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+    if (syncFromRooms) syncSimpleSlidersFromRooms();
+    saveState();
+    render();
+  }
+
+  modeSimpleBtn.addEventListener("click", () => setUiMode("simple"));
+  modeAdvancedBtn.addEventListener("click", () => setUiMode("advanced"));
 
   expertCb.checked = !!state.expert;
   expertCb.addEventListener("change", () => {
@@ -2745,7 +3771,111 @@ function mountConfigurator(root) {
     render();
   });
 
+  function renderModeChrome() {
+    const simple = state.ui_mode === "simple";
+    modeSimpleBtn.classList.toggle("is-active", simple);
+    modeAdvancedBtn.classList.toggle("is-active", !simple);
+    stepsNav.hidden = simple || !!state.expert;
+    expertWrap.hidden = simple;
+    layout.classList.toggle("hm-layout--simple", simple);
+    examplesEl.hidden = !simple;
+  }
+
+  function renderExamples() {
+    if (state.ui_mode !== "simple") {
+      examplesEl.innerHTML = "";
+      return;
+    }
+    const cards = [
+      ["apartment", "Apartment"],
+      ["house", "Detached house"],
+      ["villa", "Large villa"],
+    ];
+    examplesEl.innerHTML = `
+      <p class="hm-examples__label">Examples</p>
+      <div class="hm-examples__row">
+        ${cards
+          .map(
+            ([id, label]) =>
+              `<button type="button" class="hm-example-card" data-preset="${id}">
+                <strong>${label}</strong>
+                <span class="hm-example-price" data-preset-price="${id}">…</span>
+              </button>`,
+          )
+          .join("")}
+      </div>`;
+    examplesEl.querySelectorAll("[data-preset]").forEach((btn) => {
+      btn.onclick = () => {
+        applyPreset(btn.dataset.preset);
+        saveState();
+        render();
+        refreshExamplePrices();
+      };
+    });
+    refreshExamplePrices();
+  }
+
+  async function refreshExamplePrices() {
+    if (state.ui_mode !== "simple") return;
+    const saved = structuredClone({
+      object: state.object,
+      rooms: state.rooms,
+      systems: state.systems,
+      simple: state.simple,
+    });
+    for (const kind of ["apartment", "house", "villa"]) {
+      const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
+      if (!elPrice) continue;
+      try {
+        const p = simplePreset(kind);
+        const { rooms } = applySimpleDistribution({
+          counts: p.counts,
+          totals: p.totals,
+          rooms: [],
+          roomTypeLabels: rules?.room_type_labels,
+          roomTemplates: rules?.room_templates,
+          roomDefaultsFn: (t) => roomDefaults(t),
+          panelId: firstPanelId(),
+        });
+        const systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
+        systems.heating.collector_loops = p.totals.ufh_loops || 0;
+        const inputs = {
+          panels: resolvePanels({ panels: state.panels }),
+          rooms,
+          systems,
+          stage: state.object.stage,
+          property_type: p.property_type,
+          floor_area_m2: p.floor_area_m2,
+          floors: p.floors,
+        };
+        let result = estimate(inputs, rules, priceMap);
+        const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
+        if (urls.length && Object.keys(priceMap).length === 0) {
+          const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
+          priceMap = toEstimatePriceMap(map);
+          result = estimate(inputs, rules, priceMap);
+        }
+        const tot = cartTotal(result, priceMap);
+        elPrice.textContent =
+          tot && typeof tot.total === "number"
+            ? `from ${tot.total} ${tot.currency}`
+            : "see estimate";
+      } catch {
+        elPrice.textContent = "—";
+      }
+    }
+    // Restore live state (presets must not clobber).
+    state.object = saved.object;
+    state.rooms = saved.rooms;
+    state.systems = saved.systems;
+    state.simple = saved.simple;
+  }
+
   function renderSteps() {
+    if (state.ui_mode === "simple") {
+      stepsNav.innerHTML = "";
+      return;
+    }
     stepsNav.innerHTML = STEPS.map(
       (name, i) =>
         `<button type="button" class="hm-step ${i === state.step ? "is-active" : ""}" data-step="${i}">${i + 1}. ${name}</button>`,
@@ -3237,10 +4367,14 @@ function mountConfigurator(root) {
             if (key === "template") {
               const name = state.rooms[i].name;
               const next = inp.value;
+              const prevManual = state.rooms[i].manual || {};
+              const prevPanel = state.rooms[i].panel_id;
               state.rooms[i] = {
                 ...roomDefaults(next),
                 name,
                 template: next,
+                panel_id: prevPanel || firstPanelId(),
+                manual: prevManual,
               };
               saveState();
               paintRooms();
@@ -3260,6 +4394,7 @@ function mountConfigurator(root) {
               state.rooms[i].led_strip_channels = Number(inp.value) || 4;
             else {
               state.rooms[i][key] = Number(inp.value) || 0;
+              markRoomFieldManual(state.rooms[i], key);
               if (key === "lights_onoff" || key === "lights_dimmable") {
                 const lights = Number(state.rooms[i].lights_onoff) || 0;
                 if ((Number(state.rooms[i].lights_dimmable) || 0) > lights) {
@@ -3614,11 +4749,211 @@ function mountConfigurator(root) {
   }
 
   function bump() {
+    if (state.ui_mode === "simple") return;
     renderSummary(liveResult());
   }
 
+  function sliderRow(id, label, value, min, max) {
+    return `<div class="hm-slider">
+      <div class="hm-slider__label"><span>${escapeAttr(label)}</span><strong id="${id}-val">${value}</strong></div>
+      <input type="range" id="${id}" min="${min}" max="${max}" value="${value}">
+    </div>`;
+  }
+
+  function renderSimple() {
+    summary.innerHTML = "";
+    const c = state.simple.counts;
+    const t = state.simple.totals;
+    const g = state.simple.toggles;
+    const warn = (state.simple.warnings || [])
+      .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
+      .join("");
+
+    const roomSliders = SIMPLE_ROOM_TYPES.map(({ id, label }) =>
+      sliderRow(`sc-${id}`, label, c[id] ?? 0, 0, 10),
+    ).join("");
+
+    const equip = [
+      ["lights_onoff", "Light groups", 40],
+      ["lights_dimmable", "of which dimmable", 40],
+      ["led_strips", "RGB strips", 20],
+      ["switches", "Wall switches", 60],
+      ["shutters", "Blinds / shutters", 30],
+      ["ufh_loops", "Underfloor heating loops", 40],
+      ["leak_sensors", "Leak sensors", 20],
+      ["motion_sensors", "Motion detectors", 30],
+      ["door_contacts", "Door contacts", 40],
+      ["smart_sockets", "Sockets", 30],
+    ]
+      .map(([id, label, max]) => sliderRow(`st-${id}`, label, t[id] ?? 0, 0, max))
+      .join("");
+
+    main.innerHTML = `
+      <div class="hm-simple">
+        <div class="hm-simple__settings">
+          <label class="hm-simple__ptype">Property type
+            <select id="s-ptype">${PROPERTY_TYPES.map(
+              ([v, lab]) =>
+                `<option value="${v}" ${v === state.object.property_type ? "selected" : ""}>${lab}</option>`,
+            ).join("")}</select>
+          </label>
+          <button type="button" id="s-defaults" class="hm-btn-secondary">Use default configuration</button>
+
+          <h3>Rooms</h3>
+          ${roomSliders}
+
+          <h3>Equipment</h3>
+          ${equip}
+
+          <h3>Whole-home systems</h3>
+          <div class="hm-simple-toggles">
+            <label>Boiler
+              <select id="s-boiler">
+                <option value="none" ${g.boiler === "none" ? "selected" : ""}>None</option>
+                <option value="opentherm" ${g.boiler === "opentherm" ? "selected" : ""}>OpenTherm</option>
+                <option value="relay" ${g.boiler === "relay" ? "selected" : ""}>Relay</option>
+              </select>
+            </label>
+            <label class="hm-check"><input type="checkbox" id="s-vent" ${g.ventilation ? "checked" : ""}> Ventilation</label>
+            <label class="hm-check"><input type="checkbox" id="s-energy" ${g.energy_metering ? "checked" : ""}> Energy metering</label>
+            <label class="hm-check"><input type="checkbox" id="s-sec" ${g.security ? "checked" : ""}> Security</label>
+            <label class="hm-check"><input type="checkbox" id="s-water" ${g.garden_watering ? "checked" : ""}> Garden watering</label>
+            <label class="hm-check"><input type="checkbox" id="s-gates" ${g.gates ? "checked" : ""}> Gates</label>
+          </div>
+          ${warn}
+        </div>
+        <div class="hm-simple__result" id="hm-simple-result">
+          <p class="hm-muted">Calculating…</p>
+        </div>
+      </div>`;
+
+    const bindRange = (id, apply) => {
+      const input = main.querySelector(`#${id}`);
+      const val = main.querySelector(`#${id}-val`);
+      if (!input) return;
+      input.oninput = () => {
+        const n = Number(input.value) || 0;
+        if (val) val.textContent = String(n);
+        apply(n);
+        runSimpleSync();
+        saveState();
+        paintSimpleResult();
+      };
+    };
+
+    for (const { id } of SIMPLE_ROOM_TYPES) {
+      bindRange(`sc-${id}`, (n) => {
+        state.simple.counts[id] = n;
+      });
+    }
+    for (const field of SIMPLE_DISTRIBUTE_FIELDS) {
+      bindRange(`st-${field}`, (n) => {
+        state.simple.totals[field] = n;
+        if (field === "lights_dimmable") {
+          const lights = Number(state.simple.totals.lights_onoff) || 0;
+          if (n > lights) {
+            state.simple.totals.lights_dimmable = lights;
+            const inp = main.querySelector("#st-lights_dimmable");
+            const v = main.querySelector("#st-lights_dimmable-val");
+            if (inp) inp.value = String(lights);
+            if (v) v.textContent = String(lights);
+          }
+        }
+      });
+    }
+
+    main.querySelector("#s-ptype").onchange = (e) => {
+      state.object.property_type = e.target.value;
+      saveState();
+    };
+    main.querySelector("#s-defaults").onclick = () => {
+      const kind =
+        state.object.property_type === "house" || state.object.property_type === "townhouse"
+          ? "house"
+          : state.object.property_type === "commercial"
+            ? "apartment"
+            : "apartment";
+      applyPreset(kind);
+      saveState();
+      render();
+    };
+    main.querySelector("#s-boiler").onchange = (e) => {
+      state.simple.toggles.boiler = e.target.value;
+      runSimpleSync();
+      saveState();
+      paintSimpleResult();
+    };
+    for (const [id, key] of [
+      ["s-vent", "ventilation"],
+      ["s-energy", "energy_metering"],
+      ["s-sec", "security"],
+      ["s-water", "garden_watering"],
+      ["s-gates", "gates"],
+    ]) {
+      main.querySelector(`#${id}`).onchange = (e) => {
+        state.simple.toggles[key] = e.target.checked;
+        runSimpleSync();
+        saveState();
+        paintSimpleResult();
+      };
+    }
+
+    paintSimpleResult();
+  }
+
+  async function paintSimpleResult() {
+    const host = main.querySelector("#hm-simple-result");
+    if (!host) return;
+    let result = liveResult();
+    await refreshPrices(result);
+    result = liveResult();
+    const tot = cartTotal(result, priceMap);
+    const lines = simpleCustomerSummary(
+      state.simple.totals,
+      state.simple.toggles,
+      state.systems,
+    );
+    const list = lines.map((l) => `<li>${escapeAttr(l)}</li>`).join("");
+    let priceHtml = `<p class="hm-simple-price">—</p>`;
+    if (tot && typeof tot.total === "number") {
+      priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
+    }
+    const warn = (state.simple.warnings || [])
+      .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
+      .join("");
+    host.innerHTML = `
+      <h2>Your estimate</h2>
+      ${priceHtml}
+      <p class="hm-muted">Equipment only, excluding installation. Prices incl. VAT, as shown in the shop.</p>
+      <ul class="hm-simple-lines">${list || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
+      ${warn}
+      <div class="hm-actions">
+        <button type="button" id="s-fullspec">Show full specification</button>
+        <button type="button" id="s-cart">Add to cart</button>
+      </div>
+      <div id="s-cart-status"></div>`;
+    host.querySelector("#s-fullspec").onclick = () => setUiMode("advanced");
+    host.querySelector("#s-cart").onclick = async () => {
+      const status = host.querySelector("#s-cart-status");
+      status.textContent = "Adding…";
+      const { added, failed } = await addAllToCart(result.cart_lines || []);
+      if (failed) {
+        status.innerHTML = `<p class="hm-warn">Added ${added.length}; failed on ${failed.line?.sku}</p>`;
+        return;
+      }
+      status.innerHTML = `<p>Done: ${added.length} item(s). <a href="/shop/cart">Go to cart</a></p>`;
+    };
+  }
+
   function render() {
+    renderModeChrome();
+    renderExamples();
     renderSteps();
+    if (state.ui_mode === "simple") {
+      if (!state.rooms?.length) runSimpleSync();
+      renderSimple();
+      return;
+    }
     if (state.expert && state.step > 0 && state.step < 3) {
       renderExpert();
       bump();

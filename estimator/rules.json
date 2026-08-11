@@ -11,7 +11,8 @@
     "psu_headroom_pct": 30,
     "psu_sizing_basis": "max",
     "str_actuators_per_module": 16,
-    "enclosure_reserve_pct": 25
+    "enclosure_reserve_pct": 25,
+    "onewire_sensor_design_ma": 5
   },
   "companion_din_units": {
     "mcb_1p": 1,
@@ -75,10 +76,12 @@
     "onewire_buses": "onewire",
     "onewire_sensor": "onewire",
     "pwm_led_ch": "pwm_led_ch",
+    "relay_out_nc": "relay_out_nc",
     "relay_needs_contactor": "relay_needs_contactor"
   },
   "allocate_order": [
     "opentherm",
+    "relay_out_nc",
     "energy_phase",
     "alarm_zone",
     "out_24v_ch",
@@ -93,6 +96,7 @@
   ],
   "specialty_modules": {
     "opentherm": "OpenthermGateway",
+    "relay_out_nc": "OpenthermGateway",
     "energy_phase": "ENM-223-R1",
     "alarm_zone": "ALM-173-R1",
     "out_24v_ch": "STR-3221-R1",
@@ -106,9 +110,10 @@
     "onewire": "WLD-521-R1"
   },
   "controllers": {
-    "small": "MicroPLC",
-    "large": "MiniPLC",
-    "small_slave_threshold": 4
+    "candidates": [
+      "MicroPLC",
+      "MiniPLC"
+    ]
   },
   "terminators_per_segment": 2,
   "esphome_defaults": {
@@ -547,6 +552,7 @@
         "relay_out_3a": 3,
         "di_dry": 4
       },
+      "relay_contact": "spdt",
       "features": [
         "interlock_pair"
       ],
@@ -554,7 +560,8 @@
       "poll_weight": 1.0,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README"
       }
     },
     "DIM-420-R1": {
@@ -572,7 +579,8 @@
       "poll_weight": 1.0,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README"
       }
     },
     "RGB-621-R1": {
@@ -586,12 +594,14 @@
         "relay_out_3a": 1,
         "di_dry": 2
       },
+      "relay_contact": "spst_no",
       "features": [],
       "power_w_max": 3.0,
       "poll_weight": 1.2,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README"
       }
     },
     "STR-3221-R1": {
@@ -606,11 +616,24 @@
         "presence_in": 2
       },
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 5,
+          "budget_ma": 150,
+          "qty": 2,
+          "feeds": [
+            "presence_in"
+          ],
+          "note": "SENS.A / SENS.B, ≤150 mA each"
+        }
+      ],
       "power_w_max": 2.4,
       "poll_weight": 2.0,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README",
+        "sensor_rails": "README"
       }
     },
     "WLD-521-R1": {
@@ -624,12 +647,27 @@
         "relay_out_3a": 2,
         "onewire": 1
       },
+      "relay_contact": "spdt",
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 12,
+          "budget_ma": 150,
+          "also_voltage_v": 5,
+          "feeds": [
+            "onewire",
+            "leak_or_pulse"
+          ],
+          "note": "+12 V ISO and +5 V ISO share ≤~150 mA"
+        }
+      ],
       "power_w_max": 3.0,
       "poll_weight": 1.2,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README",
+        "sensor_rails": "README"
       }
     },
     "ENM-223-R1": {
@@ -642,12 +680,14 @@
         "energy_phase": 3,
         "relay_out_3a": 2
       },
+      "relay_contact": "spdt",
       "features": [],
       "power_w_max": 3.0,
       "poll_weight": 2.0,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README"
       }
     },
     "AIO-422-R1": {
@@ -667,7 +707,8 @@
       "poll_weight": 1.5,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "assumed"
+        "power_w_max": "assumed",
+        "provides": "README"
       }
     },
     "ALM-173-R1": {
@@ -677,15 +718,38 @@
       "shop_url": "/shop/alm-173-r1-alarm-module-733",
       "din_units": 9,
       "provides": {
-        "alarm_zone": 17
+        "alarm_zone": 17,
+        "relay_out_3a": 3
       },
+      "relay_contact": "spdt",
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 12,
+          "budget_ma": 150,
+          "feeds": [
+            "alarm_zone"
+          ],
+          "note": "PS/1 +12 V ISO ~150 mA usable"
+        },
+        {
+          "voltage_v": 5,
+          "budget_ma": null,
+          "feeds": [
+            "alarm_zone"
+          ],
+          "note": "PS/2 +5 V ISO PTC limited — mA limit not stated in README"
+        }
+      ],
       "power_w_max": 3.0,
       "power_assumed": true,
       "poll_weight": 1.5,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "assumed"
+        "power_w_max": "assumed",
+        "provides": "README",
+        "sensor_rails": "README",
+        "sensor_rails_5v_budget_ma": "MISSING"
       }
     },
     "OpenthermGateway": {
@@ -695,14 +759,29 @@
       "shop_url": "/shop/opentherm-gateway-59",
       "din_units": 2,
       "provides": {
-        "opentherm": 1
+        "opentherm": 1,
+        "relay_out_nc": 1,
+        "onewire": 2
       },
+      "relay_contact": "nc_only",
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 5,
+          "budget_ma": 50,
+          "feeds": [
+            "onewire"
+          ],
+          "note": "Auxiliary +5 V for 1-Wire sensors, max 50 mA"
+        }
+      ],
       "power_w_max": 3.0,
       "poll_weight": 1.0,
       "sources": {
         "din_units": "measured",
-        "power_w_max": "README"
+        "power_w_max": "README",
+        "provides": "README",
+        "sensor_rails": "README"
       }
     },
     "MicroPLC": {
@@ -717,14 +796,26 @@
         "di_dry": 1,
         "onewire": 1
       },
+      "relay_contact": "spdt",
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 5,
+          "budget_ma": null,
+          "feeds": [
+            "onewire"
+          ],
+          "note": "1-Wire present; aux rail current limit not stated in README"
+        }
+      ],
       "power_w_max": 3.0,
       "power_assumed": true,
       "poll_weight": null,
       "sources": {
         "din_units": "measured",
         "power_w_max": "assumed",
-        "provides": "README"
+        "provides": "README",
+        "sensor_rails_budget_ma": "MISSING"
       }
     },
     "MiniPLC": {
@@ -742,15 +833,27 @@
         "rtd_input": 2,
         "onewire": 2
       },
+      "relay_contact": "spdt",
       "features": [],
+      "sensor_rails": [
+        {
+          "voltage_v": 5,
+          "budget_ma": null,
+          "feeds": [
+            "onewire"
+          ],
+          "note": "+5 V aux for 1-Wire; mA limit not stated in README"
+        }
+      ],
       "power_w_max": 3.6,
       "poll_weight": null,
       "sources": {
         "din_units": "measured",
         "power_w_max": "README",
-        "provides": "README"
+        "provides": "README",
+        "sensor_rails_budget_ma": "MISSING"
       }
     }
   },
-  "generated_at": "2026-08-08"
+  "generated_at": "2026-08-11"
 }
