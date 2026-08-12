@@ -1159,15 +1159,25 @@ function allocate(demand, rules, assumptions, normalized = EMPTY, prices = EMPTY
   let segments = packSegments(slaveLines, segmentBudget, hardMax, minSegments);
 
   const mergedModules = {};
+  const mergedSupply = {};
+  let shutterNeedRemaining = 0;
   const provenance = [...(contactorPart.provenance || [])];
   const picks = [];
   const segmentPlans = [];
+
+  function absorbAlloc(alloc) {
+    for (const [ch, n] of Object.entries(alloc?.supply || {})) {
+      mergedSupply[ch] = (mergedSupply[ch] || 0) + (Number(n) || 0);
+    }
+    shutterNeedRemaining += Math.max(0, Number(alloc?.shutter_need_remaining) || 0);
+  }
 
   if (segments.length === 0) {
     // Controller-only (or empty) panel — still one controller on the cabinet.
     const pick = pickControllerForDemand(bareDemand, rules, prices, assumptions);
     picks.push(pick.id);
     mergeModuleBags(mergedModules, pick.alloc.modules);
+    absorbAlloc(pick.alloc);
     provenance.push(...(pick.alloc.provenance || []));
     segmentPlans.push({ controller: pick.id, modules: { ...pick.alloc.modules } });
   } else {
@@ -1176,6 +1186,7 @@ function allocate(demand, rules, assumptions, normalized = EMPTY, prices = EMPTY
       const pick = pickControllerForDemand(segDemands[i], rules, prices, assumptions);
       picks.push(pick.id);
       mergeModuleBags(mergedModules, pick.alloc.modules);
+      absorbAlloc(pick.alloc);
       provenance.push(...(pick.alloc.provenance || []));
       segmentPlans.push({
         controller: pick.id,
@@ -1204,6 +1215,8 @@ function allocate(demand, rules, assumptions, normalized = EMPTY, prices = EMPTY
     provenance,
     controller_picks: picks,
     segment_plans: segmentPlans,
+    supply: mergedSupply,
+    shutter_need_remaining: shutterNeedRemaining,
   };
   result.provenance = result.provenance.filter((p) => p.kind !== "controller_picks");
   result.provenance.push({ kind: "controller_picks", picks });
