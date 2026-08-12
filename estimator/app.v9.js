@@ -2963,9 +2963,11 @@ function simplePreset(kind, roomTemplates) {
 
 /**
  * Customer-facing summary lines (no SKUs) from Simple inputs + systems.
+ * @returns {{ kind: string, text: string }[]}
  */
 function simpleCustomerSummary(totals, toggles, systems) {
   const lines = [];
+  const push = (kind, text) => lines.push({ kind, text });
   const lights = Number(totals.lights_onoff) || 0;
   const dim = Number(totals.lights_dimmable) || 0;
   const rgb = Number(totals.led_strips) || 0;
@@ -2973,10 +2975,10 @@ function simpleCustomerSummary(totals, toggles, systems) {
     let t = `Lighting — ${lights} groups`;
     if (dim) t += `, ${dim} dimmable`;
     if (rgb) t += `, ${rgb} RGB strip${rgb === 1 ? "" : "s"}`;
-    lines.push(t);
+    push("light", t);
   }
   const shutters = Number(totals.shutters) || 0;
-  if (shutters) lines.push(`Blinds — ${shutters} drive${shutters === 1 ? "" : "s"}`);
+  if (shutters) push("shutter", `Blinds — ${shutters} drive${shutters === 1 ? "" : "s"}`);
 
   const ufh = Number(totals.ufh_loops) || 0;
   const boiler = toggles.boiler || systems?.heating?.boiler || "none";
@@ -2985,7 +2987,7 @@ function simpleCustomerSummary(totals, toggles, systems) {
     if (ufh) parts.push(`${ufh} underfloor loop${ufh === 1 ? "" : "s"}`);
     if (boiler === "opentherm") parts.push("OpenTherm boiler");
     else if (boiler === "relay") parts.push("relay boiler");
-    lines.push(`Heating — ${parts.join(", ")}`);
+    push("heat", `Heating — ${parts.join(", ")}`);
   }
 
   const leak = Number(totals.leak_sensors) || 0;
@@ -2996,11 +2998,11 @@ function simpleCustomerSummary(totals, toggles, systems) {
     if (leak) parts.push(`${leak} leak zone${leak === 1 ? "" : "s"}`);
     if (valves) parts.push(`${valves} shut-off valve${valves === 1 ? "" : "s"}`);
     if (irrig) parts.push("garden watering");
-    lines.push(`Water — ${parts.join(", ")}`);
+    push("water", `Water — ${parts.join(", ")}`);
   }
 
   const sw = Number(totals.switches) || 0;
-  if (sw) lines.push(`Switches — ${sw} wall gang${sw === 1 ? "" : "s"}`);
+  if (sw) push("switch", `Switches — ${sw} wall gang${sw === 1 ? "" : "s"}`);
 
   const motion = Number(totals.motion_sensors) || 0;
   const doors = Number(totals.door_contacts) || 0;
@@ -3009,15 +3011,15 @@ function simpleCustomerSummary(totals, toggles, systems) {
     if (motion) parts.push(`${motion} motion detector${motion === 1 ? "" : "s"}`);
     if (doors) parts.push(`${doors} door contact${doors === 1 ? "" : "s"}`);
     if (toggles.security && !parts.length) parts.push("security zones");
-    lines.push(`Security — ${parts.join(", ")}`);
+    push("security", `Security — ${parts.join(", ")}`);
   }
 
-  if (toggles.energy_metering) lines.push("Electrical — energy metering");
-  if (toggles.ventilation) lines.push("Ventilation — mechanical ventilation");
-  if (toggles.gates) lines.push("Access — gates / garage doors");
+  if (toggles.energy_metering) push("energy", "Electrical — energy metering");
+  if (toggles.ventilation) push("vent", "Ventilation — mechanical ventilation");
+  if (toggles.gates) push("gate", "Access — gates / garage doors");
 
   const sockets = Number(totals.smart_sockets) || 0;
-  if (sockets) lines.push(`Sockets — ${sockets} switched`);
+  if (sockets) push("socket", `Sockets — ${sockets} switched`);
 
   return lines;
 }
@@ -3425,6 +3427,45 @@ function roomTypeIcon(template) {
   return map[template] || "Room";
 }
 
+/** Compact stroke icons for Simple mode (no emoji, no external assets). */
+function hmIcon(name, size = 18) {
+  const paths = {
+    bed: '<path d="M3 11h18v6H3z"/><path d="M5 11V8a2 2 0 0 1 2-2h5v5"/><path d="M3 17v2M21 17v2"/>',
+    bath: '<path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3z"/><path d="M7 12V7a2 2 0 0 1 2-2h1"/><path d="M4 12H3"/>',
+    living: '<path d="M3 10l9-6 9 6"/><path d="M5 9.5V19h14V9.5"/><path d="M10 19v-5h4v5"/>',
+    kitchen: '<path d="M6 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M8 13v8"/><path d="M14 21V10h5v3a3 3 0 0 1-3 3h-2"/>',
+    hall: '<path d="M4 20V8l8-4 8 4v12"/><path d="M10 20v-6h4v6"/>',
+    office: '<path d="M4 20V6a1 1 0 0 1 1-1h9v15"/><path d="M14 10h5a1 1 0 0 1 1 1v9"/><path d="M8 9h3M8 12h3"/>',
+    garage: '<path d="M3 10l9-5 9 5v10H3V10z"/><path d="M6 20v-6h12v6"/>',
+    utility: '<path d="M12 3v4M8 5l1.5 2.5M16 5l-1.5 2.5"/><circle cx="12" cy="14" r="6"/><path d="M12 11v3l2 2"/>',
+    light: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a5 5 0 0 1 3 9c0 1.5-.5 2.5-1.5 3.5H10.5C9.5 14.5 9 13.5 9 12a5 5 0 0 1 3-9z"/>',
+    dim: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    rgb: '<circle cx="8" cy="12" r="3"/><circle cx="14" cy="9" r="3"/><circle cx="14" cy="15" r="3"/>',
+    switch: '<rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 8v4"/>',
+    shutter: '<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/><path d="M6 4v16M18 4v16"/>',
+    heat: '<path d="M8 3v10a4 4 0 0 0 8 0V3"/><path d="M8 8h8"/>',
+    leak: '<path d="M12 3s5 6 5 10a5 5 0 0 1-10 0c0-4 5-10 5-10z"/>',
+    motion: '<circle cx="12" cy="7" r="2.5"/><path d="M7 21v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2"/><path d="M4 11h2M18 11h2M6 7l1.5 1.5M18 7l-1.5 1.5"/>',
+    door: '<path d="M6 21V5a1 1 0 0 1 1-1h10v17"/><path d="M14 12h1"/>',
+    socket: '<rect x="5" y="5" width="14" height="14" rx="3"/><path d="M10 10v4M14 10v4"/>',
+    boiler: '<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/>',
+    vent: '<path d="M4 12h16"/><path d="M7 8c2 2 4 2 5 0s3-2 5 0"/><path d="M7 16c2-2 4-2 5 0s3 2 5 0"/>',
+    energy: '<path d="M13 2L6 13h5l-1 9 8-12h-5l0-8z"/>',
+    security: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/>',
+    water: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
+    gate: '<path d="M4 20V8l8-4 8 4v12"/><path d="M4 12h16M9 12v8M15 12v8"/>',
+    apartment: '<path d="M4 20V6h10v14"/><path d="M14 10h6v10"/><path d="M7 9h2M7 13h2M7 17h2M16 14h2M16 17h2"/>',
+    house: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+    villa: '<path d="M2 20V10l6-4 4 3 4-3 6 4v10"/><path d="M8 20v-5h3v5M14 20v-5h3v5"/>',
+    rooms: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
+    estimate: '<path d="M4 6h16M4 12h10M4 18h14"/>',
+    spark: '<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/>',
+  };
+  const d = paths[name] || paths.gear;
+  return `<svg class="hm-ico" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+}
+
 function ensureRoomsSeeded() {
   if (state.ui_mode === "simple") {
     if (!state.rooms?.length) runSimpleSync();
@@ -3787,19 +3828,22 @@ function mountConfigurator(root) {
       return;
     }
     const cards = [
-      ["apartment", "Apartment"],
-      ["house", "Detached house"],
-      ["villa", "Large villa"],
+      ["apartment", "Apartment", "apartment"],
+      ["house", "Detached house", "house"],
+      ["villa", "Large villa", "villa"],
     ];
     examplesEl.innerHTML = `
-      <p class="hm-examples__label">Examples</p>
+      <p class="hm-examples__label">Start from an example</p>
       <div class="hm-examples__row">
         ${cards
           .map(
-            ([id, label]) =>
+            ([id, label, icon]) =>
               `<button type="button" class="hm-example-card" data-preset="${id}">
-                <strong>${label}</strong>
-                <span class="hm-example-price" data-preset-price="${id}">…</span>
+                <span class="hm-example-card__ico">${hmIcon(icon, 22)}</span>
+                <span class="hm-example-card__text">
+                  <strong>${label}</strong>
+                  <span class="hm-example-price" data-preset-price="${id}">…</span>
+                </span>
               </button>`,
           )
           .join("")}
@@ -4753,11 +4797,18 @@ function mountConfigurator(root) {
     renderSummary(liveResult());
   }
 
-  function sliderRow(id, label, value, min, max) {
+  function sliderRow(id, label, value, min, max, icon) {
     return `<div class="hm-slider">
-      <div class="hm-slider__label"><span>${escapeAttr(label)}</span><strong id="${id}-val">${value}</strong></div>
+      <div class="hm-slider__label">
+        <span class="hm-slider__name">${icon ? hmIcon(icon, 16) : ""}<span>${escapeAttr(label)}</span></span>
+        <strong id="${id}-val">${value}</strong>
+      </div>
       <input type="range" id="${id}" min="${min}" max="${max}" value="${value}">
     </div>`;
+  }
+
+  function sectionTitle(icon, title) {
+    return `<h3 class="hm-simple-sec__title">${hmIcon(icon, 18)}<span>${escapeAttr(title)}</span></h3>`;
   }
 
   function renderSimple() {
@@ -4769,57 +4820,76 @@ function mountConfigurator(root) {
       .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
       .join("");
 
+    const roomIcons = {
+      bedroom: "bed",
+      bath: "bath",
+      living: "living",
+      kitchen: "kitchen",
+      hallway: "hall",
+      office: "office",
+      garage: "garage",
+      boiler_room: "utility",
+    };
     const roomSliders = SIMPLE_ROOM_TYPES.map(({ id, label }) =>
-      sliderRow(`sc-${id}`, label, c[id] ?? 0, 0, 10),
+      sliderRow(`sc-${id}`, label, c[id] ?? 0, 0, 10, roomIcons[id]),
     ).join("");
 
     const equip = [
-      ["lights_onoff", "Light groups", 40],
-      ["lights_dimmable", "of which dimmable", 40],
-      ["led_strips", "RGB strips", 20],
-      ["switches", "Wall switches", 60],
-      ["shutters", "Blinds / shutters", 30],
-      ["ufh_loops", "Underfloor heating loops", 40],
-      ["leak_sensors", "Leak sensors", 20],
-      ["motion_sensors", "Motion detectors", 30],
-      ["door_contacts", "Door contacts", 40],
-      ["smart_sockets", "Sockets", 30],
+      ["lights_onoff", "Light groups", 40, "light"],
+      ["lights_dimmable", "of which dimmable", 40, "dim"],
+      ["led_strips", "RGB strips", 20, "rgb"],
+      ["switches", "Wall switches", 60, "switch"],
+      ["shutters", "Blinds / shutters", 30, "shutter"],
+      ["ufh_loops", "Underfloor heating loops", 40, "heat"],
+      ["leak_sensors", "Leak sensors", 20, "leak"],
+      ["motion_sensors", "Motion detectors", 30, "motion"],
+      ["door_contacts", "Door contacts", 40, "door"],
+      ["smart_sockets", "Sockets", 30, "socket"],
     ]
-      .map(([id, label, max]) => sliderRow(`st-${id}`, label, t[id] ?? 0, 0, max))
+      .map(([id, label, max, icon]) => sliderRow(`st-${id}`, label, t[id] ?? 0, 0, max, icon))
       .join("");
 
     main.innerHTML = `
       <div class="hm-simple">
         <div class="hm-simple__settings">
-          <label class="hm-simple__ptype">Property type
-            <select id="s-ptype">${PROPERTY_TYPES.map(
-              ([v, lab]) =>
-                `<option value="${v}" ${v === state.object.property_type ? "selected" : ""}>${lab}</option>`,
-            ).join("")}</select>
-          </label>
-          <button type="button" id="s-defaults" class="hm-btn-secondary">Use default configuration</button>
-
-          <h3>Rooms</h3>
-          ${roomSliders}
-
-          <h3>Equipment</h3>
-          ${equip}
-
-          <h3>Whole-home systems</h3>
-          <div class="hm-simple-toggles">
-            <label>Boiler
-              <select id="s-boiler">
-                <option value="none" ${g.boiler === "none" ? "selected" : ""}>None</option>
-                <option value="opentherm" ${g.boiler === "opentherm" ? "selected" : ""}>OpenTherm</option>
-                <option value="relay" ${g.boiler === "relay" ? "selected" : ""}>Relay</option>
-              </select>
+          <div class="hm-simple-sec hm-simple-sec--top">
+            <label class="hm-simple__ptype">Property type
+              <select id="s-ptype">${PROPERTY_TYPES.map(
+                ([v, lab]) =>
+                  `<option value="${v}" ${v === state.object.property_type ? "selected" : ""}>${lab}</option>`,
+              ).join("")}</select>
             </label>
-            <label class="hm-check"><input type="checkbox" id="s-vent" ${g.ventilation ? "checked" : ""}> Ventilation</label>
-            <label class="hm-check"><input type="checkbox" id="s-energy" ${g.energy_metering ? "checked" : ""}> Energy metering</label>
-            <label class="hm-check"><input type="checkbox" id="s-sec" ${g.security ? "checked" : ""}> Security</label>
-            <label class="hm-check"><input type="checkbox" id="s-water" ${g.garden_watering ? "checked" : ""}> Garden watering</label>
-            <label class="hm-check"><input type="checkbox" id="s-gates" ${g.gates ? "checked" : ""}> Gates</label>
+            <button type="button" id="s-defaults" class="hm-btn-secondary">${hmIcon("spark", 16)} Use default configuration</button>
           </div>
+
+          <section class="hm-simple-sec">
+            ${sectionTitle("rooms", "Rooms")}
+            <div class="hm-slider-grid">${roomSliders}</div>
+          </section>
+
+          <section class="hm-simple-sec">
+            ${sectionTitle("gear", "Equipment")}
+            <div class="hm-slider-stack">${equip}</div>
+          </section>
+
+          <section class="hm-simple-sec">
+            ${sectionTitle("estimate", "Whole-home systems")}
+            <div class="hm-simple-toggles">
+              <label class="hm-simple-toggle">
+                <span class="hm-simple-toggle__lab">${hmIcon("boiler", 16)} Boiler</span>
+                <select id="s-boiler">
+                  <option value="none" ${g.boiler === "none" ? "selected" : ""}>None</option>
+                  <option value="opentherm" ${g.boiler === "opentherm" ? "selected" : ""}>OpenTherm</option>
+                  <option value="relay" ${g.boiler === "relay" ? "selected" : ""}>Relay</option>
+                </select>
+              </label>
+              <label class="hm-check hm-simple-chip"><input type="checkbox" id="s-vent" ${g.ventilation ? "checked" : ""}>${hmIcon("vent", 16)} Ventilation</label>
+              <label class="hm-check hm-simple-chip"><input type="checkbox" id="s-energy" ${g.energy_metering ? "checked" : ""}>${hmIcon("energy", 16)} Energy metering</label>
+              <label class="hm-check hm-simple-chip"><input type="checkbox" id="s-sec" ${g.security ? "checked" : ""}>${hmIcon("security", 16)} Security</label>
+              <label class="hm-check hm-simple-chip"><input type="checkbox" id="s-water" ${g.garden_watering ? "checked" : ""}>${hmIcon("water", 16)} Garden watering</label>
+              <label class="hm-check hm-simple-chip"><input type="checkbox" id="s-gates" ${g.gates ? "checked" : ""}>${hmIcon("gate", 16)} Gates</label>
+            </div>
+          </section>
           ${warn}
         </div>
         <div class="hm-simple__result" id="hm-simple-result">
@@ -4913,7 +4983,12 @@ function mountConfigurator(root) {
       state.simple.toggles,
       state.systems,
     );
-    const list = lines.map((l) => `<li>${escapeAttr(l)}</li>`).join("");
+    const list = lines
+      .map(
+        (l) =>
+          `<li><span class="hm-simple-line__ico">${hmIcon(l.kind, 18)}</span><span>${escapeAttr(l.text)}</span></li>`,
+      )
+      .join("");
     let priceHtml = `<p class="hm-simple-price">—</p>`;
     if (tot && typeof tot.total === "number") {
       priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
@@ -4922,7 +4997,10 @@ function mountConfigurator(root) {
       .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
       .join("");
     host.innerHTML = `
-      <h2>Your estimate</h2>
+      <div class="hm-simple-result__head">
+        ${hmIcon("estimate", 20)}
+        <h2>Your estimate</h2>
+      </div>
       ${priceHtml}
       <p class="hm-muted">Equipment only, excluding installation. Prices incl. VAT, as shown in the shop.</p>
       <ul class="hm-simple-lines">${list || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
