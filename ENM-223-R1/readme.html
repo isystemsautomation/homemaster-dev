@@ -204,7 +204,7 @@ blockquote table{background:transparent}
 <table>
 <thead><tr><th>Interface</th><th>Qty</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Voltage Inputs</strong></td><td>3</td><td>L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC</td></tr>
-<tr><td><strong>Current Inputs</strong></td><td>3</td><td>CT1–CT3, external 333 mV / 1 V RMS split-core CTs</td></tr>
+<tr><td><strong>Current Inputs</strong></td><td>3</td><td>CT1–CT3, external current-output CTs; secondary ≤ 60 mA RMS into a 6 Ω on-board burden. Full scale 120 / 60 / 30 mA at PGA ×1 / ×2 / ×4 (default ×2). Do not use 1 A or 5 A secondary CTs</td></tr>
 <tr><td><strong>Relay Outputs</strong></td><td>2</td><td>SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit)</td></tr>
 <tr><td><strong>User LEDs</strong></td><td>4</td><td>Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21)</td></tr>
 <tr><td><strong>Buttons</strong></td><td>4</td><td>Momentary tactile switches (GPIO22–25)</td></tr>
@@ -221,7 +221,7 @@ blockquote table{background:transparent}
 <tr><td><strong>Logic Rails</strong></td><td>–</td><td>3.3 / 5</td><td>–</td><td>V</td><td>Buck (AP64501) + LDO (AMS1117-3.3)</td></tr>
 <tr><td><strong>Isolated Sensor Rails</strong></td><td>–</td><td>+12 / +5</td><td>–</td><td>V</td><td>From B0505S-1WR3 isolated DC-DC</td></tr>
 <tr><td><strong>Voltage Inputs</strong></td><td>85</td><td>–</td><td>265</td><td>V AC</td><td>Divided to ATM90E32AS AFE</td></tr>
-<tr><td><strong>Current Inputs</strong></td><td>–</td><td>1 / 0.333</td><td>–</td><td>V RMS</td><td>External CTs</td></tr>
+<tr><td><strong>Current Inputs</strong></td><td>–</td><td>50</td><td>60</td><td>mA RMS</td><td>Current-output CTs into the 6 Ω FieldBoard burden</td></tr>
 <tr><td><strong>Relay Outputs</strong></td><td>–</td><td>–</td><td>3</td><td>A</td><td>SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended</td></tr>
 <tr><td><strong>RS-485 Bus</strong></td><td>–</td><td>115.2</td><td>–</td><td>kbps</td><td>MAX485; short-circuit limited; fail-safe bias</td></tr>
 <tr><td><strong>USB-C Port</strong></td><td>–</td><td>5</td><td>5.25</td><td>V DC</td><td>Native USB; ESD protected</td></tr>
@@ -320,7 +320,7 @@ blockquote table{background:transparent}
 <thead><tr><th>Block / Label</th><th>Pin(s) (left→right)</th><th>Function / Signal</th><th>Limits / Notes</th></tr></thead><tbody>
 <tr><td><strong>POWER</strong></td><td>V+, 0V</td><td>24 V DC SELV input</td><td>Reverse / surge protected</td></tr>
 <tr><td><strong>VOLTAGE INPUT</strong></td><td>PE, N, L1, L2, L3</td><td>AC sensing (85–265 V AC)</td><td>Isolated domain</td></tr>
-<tr><td><strong>CT INPUT</strong></td><td>CT1+, CT1–, CT2+, CT2–, CT3+, CT3–</td><td>External CT (333 mV / 1 V RMS)</td><td>Shielded pairs recommended</td></tr>
+<tr><td><strong>CT INPUT</strong></td><td>CT1+, CT1–, CT2+, CT2–, CT3+, CT3–</td><td>External current-output CT, ≤ 60 mA RMS secondary. Set CT ratio and PGA in WebConfig</td><td>Shielded pairs recommended</td></tr>
 <tr><td><strong>RS-485</strong></td><td>A, B, COM</td><td>Modbus RTU bus</td><td>Terminate 120 Ω at ends</td></tr>
 <tr><td><strong>RELAY 1</strong></td><td>NO, C, NC</td><td>SPDT dry contact</td><td>3 A @ 250 VAC/30 VDC (module limit)</td></tr>
 <tr><td><strong>RELAY 2</strong></td><td>NO, C, NC</td><td>SPDT dry contact</td><td>3 A @ 250 VAC/30 VDC (module limit)</td></tr>
@@ -357,7 +357,7 @@ blockquote table{background:transparent}
 <tr><td>Power Isolation</td><td>Disconnect both <strong>24 V DC</strong> and <strong>voltage inputs (Lx/N)</strong> before servicing. Use lockout/tagout where applicable.</td></tr>
 <tr><td>Environmental Limits</td><td>Mount in a clean, sealed enclosure. Avoid condensation, conductive dust, or vibration.</td></tr>
 <tr><td>Grounding</td><td>Bond the panel to PE. Wire <strong>PE and N</strong> to the module. Never bridge <strong>GND_ISO</strong> to logic GND.</td></tr>
-<tr><td>Voltage Compliance</td><td>CT inputs: 1 V or 333 mV RMS only. Voltage inputs: 85–265 V AC. Use upstream fusing and surge protection.</td></tr>
+<tr><td>Voltage Compliance</td><td>CT inputs: current-output CTs, ≤ 60 mA RMS secondary — the burden is on the board. Do not use voltage-output CTs (333 mV / 1 V class) or 1 A / 5 A secondaries. Voltage inputs: 85–265 V AC. Observe polarity and shielding.</td></tr>
 </tbody>
 </table>
 <hr>
@@ -378,13 +378,13 @@ blockquote table{background:transparent}
 <thead><tr><th>Area</th><th>Warning</th></tr></thead><tbody>
 <tr><td><strong>24 V DC Input</strong></td><td>Use a clean, fused SELV power source. Reverse polarity is protected but may disable the module.</td></tr>
 <tr><td><strong>Voltage Input</strong></td><td>Connect <strong>L1/L2/L3/N/PE</strong> only within rated range (85–265 V AC). Use circuit protection upstream.</td></tr>
-<tr><td><strong>Sensor Domain</strong></td><td>Use <strong>CTs with 1 V or 333 mV RMS</strong> output. Never apply 5 A directly. Observe polarity and shielding.</td></tr>
+<tr><td><strong>Sensor Domain</strong></td><td>CT inputs: current-output CTs, ≤ 60 mA RMS secondary — the burden is on the board. Do not use voltage-output CTs (333 mV / 1 V class) or 1 A / 5 A secondaries. Voltage inputs: 85–265 V AC. Observe polarity and shielding.</td></tr>
 </tbody>
 </table>
 <h4 id="inputs--relays">Inputs & Relays</h4>
 <table>
 <thead><tr><th>Area</th><th>Warning</th></tr></thead><tbody>
-<tr><td><strong>CT Inputs</strong></td><td>Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference.</td></tr>
+<tr><td><strong>CT Inputs</strong></td><td>Accept only current-output CTs (secondary rated in mA). Never open a CT secondary while the primary is energised — a hazardous voltage appears across the open winding. Reversing polarity may affect power sign. Use GND_ISO reference.</td></tr>
 <tr><td><strong>Relay Outputs</strong></td><td>Dry contacts only. Rated: <strong>3 A @ 250 VAC or 30 VDC</strong> (module limit). Use snubber (RC/TVS) for inductive loads.</td></tr>
 </tbody>
 </table>
@@ -473,7 +473,7 @@ Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong>
 <li><strong>24 V DC</strong> to <code>V+ / GND</code> (top left terminals)</li>
 <li><strong>Voltage inputs</strong>: <code>PE / N / L1 / L2 / L3</code>  </li>
 <li>For single-phase: energize <strong>L1 only</strong>, tie <strong>L2/L3 → N</strong></li>
-<li><strong>CTs</strong> to <code>CT1/CT2/CT3</code> with correct ± polarity (1 V or 333 mV RMS)  </li>
+<li><strong>CTs</strong> to <code>CT1/CT2/CT3</code> with correct ± polarity (external current-output CT, ≤ 60 mA RMS secondary). Set CT ratio and PGA in WebConfig. Shielded pairs recommended.  </li>
 <li>Arrow → load; shielded pairs preferred</li>
 <li><strong>RS‑485 A/B/COM</strong>  </li>
 <li>Use shielded twisted pair; terminate bus ends with <strong>120 Ω</strong></li>
@@ -491,7 +491,7 @@ Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong>
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
 <p><em>Phase and neutral sensing inputs per terminal map; set wiring scheme and phase mapping in WebConfig.</em></p>
 <h5 id="current-transformers-ct">Current transformers (CT)</h5>
-<p>Connect external CT secondary pairs to <strong>CT1</strong>, <strong>CT2</strong>, and <strong>CT3</strong> with correct polarity and the rated output level (333 mV or 1 V RMS).</p>
+<p>Connect external CT secondary pairs to <strong>CT1</strong>, <strong>CT2</strong>, and <strong>CT3</strong> with correct polarity. External current-output CT, ≤ 60 mA RMS secondary. Set CT ratio and PGA in WebConfig. Shielded pairs recommended.</p>
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
 <p><em>Shielded CT leads recommended; observe arrow polarity for correct signed power readings.</em></p>
 <h5 id="relays-2-spdt">Relays (2× SPDT)</h5>
@@ -803,7 +803,7 @@ Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong>
 <h4 id="field-io">Field I/O</h4>
 <ul>
 <li>Voltage inputs: L1, L2, L3, N, PE</li>
-<li>CTs: CT1–CT3 (1 V or 333 mV)</li>
+<li>CTs: CT1–CT3 (external current-output CT, ≤ 60 mA RMS secondary)</li>
 <li>Relays: dry contact, driven by internal logic or Modbus</li>
 <li>Buttons / LEDs: wired to MCU, mapped in firmware/UI</li>
 </ul>
