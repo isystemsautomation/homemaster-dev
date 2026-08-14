@@ -60,7 +60,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | Subsystem         | Qty | Description |
 |------------------:|----:|-------------|
 | **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** U17/U18) |
-| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped with shared **VCC** pins. |
+| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped in fours, each group with its own **+** rail (nine groups). |
 | **LED Driver ICs** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM channel drivers to FieldBoard output stages. |
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
 | **Status LEDs** | 4 | User-assignable (steady/blink) for power/activity/logic states. |
@@ -97,12 +97,98 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 ---
 
 
+
+### 4.2 Connectors & terminal map
+
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | LED PS | RS-485 | DI 24Vdc | SENS.A | SENS.B | OUT O.1-O.10)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | + | LED_PS | LED PSU positive |
+| 4 | - | LED_PS | LED PSU negative |
+| 5 | COM | RS485 | RS-485 signal reference |
+| 6 | B | RS485 | RS-485 data - |
+| 7 | A | RS485 | RS-485 data + |
+| 8 | Gnd | DI | Discrete input return |
+| 9 | I | DI | Discrete input |
+| 10 | + | SENS_A | Presence sensor A supply |
+| 11 | IN1 | SENS_A | Presence input A |
+| 12 | Gnd | SENS_A | Presence A return |
+| 13 | + | SENS_B | Presence sensor B supply |
+| 14 | IN2 | SENS_B | Presence input B |
+| 15 | Gnd | SENS_B | Presence B return |
+| 16 | + | OUT_1_4 | Group rail for O.1-O.4 |
+| 17 | O.1 | OUT_1_4 | Output 1 |
+| 18 | O.2 | OUT_1_4 | Output 2 |
+| 19 | O.3 | OUT_1_4 | Output 3 |
+| 20 | O.4 | OUT_1_4 | Output 4 |
+| 21 | + | OUT_5_8 | Group rail for O.5-O.8 |
+| 22 | O.5 | OUT_5_8 | Output 5 |
+| 23 | O.6 | OUT_5_8 | Output 6 |
+| 24 | O.7 | OUT_5_8 | Output 7 |
+| 25 | O.8 | OUT_5_8 | Output 8 |
+| 26 | + | OUT_9_10 | Group rail for O.9-O.10 |
+| 27 | O.9 | OUT_9_10 | Output 9 |
+| 28 | O.10 | OUT_9_10 | Output 10 |
+
+**Bottom row** (OUT O.11-O.32)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | + | OUT_11_14 | Group rail for O.11-O.14 |
+| 2 | O.11 | OUT_11_14 | Output 11 |
+| 3 | O.12 | OUT_11_14 | Output 12 |
+| 4 | O.13 | OUT_11_14 | Output 13 |
+| 5 | O.14 | OUT_11_14 | Output 14 |
+| 6 | + | OUT_15_18 | Group rail for O.15-O.18 |
+| 7 | O.15 | OUT_15_18 | Output 15 |
+| 8 | O.16 | OUT_15_18 | Output 16 |
+| 9 | O.17 | OUT_15_18 | Output 17 |
+| 10 | O.18 | OUT_15_18 | Output 18 |
+| 11 | + | OUT_19_22 | Group rail for O.19-O.22 |
+| 12 | O.19 | OUT_19_22 | Output 19 |
+| 13 | O.20 | OUT_19_22 | Output 20 |
+| 14 | O.21 | OUT_19_22 | Output 21 |
+| 15 | O.22 | OUT_19_22 | Output 22 |
+| 16 | + | OUT_23_26 | Group rail for O.23-O.26 |
+| 17 | O.23 | OUT_23_26 | Output 23 |
+| 18 | O.24 | OUT_23_26 | Output 24 |
+| 19 | O.25 | OUT_23_26 | Output 25 |
+| 20 | O.26 | OUT_23_26 | Output 26 |
+| 21 | + | OUT_27_30 | Group rail for O.27-O.30 |
+| 22 | O.27 | OUT_27_30 | Output 27 |
+| 23 | O.28 | OUT_27_30 | Output 28 |
+| 24 | O.29 | OUT_27_30 | Output 29 |
+| 25 | O.30 | OUT_27_30 | Output 30 |
+| 26 | + | OUT_31_32 | Group rail for O.31-O.32 |
+| 27 | O.31 | OUT_31_32 | Output 31 |
+| 28 | O.32 | OUT_31_32 | Output 32 |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C |  | WebConfig / firmware interface (not for powering field devices). |
+
+**Housing notes**
+
+- Outputs are grouped in fours, each group with its own + rail - nine groups in total.
+- Low-side switching: load + to the group + rail, load - to O.n.
+- Two separate presence inputs SENS.A and SENS.B, each with its own + and Gnd.
+- Per channel <=1 A (<=500 mA recommended), <=3 A per module.
+
+<!-- hm:terminal-map:end -->
+
 ## 2.2 I/O Summary
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
 | **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
-| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped with shared **VCC** rails; PWM from MCU-board **TLC59208F** drivers. |
+| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped in fours, each group with its own **+** rail (nine groups); PWM from MCU-board **TLC59208F** drivers. |
 | **Buttons** | 4 | Local control / override / test switches. |
 | **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
 | **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
@@ -257,14 +343,22 @@ Follow all safety and wiring practices described below.
 | Area | Warning |
 |-------|----------|
 | **Output Type** | **Low-side AO4882** N-MOSFET sinks; maximum load per channel **1 A** (12–24 VDC; **≤500 mA** recommended). |
-| **Polarity** | Connect load +V to **VCC group rail**, load – to output terminal (O#). |
+| **Polarity** | Connect load +V to **+ group rail**, load – to output terminal (O#). |
 | **Inductive Loads** | Primarily LED/resistive loads; for large inductive loads add external RC or TVS snubbers. |
-| **Shared Rail** | Each 8-channel group shares a **VCC** rail — ensure consistent LED supply voltage. |
+| **Shared Rail** | Each **4-channel** group shares a **+** rail (nine groups) — ensure consistent LED supply voltage. |
 
 ---
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-B-A**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -340,7 +434,7 @@ Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logi
 
 ### Stair LED outputs (32 channels)
 
-Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **VCC** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load).
+Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load).
 
 ### Digital trigger input
 

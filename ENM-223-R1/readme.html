@@ -316,18 +316,59 @@ blockquote table{background:transparent}
 <p>💡 <strong>Note:</strong> Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4 Nm max).</p>
 </blockquote>
 <h3 id="42-connectors--terminal-map">4.2 Connectors & terminal map</h3>
+<!-- hm:terminal-map:begin -->
+<p><strong>Top row</strong> (24Vdc | CT | VOLTAGE)</p>
 <table>
-<thead><tr><th>Block / Label</th><th>Pin(s) (left→right)</th><th>Function / Signal</th><th>Limits / Notes</th></tr></thead><tbody>
-<tr><td><strong>POWER</strong></td><td>V+, 0V</td><td>24 V DC SELV input</td><td>Reverse / surge protected</td></tr>
-<tr><td><strong>VOLTAGE INPUT</strong></td><td>PE, N, L1, L2, L3</td><td>AC sensing (85–265 V AC)</td><td>Isolated domain</td></tr>
-<tr><td><strong>CT INPUT</strong></td><td>CT1+, CT1–, CT2+, CT2–, CT3+, CT3–</td><td>External current-output CT, ≤ 60 mA RMS secondary. Set CT ratio and PGA in WebConfig</td><td>Shielded pairs recommended</td></tr>
-<tr><td><strong>RS-485</strong></td><td>A, B, COM</td><td>Modbus RTU bus</td><td>Terminate 120 Ω at ends</td></tr>
-<tr><td><strong>RELAY 1</strong></td><td>NO, C, NC</td><td>SPDT dry contact</td><td>3 A @ 250 VAC/30 VDC (module limit)</td></tr>
-<tr><td><strong>RELAY 2</strong></td><td>NO, C, NC</td><td>SPDT dry contact</td><td>3 A @ 250 VAC/30 VDC (module limit)</td></tr>
-<tr><td><strong>USB-C</strong></td><td>D+, D–, VBUS, GND</td><td>Web Serial / Setup</td><td>Not for field mount</td></tr>
-<tr><td><strong>LED / BTN Interface</strong></td><td>–</td><td>Internal header MCU ↔ Field Board</td><td>Service only</td></tr>
+<thead><tr><th>Pos</th><th>Label</th><th>Group</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>V+</td><td>POWER</td><td>24 V DC input</td></tr>
+<tr><td>2</td><td>0V</td><td>POWER</td><td>24 V DC return</td></tr>
+<tr><td>3</td><td>-</td><td>CT3</td><td>CT3 negative</td></tr>
+<tr><td>4</td><td>+</td><td>CT3</td><td>CT3 positive</td></tr>
+<tr><td>5</td><td>-</td><td>CT2</td><td>CT2 negative</td></tr>
+<tr><td>6</td><td>+</td><td>CT2</td><td>CT2 positive</td></tr>
+<tr><td>7</td><td>PE</td><td>VOLTAGE_INPUT</td><td>Protective earth (MAINS)</td></tr>
+<tr><td>8</td><td>N</td><td>VOLTAGE_INPUT</td><td>Neutral (MAINS)</td></tr>
+<tr><td>9</td><td>L3</td><td>VOLTAGE_INPUT</td><td>Phase 3 sensing (MAINS)</td></tr>
+<tr><td>10</td><td>L2</td><td>VOLTAGE_INPUT</td><td>Phase 2 sensing (MAINS)</td></tr>
+<tr><td>11</td><td>L1</td><td>VOLTAGE_INPUT</td><td>Phase 1 sensing (MAINS)</td></tr>
 </tbody>
 </table>
+<p><strong>Bottom row</strong> (RS-485 | RELAY OUTPUT | CT)</p>
+<table>
+<thead><tr><th>Pos</th><th>Label</th><th>Group</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>B</td><td>RS485</td><td>RS-485 data -</td></tr>
+<tr><td>2</td><td>A</td><td>RS485</td><td>RS-485 data +</td></tr>
+<tr><td>3</td><td>COM</td><td>RS485</td><td>RS-485 signal reference</td></tr>
+<tr><td>4</td><td>NO</td><td>RELAY1</td><td>Relay 1 normally open</td></tr>
+<tr><td>5</td><td>C</td><td>RELAY1</td><td>Relay 1 common</td></tr>
+<tr><td>6</td><td>NC</td><td>RELAY1</td><td>Relay 1 normally closed</td></tr>
+<tr><td>7</td><td>NO</td><td>RELAY2</td><td>Relay 2 normally open</td></tr>
+<tr><td>8</td><td>C</td><td>RELAY2</td><td>Relay 2 common</td></tr>
+<tr><td>9</td><td>NC</td><td>RELAY2</td><td>Relay 2 normally closed</td></tr>
+<tr><td>10</td><td>+</td><td>CT1</td><td>CT1 positive</td></tr>
+<tr><td>11</td><td>-</td><td>CT1</td><td>CT1 negative</td></tr>
+</tbody>
+</table>
+<p><strong>Ports & service interfaces</strong></p>
+<table>
+<thead><tr><th>Id</th><th>Type</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>USB-C</td><td>D+, D–, VBUS, GND</td><td>Not for field mount</td></tr>
+<tr><td>LED / BTN Interface</td><td>Internal header MCU ↔ Field Board</td><td>Service only</td></tr>
+</tbody>
+</table>
+<p><strong>Housing notes</strong></p>
+<ul>
+<li>CT1 is on the BOTTOM row while CT2 and CT3 are on top.</li>
+<li>CT polarity order differs by row: the top blocks read (-,+), CT1 reads (+,-).</li>
+<li>Voltage input descends L3 L2 L1 from right to left.</li>
+<li>Current-output CT only, secondary &lt;=60 mA RMS. A 1 A or 5 A CT will destroy the module.</li>
+<li>Never open a live CT secondary.</li>
+</ul>
+<!-- hm:terminal-map:end -->
+
 <h3 id="43-front-panel--buttons--leds">4.3 Front panel — buttons & LEDs</h3>
 <ol>
 <li>Connect USB-C to your PC.</li>
@@ -499,6 +540,10 @@ Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong>
 <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
 <p><em>Dry contacts only — external load supply and overcurrent protection are mandatory.</em></p>
 <h5 id="rs-485-modbus-rtu">RS-485 (Modbus RTU)</h5>
+<!-- hm:rs485-order:begin -->
+<blockquote><p>Terminal order differs across the HomeMaster range. Always read the silkscreen - do not wire by habit from another module. On this module the order is <strong>B-A-COM</strong>. Swapping A and B damages nothing but the node will not communicate. COM is required on every node.</p></blockquote>
+<!-- hm:rs485-order:end -->
+
 <p>Wire <strong>A</strong>, <strong>B</strong>, and <strong>COM</strong> on twisted-pair cable in a daisy-chain bus; place <strong>120 Ω</strong> termination at the physical ends of the segment (not inside the module). Biasing resistors (pull-up/down) belong on the master. Tie <strong>COM/GND</strong> references if nodes use separate supplies.</p>
 <table>
 <thead><tr><th>Terminals</th><th>Description</th></tr></thead><tbody>

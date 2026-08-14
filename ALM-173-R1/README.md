@@ -251,6 +251,14 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-B-A**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -291,15 +299,89 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 5.2 Connectors & terminal map
 
-| Block | Pins | Function | Notes |
-|-------|------|----------|-------|
-| **POWER** | V+, 0V | 24 V DC input | 24 V DC; SELV; fused |
-| **DI1…DI17** | INx, GND I.x | Opto-isolated inputs | 5 V DC loop; dry contact or SELV; each return isolated |
-| **RELAY1–3** | NO, C, NC | SPDT dry contacts | 3 A @ 250 VAC module rating |
-| **PS/1** | +12 V ISO | Sensor supply | ~2 W (~150 mA usable); isolated |
-| **PS/2** | +5 V ISO | Sensor supply | Low-power sensors only; PTC limited |
-| **RS-485** | A, B, COM | Modbus RTU | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **USB-C** | — | WebConfig / UF2 | Not a field power source |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | DIGITAL INPUTS | RELAY)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | Gnd | DI1 | DI1 isolated return |
+| 4 | I.1 | DI1 | DI1 input |
+| 5 | Gnd | DI2 | DI2 isolated return |
+| 6 | I.2 | DI2 | DI2 input |
+| 7 | Gnd | DI3 | DI3 isolated return |
+| 8 | I.3 | DI3 | DI3 input |
+| 9 | Gnd | DI4 | DI4 isolated return |
+| 10 | I.4 | DI4 | DI4 input |
+| 11 | Gnd | DI5 | DI5 isolated return |
+| 12 | I.5 | DI5 | DI5 input |
+| 13 | Gnd | DI6 | DI6 isolated return |
+| 14 | I.6 | DI6 | DI6 input |
+| 15 | Gnd | DI7 | DI7 isolated return |
+| 16 | I.7 | DI7 | DI7 input |
+| 17 | Gnd | DI8 | DI8 isolated return |
+| 18 | I.8 | DI8 | DI8 input |
+| 19 | Gnd | DI9 | DI9 isolated return |
+| 20 | I.9 | DI9 | DI9 input |
+| 21 | Gnd | DI10 | DI10 isolated return |
+| 22 | I.10 | DI10 | DI10 input |
+| 23 | NC | RELAY1 | Relay 1 normally closed |
+| 24 | C | RELAY1 | Relay 1 common |
+| 25 | NO | RELAY1 | Relay 1 normally open |
+| 26 | NC | RELAY3 | Relay 3 normally closed |
+| 27 | C | RELAY3 | Relay 3 common |
+| 28 | NO | RELAY3 | Relay 3 normally open |
+
+**Bottom row** (OUTPUT 12Vdc | OUTPUT 5Vdc | RS-485 | DIGITAL INPUTS | RELAY)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | + | PS_12V_1 | Isolated 12 V rail 1 positive |
+| 2 | - | PS_12V_1 | Isolated 12 V rail 1 return |
+| 3 | + | PS_12V_2 | Isolated 12 V rail 2 positive |
+| 4 | - | PS_12V_2 | Isolated 12 V rail 2 return |
+| 5 | + | PS_5V_1 | Isolated 5 V rail 1 positive |
+| 6 | - | PS_5V_1 | Isolated 5 V rail 1 return |
+| 7 | + | PS_5V_2 | Isolated 5 V rail 2 positive |
+| 8 | - | PS_5V_2 | Isolated 5 V rail 2 return |
+| 9 | COM | RS485 | RS-485 signal reference |
+| 10 | B | RS485 | RS-485 data - |
+| 11 | A | RS485 | RS-485 data + |
+| 12 | GND | DI11 | DI11 isolated return |
+| 13 | I.11 | DI11 | DI11 input |
+| 14 | GND | DI12 | DI12 isolated return |
+| 15 | I.12 | DI12 | DI12 input |
+| 16 | GND | DI13 | DI13 isolated return |
+| 17 | I.13 | DI13 | DI13 input |
+| 18 | GND | DI14 | DI14 isolated return |
+| 19 | I.14 | DI14 | DI14 input |
+| 20 | GND | DI15 | DI15 isolated return |
+| 21 | I.15 | DI15 | DI15 input |
+| 22 | GND | DI16 | DI16 isolated return |
+| 23 | I.16 | DI16 | DI16 input |
+| 24 | GND | DI17 | DI17 isolated return |
+| 25 | I.17 | DI17 | DI17 input |
+| 26 | NO | RELAY2 | Relay 2 normally open |
+| 27 | C | RELAY2 | Relay 2 common |
+| 28 | NC | RELAY2 | Relay 2 normally closed |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C | WebConfig / UF2 | Not a field power source |
+
+**Housing notes**
+
+- RELAY1 and RELAY3 are on the TOP row, RELAY2 on the BOTTOM.
+- Top relays read NC-C-NO; RELAY2 reads NO-C-NC. The contact order is reversed between rows.
+- Inputs DI1-DI10 are on the top row, DI11-DI17 on the bottom.
+- FOUR isolated sensor rails: 12 V x2 and 5 V x2, each a separate + / - pair. The README documents only a single 12 V rail - per-rail current limits need confirming.
+- No end-of-line supervision. Wire alarm loops normally closed with invert so a cable break reads as an alarm.
+
+<!-- hm:terminal-map:end -->
 
 ![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and isolated 12 V / 5 V sensor rails](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
 

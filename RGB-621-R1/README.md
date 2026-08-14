@@ -144,6 +144,50 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 
 ## 2.4 Terminals & Pinout
 
+<!-- hm:terminal-map:begin -->
+
+**Top row** (LED PS | 24Vdc | RELAY | DI 24Vdc)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | + | LED_PS | LED PSU positive (12 or 24 V) |
+| 2 | - | LED_PS | LED PSU negative |
+| 3 | V+ | POWER | 24 V DC input |
+| 4 | 0V | POWER | 24 V DC return |
+| 5 | NO | RELAY | Relay normally open |
+| 6 | C | RELAY | Relay common |
+| 7 | I1 | DI | Input 1 |
+| 8 | GND | DI | Input return |
+| 9 | I2 | DI | Input 2 |
+
+**Bottom row** (LED | RS-485)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | + | LED_OUT | Common anode for all channels |
+| 2 | R | LED_OUT | Red channel |
+| 3 | G | LED_OUT | Green channel |
+| 4 | B | LED_OUT | Blue channel |
+| 5 | CW | LED_OUT | Cool white channel |
+| 6 | WW | LED_OUT | Warm white channel |
+| 7 | COM | RS485 | RS-485 signal reference |
+| 8 | A | RS485 | RS-485 data + |
+| 9 | B | RS485 | RS-485 data - |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C |  | USB-C is for WebConfig setup and firmware update. It may be connected at any time, including while the module is powered from its 24 V supply. Not a field power or data bus. |
+
+**Housing notes**
+
+- Relay is SPST-NO. There is no NC terminal - this is not an SPDT equivalent.
+- LED channels are labelled R G B CW WW, not CH1..CH5.
+- Common anode: one + terminal shared by all five channels.
+- The LED strip needs its own PSU on LED PS. The module supply cannot power it.
+
+<!-- hm:terminal-map:end -->
 ![Front Terminals](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/photo1.png)
 
 **Top:** V+/0 V (24 V DC input), Relay C / NO, Inputs I1/I2 (+ GND)  
@@ -296,6 +340,14 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-A-B**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |

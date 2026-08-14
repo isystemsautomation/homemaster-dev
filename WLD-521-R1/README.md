@@ -341,6 +341,14 @@ The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communicati
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **B-A-COM**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -889,16 +897,53 @@ Summarize steps in 3 phases:
 
 External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–12 AWG, torque 0.5–0.6 Nm).
 
-| Block / Label              | Pin(s) (left → right)             | Function / Signal                      | Limits / Notes |
-|---------------------------|------------------------------------|----------------------------------------|----------------|
-| **POWER**                 | `V+`, `0V`                         | 24 VDC SELV input                      | Reverse & surge protected; **fuse upstream**. |
-| **DIGITAL INPUTS – TOP**  | `I1…I5` (pos. 3–7), `GND` (pos. 8, **GND_ISO**) | DI1…DI5: contact between **Ix** and **GND_ISO** | Dry-contact / open-collector only; **100 kΩ** pulldown when open. |
-| **RELAY1**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
-| **RELAY2**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
-| **RS‑485 (bottom left)**  | `B`, `A`, `COM`                    | Modbus RTU bus                         | Match A/B polarity; COM = reference GND; terminate bus ends. |
-| **1‑WIRE (top right)**    | `+5V` (pos. 9), `D` (10), `GND` (11)             | 1‑Wire bus (logic domain)              | For DS18B20 only; **not** isolated — do **not** power DI-side sensors here. |
-| **SENSOR POWER (bottom right)** | `+5 V ISO`, `+12 V ISO`, `GND_ISO` | Isolated sensor rails                  | For **sensors only**; fused; no actuators. |
-| **USB‑C (front)**         | —                                  | Web‑Serial config                      | ESD‑protected; not a field power source. |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | INPUTS | 1-WIRE)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | I.1 | INPUTS | Input 1 |
+| 4 | I.2 | INPUTS | Input 2 |
+| 5 | I.3 | INPUTS | Input 3 |
+| 6 | I.4 | INPUTS | Input 4 |
+| 7 | I.5 | INPUTS | Input 5 |
+| 8 | Gnd | INPUTS | Isolated input return (GND_ISO) |
+| 9 | +5V | BUS | 1-Wire supply (logic domain, not isolated) |
+| 10 | D | BUS | 1-Wire data |
+| 11 | Gnd | BUS | 1-Wire ground (logic) |
+
+**Bottom row** (RS-485 | RELAY OUTPUT | PS 5/12 Vdc)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | B | RS485 | RS-485 data - |
+| 2 | A | RS485 | RS-485 data + |
+| 3 | COM | RS485 | RS-485 signal reference |
+| 4 | NO | RELAY1 | Relay 1 normally open |
+| 5 | C | RELAY1 | Relay 1 common |
+| 6 | NC | RELAY1 | Relay 1 normally closed |
+| 7 | NO | RELAY2 | Relay 2 normally open |
+| 8 | C | RELAY2 | Relay 2 common |
+| 9 | NC | RELAY2 | Relay 2 normally closed |
+| 10 | 5Vdc | PS | Isolated sensor rail +5 V |
+| 11 | 12Vdc | PS | Isolated sensor rail +12 V |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C | Web-Serial config | ESD-protected; not a field power source. |
+
+**Housing notes**
+
+- One shared Gnd (GND_ISO) for all five inputs, not one per channel.
+- The Gnd on the top-row BUS block is the logic domain. Do not power field sensors from it - use the isolated PS rails.
+- Isolated sensor rails 5 Vdc and 12 Vdc, 150 mA total.
+
+<!-- hm:terminal-map:end -->
 
 ---
 
