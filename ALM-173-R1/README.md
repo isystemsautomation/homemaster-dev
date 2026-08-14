@@ -87,9 +87,15 @@ Alarm groups, zone types, local arming, and bell cut-off are described in [§3 A
 
 ## What You Can Connect
 
-Isolated **+12 V** (**PS/1**) and **+5 V** (**PS/2**) rails run detectors directly — no second power supply and no separate distribution block in the cabinet for those loads. Budget the **150 mA** total on the 12 V rail carefully.
+<!-- hm:sensor-rails:begin -->
+Isolated detector power shares one field domain (**GND_ISO**), isolated from
+module logic only. **+12 V** on **PS/1** and **PS/2** are two fused branches of
+one converter (**U58 H2412S-2WR3, 2 W**) — budget **150 mA total** across both terminals,
+not per terminal. **+5 V** (**U59 H2405S-1WR3, 1 W**) supplies **200 mA** on the two +5 V
+terminals and shares **GND_ISO** with the 12 V branches — do not treat 12 V and
+5 V as galvanically separate islands.
 
-### Sensors powered by the module (12 V rail, 150 mA total)
+### Sensors powered by the module (12 V, 150 mA total on PS/1 + PS/2)
 
 | Sensor type | Typical current | How many fit |
 |-------------|----------------:|-------------:|
@@ -102,7 +108,11 @@ Isolated **+12 V** (**PS/1**) and **+5 V** (**PS/2**) rails run detectors direct
 | Infrared beam sensor or photoelectric barrier | 20–40 mA | 3–6 |
 | Inductive or capacitive proximity sensor (NPN) | 5–15 mA | 8–15 |
 
-**150 mA total.** Eight PIRs at 15 mA is 120 mA and fits. Eight smoke detectors at 40 mA does not — use an external supply. An isolated **+5 V** rail (**PS/2**) is also available for low-power sensors that accept 5 V.
+**150 mA total** on the 12 V branches. Eight PIRs at 15 mA is 120 mA and fits.
+Eight smoke detectors at 40 mA does not — use an external supply. An isolated
+**+5 V** rail (**200 mA**) is also available for low-power sensors that accept
+5 V; it shares **GND_ISO** with the 12 V branches.
+<!-- hm:sensor-rails:end -->
 
 ### Dry-contact devices (no power needed)
 
@@ -188,7 +198,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Modbus RTU | 1 | RS-485; address 1–247; 9600–115200 baud |
 | USB-C | 1 | WebConfig (Web Serial); UF2 flashing |
 | Power | 24 V DC | 24 V DC nominal; 1 A time-lag fuse, reverse diode, TVS |
-| Sensor rails | 2 | Isolated **+12 V** (PS/1) and **+5 V** (PS/2); ~2 W / ~150 mA usable on 12 V rail |
+| Sensor rails | 4 terminals | Isolated domain **GND_ISO**: **+12 V** PS/1+PS/2 shared **150 mA** (U58); **+5 V** **200 mA** (U59) |
 | MCU | RP2350A | Dual-core; QSPI flash; LittleFS |
 
 ### 4.2 Electrical ratings
@@ -378,7 +388,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 - RELAY1 and RELAY3 are on the TOP row, RELAY2 on the BOTTOM.
 - Top relays read NC-C-NO; RELAY2 reads NO-C-NC. The contact order is reversed between rows.
 - Inputs DI1-DI10 are on the top row, DI11-DI17 on the bottom.
-- FOUR isolated sensor rails: 12 V x2 and 5 V x2, each a separate + / - pair. The README documents only a single 12 V rail - per-rail current limits need confirming.
+- Sensor power: one isolated field domain (GND_ISO). +12 V on PS/1 and PS/2 is two fused branches of U58 (H2412S-2WR3) — 150 mA shared, not per terminal. +5 V (U59 H2405S-1WR3) is 200 mA and shares GND_ISO with the 12 V branches — not a second island.
 - No end-of-line supervision. Wire alarm loops normally closed with invert so a cable break reads as an alarm.
 
 <!-- hm:terminal-map:end -->
@@ -387,7 +397,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 **Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
-**Sensor rails.** **PS/1 (+12 V)** and **PS/2 (+5 V)** are isolated, fuse/PTC limited outputs for **low-power sensors only**. Do not backfeed or parallel with external supplies.
+**Sensor rails.** **PS/1** and **PS/2** are the two fused **+12 V** branches (shared **150 mA**); the two **+5 V** terminals share **200 mA**. All share **GND_ISO**, isolated from logic only. Do not backfeed or parallel with external supplies.
 
 ### 5.3 I/O warnings
 
@@ -453,7 +463,7 @@ The module uses **24 V DC** primary (18–30 V DC nominal). Onboard regulation p
 
 - **24 V DC DIN-rail PSU** → **V+ / 0V** power terminals.
 - **Digital inputs** — opto-isolated **5 V DC** signalling; dry contact or open-collector to **INx / GND I.x** (isolated return per channel). Do **not** apply mains to input terminals.
-- **Sensor rails (isolated):** **PS/1 = +12 V** (~2 W, ~150 mA usable) and **PS/2 = +5 V** for low-power detectors; returns on **0V PS/1** and **0V PS/2**. Not for heavy loads.
+- **Sensor rails (isolated, GND_ISO):** **PS/1 + PS/2 = +12 V** shared **150 mA** (U58); two **+5 V** terminals shared **200 mA** (U59). Not for heavy loads.
 - Size PSU for base electronics + front-panel LEDs + **relay coils** (up to 3) + sensor-rail load; add **≥ 30 % headroom** (see [§4.2](#42-electrical-ratings)).
 - Correct polarity; keep logic **0V** and isolated input/sensor returns **separate**; upstream **fusing/breaker** required.
 
@@ -915,7 +925,7 @@ Yes. The ALM-173-R1 exposes **17** opto-isolated inputs over **RS-485 Modbus RTU
 
 ### Does it power the sensors, or do I need a separate supply?
 
-The module includes an isolated **+12 V** rail (**PS/1**, about **150 mA** usable) and an isolated **+5 V** rail (**PS/2**) for detector and sensor power. Many 12 V PIRs, glass-break and smoke detectors with relay outputs can run from the module. Budget the total current — if the load exceeds 150 mA on the 12 V rail, use an external supply.
+The module includes an isolated **+12 V** supply on **PS/1** and **PS/2** (shared **150 mA**, U58) and an isolated **+5 V** supply (**200 mA**, U59) for detector power. Both share **GND_ISO**. Many 12 V PIRs, glass-break and smoke detectors with relay outputs can run from the module. If the 12 V load exceeds 150 mA, use an external supply.
 
 ### How many motion sensors can I connect?
 

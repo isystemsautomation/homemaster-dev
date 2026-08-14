@@ -733,18 +733,20 @@
         {
           "voltage_v": 12,
           "budget_ma": 150,
-          "feeds": [
-            "alarm_zone"
-          ],
-          "note": "PS/1 +12 V ISO ~150 mA usable"
+          "terminals": 2,
+          "shared_source": true,
+          "isolated_from_logic": true,
+          "source": "U58 H2412S-2WR3, 2 W",
+          "note": "PS/1 and PS/2 are two fused branches of ONE converter — budget is shared, not per terminal"
         },
         {
           "voltage_v": 5,
-          "budget_ma": null,
-          "feeds": [
-            "alarm_zone"
-          ],
-          "note": "PS/2 +5 V ISO PTC limited — mA limit not stated in README"
+          "budget_ma": 200,
+          "terminals": 2,
+          "shared_source": true,
+          "isolated_from_logic": true,
+          "source": "U59 H2405S-1WR3, 1 W",
+          "note": "Two +5 V terminals from one converter; shares GND_ISO with the 12 V branches"
         }
       ],
       "power_w_max": 3.0,
@@ -754,8 +756,7 @@
         "din_units": "measured",
         "power_w_max": "assumed",
         "provides": "README",
-        "sensor_rails": "README",
-        "sensor_rails_5v_budget_ma": "MISSING"
+        "sensor_rails": "hardware"
       }
     },
     "OpenthermGateway": {

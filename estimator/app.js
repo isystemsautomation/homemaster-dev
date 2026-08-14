@@ -685,20 +685,34 @@ function buildDemand(normalized, _rules) {
   };
 }
 
+function almSensorRails(rules) {
+  const rails = rules.modules?.["ALM-173-R1"]?.sensor_rails;
+  if (!Array.isArray(rails)) return { v12: 150, v5: 200 };
+  const r12 = rails.find((r) => Number(r.voltage_v) === 12);
+  const r5 = rails.find((r) => Number(r.voltage_v) === 5);
+  return {
+    v12: r12?.budget_ma != null ? Number(r12.budget_ma) : 150,
+    v5: r5?.budget_ma != null ? Number(r5.budget_ma) : 200,
+  };
+}
+
 function warnAlmRail(allocated, normalized, rules, assumptions) {
   const ma = normalized.alarm_ma || 0;
   if (ma <= 0) return;
-  const rail = rules.alm_rail_ma ?? 150;
+  // 12 V budget is shared across PS/1 and PS/2 — never multiply by terminal count.
+  const { v12: rail } = almSensorRails(rules);
   const almQty = allocated.modules["ALM-173-R1"] || 0;
   const budget = rail * Math.max(almQty, 1);
   if (ma > budget) {
     assumptions.push(
       `ALM 12 V rail: ${ma} mA sensor draw exceeds ${budget} mA ` +
-        `(${rail} mA × ${Math.max(almQty, 1)} module(s)). Use an external supply or more ALM modules.`,
+        `(${rail} mA shared across PS/1+PS/2 × ${Math.max(almQty, 1)} module(s)). ` +
+        `Use an external supply or more ALM modules.`,
     );
   } else {
     assumptions.push(
-      `ALM 12 V rail: ${ma} mA of ${budget} mA budget (${rail} mA per module).`,
+      `ALM 12 V rail: ${ma} mA of ${budget} mA budget ` +
+        `(${rail} mA shared across PS/1+PS/2 per module).`,
     );
   }
 }
@@ -1459,11 +1473,16 @@ function computePower(modulesList, rules, assumptions) {
       });
     }
     if (line.id === "ALM-173-R1" && line.qty > 0) {
+      const { v12, v5 } = almSensorRails(rules);
       requirements.push({
         kind: "alm_12v",
-        text: `${line.qty}× ALM-173-R1: 12 V @ 150 mA per module for powered zones.`,
+        text:
+          `${line.qty}× ALM-173-R1: isolated sensor domain (GND_ISO) — ` +
+          `12 V @ ${v12} mA shared across PS/1+PS/2; 5 V @ ${v5} mA. ` +
+          `12 V and 5 V share GND_ISO (not separate islands); isolation is field↔logic only.`,
       });
-      fieldW += 12 * 0.15 * line.qty;
+      // Converter budgets: 12 V × 150 mA + 5 V × 200 mA per module.
+      fieldW += (12 * (v12 / 1000) + 5 * (v5 / 1000)) * line.qty;
     }
     if (line.id === "WLD-521-R1" && line.qty > 0) {
       requirements.push({
