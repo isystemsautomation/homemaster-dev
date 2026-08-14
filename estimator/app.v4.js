@@ -39,11 +39,16 @@ const ENCLOSURE_HEIGHT_MARGIN_MM = 200;
  * @param {object} [prices]
  * @returns {object}
  */
+/**
+ * Auto-split when a single panel exceeds 6×24: pack whole rooms into
+ * panels (same panel_id assignment as screen 1). House systems stay on
+ * the first panel unless the user already set panel_id. Expert / no-rooms
+ * falls back to even channel partition.
+ */
 function estimate(inputs, rules, prices = EMPTY) {
   const depth = Math.max(0, Number(inputs._autosplit_depth) || 0);
   const core = estimateCore(inputs, rules, prices);
 
-  // Single logical panel that does not fit 6×24 → auto-split into N shields.
   const panels = resolvePanels(inputs);
   if (
     panels.length === 1 &&
@@ -52,37 +57,34 @@ function estimate(inputs, rules, prices = EMPTY) {
     core.enclosure?.status === "ok" &&
     (core.enclosure.din_needed || 0) > ENCLOSURE_MAX_CAPACITY
   ) {
-    let n = Math.ceil(core.enclosure.din_needed / ENCLOSURE_MAX_CAPACITY);
-    let best = null;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const splitInputs = {
-        ...autoSplitInputs(inputs, n, rules),
-        _autosplit_depth: depth + 1,
-        _skip_enclosure_autosplit: true,
-      };
-      const splitResult = estimateCore(splitInputs, rules, prices);
-      const maxNeeded = Math.max(
-        0,
-        ...(splitResult.panels || []).map((p) => p.enclosure?.din_needed || 0),
-      );
-      const anyOverflow = (splitResult.panels || []).some(
-        (p) =>
-          p.enclosure?.overflow ||
-          (p.enclosure?.din_needed || 0) > ENCLOSURE_MAX_CAPACITY,
-      );
-      best = splitResult;
-      if (!anyOverflow && maxNeeded <= ENCLOSURE_MAX_CAPACITY) break;
-      n += 1;
+    const namedRooms = (inputs.rooms || []).filter((r) =>
+      String(r?.name ?? "").trim(),
+    );
+    let splitInputs;
+    if (namedRooms.length > 0) {
+      splitInputs = autoSplitByRooms(inputs, rules);
+    } else {
+      const n = Math.ceil(core.enclosure.din_needed / ENCLOSURE_MAX_CAPACITY);
+      splitInputs = autoSplitByChannels(inputs, n, rules);
     }
-    if (best) {
-      const base =
-        `DIN demand ${core.enclosure.din_needed} M exceeds max enclosure ` +
-        `6×24=${ENCLOSURE_MAX_CAPACITY} M; auto-split into ${best.panel_count} panels.`;
-      best.split_warning = best.split_warning
-        ? `${base} ${best.split_warning}`
-        : base;
-      return best;
-    }
+    if (!splitInputs) return core;
+
+    splitInputs = {
+      ...splitInputs,
+      _autosplit_depth: depth + 1,
+      _skip_enclosure_autosplit: true,
+    };
+    const splitResult = estimateCore(splitInputs, rules, prices);
+    const base =
+      `DIN demand ${core.enclosure.din_needed} M exceeds max enclosure ` +
+      `6×24=${ENCLOSURE_MAX_CAPACITY} M; auto-split into ${splitResult.panel_count} panels` +
+      (namedRooms.length
+        ? " by rooms (systems on first panel)."
+        : " by channel demand.");
+    splitResult.split_warning = splitResult.split_warning
+      ? `${base} ${splitResult.split_warning}`
+      : base;
+    return splitResult;
   }
 
   return core;
@@ -134,10 +136,143 @@ function splitInt(total, parts, index) {
 }
 
 /**
- * Partition total channel demand evenly across N panels (expert mode).
- * Avoids cloning specialty modules by splitting rooms/systems unevenly.
+ * Pack named rooms into panels until each would exceed max enclosure DIN.
+ * House systems (boiler, metering, security, …) stay on the first panel
+ * unless the user already set systems.*.panel_id.
  */
-function autoSplitInputs(inputs, n, rules) {
+function autoSplitByRooms(inputs, rules) {
+  const rooms = (inputs.rooms || []).filter((r) =>
+    String(r?.name ?? "").trim(),
+  );
+  if (!rooms.length) return null;
+
+  const groups = [];
+  let current = [];
+  let firstPanel = true;
+
+  // House systems on panel 1. If they already fill the max enclosure,
+  // keep that panel systems-only and pack rooms into the next ones.
+  const systemsDin = measurePanelDinNeeded(inputs, [], true, rules);
+  if (systemsDin >= ENCLOSURE_MAX_CAPACITY) {
+    groups.push({ rooms: [], withSystems: true });
+    firstPanel = false;
+  }
+
+  const flush = () => {
+    if (!current.length && !firstPanel) return;
+    groups.push({ rooms: current, withSystems: firstPanel });
+    current = [];
+    firstPanel = false;
+  };
+
+  for (const room of rooms) {
+    const tryRooms = [...current, room];
+    const din = measurePanelDinNeeded(inputs, tryRooms, firstPanel, rules);
+    if (din > ENCLOSURE_MAX_CAPACITY && current.length > 0) {
+      flush();
+      current = [room];
+    } else if (din > ENCLOSURE_MAX_CAPACITY && current.length === 0) {
+      current = [room];
+      flush();
+    } else {
+      current = tryRooms;
+    }
+  }
+  if (current.length > 0) {
+    flush();
+  }
+  if (groups.length === 0) {
+    groups.push({ rooms: [], withSystems: true });
+  }
+  groups.forEach((g, i) => {
+    g.withSystems = i === 0;
+  });
+
+  const panels = groups.map((_, i) => ({
+    id: `panel-${i + 1}`,
+    name: `Panel ${i + 1}`,
+    location: "",
+  }));
+
+  const assignedRooms = [];
+  groups.forEach((g, i) => {
+    for (const r of g.rooms) {
+      assignedRooms.push({ ...r, panel_id: panels[i].id });
+    }
+  });
+
+  const systemsIn = inputs.systems || {};
+  const systems = {
+    system: { ...(systemsIn.system || {}), cabinets: 1 },
+  };
+  const firstId = panels[0].id;
+  for (const sec of SYSTEM_SECTION_IDS) {
+    const src = systemsIn[sec] || {};
+    const want = String(src.panel_id || "").trim();
+    const pid =
+      want && panels.some((p) => p.id === want) ? want : firstId;
+    systems[sec] = { ...emptySystemSection(sec), ...src, panel_id: pid };
+  }
+  for (const [key, val] of Object.entries(systemsIn)) {
+    if (SYSTEM_SECTION_IDS.includes(key) || key === "system") continue;
+    systems[key] = val;
+  }
+
+  return {
+    ...inputs,
+    cabinets: 1,
+    panels,
+    rooms: assignedRooms,
+    systems,
+    expert: undefined,
+    _panel_top: undefined,
+    _panel_systems: undefined,
+  };
+}
+
+/** DIN needed for a candidate room set (+ optional house systems). */
+function measurePanelDinNeeded(inputs, rooms, withSystems, rules) {
+  const systemsIn = inputs.systems || {};
+  let systems;
+  if (withSystems) {
+    systems = {
+      ...systemsIn,
+      system: { ...(systemsIn.system || {}), cabinets: 1 },
+    };
+  } else {
+    systems = {
+      system: { ...(systemsIn.system || {}), cabinets: 1 },
+    };
+    for (const sec of SYSTEM_SECTION_IDS) {
+      systems[sec] = emptySystemSection(sec);
+    }
+  }
+  const trial = {
+    ...inputs,
+    cabinets: 1,
+    rooms,
+    systems,
+    panels: undefined,
+    _panel_top: undefined,
+    _panel_systems: undefined,
+    _skip_enclosure_autosplit: true,
+    shutters: withSystems ? inputs.shutters : 0,
+    light_groups: withSystems ? inputs.light_groups : 0,
+    lights_onoff: withSystems ? inputs.lights_onoff : 0,
+    underfloor_circuits: withSystems ? inputs.underfloor_circuits : 0,
+    relay_needs_contactor: withSystems ? inputs.relay_needs_contactor : 0,
+    expert: undefined,
+    mode: inputs.mode === "expert" ? "rooms" : inputs.mode,
+  };
+  const result = estimatePanel(trial, rules, EMPTY);
+  if (result.enclosure?.status !== "ok") return Infinity;
+  return Number(result.enclosure.din_needed) || 0;
+}
+
+/**
+ * Expert / no-rooms fallback: partition channel demand evenly.
+ */
+function autoSplitByChannels(inputs, n, rules) {
   const count = Math.max(2, Math.floor(Number(n) || 2));
   const panels = Array.from({ length: count }, (_, i) => ({
     id: `panel-${i + 1}`,
@@ -619,10 +754,35 @@ function aggregatePanelResults(panelResults, rules) {
             segment_count:
               panelResults[0].topology.segments?.length ?? segments,
           }
-        : {
-            segment_count: segments,
-            segments: Array.from({ length: segments }, () => ({})),
-          },
+        : (() => {
+            const flatSegs = [];
+            const flatCtrl = [];
+            for (const p of panelResults) {
+              const segs = p.topology?.segments || [];
+              const base = flatSegs.length;
+              for (let i = 0; i < segs.length; i++) {
+                flatSegs.push({
+                  ...segs[i],
+                  panel_id: p.id,
+                  panel_name: p.name,
+                });
+                flatCtrl.push({
+                  id: segs[i].controller,
+                  segment: base + i + 1,
+                  segment_index: base + i,
+                  panel_id: p.id,
+                  panel_name: p.name,
+                  slaves: (segs[i].slaves || []).length,
+                  poll_weight: segs[i].poll_weight ?? 0,
+                });
+              }
+            }
+            return {
+              segment_count: flatSegs.length || segments,
+              segments: flatSegs,
+              controllers: flatCtrl,
+            };
+          })(),
     enclosure: enclosureBlocked
       ? {
           status: "blocked",
@@ -863,6 +1023,10 @@ const KNOWN_TOP_INPUT_FIELDS = new Set([
   "floors",
   "light_groups",
   "lights_onoff",
+  "_panel_top",
+  "_panel_systems",
+  "_skip_enclosure_autosplit",
+  "_autosplit_depth",
 ]);
 
 function applyMappedDemand(out, bag, mapping, skipKeys) {
@@ -1768,12 +1932,22 @@ function buildTopology(allocated, normalized, rules, assumptions) {
     .filter(([id]) => id !== "_sources")
     .map(([id, qty]) => moduleLine(id, qty, moduleSpecs, allocated));
 
+  const controllers = segments.map((seg, i) => ({
+    id: seg.controller,
+    segment: i + 1,
+    segment_index: i,
+    slaves: (seg.slaves || []).length,
+    poll_weight: seg.poll_weight ?? 0,
+  }));
+
   return {
     modules: modulesList,
     accessories: allocated.accessories,
     provenance: allocated.provenance,
     topology: {
       segments,
+      controllers,
+      segment_count: segments.length,
       esphome_yaml: esphome,
       warnings,
     },
@@ -4864,15 +5038,22 @@ function mountConfigurator(root) {
       : "";
     const segs =
       result.topology?.segment_count ?? result.topology?.segments?.length ?? 0;
-    const ctrlCount = (result.modules || [])
-      .filter((m) => rules.modules?.[m.id]?.master)
-      .reduce((s, m) => s + (m.qty || 0), 0);
+    const ctrlList = result.topology?.controllers;
+    const ctrlCount = Array.isArray(ctrlList)
+      ? ctrlList.length
+      : (result.modules || [])
+          .filter((m) => rules.modules?.[m.id]?.master)
+          .reduce((s, m) => s + (m.qty || 0), 0);
+    const ctrlDetail =
+      Array.isArray(ctrlList) && ctrlList.length
+        ? ` (${ctrlList.map((c) => `${c.id}→seg ${c.segment}`).join(", ")})`
+        : "";
     summary.innerHTML = `
       <h2>Summary</h2>
       ${channelUsageTable(result.channel_usage)}
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
       <p>Panels: ${result.panel_count ?? state.panels.length}</p>
-      <p>RS-485 segments: ${segs} · controllers: ${ctrlCount}</p>
+      <p>RS-485 segments: ${segs} · controllers: ${ctrlCount}${ctrlDetail}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
       ${enclosureMessage(result.enclosure, { compact: true })}
       ${split}
