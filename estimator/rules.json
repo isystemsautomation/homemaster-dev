@@ -799,11 +799,11 @@
       "din_units": 2,
       "master": true,
       "provides": {
-        "relay_out_3a": 1,
+        "relay_out_nc": 1,
         "di_dry": 1,
         "onewire": 1
       },
-      "relay_contact": "spdt",
+      "relay_contact": "nc_only",
       "features": [],
       "sensor_rails": [
         {
@@ -821,7 +821,7 @@
       "sources": {
         "din_units": "measured",
         "power_w_max": "assumed",
-        "provides": "README",
+        "provides": "silkscreen",
         "sensor_rails_budget_ma": "MISSING"
       }
     },

@@ -210,7 +210,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Microcontroller | ESP32-WROOM-32U-N16 (16 MB flash) |
 | Power Supply | **24 V DC only** via terminal (field); 5 V via USB-C (programming) |
 | Onboard expansion | **No Ethernet**, **no microSD** (unlike MiniPLC) |
-| Relay Output | 1× SPDT relay (HF115F/005-1ZS3); 3 A @ 250 VAC module limit (relay component rated higher) |
+| Relay Output | 1× relay (HF115F/005-1ZS3), **C and NC only** (no NO terminal) — functionally SPST-NC; closed when de-energised; 3 A @ 250 VAC module limit |
 | Digital Input | 1× 24 V DI on **GPIO36** (ISO1212-based) |
 | Communication | RS-485 Modbus RTU (MAX485, half-duplex, non-isolated), Wi-Fi, Bluetooth, USB-C |
 | RTC | PCF8563 |
@@ -233,7 +233,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | ESP Status | Binary Sensor | Enabled (diagnostic) | Wi-Fi / API connection status |
 | DI #1 | Binary Sensor | Enabled | 24 V DC digital input (GPIO36, ISO1212) |
 | 1-Wire Bus 1 Temperature | Sensor | Enabled | DS18B20 on GPIO4 |
-| Relay | Switch | Enabled | Onboard SPDT relay (GPIO26) |
+| Relay | Switch | Enabled | Onboard relay C/NC only (GPIO26); closed when de-energised |
 | Restart | Button | Enabled (config) | Reboot only — does not clear Wi-Fi or API key |
 | WiFi Signal | Sensor | Enabled (diagnostic) | RSSI in dBm |
 | ESP32 Temperature | Sensor | Enabled (diagnostic) | Internal chip temperature |
@@ -275,6 +275,14 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 - Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
 - Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
 - Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
+
+<!-- hm:relay-nc:begin -->
+> ⚠️ **NC contact behaviour:** When the relay is de-energised (switched OFF
+> or on device reboot), the NC contact is **closed** and the load is
+> **powered**. If you are wiring a boiler, pump, or valve to the NC contact,
+> it will be active by default until the relay is commanded ON.
+> Design your installation accordingly and ensure this is safe for your load.
+<!-- hm:relay-nc:end -->
 
 ## Pinout
 
