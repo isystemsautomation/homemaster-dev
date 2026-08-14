@@ -160,6 +160,15 @@ function sliceInputsForPanel(inputs, panel, panels) {
   }
 
   const isFirst = panel.id === fallback;
+  // Flat demand_mapping shortcuts under systems (systems.leak_zones, …)
+  // belong to the first panel only — same as top-level light_groups.
+  if (isFirst) {
+    for (const [key, val] of Object.entries(systemsIn)) {
+      if (SYSTEMS_NEST_KEYS.has(key)) continue;
+      systemsOut[key] = val;
+    }
+  }
+
   return {
     ...inputs,
     cabinets: 1,
@@ -509,7 +518,9 @@ function normalize(inputs, rules, assumptions) {
   const houseLoops = Math.max(
     0,
     Number(systems.heating?.collector_loops) || 0,
+    Number(systems.collector_loops) || 0,
     Number(inputs.underfloor_circuits) || 0,
+    Number(systems.underfloor_circuits) || 0,
   );
   const loops = Math.max(out.room_ufh_loops, houseLoops);
   if (loops > 0) addDemand(out.demand, "out_24v_ch", loops);
@@ -526,9 +537,11 @@ function normalize(inputs, rules, assumptions) {
     out.relay_needs_contactor += Number(inputs.relay_needs_contactor) || 0;
   }
 
-  // Legacy top-level channel shortcuts (fixtures).
+  // Channel shortcuts: top-level inputs AND flat keys under systems.
+  // Canonical Systems UI shape is nested (systems.water.leak_zones); flat
+  // systems.leak_zones is accepted via demand_mapping so callers are not silent.
   const mapping = rules.demand_mapping ?? EMPTY;
-  const skip = new Set([
+  const topSkip = new Set([
     "cabinets",
     "panels",
     "rooms",
@@ -544,16 +557,155 @@ function normalize(inputs, rules, assumptions) {
     "floor_area_m2",
     "floors",
   ]);
-  for (const [field, channel] of Object.entries(mapping)) {
-    if (skip.has(field)) continue;
-    if (inputs[field] != null && channel !== "shutters" && channel !== "relay_needs_contactor") {
-      const n = Number(inputs[field]);
-      if (Number.isFinite(n) && n !== 0) addDemand(out.demand, channel, n);
-      else if (inputs[field] === true) addDemand(out.demand, channel, 1);
-    }
-  }
+  applyMappedDemand(out, inputs, mapping, topSkip);
+  // Flat shortcuts under systems (systems.leak_zones, …). Nested sections are
+  // handled by applySystemsDemand; loop counts stay on the houseLoops path.
+  const systemsSkip = new Set([
+    ...SYSTEMS_NEST_KEYS,
+    "underfloor_circuits",
+    "collector_loops",
+  ]);
+  applyMappedDemand(out, systems, mapping, systemsSkip);
+
+  warnUnrecognisedInputs(inputs, systems, mapping, assumptions);
 
   return out;
+}
+
+/** Section ids + meta under inputs.systems — not channel shortcuts. */
+const SYSTEMS_NEST_KEYS = new Set([
+  "system",
+  "heating",
+  "ventilation",
+  "water",
+  "electrical",
+  "security",
+  "lighting_scenes",
+]);
+
+/** Known field names per Systems section (must match UI SYSTEM_SECTIONS). */
+const SYSTEMS_SECTION_FIELDS = {
+  heating: new Set([
+    "panel_id",
+    "boiler",
+    "collector_loops",
+    "heating_pumps",
+    "fan_coils",
+    "heat_pump",
+    "fireplace",
+    "pt100_sensors",
+    "ds18b20_sensors",
+  ]),
+  ventilation: new Set([
+    "panel_id",
+    "ahu",
+    "recuperator",
+    "extract_fans",
+    "dampers_0_10v",
+    "sensors_0_10v",
+    "sensors_4_20ma",
+  ]),
+  water: new Set([
+    "panel_id",
+    "leak_zones",
+    "shutoff_valves",
+    "water_meters",
+    "irrigation",
+    "water_pumps",
+    "dhw_recirc",
+    "gas_valve",
+  ]),
+  electrical: new Set([
+    "panel_id",
+    "energy_phases",
+    "load_shed",
+    "ev_chargers",
+    "pv_inverters",
+    "fault_contacts",
+  ]),
+  security: new Set([
+    "panel_id",
+    "powered_sensors",
+    "dry_contacts",
+    "gates",
+    "locks",
+    "panic_buttons",
+  ]),
+  lighting_scenes: new Set([
+    "panel_id",
+    "stair_steps",
+    "accent_zones",
+    "garden_lights",
+  ]),
+  system: new Set([
+    "reserve_pct",
+    "manual_control",
+    "ha_server",
+    "cabinets",
+  ]),
+};
+
+const KNOWN_TOP_INPUT_FIELDS = new Set([
+  "cabinets",
+  "panels",
+  "rooms",
+  "mode",
+  "expert",
+  "shutters",
+  "relay_needs_contactor",
+  "underfloor_circuits",
+  "name",
+  "systems",
+  "stage",
+  "property_type",
+  "floor_area_m2",
+  "floors",
+  "light_groups",
+  "lights_onoff",
+]);
+
+function applyMappedDemand(out, bag, mapping, skipKeys) {
+  if (!bag || typeof bag !== "object") return;
+  for (const [field, channel] of Object.entries(mapping)) {
+    if (skipKeys.has(field)) continue;
+    if (bag[field] == null) continue;
+    if (channel === "shutters") {
+      const n = Number(bag[field]) || 0;
+      if (n) out.shutters += n;
+      continue;
+    }
+    if (channel === "relay_needs_contactor") {
+      const n = Number(bag[field]) || 0;
+      if (n) out.relay_needs_contactor += n;
+      continue;
+    }
+    const n = Number(bag[field]);
+    if (Number.isFinite(n) && n !== 0) addDemand(out.demand, channel, n);
+    else if (bag[field] === true) addDemand(out.demand, channel, 1);
+  }
+}
+
+function warnUnrecognisedInputs(inputs, systems, mapping, assumptions) {
+  const mappingKeys = new Set(Object.keys(mapping || {}));
+  for (const key of Object.keys(inputs || {})) {
+    if (KNOWN_TOP_INPUT_FIELDS.has(key) || mappingKeys.has(key)) continue;
+    assumptions.push(`unrecognised input field: ${key}`);
+  }
+  if (!systems || typeof systems !== "object") return;
+  for (const key of Object.keys(systems)) {
+    if (SYSTEMS_NEST_KEYS.has(key)) continue;
+    if (mappingKeys.has(key)) continue;
+    assumptions.push(`unrecognised input field: systems.${key}`);
+  }
+  for (const sec of Object.keys(SYSTEMS_SECTION_FIELDS)) {
+    const block = systems[sec];
+    if (!block || typeof block !== "object") continue;
+    const known = SYSTEMS_SECTION_FIELDS[sec];
+    for (const key of Object.keys(block)) {
+      if (known.has(key) || mappingKeys.has(key)) continue;
+      assumptions.push(`unrecognised input field: systems.${sec}.${key}`);
+    }
+  }
 }
 
 function clamp(n, lo, hi) {
@@ -566,7 +718,10 @@ function addRelay(out, qty) {
 }
 
 /**
- * Screen 3 equipment → channel bag (never shown as channel counts in UI).
+ * Screen 3 equipment → channel bag.
+ * Canonical keys (UI): systems.heating.*, systems.water.*, …
+ * Flat demand_mapping aliases under systems (systems.leak_zones, …) are
+ * applied in normalize via applyMappedDemand.
  */
 function applySystemsDemand(out, systems, rules, assumptions) {
   if (!systems || typeof systems !== "object") return;
