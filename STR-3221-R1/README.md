@@ -612,7 +612,7 @@ If flashing fails or the module is unresponsive:
 | **No TX/RX blink** | Check A/B polarity, COM reference, and termination resistors. |
 | **Buttons unresponsive** | Verify 3.3 V logic; reboot using **Buttons 3 + 4**. |
 | **No communication via USB-C** | Ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
-| **Outputs not responding** | Check 24 V LED PS supply and output VCC rail. |
+| **Outputs not responding** | Check 24 V LED PS supply and output + rail. |
 | **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check WebConfig enable/invert/debounce. |
 | **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
