@@ -174,7 +174,6 @@ The table below lists boilers users have successfully run with this hardware (or
 
 ## Wiring
 
-> ⚠️ **Relay default state on power-up:** The relay output is dry-contact and exposes only C and NC. When the device is unpowered or the relay is switched OFF, the NC contact is closed and the load is energized. Verify this is safe for your installation before connecting any boiler call-for-heat, pump, or valve to NC.
 
 ### Power Input
 
@@ -194,11 +193,6 @@ Keep OT wiring separated from mains and relay output conductors.
 
 ### Relay Output Wiring
 
-> ⚠️ **NC contact behaviour:** When the relay is de-energised (switched OFF
-> or on device reboot), the NC contact is **closed** and the load is
-> **powered**. If you are wiring a boiler, pump, or valve to the NC contact,
-> it will be active by default until the relay is commanded ON.
-> Design your installation accordingly and ensure this is safe for your load.
 
 > ⚠ **Relay output — use restriction (mandatory):**
 > The relay output terminals (C, NC) shall be connected only to:
@@ -237,6 +231,16 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 ## Pinout
 
 ![Pinout](./Images/pinout.png)
+
+<!-- hm:relay-nc:begin -->
+> ⚠️ **NC relay (reserve):** The onboard relay exposes **C and NC only** (no NO
+> terminal). When the device is unpowered or the relay is switched OFF, the NC
+> contact is **closed** and the load is **powered**. This channel is a
+> **reserve** for the installer — use it where equipment must switch **on** if
+> the panel loses power. Do not treat it as a normal failsafe-off output; use a
+> module with NO/SPDT contacts (e.g. DIO-430-R1) for pumps, valves and heaters
+> that must stay off when unpowered.
+<!-- hm:relay-nc:end -->
 
 ## Terminal Reference
 

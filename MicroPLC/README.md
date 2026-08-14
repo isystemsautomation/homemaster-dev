@@ -277,11 +277,13 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 - Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 <!-- hm:relay-nc:begin -->
-> ⚠️ **NC contact behaviour:** When the relay is de-energised (switched OFF
-> or on device reboot), the NC contact is **closed** and the load is
-> **powered**. If you are wiring a boiler, pump, or valve to the NC contact,
-> it will be active by default until the relay is commanded ON.
-> Design your installation accordingly and ensure this is safe for your load.
+> ⚠️ **NC relay (reserve):** The onboard relay exposes **C and NC only** (no NO
+> terminal). When the device is unpowered or the relay is switched OFF, the NC
+> contact is **closed** and the load is **powered**. This channel is a
+> **reserve** for the installer — use it where equipment must switch **on** if
+> the panel loses power. Do not treat it as a normal failsafe-off output; use a
+> module with NO/SPDT contacts (e.g. DIO-430-R1) for pumps, valves and heaters
+> that must stay off when unpowered.
 <!-- hm:relay-nc:end -->
 
 ## Pinout

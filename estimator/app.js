@@ -80,22 +80,7 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
   warnAlmRail(allocated, normalized, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
   warnOnewireRails(demand, topology.modules, rules, assumptions);
-  noteRelayNcMounting(demand, topology.modules, rules, assumptions);
   const power = computePower(topology.modules, rules, assumptions);
-  if (
-    (Number(demand.relay_out_nc) || 0) > 0 &&
-    (topology.modules || []).some(
-      (m) => (Number(rules.modules?.[m.id]?.provides?.relay_out_nc) || 0) > 0,
-    )
-  ) {
-    power.requirements = power.requirements || [];
-    if (!power.requirements.some((r) => r.kind === "relay_out_nc_mounting")) {
-      power.requirements.unshift({
-        kind: "relay_out_nc_mounting",
-        text: RELAY_NC_MOUNTING,
-      });
-    }
-  }
   const companions = buildCompanions(
     allocated,
     topology.modules,
@@ -145,10 +130,16 @@ function defaultPanelId(panels) {
   return panels[0]?.id || "panel-1";
 }
 
+function knownPanelId(rawId, panels, fallback) {
+  const id = String(rawId || "").trim();
+  if (id && panels.some((p) => p.id === id)) return id;
+  return fallback;
+}
+
 function sliceInputsForPanel(inputs, panel, panels) {
   const fallback = defaultPanelId(panels);
   const rooms = (inputs.rooms || []).filter((r) => {
-    const pid = r.panel_id || fallback;
+    const pid = knownPanelId(r.panel_id, panels, fallback);
     return pid === panel.id;
   });
 
@@ -158,9 +149,11 @@ function sliceInputsForPanel(inputs, panel, panels) {
   };
   for (const sec of SYSTEM_SECTION_IDS) {
     const src = systemsIn[sec] || {};
-    const secPanel = src.panel_id || fallback;
+    // Orphan panel_id (deleted panel, stale localStorage) must not drop the
+    // whole Systems section — remap to the first panel.
+    const secPanel = knownPanelId(src.panel_id, panels, fallback);
     if (secPanel === panel.id) {
-      systemsOut[sec] = { ...src };
+      systemsOut[sec] = { ...src, panel_id: secPanel };
     } else {
       systemsOut[sec] = emptySystemSection(sec);
     }
@@ -196,6 +189,39 @@ function emptySystemSection(sec) {
       ds18b20_sensors: 0,
     };
   }
+  if (sec === "ventilation") {
+    return {
+      panel_id: "",
+      ahu: 0,
+      recuperator: 0,
+      extract_fans: 0,
+      dampers_0_10v: 0,
+      sensors_0_10v: 0,
+      sensors_4_20ma: 0,
+    };
+  }
+  if (sec === "water") {
+    return {
+      panel_id: "",
+      leak_zones: 0,
+      shutoff_valves: 0,
+      water_meters: 0,
+      irrigation: 0,
+      water_pumps: 0,
+      dhw_recirc: 0,
+      gas_valve: 0,
+    };
+  }
+  if (sec === "electrical") {
+    return {
+      panel_id: "",
+      energy_phases: 0,
+      load_shed: 0,
+      ev_chargers: 0,
+      pv_inverters: 0,
+      fault_contacts: 0,
+    };
+  }
   if (sec === "security") {
     return {
       panel_id: "",
@@ -204,6 +230,14 @@ function emptySystemSection(sec) {
       gates: 0,
       locks: 0,
       panic_buttons: 0,
+    };
+  }
+  if (sec === "lighting_scenes") {
+    return {
+      panel_id: "",
+      stair_steps: 0,
+      accent_zones: 0,
+      garden_lights: 0,
     };
   }
   return { panel_id: "" };
@@ -308,10 +342,14 @@ function aggregatePanelResults(panelResults, rules) {
           needed: 0,
           supplied: 0,
           spare: 0,
+          reserve: !!row.reserve,
+          note: row.note || "",
         };
       }
       channelMap[row.channel].needed += row.needed || 0;
       channelMap[row.channel].supplied += row.supplied || 0;
+      if (row.reserve) channelMap[row.channel].reserve = true;
+      if (row.note) channelMap[row.channel].note = row.note;
     }
     powerW += p.power?.total_w || 0;
     for (const req of p.power?.requirements || []) {
@@ -774,19 +812,16 @@ function warnOnewireRails(demand, modulesList, rules, assumptions) {
   }
 }
 
-/** Mounting note when an NC-only relay channel is in demand. */
-function noteRelayNcMounting(demand, modulesList, rules, assumptions) {
-  const need = Math.max(0, Number(demand.relay_out_nc) || 0);
-  if (need <= 0) return;
-  const hasNc = (modulesList || []).some((m) => {
-    const n = rules.modules?.[m.id]?.provides?.relay_out_nc;
-    return (Number(n) || 0) > 0 && (m.qty || 0) > 0;
-  });
-  if (!hasNc) return;
-  assumptions.push(RELAY_NC_MOUNTING);
-}
-
 // ── Stage 3: allocate (supply-pool / deficit) ────────────────────────
+
+/**
+ * Channels that exist on modules but are never auto-assigned.
+ * Installer uses them deliberately (inverted fail-on logic).
+ */
+const RESERVE_ONLY_CHANNELS = new Set(["relay_out_nc"]);
+
+const RELAY_NC_RESERVE_NOTE =
+  "Not auto-assigned. Inverted logic — load is powered when the relay is de-energised. Use it yourself where equipment must switch on if the panel loses power.";
 
 /** Effective channel provides for one module instance. */
 function effectiveProvides(modId, rules) {
@@ -806,8 +841,16 @@ function effectiveProvides(modId, rules) {
   return out;
 }
 
+/** Provides that may enter the allocate supply pool (excludes reserve-only). */
+function poolProvides(modId, rules) {
+  const out = { ...effectiveProvides(modId, rules) };
+  for (const ch of RESERVE_ONLY_CHANNELS) delete out[ch];
+  return out;
+}
+
 function addProvides(supply, provides, qty = 1) {
   for (const [ch, n] of Object.entries(provides || {})) {
+    if (RESERVE_ONLY_CHANNELS.has(ch)) continue;
     supply[ch] = (supply[ch] || 0) + n * qty;
   }
 }
@@ -837,10 +880,10 @@ function pickDeficitChannel(def, allocateOrder) {
 }
 
 function moduleForChannel(channel, rules) {
+  if (RESERVE_ONLY_CHANNELS.has(channel)) return null;
   if (channel === "shutter_interlock" || channel === "relay_out_3a" || channel === "di_dry") {
     return "DIO-430-R1";
   }
-  // relay_out_nc is NOT interchangeable with relay_out_3a — specialty only.
   return (rules.specialty_modules ?? EMPTY)[channel] || null;
 }
 
@@ -867,6 +910,7 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {
   const needed = {};
   for (const [ch, n] of Object.entries(demand)) {
     if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    if (RESERVE_ONLY_CHANNELS.has(ch)) continue;
     const v = Number(n) || 0;
     if (v > 0) needed[ch] = v;
   }
@@ -903,7 +947,7 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {
       break;
     }
 
-    const caps = effectiveProvides(modId, rules);
+    const caps = poolProvides(modId, rules);
     if (channel === "shutter_interlock") {
       // One DIO per shutter (interlock pair). Free 3rd relay + all DI enter the pool.
       addModule(modules, modId, 1, "shutter_interlock");
@@ -1107,7 +1151,7 @@ function splitDemandAcrossSegments(demand, segments, rules) {
         }
         continue;
       }
-      const caps = effectiveProvides(slave.id, rules);
+      const caps = poolProvides(slave.id, rules);
       for (const [ch, n] of Object.entries(caps)) {
         const take = Math.min(n, remaining[ch] || 0);
         if (take > 0) {
@@ -1754,7 +1798,7 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
 
 const CHANNEL_LABELS = {
   relay_out_3a: "Relay ≤3 A (NO/SPDT)",
-  relay_out_nc: "Relay NC-only (on when de-energised)",
+  relay_out_nc: "Relay NC-only (reserve)",
   di_dry: "Dry inputs",
   out_24v_ch: "24 V outputs",
   onewire: "1-Wire",
@@ -1771,17 +1815,16 @@ const CHANNEL_LABELS = {
   shutter_interlock: "Shutter interlocks",
 };
 
-const RELAY_NC_MOUNTING =
-  "NC contact only — load is powered when the relay is de-energised. Verify fail-safe behaviour for this load.";
-
 /**
  * Channel usage from the allocate supply pool (controller + modules, with
  * shutter free-relay accounting already applied).
+ * Reserve-only channels (relay_out_nc) are listed separately — never needed.
  */
-function computeChannelUsage(demand, _modulesList, _rules, allocated) {
+function computeChannelUsage(demand, modulesList, rules, allocated) {
   const needed = {};
   for (const [ch, n] of Object.entries(demand || {})) {
     if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    if (RESERVE_ONLY_CHANNELS.has(ch)) continue;
     const v = Number(n) || 0;
     if (v > 0) needed[ch] = v;
   }
@@ -1806,6 +1849,26 @@ function computeChannelUsage(demand, _modulesList, _rules, allocated) {
       spare: have - need,
     });
   }
+
+  // NC-only relays sit on the BOM but are never auto-assigned.
+  let ncReserve = 0;
+  const specs = rules?.modules ?? EMPTY;
+  for (const line of modulesList || []) {
+    const n = Number(specs[line.id]?.provides?.relay_out_nc) || 0;
+    if (n > 0) ncReserve += n * (line.qty || 0);
+  }
+  if (ncReserve > 0) {
+    rows.push({
+      channel: "relay_out_nc",
+      label: CHANNEL_LABELS.relay_out_nc,
+      needed: 0,
+      supplied: ncReserve,
+      spare: ncReserve,
+      reserve: true,
+      note: RELAY_NC_RESERVE_NOTE,
+    });
+  }
+
   rows.sort((a, b) => a.label.localeCompare(b.label));
   return rows;
 }
@@ -3575,17 +3638,22 @@ function migrateState(saved) {
     location: String(p.location || ""),
   }));
   if (Array.isArray(saved.rooms)) {
+    const panelIds = new Set(saved.panels.map((p) => p.id));
     saved.rooms = saved.rooms.map((r) => ({
       ...r,
-      panel_id: r.panel_id || mainId,
+      panel_id:
+        r.panel_id && panelIds.has(r.panel_id) ? r.panel_id : mainId,
       manual: r.manual && typeof r.manual === "object" ? r.manual : {},
     }));
   }
   if (saved.systems) {
     const defaults = emptySystems(mainId);
+    const panelIds = new Set(saved.panels.map((p) => p.id));
     for (const k of Object.keys(defaults)) {
       saved.systems[k] = { ...defaults[k], ...(saved.systems[k] || {}) };
-      if (k !== "system" && !saved.systems[k].panel_id) {
+      if (k === "system") continue;
+      const pid = saved.systems[k].panel_id;
+      if (!pid || !panelIds.has(pid)) {
         saved.systems[k].panel_id = mainId;
       }
     }
@@ -3785,13 +3853,18 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
 }
 
 function channelUsageTable(usage) {
-  const rows = (usage || []).filter((r) => r.needed > 0);
+  const rows = (usage || []).filter((r) => r.needed > 0 || r.reserve);
   if (!rows.length) return "";
   const body = rows
-    .map(
-      (r) =>
-        `<tr><td>${escapeAttr(r.label)}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`,
-    )
+    .map((r) => {
+      const tip = r.note
+        ? ` title="${escapeAttr(r.note)}"`
+        : "";
+      const note = r.note
+        ? `<div class="hm-muted" style="font-size:0.85em;max-width:28rem">${escapeAttr(r.note)}</div>`
+        : "";
+      return `<tr${tip}><td>${escapeAttr(r.label)}${note}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`;
+    })
     .join("");
   return `
     <h3 class="hm-channel-heading">Channel usage</h3>

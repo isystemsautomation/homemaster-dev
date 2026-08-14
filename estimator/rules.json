@@ -83,7 +83,6 @@
   },
   "allocate_order": [
     "opentherm",
-    "relay_out_nc",
     "energy_phase",
     "alarm_zone",
     "out_24v_ch",
@@ -98,7 +97,6 @@
   ],
   "specialty_modules": {
     "opentherm": "OpenthermGateway",
-    "relay_out_nc": "OpenthermGateway",
     "energy_phase": "ENM-223-R1",
     "alarm_zone": "ALM-173-R1",
     "out_24v_ch": "STR-3221-R1",
