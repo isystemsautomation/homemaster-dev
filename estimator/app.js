@@ -24,6 +24,15 @@ const SYSTEM_SECTION_IDS = [
   "lighting_scenes",
 ];
 
+/** Enclosure search space: whole DIN rows only (false panel covers a full row). */
+const ENCLOSURE_ROW_WIDTHS = [12, 18, 24];
+const ENCLOSURE_MAX_ROWS = 6;
+const ENCLOSURE_MAX_CAPACITY = 24 * 6; // 144
+const ENCLOSURE_TE_MM = 17.5;
+const ENCLOSURE_WIDTH_MARGIN_MM = 100;
+const ENCLOSURE_ROW_PITCH_MM = 125;
+const ENCLOSURE_HEIGHT_MARGIN_MM = 200;
+
 /**
  * @param {object} inputs
  * @param {object} rules
@@ -31,6 +40,55 @@ const SYSTEM_SECTION_IDS = [
  * @returns {object}
  */
 function estimate(inputs, rules, prices = EMPTY) {
+  const depth = Math.max(0, Number(inputs._autosplit_depth) || 0);
+  const core = estimateCore(inputs, rules, prices);
+
+  // Single logical panel that does not fit 6×24 → auto-split into N shields.
+  const panels = resolvePanels(inputs);
+  if (
+    panels.length === 1 &&
+    !inputs._skip_enclosure_autosplit &&
+    depth < 5 &&
+    core.enclosure?.status === "ok" &&
+    (core.enclosure.din_needed || 0) > ENCLOSURE_MAX_CAPACITY
+  ) {
+    let n = Math.ceil(core.enclosure.din_needed / ENCLOSURE_MAX_CAPACITY);
+    let best = null;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const splitInputs = {
+        ...autoSplitInputs(inputs, n, rules),
+        _autosplit_depth: depth + 1,
+        _skip_enclosure_autosplit: true,
+      };
+      const splitResult = estimateCore(splitInputs, rules, prices);
+      const maxNeeded = Math.max(
+        0,
+        ...(splitResult.panels || []).map((p) => p.enclosure?.din_needed || 0),
+      );
+      const anyOverflow = (splitResult.panels || []).some(
+        (p) =>
+          p.enclosure?.overflow ||
+          (p.enclosure?.din_needed || 0) > ENCLOSURE_MAX_CAPACITY,
+      );
+      best = splitResult;
+      if (!anyOverflow && maxNeeded <= ENCLOSURE_MAX_CAPACITY) break;
+      n += 1;
+    }
+    if (best) {
+      const base =
+        `DIN demand ${core.enclosure.din_needed} M exceeds max enclosure ` +
+        `6×24=${ENCLOSURE_MAX_CAPACITY} M; auto-split into ${best.panel_count} panels.`;
+      best.split_warning = best.split_warning
+        ? `${base} ${best.split_warning}`
+        : base;
+      return best;
+    }
+  }
+
+  return core;
+}
+
+function estimateCore(inputs, rules, prices = EMPTY) {
   const panels = resolvePanels(inputs);
   const panelResults = panels.map((panel) => {
     const sliced = sliceInputsForPanel(inputs, panel, panels);
@@ -47,14 +105,113 @@ function estimate(inputs, rules, prices = EMPTY) {
 
   let split_warning = null;
   if (panels.length > 1) {
-    const merged = estimatePanel(mergeInputsToSinglePanel(inputs, panels), rules, prices);
-    split_warning = buildSplitWarning(panelResults, merged, rules, panels.length);
+    const merged = estimatePanel(
+      mergeInputsToSinglePanel(inputs, panels),
+      rules,
+      prices,
+    );
+    split_warning = buildSplitWarning(
+      panelResults,
+      merged,
+      rules,
+      panels.length,
+    );
   }
 
   return {
     ...aggregated,
     panels: panelResults,
     split_warning,
+  };
+}
+
+function splitInt(total, parts, index) {
+  const t = Math.max(0, Math.floor(Number(total) || 0));
+  if (parts <= 1) return t;
+  const base = Math.floor(t / parts);
+  const rem = t % parts;
+  return base + (index < rem ? 1 : 0);
+}
+
+/**
+ * Partition total channel demand evenly across N panels (expert mode).
+ * Avoids cloning specialty modules by splitting rooms/systems unevenly.
+ */
+function autoSplitInputs(inputs, n, rules) {
+  const count = Math.max(2, Math.floor(Number(n) || 2));
+  const panels = Array.from({ length: count }, (_, i) => ({
+    id: `panel-${i + 1}`,
+    name: `Panel ${i + 1}`,
+    location: "",
+  }));
+
+  const assumptions = [];
+  const normalized = normalize(
+    {
+      ...inputs,
+      cabinets: 1,
+      panels: undefined,
+      _panel_top: undefined,
+      _panel_systems: undefined,
+    },
+    rules,
+    assumptions,
+  );
+  const demand = buildDemand(normalized, rules);
+  const meta = new Set([
+    "shutters",
+    "relay_needs_contactor",
+    "inductive_loads",
+    "_reserve_pct",
+  ]);
+
+  const panel_top = {};
+  for (let i = 0; i < count; i++) {
+    const id = panels[i].id;
+    const d = {};
+    for (const [ch, qty] of Object.entries(demand)) {
+      if (meta.has(ch)) continue;
+      d[ch] = splitInt(qty, count, i);
+    }
+    panel_top[id] = {
+      shutters: 0,
+      light_groups: 0,
+      lights_onoff: 0,
+      underfloor_circuits: 0,
+      relay_needs_contactor: 0,
+      inductive_loads: splitInt(demand.inductive_loads, count, i),
+      expert: {
+        demand: d,
+        shutters: splitInt(demand.shutters, count, i),
+        relay_needs_contactor: splitInt(demand.relay_needs_contactor, count, i),
+        inductive_loads: splitInt(demand.inductive_loads, count, i),
+      },
+    };
+  }
+
+  return {
+    cabinets: 1,
+    mode: "expert",
+    stage: inputs.stage,
+    property_type: inputs.property_type,
+    floor_area_m2: inputs.floor_area_m2,
+    floors: inputs.floors,
+    panels,
+    rooms: [],
+    systems: {
+      system: {
+        ...((inputs.systems && inputs.systems.system) || {}),
+        cabinets: 1,
+        reserve_pct: normalized.reserve_pct,
+      },
+    },
+    shutters: 0,
+    light_groups: 0,
+    lights_onoff: 0,
+    underfloor_circuits: 0,
+    relay_needs_contactor: 0,
+    expert: undefined,
+    _panel_top: panel_top,
   };
 }
 
@@ -88,8 +245,15 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
     normalized,
     rules,
     assumptions,
+    demand,
   );
   const enclosure = computeEnclosure(topology.modules, companions, rules, 1);
+  const companionsFinal = finalizeEnclosureCompanions(
+    companions,
+    enclosure,
+    rules,
+    assumptions,
+  );
   const channel_usage = computeChannelUsage(
     demand,
     topology.modules,
@@ -98,7 +262,7 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
   );
   const priced = attachPrices(
     topology,
-    companions,
+    companionsFinal,
     power,
     enclosure,
     rules,
@@ -167,6 +331,37 @@ function sliceInputsForPanel(inputs, panel, panels) {
       if (SYSTEMS_NEST_KEYS.has(key)) continue;
       systemsOut[key] = val;
     }
+  }
+
+  const top = inputs._panel_top?.[panel.id];
+  const panelSystems = inputs._panel_systems?.[panel.id];
+  if (top || panelSystems) {
+    const systemsMerged = panelSystems
+      ? {
+          ...panelSystems,
+          // Flat aliases only on the first panel.
+          ...(isFirst
+            ? Object.fromEntries(
+                Object.entries(systemsIn).filter(
+                  ([key]) => !SYSTEMS_NEST_KEYS.has(key),
+                ),
+              )
+            : {}),
+        }
+      : systemsOut;
+    return {
+      ...inputs,
+      cabinets: 1,
+      rooms,
+      systems: systemsMerged,
+      shutters: top?.shutters || 0,
+      light_groups: top?.light_groups || 0,
+      lights_onoff: top?.lights_onoff || 0,
+      underfloor_circuits: top?.underfloor_circuits || 0,
+      relay_needs_contactor: top?.relay_needs_contactor || 0,
+      expert: top?.expert,
+      mode: top?.expert ? "expert" : inputs.mode,
+    };
   }
 
   return {
@@ -471,6 +666,7 @@ function normalize(inputs, rules, assumptions) {
     shutters: 0,
     relay_needs_contactor: 0,
     room_ufh_loops: 0,
+    inductive_loads: 0,
     reserve_pct: clamp(
       Number(systemCfg.reserve_pct ?? rules.policy?.default_reserve_pct ?? 15),
       0,
@@ -496,6 +692,11 @@ function normalize(inputs, rules, assumptions) {
     if (inputs.expert.shutters != null) out.shutters = inputs.expert.shutters;
     if (inputs.expert.relay_needs_contactor != null) {
       out.relay_needs_contactor = inputs.expert.relay_needs_contactor;
+    }
+    if (inputs.expert.inductive_loads != null) {
+      out.inductive_loads = Number(inputs.expert.inductive_loads) || 0;
+    } else if (inputs.inductive_loads != null) {
+      out.inductive_loads = Number(inputs.inductive_loads) || 0;
     }
     return out;
   }
@@ -717,6 +918,12 @@ function addRelay(out, qty) {
   if (n > 0) addDemand(out.demand, "relay_out_3a", n);
 }
 
+/** Inductive actuators that need an RC snubber / varistor (WLD README). */
+function addInductive(out, qty) {
+  const n = Math.max(0, Number(qty) || 0);
+  if (n > 0) out.inductive_loads = (out.inductive_loads || 0) + n;
+}
+
 /**
  * Screen 3 equipment → channel bag.
  * Canonical keys (UI): systems.heating.*, systems.water.*, …
@@ -738,26 +945,38 @@ function applySystemsDemand(out, systems, rules, assumptions) {
 
   // collector_loops applied later via max()
   addRelay(out, h.heating_pumps);
+  addInductive(out, h.heating_pumps);
   addRelay(out, h.fan_coils);
+  addInductive(out, h.fan_coils);
   addRelay(out, h.heat_pump);
+  addInductive(out, h.heat_pump);
   addRelay(out, h.fireplace);
+  addInductive(out, h.fireplace);
   if (h.pt100_sensors) addDemand(out.demand, "rtd_input", h.pt100_sensors);
   if (h.ds18b20_sensors) addDemand(out.demand, "onewire", h.ds18b20_sensors);
 
   addRelay(out, v.ahu);
+  addInductive(out, v.ahu);
   addRelay(out, v.recuperator);
+  addInductive(out, v.recuperator);
   addRelay(out, v.extract_fans);
+  addInductive(out, v.extract_fans);
   if (v.dampers_0_10v) addDemand(out.demand, "analog_out", v.dampers_0_10v);
   if (v.sensors_0_10v) addDemand(out.demand, "analog_in", v.sensors_0_10v);
   if (v.sensors_4_20ma) addDemand(out.demand, "analog_in", v.sensors_4_20ma);
 
   if (w.leak_zones) addDemand(out.demand, "leak_or_pulse", w.leak_zones);
   addRelay(out, w.shutoff_valves);
+  addInductive(out, w.shutoff_valves);
   if (w.water_meters) addDemand(out.demand, "leak_or_pulse", w.water_meters);
   addRelay(out, w.irrigation);
+  addInductive(out, w.irrigation);
   addRelay(out, w.water_pumps);
+  addInductive(out, w.water_pumps);
   addRelay(out, w.dhw_recirc);
+  addInductive(out, w.dhw_recirc);
   addRelay(out, w.gas_valve);
+  addInductive(out, w.gas_valve);
 
   if (e.energy_phases) addDemand(out.demand, "energy_phase", e.energy_phases);
   addRelay(out, e.load_shed);
@@ -783,6 +1002,7 @@ function applySystemsDemand(out, systems, rules, assumptions) {
 
   if (s.dry_contacts) addDemand(out.demand, "alarm_zone", s.dry_contacts);
   addRelay(out, s.gates);
+  addInductive(out, s.gates);
   if (s.gates) addDemand(out.demand, "di_dry", s.gates);
   addRelay(out, s.locks);
   if (s.panic_buttons) addDemand(out.demand, "alarm_zone", s.panic_buttons);
@@ -848,7 +1068,10 @@ function applyRoomDemand(out, room, raw = room) {
   if (sockets > 0) addDemand(out.demand, "relay_out_3a", sockets);
 
   const fan = Math.max(0, Number(room.extract_fan) || 0);
-  if (fan > 0) addDemand(out.demand, "relay_out_3a", fan);
+  if (fan > 0) {
+    addDemand(out.demand, "relay_out_3a", fan);
+    out.inductive_loads = (out.inductive_loads || 0) + fan;
+  }
 
   // Legacy fixture fields — only when the new card fields were not supplied.
   if (raw.lights_onoff == null && raw.light_groups != null) {
@@ -874,6 +1097,7 @@ function buildDemand(normalized, _rules) {
     ...normalized.demand,
     shutters: normalized.shutters,
     relay_needs_contactor: normalized.relay_needs_contactor,
+    inductive_loads: normalized.inductive_loads || 0,
     _reserve_pct: normalized.reserve_pct,
   };
 }
@@ -1064,7 +1288,14 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {
 
   const needed = {};
   for (const [ch, n] of Object.entries(demand)) {
-    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    if (
+      ch === "shutters" ||
+      ch === "relay_needs_contactor" ||
+      ch === "inductive_loads" ||
+      ch === "_reserve_pct"
+    ) {
+      continue;
+    }
     if (RESERVE_ONLY_CHANNELS.has(ch)) continue;
     const v = Number(n) || 0;
     if (v > 0) needed[ch] = v;
@@ -1274,7 +1505,7 @@ function slaveLinesFromBare(bare, rules) {
 function splitDemandAcrossSegments(demand, segments, rules) {
   const remaining = {};
   for (const [ch, n] of Object.entries(demand || {})) {
-    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "inductive_loads" || ch === "_reserve_pct") continue;
     const v = Number(n) || 0;
     if (v > 0) remaining[ch] = v;
   }
@@ -1758,9 +1989,18 @@ function round1(n) {
 
 /**
  * Build companion BOM lines that contribute DIN width but never prices.
- * Protection / terminals are assumptions (not load-calculated breakers).
+ * Per-circuit MCB from used switched channels; field terminals from
+ * field_wires_per_channel (terminal-maps); incomer stays separate.
  */
-function buildCompanions(allocated, modulesList, power, normalized, rules, assumptions) {
+function buildCompanions(
+  allocated,
+  modulesList,
+  power,
+  normalized,
+  rules,
+  assumptions,
+  demand = EMPTY,
+) {
   const labels = rules.companion_labels ?? EMPTY;
   const dinMap = rules.companion_din_units ?? EMPTY;
   const out = [];
@@ -1773,6 +2013,8 @@ function buildCompanions(allocated, modulesList, power, normalized, rules, assum
       requirement: !!a.requirement,
       din_units: dinMap[a.id] ?? null,
       sku: "",
+      unit_price: null,
+      rating: null,
     });
   }
 
@@ -1786,6 +2028,8 @@ function buildCompanions(allocated, modulesList, power, normalized, rules, assum
         requirement: true,
         din_units: dinMap.psu_din_60w ?? 4,
         sku: "",
+        unit_price: null,
+        rating: null,
       });
     } else {
       const qty = Math.max(1, Math.ceil(watts / 100));
@@ -1796,47 +2040,294 @@ function buildCompanions(allocated, modulesList, power, normalized, rules, assum
         requirement: true,
         din_units: dinMap.psu_din_100w ?? 6,
         sku: "",
+        unit_price: null,
+        rating: null,
       });
     }
   }
 
   const cabinets = Math.max(1, normalized.cabinets || 1);
-  // Assumed incomer protection per panel — not a load calculation.
+
+  // Incomer — separate from per-circuit protection.
   out.push({
     id: "mcb_1p_n",
     qty: cabinets,
-    label: labels.mcb_1p_n || "MCB 1P+N",
+    label: labels.mcb_1p_n || "MCB 1P+N (incomer)",
     requirement: true,
     din_units: dinMap.mcb_1p_n ?? 2,
     sku: "",
+    unit_price: null,
+    rating: null,
+    note: "Panel incomer — not group / per-circuit protection.",
   });
   out.push({
     id: "rcd_2p",
     qty: cabinets,
-    label: labels.rcd_2p || "RCD 2P",
+    label: labels.rcd_2p || "RCD 2P (incomer)",
     requirement: true,
     din_units: dinMap.rcd_2p ?? 2,
     sku: "",
+    unit_price: null,
+    rating: null,
+    note: "Panel incomer RCD.",
   });
   assumptions.push(
-    `Incomer protection: ${cabinets}× MCB 1P+N + ${cabinets}× RCD 2P (assumption per panel, not load-sized).`,
+    `Incomer protection: ${cabinets}× MCB 1P+N + ${cabinets}× RCD 2P (panel incomer, not per-circuit).`,
   );
 
-  const modCount = modulesList.reduce((s, l) => s + (l.qty || 0), 0);
-  const terminals = Math.max(10, modCount * 4);
-  out.push({
-    id: "terminal_block",
-    qty: terminals,
-    label: labels.terminal_block || "Terminal block",
-    requirement: true,
-    din_units: dinMap.terminal_block ?? 0.35,
-    sku: "",
-  });
-  assumptions.push(
-    `Terminal blocks: ${terminals}× (assumption: max(10, 4 × module count)).`,
+  // Per used switched circuit — count by assignment, not module capacity.
+  const relayCircuits = Math.max(0, Number(demand.relay_out_3a) || 0);
+  const dimmerCircuits = Math.max(0, Number(demand.dimmer_ac_ch) || 0);
+  const contactorLoads = Math.max(0, Number(demand.relay_needs_contactor) || 0);
+  const shutterCircuits = Math.max(0, Number(demand.shutters) || 0);
+  const perCircuit =
+    relayCircuits + dimmerCircuits + contactorLoads + shutterCircuits;
+  const PER_CIRCUIT_NOTE =
+    "Per-circuit overcurrent protection is mandatory (module README). " +
+    "Module output limit is 3 A per relay — a shared breaker must NOT " +
+    "be sized by summation of outputs. Rating to be determined by the " +
+    "electrical design: load, installation method, and local code.";
+  if (perCircuit > 0) {
+    out.push({
+      id: "mcb_1p",
+      qty: perCircuit,
+      label: labels.mcb_1p || "MCB 1P (per load circuit)",
+      requirement: true,
+      din_units: dinMap.mcb_1p ?? 1,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      note: PER_CIRCUIT_NOTE,
+    });
+    assumptions.push(
+      `Per-circuit protection: ${perCircuit}× MCB 1P (${relayCircuits} relay + ${dimmerCircuits} dimmer + ${contactorLoads} contactor + ${shutterCircuits} shutter). ` +
+        `If RCBO 1P+N (2 M) is chosen instead, protection DIN width doubles.`,
+    );
+  }
+
+  const inductive =
+    Math.max(0, Number(demand.inductive_loads) || 0) + shutterCircuits;
+  if (inductive > 0) {
+    out.push({
+      id: "snubber_rc",
+      qty: inductive,
+      label: labels.snubber_rc || "RC snubber / varistor (inductive load)",
+      requirement: true,
+      din_units: dinMap.snubber_rc ?? 0,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      note: "Mandatory for inductive loads (pumps, valves, fans, actuators) per module README.",
+    });
+  }
+
+  // Mains field circuits need N + PE at the intermediate terminals.
+  const mainsCircuits =
+    relayCircuits + dimmerCircuits + shutterCircuits + contactorLoads;
+  if (mainsCircuits > 0) {
+    out.push({
+      id: "n_bar",
+      qty: mainsCircuits,
+      label: labels.n_bar || "N bar (neutral)",
+      requirement: true,
+      din_units: dinMap.n_bar ?? 0.35,
+      sku: "",
+      unit_price: null,
+      rating: null,
+    });
+    out.push({
+      id: "pe_bar",
+      qty: mainsCircuits,
+      label: labels.pe_bar || "PE bar (protective earth)",
+      requirement: true,
+      din_units: dinMap.pe_bar ?? 0.35,
+      sku: "",
+      unit_price: null,
+      rating: null,
+    });
+  }
+
+  const termCount = countFieldTerminals(
+    demand,
+    modulesList,
+    rules,
+    assumptions,
   );
+  if (termCount > 0) {
+    out.push({
+      id: "terminal_block",
+      qty: termCount,
+      label: labels.terminal_block || "Field terminal",
+      requirement: true,
+      din_units: dinMap.terminal_block ?? 0.35,
+      sku: "",
+      unit_price: null,
+      rating: null,
+    });
+  }
+
+  out.push({
+    id: "internal_wiring",
+    qty: 1,
+    label: labels.internal_wiring || "Internal wiring (terminals → modules)",
+    requirement: true,
+    din_units: dinMap.internal_wiring ?? 0,
+    sku: "",
+    unit_price: null,
+    rating: null,
+    meters: null,
+    note: "Cross-section per circuit; labelling per project. Meterage TBD.",
+  });
+
+  const dinModules = (modulesList || []).reduce((s, l) => {
+    const w = Number(rules.modules?.[l.id]?.din_units);
+    return s + (Number.isFinite(w) ? w * (l.qty || 0) : 0);
+  }, 0);
+  const termDin = termCount * (dinMap.terminal_block ?? 0.35);
+  if (termDin > dinModules && termCount > 0) {
+    assumptions.push(
+      `Field terminals DIN width (${round2(termDin)} M) exceeds HomeMaster modules (${round2(dinModules)} M).`,
+    );
+  }
 
   return out;
+}
+
+/**
+ * Field intermediate terminals from used channels × terminal-maps derived table.
+ * Slaves first (field I/O), then masters — matches workshop wiring: field
+ * cables land on expansion-module terminals before controller onboard I/O.
+ * Each shutter DIO uses two relay groups (interlock); the free third relay
+ * and DI remain available for other demand on that module.
+ */
+function countFieldTerminals(demand, modulesList, rules, assumptions) {
+  const table = rules.field_wires_per_channel || EMPTY;
+  const remaining = {};
+  for (const [ch, n] of Object.entries(demand || {})) {
+    if (
+      ch === "shutters" ||
+      ch === "relay_needs_contactor" ||
+      ch === "inductive_loads" ||
+      ch === "_reserve_pct"
+    ) {
+      continue;
+    }
+    const v = Math.max(0, Number(n) || 0);
+    if (v > 0) remaining[ch] = v;
+  }
+  let shuttersLeft = Math.max(0, Number(demand.shutters) || 0);
+
+  let total = 0;
+  const missingMods = [];
+
+  const ordered = [...(modulesList || [])].sort((a, b) => {
+    const am = rules.modules?.[a.id]?.master ? 1 : 0;
+    const bm = rules.modules?.[b.id]?.master ? 1 : 0;
+    return am - bm;
+  });
+
+  for (const line of ordered) {
+    const entry = table[line.id];
+    if (!entry || entry.MISSING === "terminal-maps confidence not full") {
+      if (
+        (line.qty || 0) > 0 &&
+        rules.modules?.[line.id] &&
+        !rules.modules[line.id].master
+      ) {
+        missingMods.push(line.id);
+      }
+      continue;
+    }
+    if (Array.isArray(entry.MISSING) && entry.MISSING.length) {
+      for (const ch of entry.MISSING) {
+        if ((remaining[ch] || 0) > 0) {
+          assumptions.push(
+            `field_wires MISSING for ${line.id} channel ${ch} — terminals not counted.`,
+          );
+        }
+      }
+    }
+    const channels = entry.channels || EMPTY;
+    const qty = Math.max(0, Number(line.qty) || 0);
+    const relayConf =
+      channels.relay_out_3a || channels.relay_out_nc || null;
+    const relayPer = Number(relayConf?.per_channel) || 0;
+    const canShutter =
+      shuttersLeft > 0 &&
+      line.id === "DIO-430-R1" &&
+      relayPer > 0 &&
+      (Number(rules.modules?.[line.id]?.provides?.relay_out_3a) || 0) >= 2;
+
+    for (let i = 0; i < qty; i++) {
+      let usedOnThis = false;
+      let relayCap =
+        Number(rules.modules?.[line.id]?.provides?.relay_out_3a) ||
+        Number(rules.modules?.[line.id]?.provides?.relay_out_nc) ||
+        0;
+
+      if (canShutter && shuttersLeft > 0) {
+        // Interlock pair: two relay terminal groups per shutter.
+        total += 2 * relayPer;
+        shuttersLeft -= 1;
+        relayCap = Math.max(0, relayCap - 2);
+        usedOnThis = true;
+      }
+
+      for (const [ch, conf] of Object.entries(channels)) {
+        const need = remaining[ch] || 0;
+        if (need <= 0) continue;
+        let capacity =
+          Number(rules.modules?.[line.id]?.provides?.[ch]) || 0;
+        if (ch === "relay_out_3a" || ch === "relay_out_nc") {
+          capacity = relayCap;
+        }
+        if (capacity <= 0 && !conf.group_capacity) continue;
+        const take = Math.min(
+          need,
+          capacity > 0 ? capacity : Number(conf.group_capacity) || 0,
+        );
+        if (take <= 0) continue;
+        usedOnThis = true;
+        remaining[ch] = need - take;
+        if (remaining[ch] <= 0) delete remaining[ch];
+        if (ch === "relay_out_3a" || ch === "relay_out_nc") {
+          relayCap = Math.max(0, relayCap - take);
+        }
+        const per = Number(conf.per_channel) || 0;
+        total += take * per;
+        if (conf.shared_rail_per_group && conf.group_size) {
+          total +=
+            Math.ceil(take / Number(conf.group_size)) *
+            Number(conf.shared_rail_per_group);
+        }
+        if (conf.shared_return_per_module) {
+          total += Number(conf.shared_return_per_module) || 0;
+        }
+      }
+      if (usedOnThis) {
+        total += Number(entry.shared_per_module) || 0;
+      }
+    }
+  }
+
+  if (shuttersLeft > 0) {
+    assumptions.push(
+      `field_wires: ${shuttersLeft}× shutter still unassigned to a DIO terminal map.`,
+    );
+  }
+  for (const [ch, n] of Object.entries(remaining)) {
+    if (n > 0) {
+      assumptions.push(
+        `field_wires: ${n}× ${ch} still unassigned to a module terminal map.`,
+      );
+    }
+  }
+  if (missingMods.length) {
+    assumptions.push(
+      `field_wires table missing/incomplete for: ${[...new Set(missingMods)].join(", ")}.`,
+    );
+  }
+  return total;
 }
 
 // ── Stage 6: enclosure ──────────────────────────────────────────────
@@ -1848,34 +2339,52 @@ function dinWidthForModule(line, moduleSpecs) {
   return { width: Number(spec.din_units) * line.qty, missing: false };
 }
 
+function enclosureDimsMm(rowWidth, rows) {
+  return {
+    width_mm: rowWidth * ENCLOSURE_TE_MM + ENCLOSURE_WIDTH_MARGIN_MM,
+    height_mm: rows * ENCLOSURE_ROW_PITCH_MM + ENCLOSURE_HEIGHT_MARGIN_MM,
+  };
+}
+
 /**
- * Pick one enclosure layout: prefer standard row widths 12/18, then the
- * full series. Minimise capacity (rows × row_width) that fits `needed`.
+ * Enumerate row_width ∈ {12,18,24} × rows ∈ {1..6}. Prefer best aspect
+ * ratio, then least spare capacity, then fewer rows. Whole rows only.
+ * @returns {null|{row_width,rows,capacity,width_mm,height_mm,aspect,spare}}
  */
-function pickEnclosureLayout(needed, sizes) {
-  const preferred = [12, 18];
-  const series = [
-    ...preferred.filter((s) => sizes.includes(s)),
-    ...sizes.filter((s) => !preferred.includes(s)),
-  ];
+function pickEnclosureLayout(needed) {
+  const need = Math.max(0, Math.ceil(Number(needed) || 0));
   let best = null;
-  for (const rowWidth of series) {
-    const rows = Math.ceil(needed / rowWidth);
-    const capacity = rows * rowWidth;
-    const preferredBonus = preferred.includes(rowWidth) ? 0 : 1;
-    if (
-      !best ||
-      capacity < best.capacity ||
-      (capacity === best.capacity && preferredBonus < best.preferredBonus) ||
-      (capacity === best.capacity &&
-        preferredBonus === best.preferredBonus &&
-        rows < best.rows) ||
-      (capacity === best.capacity &&
-        preferredBonus === best.preferredBonus &&
-        rows === best.rows &&
-        rowWidth < best.row_width)
-    ) {
-      best = { row_width: rowWidth, rows, capacity, preferredBonus };
+  for (const rowWidth of ENCLOSURE_ROW_WIDTHS) {
+    for (let rows = 1; rows <= ENCLOSURE_MAX_ROWS; rows++) {
+      const capacity = rows * rowWidth;
+      if (capacity < need) continue;
+      const { width_mm, height_mm } = enclosureDimsMm(rowWidth, rows);
+      const aspect =
+        Math.max(width_mm, height_mm) / Math.min(width_mm, height_mm);
+      const spare = capacity - need;
+      const cand = {
+        row_width: rowWidth,
+        rows,
+        capacity,
+        width_mm,
+        height_mm,
+        aspect,
+        spare,
+      };
+      if (
+        !best ||
+        aspect < best.aspect - 1e-9 ||
+        (Math.abs(aspect - best.aspect) < 1e-9 && spare < best.spare) ||
+        (Math.abs(aspect - best.aspect) < 1e-9 &&
+          spare === best.spare &&
+          rows < best.rows) ||
+        (Math.abs(aspect - best.aspect) < 1e-9 &&
+          spare === best.spare &&
+          rows === best.rows &&
+          rowWidth < best.row_width)
+      ) {
+        best = cand;
+      }
     }
   }
   return best;
@@ -1883,7 +2392,8 @@ function pickEnclosureLayout(needed, sizes) {
 
 /**
  * Sum DIN units across HomeMaster modules + companions, apply reserve,
- * pick ONE enclosure (or N if the user set cabinets > 1), each with rows.
+ * pick ONE enclosure layout. Blanking / enclosure BOM lines are added
+ * afterwards (they must not inflate din_needed).
  */
 function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
   const moduleSpecs = rules.modules ?? EMPTY;
@@ -1909,12 +2419,20 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
   for (const line of modulesList) {
     const w = Number(moduleSpecs[line.id].din_units) * line.qty;
     dinModules += w;
-    breakdown.push({ id: line.id, qty: line.qty, din_units: moduleSpecs[line.id].din_units, din_total: w, kind: "module" });
+    breakdown.push({
+      id: line.id,
+      qty: line.qty,
+      din_units: moduleSpecs[line.id].din_units,
+      din_total: w,
+      kind: "module",
+    });
   }
 
   let dinCompanions = 0;
   for (const c of companions || []) {
-    const unit = c.din_units != null ? Number(c.din_units) : Number(dinMap[c.id]);
+    if (c.id === "blanking_plate" || c.id === "din_enclosure") continue;
+    const unit =
+      c.din_units != null ? Number(c.din_units) : Number(dinMap[c.id]);
     if (!Number.isFinite(unit) || !c.qty) continue;
     const w = unit * c.qty;
     dinCompanions += w;
@@ -1932,8 +2450,28 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
   const reservePct = rules.policy?.enclosure_reserve_pct ?? 25;
   const dinNeeded = Math.ceil(dinTotal * (1 + reservePct / 100));
   const perCabinet = Math.ceil(dinNeeded / cabinetCount);
-  const sizes = rules.enclosure_sizes ?? [12, 18, 24, 36, 48, 54, 72];
-  const layout = pickEnclosureLayout(perCabinet, sizes);
+  const layout = pickEnclosureLayout(perCabinet);
+
+  if (!layout) {
+    return {
+      status: "ok",
+      din_modules: round2(dinModules),
+      din_companions: round2(dinCompanions),
+      din_total: round2(dinTotal),
+      reserve_pct: reservePct,
+      din_needed: dinNeeded,
+      cabinets: cabinetCount,
+      row_width: null,
+      rows: null,
+      capacity_each: null,
+      capacity: null,
+      width_mm: null,
+      height_mm: null,
+      overflow: true,
+      max_capacity: ENCLOSURE_MAX_CAPACITY,
+      breakdown,
+    };
+  }
 
   return {
     status: "ok",
@@ -1947,8 +2485,61 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
     rows: layout.rows,
     capacity_each: layout.capacity,
     capacity: layout.capacity * cabinetCount,
+    width_mm: layout.width_mm,
+    height_mm: layout.height_mm,
+    overflow: false,
     breakdown,
   };
+}
+
+/**
+ * Blanking plates fill unused DIN slots; enclosure is a quote line with
+ * approx. outer dimensions. Neither feeds back into din_needed.
+ */
+function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) {
+  const labels = rules.companion_labels ?? EMPTY;
+  const dinMap = rules.companion_din_units ?? EMPTY;
+  const out = [...(companions || [])];
+  if (!enclosure || enclosure.status !== "ok" || enclosure.overflow) {
+    return out;
+  }
+
+  const capacity = Number(enclosure.capacity) || 0;
+  const occupied = Number(enclosure.din_total) || 0;
+  const blankQty = Math.max(0, Math.floor(capacity - occupied + 1e-9));
+  if (blankQty > 0) {
+    out.push({
+      id: "blanking_plate",
+      qty: blankQty,
+      label: labels.blanking_plate || "DIN blanking plate",
+      requirement: true,
+      din_units: dinMap.blanking_plate ?? 1,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      note: "Covers unused DIN slots behind the false panel.",
+    });
+  }
+
+  const rows = enclosure.rows;
+  const rowWidth = enclosure.row_width;
+  const capEach = enclosure.capacity_each;
+  const w = enclosure.width_mm;
+  const h = enclosure.height_mm;
+  out.push({
+    id: "din_enclosure",
+    qty: Math.max(1, enclosure.cabinets || 1),
+    label: `DIN enclosure, ${rows} rows × ${rowWidth} = ${capEach} modules, approx. ${w} × ${h} mm`,
+    requirement: true,
+    din_units: dinMap.din_enclosure ?? 0,
+    sku: "",
+    unit_price: null,
+    rating: null,
+    note: "Final enclosure selection by the electrical design.",
+  });
+  enclosure.blanking_qty = blankQty;
+
+  return out;
 }
 
 const CHANNEL_LABELS = {
@@ -1978,7 +2569,7 @@ const CHANNEL_LABELS = {
 function computeChannelUsage(demand, modulesList, rules, allocated) {
   const needed = {};
   for (const [ch, n] of Object.entries(demand || {})) {
-    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "_reserve_pct") continue;
+    if (ch === "shutters" || ch === "relay_needs_contactor" || ch === "inductive_loads" || ch === "_reserve_pct") continue;
     if (RESERVE_ONLY_CHANNELS.has(ch)) continue;
     const v = Number(n) || 0;
     if (v > 0) needed[ch] = v;
@@ -3999,12 +4590,23 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
     }
     return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
   }
+  if (enclosure.overflow) {
+    return `<p class="hm-warn">Enclosure: ${enclosure.din_needed} M needed exceeds max 6×24=${enclosure.max_capacity || 144} M — split into more panels.</p>`;
+  }
   if (compact || enclosure.panels > 1) {
     return `<p>DIN units (all panels): ${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve → ${enclosure.capacity} M capacity</p>`;
   }
   const each = enclosure.capacity_each ?? enclosure.capacity;
   const layout = `${enclosure.rows} rows × ${enclosure.row_width}`;
-  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → 1× enclosure ${each} M (${layout})</p>`;
+  const mm =
+    enclosure.width_mm != null && enclosure.height_mm != null
+      ? `, approx. ${enclosure.width_mm} × ${enclosure.height_mm} mm`
+      : "";
+  const blank =
+    enclosure.blanking_qty > 0
+      ? ` · ${enclosure.blanking_qty} blanking plate(s)`
+      : "";
+  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → 1× enclosure ${each} M (${layout}${mm})${blank}</p>`;
 }
 
 function channelUsageTable(usage) {
@@ -4262,12 +4864,15 @@ function mountConfigurator(root) {
       : "";
     const segs =
       result.topology?.segment_count ?? result.topology?.segments?.length ?? 0;
+    const ctrlCount = (result.modules || [])
+      .filter((m) => rules.modules?.[m.id]?.master)
+      .reduce((s, m) => s + (m.qty || 0), 0);
     summary.innerHTML = `
       <h2>Summary</h2>
       ${channelUsageTable(result.channel_usage)}
       <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
       <p>Panels: ${result.panel_count ?? state.panels.length}</p>
-      <p>RS-485 segments: ${segs}</p>
+      <p>RS-485 segments: ${segs} · controllers: ${ctrlCount}</p>
       <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
       ${enclosureMessage(result.enclosure, { compact: true })}
       ${split}
@@ -5009,11 +5614,12 @@ function mountConfigurator(root) {
       .join("; ");
     const loc = panel.location ? ` · ${escapeAttr(panel.location)}` : "";
     const yaml = (panel.topology?.esphome_yaml || "").replace(/</g, "&lt;");
+    const ctrlCount = ctrl.reduce((s, m) => s + (m.qty || 0), 0);
     return `
       <section class="hm-panel-result">
         <h3>${escapeAttr(panel.name)}${loc}</h3>
+        <p class="hm-muted">RS-485: ${segs} segment(s), ${ctrlCount} controller(s), ${terms} terminator(s) · 24 V: ${panel.power?.total_w ?? "—"} W${psu ? ` · ${escapeAttr(psu)}` : ""}</p>
         ${enclosureMessage(panel.enclosure)}
-        <p class="hm-muted">RS-485: ${segs} segment(s), ${terms} terminator(s) · 24 V: ${panel.power?.total_w ?? "—"} W${psu ? ` · ${escapeAttr(psu)}` : ""}</p>
         <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th></tr></thead>
         <tbody>${modRows}${companions}</tbody></table>
         ${channelUsageTable(panel.channel_usage)}

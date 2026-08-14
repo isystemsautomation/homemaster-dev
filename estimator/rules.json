@@ -26,28 +26,31 @@
     "contactor_modular": 2,
     "psu_din_60w": 4,
     "psu_din_100w": 6,
-    "terminal_block": 0.35
+    "terminal_block": 0.35,
+    "n_bar": 0.35,
+    "pe_bar": 0.35,
+    "snubber_rc": 0,
+    "internal_wiring": 0,
+    "blanking_plate": 1,
+    "din_enclosure": 0
   },
-  "enclosure_sizes": [
-    12,
-    18,
-    24,
-    36,
-    48,
-    54,
-    72
-  ],
   "companion_labels": {
-    "mcb_1p": "MCB 1P",
-    "mcb_1p_n": "MCB 1P+N",
+    "mcb_1p": "MCB 1P (per load circuit)",
+    "mcb_1p_n": "MCB 1P+N (incomer)",
     "mcb_3p": "MCB 3P",
-    "rcd_2p": "RCD 2P",
+    "rcd_2p": "RCD 2P (incomer)",
     "rcd_4p": "RCD 4P",
     "rcbo_1p_n": "RCBO 1P+N",
     "contactor_modular": "Modular contactor",
     "psu_din_60w": "DIN PSU 60 W",
     "psu_din_100w": "DIN PSU 100 W",
-    "terminal_block": "Terminal block"
+    "terminal_block": "Field terminal",
+    "n_bar": "N bar (neutral)",
+    "pe_bar": "PE bar (protective earth)",
+    "snubber_rc": "RC snubber / varistor (inductive load)",
+    "internal_wiring": "Internal wiring (terminals → modules)",
+    "blanking_plate": "DIN blanking plate",
+    "din_enclosure": "DIN enclosure"
   },
   "demand_mapping": {
     "dimmer_groups": "dimmer_ac_ch",
@@ -865,6 +868,159 @@
         "provides": "README",
         "sensor_rails_budget_ma": "MISSING"
       }
+    }
+  },
+  "field_wires_per_channel": {
+    "DIO-430-R1": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 3
+        },
+        "di_dry": {
+          "per_channel": 2
+        }
+      },
+      "shared_per_module": 0
+    },
+    "DIM-420-R1": {
+      "channels": {
+        "di_dry": {
+          "per_channel": 2
+        },
+        "dimmer_ac_ch": {
+          "per_channel": 4
+        }
+      },
+      "shared_per_module": 0
+    },
+    "RGB-621-R1": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 2
+        },
+        "pwm_led_ch": {
+          "per_channel": 1,
+          "group_capacity": 5
+        },
+        "di_dry": {
+          "per_channel": 1,
+          "shared_return_per_module": 1
+        }
+      },
+      "shared_per_module": 3
+    },
+    "WLD-521-R1": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 3
+        },
+        "leak_or_pulse": {
+          "per_channel": 1,
+          "group_capacity": 5
+        },
+        "onewire": {
+          "per_channel": 0
+        }
+      },
+      "shared_per_module": 6
+    },
+    "AIO-422-R1": {
+      "channels": {
+        "rtd_input": {
+          "per_channel": 4
+        }
+      },
+      "shared_per_module": 0,
+      "MISSING": [
+        "analog_in",
+        "analog_out"
+      ]
+    },
+    "ENM-223-R1": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 3
+        },
+        "energy_phase": {
+          "per_channel": 2
+        }
+      },
+      "shared_per_module": 0
+    },
+    "STR-3221-R1": {
+      "channels": {
+        "out_24v_ch": {
+          "per_channel": 1,
+          "shared_rail_per_group": 1,
+          "group_size": 4
+        },
+        "di_dry": {
+          "per_channel": 1,
+          "shared_return_per_module": 1
+        },
+        "presence_in": {
+          "per_channel": 3
+        }
+      },
+      "shared_per_module": 8
+    },
+    "ALM-173-R1": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 3
+        },
+        "alarm_zone": {
+          "per_channel": 2
+        }
+      },
+      "shared_per_module": 8
+    },
+    "OpenthermGateway": {
+      "channels": {
+        "relay_out_nc": {
+          "per_channel": 2
+        },
+        "opentherm": {
+          "per_channel": 2
+        }
+      },
+      "shared_per_module": 0,
+      "MISSING": [
+        "onewire"
+      ]
+    },
+    "MicroPLC": {
+      "channels": {
+        "relay_out_nc": {
+          "per_channel": 2
+        },
+        "di_dry": {
+          "per_channel": 2
+        },
+        "onewire": {
+          "per_channel": 0
+        }
+      },
+      "shared_per_module": 3
+    },
+    "MiniPLC": {
+      "channels": {
+        "relay_out_3a": {
+          "per_channel": 3
+        },
+        "di_dry": {
+          "per_channel": 2
+        },
+        "rtd_input": {
+          "per_channel": 4
+        }
+      },
+      "shared_per_module": 0,
+      "MISSING": [
+        "analog_in",
+        "analog_out",
+        "onewire"
+      ]
     }
   },
   "generated_at": "2026-08-14"
