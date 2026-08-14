@@ -179,7 +179,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 - Outputs are grouped in fours, each group with its own + rail - nine groups in total.
 - Low-side switching: load + to the group + rail, load - to O.n.
 - Two separate presence inputs SENS.A and SENS.B, each with its own + and Gnd.
-- Per channel <=1 A (<=500 mA recommended), <=3 A per module.
+- Per channel <=1.5 A (ferrite BLM31PG601SN1L). Module total <=18 A (DB128L-5.08 field terminals; choke is 24 A).
 
 <!-- hm:terminal-map:end -->
 
@@ -205,11 +205,11 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
 | **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
 | **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
-| **Full-Load Current (all outputs)** | — | — | 3.0 | A | At 24 VDC with max LED load. |
+| **Full-Load Current (all outputs)** | — | — | 18 | A | Module path limit (DB128L-5.08 field terminals). Per channel ≤1.5 A (BLM31PG601SN1L). |
 | **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
 | **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
 | **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** (**1206L150THWR**); **≤150 mA** continuous per rail. |
-| **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1 A** per channel (recommended **≤500 mA**). |
+| **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1.5 A** per channel; **≤18 A** module total. |
 | **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
 | **Communication** | — | — | — | — | RS-485 (**MAX485**), 9600–115200 bps. |
 | **Input Front-Ends** | — | — | — | — | **DI:** **ISO1212** (module-wetted 24 V). **IN1/IN2:** **SFH6156** opto-isolated presence inputs. |
@@ -342,7 +342,7 @@ Follow all safety and wiring practices described below.
 
 | Area | Warning |
 |-------|----------|
-| **Output Type** | **Low-side AO4882** N-MOSFET sinks; maximum load per channel **1 A** (12–24 VDC; **≤500 mA** recommended). |
+| **Output Type** | **Low-side AO4882** N-MOSFET sinks; maximum load per channel **1.5 A** (12–24 VDC); module total **≤18 A**. |
 | **Polarity** | Connect load +V to **+ group rail**, load – to output terminal (O#). |
 | **Inductive Loads** | Primarily LED/resistive loads; for large inductive loads add external RC or TVS snubbers. |
 | **Shared Rail** | Each **4-channel** group shares a **+** rail (nine groups) — ensure consistent LED supply voltage. |
@@ -430,11 +430,11 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
 
 ![24 V DC power supply wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
-*Module **V+** / **0V** (24 V DC) — size the PSU for electronics plus LED load.*
+*Module **V+** / **0V** (24 V DC logic) — size for electronics only. LED / actuator loads use the separate **LED PS** input.*
 
 ### Stair LED outputs (32 channels)
 
-Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1 A** per channel, **3 A** total module load).
+Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
 
 ### Digital trigger input
 

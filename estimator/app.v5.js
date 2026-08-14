@@ -783,7 +783,7 @@ function effectiveProvides(modId, rules) {
     const v = Number(n) || 0;
     if (v <= 0) continue;
     if (ch === "out_24v_ch") {
-      const policyCap = rules.policy?.str_actuators_per_module ?? 16;
+      const policyCap = rules.policy?.str_actuators_per_module ?? 32;
       out[ch] = Math.min(v, policyCap);
     } else {
       out[ch] = v;
@@ -1426,6 +1426,7 @@ function computePower(modulesList, rules, assumptions) {
 
   let logicW = 0;
   let fieldW = 0;
+  let strLedPsW = 0;
   const requirements = [];
 
   for (const line of modulesList) {
@@ -1441,11 +1442,21 @@ function computePower(modulesList, rules, assumptions) {
       fieldW += 120 * line.qty;
     }
     if (line.id === "STR-3221-R1" && line.qty > 0) {
+      // LED PS is a separate physical input from logic V+/0V. Size for
+      // simultaneous thermal-actuator inrush across all policy channels.
+      const ch = rules.policy?.str_actuators_per_module ?? 32;
+      const inrushA = rules.policy?.str_actuator_inrush_a ?? 0.3;
+      const v = rules.policy?.str_actuator_voltage_v ?? 24;
+      const wPer = Math.round(ch * inrushA * v);
+      const w = wPer * line.qty;
+      strLedPsW += w;
       requirements.push({
-        kind: "str_outputs",
-        text: `${line.qty}× STR-3221-R1: 24 V actuator outputs — size external PSU for 3 A per active channel.`,
+        kind: "str_led_ps",
+        text:
+          `${line.qty}× STR-3221-R1: separate LED PS field PSU ≥ ${w} W at ${v} V ` +
+          `(thermal-actuator inrush ${inrushA} A × ${ch} channels). ` +
+          `Do not share with module logic V+/0V. Simultaneous open is OK — no stagger required.`,
       });
-      fieldW += 0.15 * 24 * 2 * line.qty;
     }
     if (line.id === "ALM-173-R1" && line.qty > 0) {
       requirements.push({
@@ -1478,20 +1489,42 @@ function computePower(modulesList, rules, assumptions) {
   const moduleCount = modulesList.reduce((s, l) => s + l.qty, 0);
   const capacitanceUF = 330 * moduleCount;
 
-  requirements.push({
-    kind: "psu",
-    text: `Logic PSU: (${logicW.toFixed(1)} W logic + ${fieldW.toFixed(1)} W field) × ${1 + headroomPct / 100} headroom ≈ ${((logicW + fieldW) * (1 + headroomPct / 100)).toFixed(1)} W total.`,
-  });
+  const logicTotal = (logicW + fieldW) * (1 + headroomPct / 100);
+  if (fieldW > 0) {
+    requirements.push({
+      kind: "psu",
+      text:
+        `Logic PSU: (${logicW.toFixed(1)} W logic + ${fieldW.toFixed(1)} W field) × ` +
+        `${1 + headroomPct / 100} headroom ≈ ${logicTotal.toFixed(1)} W total.`,
+    });
+  } else {
+    requirements.push({
+      kind: "psu",
+      text:
+        `Logic PSU: ${logicW.toFixed(1)} W logic × ${1 + headroomPct / 100} headroom ` +
+        `≈ ${logicTotal.toFixed(1)} W total.`,
+    });
+  }
+  if (strLedPsW > 0) {
+    requirements.push({
+      kind: "str_led_ps_total",
+      text:
+        `LED PS (STR field) PSU: ≥ ${strLedPsW} W at 24 V — separate supply from module logic.`,
+    });
+  }
   requirements.push({
     kind: "capacitance",
     text: `Bulk capacitance: ${capacitanceUF} µF recommended (330 µF × ${moduleCount} modules).`,
   });
 
-  const totalW = (logicW + fieldW) * (1 + headroomPct / 100);
+  // Companion DIN PSU is sized for logic (+ non-STR field). STR LED PS is a
+  // separate field supply and must not inflate the logic PSU pick.
+  const totalW = logicTotal;
 
   return {
     logic_w: round1(logicW),
     field_w: round1(fieldW),
+    str_led_ps_w: round1(strLedPsW),
     total_w: round1(totalW),
     headroom_pct: headroomPct,
     capacitance_uF: capacitanceUF,

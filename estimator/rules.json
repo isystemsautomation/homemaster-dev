@@ -10,7 +10,9 @@
     "default_reserve_pct": 15,
     "psu_headroom_pct": 30,
     "psu_sizing_basis": "max",
-    "str_actuators_per_module": 16,
+    "str_actuators_per_module": 32,
+    "str_actuator_inrush_a": 0.3,
+    "str_actuator_voltage_v": 24,
     "enclosure_reserve_pct": 25,
     "onewire_sensor_design_ma": 5
   },
@@ -616,6 +618,8 @@
         "presence_in": 2
       },
       "features": [],
+      "out_channel_a": 1.5,
+      "out_module_a": 18,
       "sensor_rails": [
         {
           "voltage_v": 5,
@@ -633,7 +637,9 @@
         "din_units": "measured",
         "power_w_max": "README",
         "provides": "README",
-        "sensor_rails": "README"
+        "sensor_rails": "README",
+        "out_channel_a": "hardware",
+        "out_module_a": "hardware"
       }
     },
     "WLD-521-R1": {
@@ -855,5 +861,5 @@
       }
     }
   },
-  "generated_at": "2026-08-11"
+  "generated_at": "2026-08-14"
 }
