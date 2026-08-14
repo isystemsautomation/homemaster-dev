@@ -240,27 +240,45 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 ## Terminal Reference
 
-### Top Terminals (Signal)
+<!-- hm:terminal-map:begin -->
 
-| Terminal | Signal | Description |
-|---|---|---|
-| Gnd | Ground | Common ground reference |
-| D1 | 1-Wire Bus 1 DATA | DS18B20-compatible, GPIO4 |
-| D2 | 1-Wire Bus 2 DATA | DS18B20-compatible, GPIO5 |
-| +5V | +5 V output | Auxiliary 5 V supply for 1-Wire sensors (max 50 mA) |
-| O+ | OpenTherm + | OpenTherm bus positive |
-| O- | OpenTherm − | OpenTherm bus negative |
+**Top row** (1 WIRE | OT)
 
-### Bottom Terminals (Power & Relay)
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | Gnd | ONEWIRE | 1-Wire ground |
+| 2 | D1 | ONEWIRE | 1-Wire bus 1 data |
+| 3 | D2 | ONEWIRE | 1-Wire bus 2 data |
+| 4 | +5V | ONEWIRE | 1-Wire sensor supply, max 50 mA |
+| 5 | O+ | OT | OpenTherm bus positive |
+| 6 | O- | OT | OpenTherm bus negative |
 
-| Terminal | Signal | Description |
-|---|---|---|
-| 0V | DC Ground | 24 V DC negative / ground |
-| +V | DC Power + | 24 V DC positive input |
-| L | AC Line | AC mains live (85–265 V AC) |
-| N | AC Neutral | AC mains neutral |
-| C | Relay Common | Dry-contact relay common |
-| NC | Relay NC | Normally closed contact |
+**Bottom row** (24Vdc | 220Vac | RELAY)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | 0V | POWER_DC | 24 V DC return |
+| 2 | +V | POWER_DC | 24 V DC input |
+| 3 | L | POWER_AC | AC line 85-265 V (MAINS) |
+| 4 | N | POWER_AC | AC neutral (MAINS) |
+| 5 | C | RELAY | Relay common |
+| 6 | NC | RELAY | Relay normally closed |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C |  |  |
+
+**Housing notes**
+
+- No RS-485 bus. The gateway talks OpenTherm to the boiler and reaches the controller over the network.
+- Relay exposes C and NC only. There is no NO terminal and the contact is CLOSED when the relay is de-energised, so the load is powered by default.
+- Two 1-Wire buses (D1, D2) share one Gnd and one +5V.
+- The +5V rail is 50 mA - one third of the WLD and STR rails.
+- Dual supply, 24 V DC or 230 V AC. Use one at a time.
+
+<!-- hm:terminal-map:end -->
 
 > The +5V terminal is an auxiliary output for powering 1-Wire sensors only.
 > Do not connect other loads to this terminal.

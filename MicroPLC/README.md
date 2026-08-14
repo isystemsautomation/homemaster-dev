@@ -246,6 +246,14 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-B-A**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -271,6 +279,48 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 ## Pinout
 
 ![MicroPLC Pinout](./Images/pinout.png)
+
+
+### 4.2 Connectors & terminal map
+
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | DI 24Vdc | RELAY)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | +V | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | I.1 | DI1 | DI1 input |
+| 4 | GND | DI1 | DI1 return |
+| 5 | C | RELAY | Relay common |
+| 6 | NC | RELAY | Relay normally closed |
+
+**Bottom row** (RS-485 | BUS)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | COM | RS485 | RS-485 signal reference |
+| 2 | B | RS485 | RS-485 data - |
+| 3 | A | RS485 | RS-485 data + |
+| 4 | +5V | BUS | 1-Wire sensor supply |
+| 5 | D | BUS | 1-Wire data |
+| 6 | Gnd | BUS | 1-Wire ground |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C |  | 5 V via USB-C (programming) |
+
+**Housing notes**
+
+- Relay exposes C and NC only. There is no NO terminal and the contact is CLOSED when the relay is de-energised - the same inverted behaviour as the OpenTherm Gateway.
+- ONE 1-Wire bus. The '1WIRE 1/2' legend labels the two data terminals of a single bus, not two buses.
+- DI pair reads signal-then-GND, like DIM and opposite to DIO.
+- Power reads +V then 0V.
+
+<!-- hm:terminal-map:end -->
 
 ## MicroPLC Functional Block Diagram
 

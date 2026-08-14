@@ -198,6 +198,14 @@ See [§12 Compliance & Certifications](#12-compliance--certifications) for direc
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **B-A-COM**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -255,16 +263,56 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.2 Connectors & terminal map
 
-| Block / Label | Pin(s) (left→right) | Function / Signal | Limits / Notes |
-|----------------|--------------------|------------------|----------------|
-| **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
-| **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
-| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External current-output CT, secondary ≤ 60 mA RMS | Shielded pairs recommended; never open a live secondary |
-| **RS-485** | A, B, COM | Modbus RTU bus | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **RELAY 1** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
-| **RELAY 2** | NO, C, NC | SPDT dry contact | 3 A @ 250 VAC/30 VDC (module limit) |
-| **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
-| **LED / BTN Interface** | – | Internal header MCU ↔ Field Board | Service only |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | CT | VOLTAGE)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | - | CT3 | CT3 negative |
+| 4 | + | CT3 | CT3 positive |
+| 5 | - | CT2 | CT2 negative |
+| 6 | + | CT2 | CT2 positive |
+| 7 | PE | VOLTAGE_INPUT | Protective earth (MAINS) |
+| 8 | N | VOLTAGE_INPUT | Neutral (MAINS) |
+| 9 | L3 | VOLTAGE_INPUT | Phase 3 sensing (MAINS) |
+| 10 | L2 | VOLTAGE_INPUT | Phase 2 sensing (MAINS) |
+| 11 | L1 | VOLTAGE_INPUT | Phase 1 sensing (MAINS) |
+
+**Bottom row** (RS-485 | RELAY OUTPUT | CT)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | B | RS485 | RS-485 data - |
+| 2 | A | RS485 | RS-485 data + |
+| 3 | COM | RS485 | RS-485 signal reference |
+| 4 | NO | RELAY1 | Relay 1 normally open |
+| 5 | C | RELAY1 | Relay 1 common |
+| 6 | NC | RELAY1 | Relay 1 normally closed |
+| 7 | NO | RELAY2 | Relay 2 normally open |
+| 8 | C | RELAY2 | Relay 2 common |
+| 9 | NC | RELAY2 | Relay 2 normally closed |
+| 10 | + | CT1 | CT1 positive |
+| 11 | - | CT1 | CT1 negative |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C | D+, D–, VBUS, GND | Not for field mount |
+| LED / BTN Interface | Internal header MCU ↔ Field Board | Service only |
+
+**Housing notes**
+
+- CT1 is on the BOTTOM row while CT2 and CT3 are on top.
+- CT polarity order differs by row: the top blocks read (-,+), CT1 reads (+,-).
+- Voltage input descends L3 L2 L1 from right to left.
+- Current-output CT only, secondary <=60 mA RMS. A 1 A or 5 A CT will destroy the module.
+- Never open a live CT secondary.
+
+<!-- hm:terminal-map:end -->
 
 ### 4.3 Front panel — buttons & LEDs
 

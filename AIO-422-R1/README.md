@@ -119,6 +119,14 @@ Address **1–247**; baud 9600 / 19200 / 38400 / 57600 / 115200. **Set via [WebC
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **B-A-COM**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -154,14 +162,55 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.2 Connectors
 
-| Interface | Notes |
-|-----------|--------|
-| AI1–AI4 | 0–10 V field inputs — **AI3/AI4 board mapping corrected in firmware v0.2.0** |
-| AO1–AO2 | 0–10 V outputs |
-| RTD1–RTD2 | Match the on-board PT100/PT1000 jumper to the sensor type selected in WebConfig |
-| RS-485 | A / B / COM |
-| Power | 24 V DC |
-| USB-C | WebConfig and firmware update |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | AI 0-10V | AO 0-10V)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | AI4 | ANALOG_INPUT | Analog input 4, 0-10 V |
+| 4 | AI3 | ANALOG_INPUT | Analog input 3, 0-10 V |
+| 5 | AI2 | ANALOG_INPUT | Analog input 2, 0-10 V |
+| 6 | AI1 | ANALOG_INPUT | Analog input 1, 0-10 V |
+| 7 | GND | ANALOG_INPUT | Common return for AI1-AI4 |
+| 8 | AO1 | ANALOG_OUTPUT | Analog output 1, 0-10 V |
+| 9 | GND | ANALOG_OUTPUT | AO1 return |
+| 10 | AO2 | ANALOG_OUTPUT | Analog output 2, 0-10 V |
+| 11 | GND | ANALOG_OUTPUT | AO2 return |
+
+**Bottom row** (RS-485 | RTD/1 | RTD/2)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | B | RS485 | RS-485 data - |
+| 2 | A | RS485 | RS-485 data + |
+| 3 | COM | RS485 | RS-485 signal reference |
+| 4 | 1 | RTD1 | RTD 1 terminal 1 |
+| 5 | 2 | RTD1 | RTD 1 terminal 2 |
+| 6 | 3 | RTD1 | RTD 1 terminal 3 |
+| 7 | 4 | RTD1 | RTD 1 terminal 4 |
+| 8 | 1 | RTD2 | RTD 2 terminal 1 |
+| 9 | 2 | RTD2 | RTD 2 terminal 2 |
+| 10 | 3 | RTD2 | RTD 2 terminal 3 |
+| 11 | 4 | RTD2 | RTD 2 terminal 4 |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C |  | WebConfig and firmware update |
+
+**Housing notes**
+
+- Analog inputs are printed in DESCENDING order: AI4 AI3 AI2 AI1.
+- Analog inputs share one common GND. Analog outputs have a GND each.
+- RTD blocks are four terminals numbered 1-4 with jumper bridges printed between 1-2 and 3-4 for 2- and 3-wire modes.
+- No field supply rail. Loop-powered sensors take 24 V from the panel.
+- 4-20 mA is read via a 500 ohm 0.1 % shunt across an AI input.
+
+<!-- hm:terminal-map:end -->
 
 ### 4.3 Front panel
 

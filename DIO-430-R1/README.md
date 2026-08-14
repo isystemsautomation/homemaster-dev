@@ -146,6 +146,14 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **B-A-COM**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -188,18 +196,58 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.2 Connectors & terminal map
 
-| Block | Pins | Function | Notes |
-|-------|------|----------|-------|
-| **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
-| **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
-| **DI 1-4** | INx, GNDx | IEC 61131-2 digital inputs (ISO1212 front-end) | Dry-contact (module-wetted); wetting & front-end — see notes below |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | RELAY OUTPUT)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | 0V | POWER | 24 V DC return |
+| 2 | V+ | POWER | 24 V DC input |
+| 3 | NO | RELAY1 | Relay 1 normally open |
+| 4 | C | RELAY1 | Relay 1 common |
+| 5 | NC | RELAY1 | Relay 1 normally closed |
+| 6 | NO | RELAY2 | Relay 2 normally open |
+| 7 | C | RELAY2 | Relay 2 common |
+| 8 | NC | RELAY2 | Relay 2 normally closed |
+| 9 | NO | RELAY3 | Relay 3 normally open |
+| 10 | C | RELAY3 | Relay 3 common |
+| 11 | NC | RELAY3 | Relay 3 normally closed |
+
+**Bottom row** (RS-485 | DI 24Vdc)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | B | RS485 | RS-485 data - |
+| 2 | A | RS485 | RS-485 data + |
+| 3 | COM | RS485 | RS-485 signal reference |
+| 4 | GND | DI1 | DI1 return |
+| 5 | I.1 | DI1 | DI1 input |
+| 6 | GND | DI2 | DI2 return |
+| 7 | I.2 | DI2 | DI2 input |
+| 8 | GND | DI3 | DI3 return |
+| 9 | I.3 | DI3 | DI3 input |
+| 10 | GND | DI4 | DI4 return |
+| 11 | I.4 | DI4 | DI4 input |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C | D+, D−, VBUS, GND | Not for field powering |
+
+**Housing notes**
+
+- GND precedes the signal on every DI pair. DIM prints the opposite order - do not wire by habit.
+- Power reads 0V then V+. Most other modules read V+ first.
+- Relays are SPDT. System limit 3 A @ 250 VAC regardless of the relay component rating.
+
+<!-- hm:terminal-map:end -->
 
 **Input power / wetting.** The digital inputs are built on an ISO1212 IEC 61131-2 digital-input front-end and are wetted from the module's own 24 V supply (internally fused) — no separate input supply is required. For a dry contact, wire it between **INx** and **GNDx**; the module sources the loop (wetting) current and the ISO1212 limits it per channel (IEC 61131-2 input behaviour), so no external series resistor is needed. The module does **not** provide a dedicated sensor-supply rail (no 12 V/5 V out), so power 3-wire sensors from your own source and bring their output to INx.
 
 **Power domain & front-end.** The input field side runs on the module's own 24 V supply (internally fused) — there is no separate isolated input supply. The ISO1212 is a current/threshold-conditioning front-end, **not** a galvanic isolator; inputs are **not** galvanically isolated from the module's own 24 V rail. An external 24 V signal can be applied to INx (this is the normal "24 V signal" mode and does not disturb the internal wetting — SENSE and IN are separate pins, current-limited), and each channel is protected by a series fuse, common-mode choke, ~26 V TVS and an RC filter. **The signal return must share the module's SELV ground:** wire it to the paired **GNDx** (= the module's 24 V return). If the external 24 V comes from a separate supply, make sure both are SELV and share a common 0 V reference to avoid ground loops. Do not bond **GNDx** to logic GND.
 
-| **RS-485** | B, A, COM | Modbus RTU bus | See [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **USB-C** | D+, D−, VBUS, GND | Setup / Service port | Not for field powering |
 
 ### 4.3 Front panel — buttons & LEDs
 

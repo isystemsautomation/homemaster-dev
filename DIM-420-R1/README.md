@@ -282,6 +282,14 @@ DIM‑420‑R1 supports **RS‑485 Modbus RTU** for runtime control and **USB‑
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **B-A-COM**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -546,13 +554,53 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 
-| Group     | Terminals                  | Description / Notes |
-|-----------|----------------------------|----------------------|
-| **POWER** | V+, 0V                     | Logic power (24 VDC SELV) |
-| **DI**    | DI1–DI4 + GND pairs        | IEC 61131-2 digital inputs (ISO1212 front-end); each has dedicated GND |
-| **AC OUT**| Lx_IN/OUT, Nx_IN/OUT       | Dimmed output channels (CH1/CH2) |
-| **RS‑485**| A, B, COM                  | Differential bus + COM (required on every node) |
-| **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
+<!-- hm:terminal-map:begin -->
+
+**Top row** (24Vdc | CHANNEL 2 | CHANNEL 1)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | V+ | POWER | 24 V DC input |
+| 2 | 0V | POWER | 24 V DC return |
+| 3 | L2 | CH2_OUTPUT | Channel 2 dimmed line out (MAINS) |
+| 4 | N2 | CH2_OUTPUT | Channel 2 neutral out (MAINS) |
+| 5 | L2 | CH2_INPUT | Channel 2 line in (MAINS) |
+| 6 | N2 | CH2_INPUT | Channel 2 neutral in (MAINS) |
+| 7 | L1 | CH1_OUTPUT | Channel 1 dimmed line out (MAINS) |
+| 8 | N1 | CH1_OUTPUT | Channel 1 neutral out (MAINS) |
+| 9 | L1 | CH1_INPUT | Channel 1 line in (MAINS) |
+| 10 | N1 | CH1_INPUT | Channel 1 neutral in (MAINS) |
+
+**Bottom row** (RS-485 | DIGITAL INPUT)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | B | RS485 | RS-485 data - |
+| 2 | A | RS485 | RS-485 data + |
+| 3 | COM | RS485 | RS-485 signal reference |
+| 4 | I.1 | DI1 | DI1 input |
+| 5 | Gnd | DI1 | DI1 return |
+| 6 | I.2 | DI2 | DI2 input |
+| 7 | Gnd | DI2 | DI2 return |
+| 8 | I.3 | DI3 | DI3 input |
+| 9 | Gnd | DI3 | DI3 return |
+| 10 | I.4 | DI4 | DI4 input |
+| 11 | Gnd | DI4 | DI4 return |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| USB-C | Front panel USB-C port | For setup only (Web Serial & UF2) |
+
+**Housing notes**
+
+- CHANNEL 2 is printed LEFT of CHANNEL 1 on the housing.
+- DI pairs read signal-then-Gnd, the opposite of DIO and ALM.
+- MIXED VOLTAGE. Mains is present across the whole top row except POWER.
+- No per-channel energy metering.
+
+<!-- hm:terminal-map:end -->
 
 <div align="center">
   <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/photo2.png" width="640" alt="DIM-420-R1 Terminal Block">

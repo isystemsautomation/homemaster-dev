@@ -508,6 +508,10 @@ img[src*="Images/"] {
   <p>The WLD‑521‑R1 uses <strong>Modbus RTU</strong> over RS‑485 for all runtime communication, and <strong>USB‑C</strong> for setup via browser.</p>
 
   <h6>RS‑485 Pinout (Bottom Left Terminals)</h6>
+<!-- hm:rs485-order:begin -->
+<blockquote><p>Terminal order differs across the HomeMaster range. Always read the silkscreen - do not wire by habit from another module. On this module the order is <strong>B-A-COM</strong>. Swapping A and B damages nothing but the node will not communicate. COM is required on every node.</p></blockquote>
+<!-- hm:rs485-order:end -->
+
   <table>
     <thead><tr><th>Terminal</th><th>Function</th></tr></thead>
     <tbody>
@@ -809,19 +813,56 @@ img[src*="Images/"] {
 
   <h5>5.6 Connector / Terminal Map (Field Side)</h5>
   <p class="muted">External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–12 AWG, torque 0.5–0.6 Nm).</p>
-  <table>
-    <thead><tr><th>Block / Label</th><th>Pin(s) (left → right)</th><th>Function / Signal</th><th>Limits / Notes</th></tr></thead>
-    <tbody>
-      <tr><td><strong>POWER</strong></td><td><code>V+</code>, <code>0V</code></td><td>24 VDC SELV input</td><td>Reverse &amp; surge protected; <strong>fuse upstream</strong>.</td></tr>
-      <tr><td><strong>DIGITAL INPUTS – TOP</strong></td><td><code>I1…I5</code>, <code>GND</code> (ISO)</td><td>DI1…DI5 with isolated return</td><td>Keep returns on GND_ISO; dry‑contact/open‑collector only.</td></tr>
-      <tr><td><strong>RELAY1</strong></td><td><code>NO</code>, <code>C</code>, <code>NC</code></td><td>SPDT dry contact</td><td>Follow front label order.</td></tr>
-      <tr><td><strong>RELAY2</strong></td><td><code>NO</code>, <code>C</code>, <code>NC</code></td><td>SPDT dry contact</td><td>Follow front label order.</td></tr>
-      <tr><td><strong>RS‑485 (bottom left)</strong></td><td><code>B</code>, <code>A</code>, <code>COM</code></td><td>Modbus RTU bus</td><td>Match A/B polarity; COM = reference GND; terminate bus ends.</td></tr>
-      <tr><td><strong>1‑WIRE (top right)</strong></td><td><code>+5V</code>, <code>D</code>, <code>GND</code></td><td>1‑Wire bus (logic domain)</td><td>For DS18B20; not isolated from logic.</td></tr>
-      <tr><td><strong>SENSOR POWER (bottom right)</strong></td><td><code>+5 V ISO</code>, <code>+12 V ISO</code>, <code>GND_ISO</code></td><td>Isolated sensor rails</td><td>For <strong>sensors only</strong>; fused; no actuators.</td></tr>
-      <tr><td><strong>USB‑C (front)</strong></td><td>—</td><td>Web‑Serial config</td><td>ESD‑protected; not a field power source.</td></tr>
-    </tbody>
-  </table>
+  <!-- hm:terminal-map:begin -->
+<p><strong>Top row</strong> (24Vdc | INPUTS | 1-WIRE)</p>
+<table>
+<thead><tr><th>Pos</th><th>Label</th><th>Group</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>V+</td><td>POWER</td><td>24 V DC input</td></tr>
+<tr><td>2</td><td>0V</td><td>POWER</td><td>24 V DC return</td></tr>
+<tr><td>3</td><td>I.1</td><td>INPUTS</td><td>Input 1</td></tr>
+<tr><td>4</td><td>I.2</td><td>INPUTS</td><td>Input 2</td></tr>
+<tr><td>5</td><td>I.3</td><td>INPUTS</td><td>Input 3</td></tr>
+<tr><td>6</td><td>I.4</td><td>INPUTS</td><td>Input 4</td></tr>
+<tr><td>7</td><td>I.5</td><td>INPUTS</td><td>Input 5</td></tr>
+<tr><td>8</td><td>Gnd</td><td>INPUTS</td><td>Isolated input return (GND_ISO)</td></tr>
+<tr><td>9</td><td>+5V</td><td>BUS</td><td>1-Wire supply (logic domain, not isolated)</td></tr>
+<tr><td>10</td><td>D</td><td>BUS</td><td>1-Wire data</td></tr>
+<tr><td>11</td><td>Gnd</td><td>BUS</td><td>1-Wire ground (logic)</td></tr>
+</tbody>
+</table>
+<p><strong>Bottom row</strong> (RS-485 | RELAY OUTPUT | PS 5/12 Vdc)</p>
+<table>
+<thead><tr><th>Pos</th><th>Label</th><th>Group</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>B</td><td>RS485</td><td>RS-485 data -</td></tr>
+<tr><td>2</td><td>A</td><td>RS485</td><td>RS-485 data +</td></tr>
+<tr><td>3</td><td>COM</td><td>RS485</td><td>RS-485 signal reference</td></tr>
+<tr><td>4</td><td>NO</td><td>RELAY1</td><td>Relay 1 normally open</td></tr>
+<tr><td>5</td><td>C</td><td>RELAY1</td><td>Relay 1 common</td></tr>
+<tr><td>6</td><td>NC</td><td>RELAY1</td><td>Relay 1 normally closed</td></tr>
+<tr><td>7</td><td>NO</td><td>RELAY2</td><td>Relay 2 normally open</td></tr>
+<tr><td>8</td><td>C</td><td>RELAY2</td><td>Relay 2 common</td></tr>
+<tr><td>9</td><td>NC</td><td>RELAY2</td><td>Relay 2 normally closed</td></tr>
+<tr><td>10</td><td>5Vdc</td><td>PS</td><td>Isolated sensor rail +5 V</td></tr>
+<tr><td>11</td><td>12Vdc</td><td>PS</td><td>Isolated sensor rail +12 V</td></tr>
+</tbody>
+</table>
+<p><strong>Ports & service interfaces</strong></p>
+<table>
+<thead><tr><th>Id</th><th>Type</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>USB-C</td><td>Web-Serial config</td><td>ESD-protected; not a field power source.</td></tr>
+</tbody>
+</table>
+<p><strong>Housing notes</strong></p>
+<ul>
+<li>One shared Gnd (GND_ISO) for all five inputs, not one per channel.</li>
+<li>The Gnd on the top-row BUS block is the logic domain. Do not power field sensors from it - use the isolated PS rails.</li>
+<li>Isolated sensor rails 5 Vdc and 12 Vdc, 150 mA total.</li>
+</ul>
+<!-- hm:terminal-map:end -->
+
 
   <h5>5.7 Mechanical Details</h5>
   <ul>

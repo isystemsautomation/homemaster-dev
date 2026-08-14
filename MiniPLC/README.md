@@ -281,6 +281,14 @@ The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by o
 
 ### RS-485 / Modbus RTU
 
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-B-A**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
 All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Item | Value |
@@ -314,26 +322,91 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ## Terminal Reference
 
-### Top terminals (Signal)
+<!-- hm:terminal-map:begin -->
 
-| Terminal | Signal | Description |
-|---|---|---|
-| DI1–DI4 | Digital Inputs | Isolated 24 V DC inputs (4 channels) |
-| AI1–AI4 | Analog Inputs | 0–10 V analog inputs (4 channels, 16-bit) |
-| AO | Analog Output | 0–10 V analog output (1 channel, 12-bit) |
-| RTD1, RTD2 | RTD Inputs | PT100 / PT1000 (4 terminals each: FORCE+, RTDIN+, RTDIN−, FORCE−) |
-| D1, D2 | 1-Wire DATA | DS18B20-compatible (GPIO5 and GPIO4) |
-| +5V | +5 V output | Auxiliary supply for 1-Wire sensors |
-| Gnd | Signal ground | Common ground reference for signal terminals |
-| A, B, COM | RS-485 / Modbus | Half-duplex RS-485 bus (non-isolated; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu)) |
+**Top row** (220Vac | 24Vdc | 1-WIRE/1 | 1-WIRE/2 | RELAY1-6)
 
-### Bottom terminals (Power & Relay)
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | L | POWER_AC | AC line (MAINS) |
+| 2 | N | POWER_AC | AC neutral (MAINS) |
+| 3 | V+ | POWER_DC | 24 V DC input |
+| 4 | 0V | POWER_DC | 24 V DC return |
+| 5 | +5V | BUS1 | 1-Wire bus 1 supply |
+| 6 | D | BUS1 | 1-Wire bus 1 data |
+| 7 | Gnd | BUS1 | 1-Wire bus 1 ground |
+| 8 | +5V | BUS2 | 1-Wire bus 2 supply |
+| 9 | D | BUS2 | 1-Wire bus 2 data |
+| 10 | Gnd | BUS2 | 1-Wire bus 2 ground |
+| 11 | NO | RELAY1 | Relay 1 normally open |
+| 12 | C | RELAY1 | Relay 1 common |
+| 13 | NC | RELAY1 | Relay 1 normally closed |
+| 14 | NO | RELAY2 | Relay 2 normally open |
+| 15 | C | RELAY2 | Relay 2 common |
+| 16 | NC | RELAY2 | Relay 2 normally closed |
+| 17 | NO | RELAY3 | Relay 3 normally open |
+| 18 | C | RELAY3 | Relay 3 common |
+| 19 | NC | RELAY3 | Relay 3 normally closed |
+| 20 | NO | RELAY4 | Relay 4 normally open |
+| 21 | C | RELAY4 | Relay 4 common |
+| 22 | NC | RELAY4 | Relay 4 normally closed |
+| 23 | NO | RELAY5 | Relay 5 normally open |
+| 24 | C | RELAY5 | Relay 5 common |
+| 25 | NC | RELAY5 | Relay 5 normally closed |
+| 26 | NO | RELAY6 | Relay 6 normally open |
+| 27 | C | RELAY6 | Relay 6 common |
+| 28 | NC | RELAY6 | Relay 6 normally closed |
 
-| Terminal | Signal | Description |
-|---|---|---|
-| 0V / V+ | DC input | 24 V DC negative / positive |
-| L / N | AC mains input | 85–265 V AC, 47–63 Hz |
-| R1–R6 (COM, NO, NC) | Relay outputs | 6 × SPDT mechanical relays |
+**Bottom row** (AI 0-10V | AO 0-10V | RTD/1 | RTD/2 | DI 24Vdc | RS-485)
+
+| Pos | Label | Group | Function |
+|-----|-------|-------|----------|
+| 1 | GND | ANALOG_INPUT | Common return for AI1-AI4 |
+| 2 | AI1 | ANALOG_INPUT | Analog input 1, 0-10 V |
+| 3 | AI2 | ANALOG_INPUT | Analog input 2, 0-10 V |
+| 4 | AI3 | ANALOG_INPUT | Analog input 3, 0-10 V |
+| 5 | AI4 | ANALOG_INPUT | Analog input 4, 0-10 V |
+| 6 | AO | ANALOG_OUTPUT | Analog output, 0-10 V |
+| 7 | GND | ANALOG_OUTPUT | Analog output return |
+| 8 | 1 | RTD1 | RTD 1 terminal 1 |
+| 9 | 2 | RTD1 | RTD 1 terminal 2 |
+| 10 | 3 | RTD1 | RTD 1 terminal 3 |
+| 11 | 4 | RTD1 | RTD 1 terminal 4 |
+| 12 | 1 | RTD2 | RTD 2 terminal 1 |
+| 13 | 2 | RTD2 | RTD 2 terminal 2 |
+| 14 | 3 | RTD2 | RTD 2 terminal 3 |
+| 15 | 4 | RTD2 | RTD 2 terminal 4 |
+| 16 | GND | DI1 | DI1 return |
+| 17 | I.1 | DI1 | DI1 input |
+| 18 | GND | DI2 | DI2 return |
+| 19 | I.2 | DI2 | DI2 input |
+| 20 | GND | DI3 | DI3 return |
+| 21 | I.3 | DI3 | DI3 input |
+| 22 | GND | DI4 | DI4 return |
+| 23 | I.4 | DI4 | DI4 input |
+| 24 | COM | RS485 | RS-485 signal reference |
+| 25 | B | RS485 | RS-485 data - |
+| 26 | A | RS485 | RS-485 data + |
+
+**Ports & service interfaces**
+
+| Id | Type | Note |
+|----|------|------|
+| ETHERNET | RJ45 |  |
+| SD card |  |  |
+| USB-C |  |  |
+| ANTENNA | SMA |  |
+| DISPLAY |  | on-board screen with four navigation buttons |
+
+**Housing notes**
+
+- Analog inputs share one GND, printed first.
+- ONE analog output (AO + GND), not two.
+- Two 1-Wire buses on separate blocks, 1-WIRE/1 and 1-WIRE/2.
+- Dual supply, 230 V AC or 24 V DC.
+- Only module in the range with Ethernet.
+
+<!-- hm:terminal-map:end -->
 
 ## LED and Button Behaviour
 
