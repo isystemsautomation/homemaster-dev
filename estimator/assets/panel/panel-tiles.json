@@ -91,11 +91,11 @@
       "units": 0.35
     },
     "psu_din_100w": {
-      "file": null,
+      "file": "modules/psu_din_100w.png",
       "units": 6.0
     },
     "psu_din_60w": {
-      "file": null,
+      "file": "modules/psu_din_60w.png",
       "units": 4.0
     },
     "rcbo_1p_n": {
