@@ -27,7 +27,9 @@ const SYSTEM_SECTION_IDS = [
 /** Enclosure search space: whole DIN rows only (false panel covers a full row). */
 const ENCLOSURE_ROW_WIDTHS = [12, 18, 24];
 const ENCLOSURE_MAX_ROWS = 6;
-const ENCLOSURE_MAX_CAPACITY = 24 * 6; // 144
+const ENCLOSURE_MAX_CAPACITY = 24 * 6; // 144 per section
+/** Max coupled DIN enclosure sections for one panel (physical cabinet). */
+const ENCLOSURE_MAX_SECTIONS = 4;
 const ENCLOSURE_TE_MM = 17.5;
 const ENCLOSURE_WIDTH_MARGIN_MM = 100;
 const ENCLOSURE_ROW_PITCH_MM = 125;
@@ -40,59 +42,12 @@ const ENCLOSURE_HEIGHT_MARGIN_MM = 200;
  * @returns {object}
  */
 /**
- * Auto-split when a single panel exceeds 6×24: pack system sections then
- * whole rooms into panels (same panel_id assignment as screen 1). Expert /
- * no-rooms falls back to even channel partition.
+ * Panel count is only what the user set on screen 1 (or one default).
+ * Demand that exceeds one 6×24 body uses coupled enclosure sections
+ * (enclosure.cabinets), not extra panels.
  */
 function estimate(inputs, rules, prices = EMPTY) {
-  const depth = Math.max(0, Number(inputs._autosplit_depth) || 0);
-  const core = estimateCore(inputs, rules, prices);
-
-  const panels = resolvePanels(inputs);
-  const overCapacity =
-    core.enclosure?.overflow ||
-    (core.enclosure?.din_needed || 0) > ENCLOSURE_MAX_CAPACITY;
-  if (
-    panels.length === 1 &&
-    !inputs._skip_enclosure_autosplit &&
-    depth < 5 &&
-    core.enclosure?.status !== "blocked" &&
-    overCapacity
-  ) {
-    const namedRooms = (inputs.rooms || []).filter((r) =>
-      String(r?.name ?? "").trim(),
-    );
-    let splitInputs;
-    if (namedRooms.length > 0) {
-      splitInputs = autoSplitByRooms(inputs, rules);
-    } else {
-      const n = Math.ceil(
-        (core.enclosure.din_needed || ENCLOSURE_MAX_CAPACITY + 1) /
-          ENCLOSURE_MAX_CAPACITY,
-      );
-      splitInputs = autoSplitByChannels(inputs, n, rules);
-    }
-    if (!splitInputs) return core;
-
-    splitInputs = {
-      ...splitInputs,
-      _autosplit_depth: depth + 1,
-      _skip_enclosure_autosplit: true,
-    };
-    const splitResult = estimateCore(splitInputs, rules, prices);
-    const base =
-      `DIN demand ${core.enclosure.din_needed} M exceeds max enclosure ` +
-      `6×24=${ENCLOSURE_MAX_CAPACITY} M; auto-split into ${splitResult.panel_count} panels` +
-      (namedRooms.length
-        ? " by rooms (system sections packed like rooms)."
-        : " by channel demand.");
-    splitResult.split_warning = splitResult.split_warning
-      ? `${base} ${splitResult.split_warning}`
-      : base;
-    return splitResult;
-  }
-
-  return core;
+  return estimateCore(inputs, rules, prices);
 }
 
 function estimateCore(inputs, rules, prices = EMPTY) {
@@ -103,9 +58,7 @@ function estimateCore(inputs, rules, prices = EMPTY) {
     const roomNames = (sliced.rooms || [])
       .map((r) => String(r?.name ?? "").trim())
       .filter(Boolean);
-    const systems = SYSTEM_SECTION_IDS.filter((sec) =>
-      systemSectionHasContent(sliced.systems?.[sec]),
-    );
+    const systems = systemsAssignedToPanel(inputs, panel, panels);
     return {
       id: panel.id,
       name: panel.name,
@@ -143,188 +96,18 @@ function estimateCore(inputs, rules, prices = EMPTY) {
   };
 }
 
-function splitInt(total, parts, index) {
-  const t = Math.max(0, Math.floor(Number(total) || 0));
-  if (parts <= 1) return t;
-  const base = Math.floor(t / parts);
-  const rem = t % parts;
-  return base + (index < rem ? 1 : 0);
-}
-
 /**
- * Pack system sections, then named rooms, into panels until each would
- * exceed max enclosure DIN. Prefer filling an existing panel that still
- * fits; otherwise open a new one. User-set systems.*.panel_id is kept when
- * it already names a panel from a prior manual layout (autosplit builds
- * fresh panels and reassigns).
+ * System sections on this panel: explicit panel_id, else first panel
+ * (house engineering defaults to panel 1).
  */
-function autoSplitByRooms(inputs, rules) {
-  const rooms = (inputs.rooms || []).filter((r) =>
-    String(r?.name ?? "").trim(),
-  );
-  if (!rooms.length) return null;
-
+function systemsAssignedToPanel(inputs, panel, panels) {
+  const fallback = defaultPanelId(panels);
   const systemsIn = inputs.systems || {};
-  const activeSections = SYSTEM_SECTION_IDS.filter((sec) =>
-    systemSectionHasContent(systemsIn[sec]),
-  );
-
-  /** @type {{ sections: string[], rooms: object[] }[]} */
-  const groups = [];
-
-  const fits = (sections, roomList, flatAliases) =>
-    measurePanelDinNeeded(inputs, roomList, sections, rules, flatAliases) <=
-    ENCLOSURE_MAX_CAPACITY;
-
-  // 1) Pack system sections (same greedy rule as rooms).
-  let curSections = [];
-  let packingFirst = true;
-  for (const sec of activeSections) {
-    const trySec = [...curSections, sec];
-    if (curSections.length && !fits(trySec, [], packingFirst)) {
-      groups.push({ sections: curSections, rooms: [] });
-      packingFirst = false;
-      curSections = [sec];
-      if (!fits([sec], [], packingFirst)) {
-        // Single section alone still over max — keep it; status will be overflow.
-        groups.push({ sections: curSections, rooms: [] });
-        curSections = [];
-      }
-    } else if (!curSections.length && !fits([sec], [], packingFirst)) {
-      groups.push({ sections: [sec], rooms: [] });
-      packingFirst = false;
-      curSections = [];
-    } else {
-      curSections = trySec;
-    }
-  }
-  if (curSections.length) {
-    groups.push({ sections: curSections, rooms: [] });
-  }
-  if (groups.length === 0) {
-    groups.push({ sections: [], rooms: [] });
-  }
-
-  // 2) Pack rooms: fill first group that still fits, else new group.
-  for (const room of rooms) {
-    let placed = false;
-    for (let i = 0; i < groups.length; i++) {
-      const g = groups[i];
-      const tryRooms = [...g.rooms, room];
-      if (fits(g.sections, tryRooms, i === 0)) {
-        g.rooms = tryRooms;
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      groups.push({ sections: [], rooms: [room] });
-    }
-  }
-
-  const panels = groups.map((_, i) => ({
-    id: `panel-${i + 1}`,
-    name: `Panel ${i + 1}`,
-    location: "",
-  }));
-
-  const assignedRooms = [];
-  groups.forEach((g, i) => {
-    for (const r of g.rooms) {
-      assignedRooms.push({ ...r, panel_id: panels[i].id });
-    }
+  return SYSTEM_SECTION_IDS.filter((sec) => {
+    const src = systemsIn[sec];
+    if (!systemSectionHasContent(src)) return false;
+    return knownPanelId(src.panel_id, panels, fallback) === panel.id;
   });
-
-  const systems = {
-    system: { ...(systemsIn.system || {}), cabinets: 1 },
-  };
-  const firstId = panels[0].id;
-  for (const sec of SYSTEM_SECTION_IDS) {
-    const src = systemsIn[sec] || {};
-    const want = String(src.panel_id || "").trim();
-    let pid = firstId;
-    if (want && panels.some((p) => p.id === want)) {
-      pid = want;
-    } else {
-      const gi = groups.findIndex((g) => g.sections.includes(sec));
-      if (gi >= 0) pid = panels[gi].id;
-    }
-    systems[sec] = { ...emptySystemSection(sec), ...src, panel_id: pid };
-  }
-  for (const [key, val] of Object.entries(systemsIn)) {
-    if (SYSTEM_SECTION_IDS.includes(key) || key === "system") continue;
-    systems[key] = val;
-  }
-
-  return {
-    ...inputs,
-    cabinets: 1,
-    panels,
-    rooms: assignedRooms,
-    systems,
-    expert: undefined,
-    _panel_top: undefined,
-    _panel_systems: undefined,
-  };
-}
-
-/** DIN needed for a candidate room set + selected system sections. */
-function measurePanelDinNeeded(
-  inputs,
-  rooms,
-  sectionIds,
-  rules,
-  includeFlatAliases = false,
-) {
-  const systemsIn = inputs.systems || {};
-  const want = new Set(sectionIds || []);
-  const systems = {
-    system: { ...(systemsIn.system || {}), cabinets: 1 },
-  };
-  for (const sec of SYSTEM_SECTION_IDS) {
-    if (want.has(sec)) {
-      systems[sec] = { ...(systemsIn[sec] || {}), panel_id: "" };
-    } else {
-      systems[sec] = emptySystemSection(sec);
-    }
-  }
-  if (includeFlatAliases) {
-    for (const [key, val] of Object.entries(systemsIn)) {
-      if (SYSTEMS_NEST_KEYS.has(key) || key === "system") continue;
-      systems[key] = val;
-    }
-  }
-  const trial = {
-    ...inputs,
-    cabinets: 1,
-    rooms,
-    systems,
-    panels: undefined,
-    _panel_top: undefined,
-    _panel_systems: undefined,
-    _skip_enclosure_autosplit: true,
-    shutters: includeFlatAliases ? inputs.shutters || 0 : 0,
-    light_groups: includeFlatAliases ? inputs.light_groups || 0 : 0,
-    lights_onoff: includeFlatAliases ? inputs.lights_onoff || 0 : 0,
-    underfloor_circuits: includeFlatAliases
-      ? inputs.underfloor_circuits || 0
-      : 0,
-    relay_needs_contactor: includeFlatAliases
-      ? inputs.relay_needs_contactor || 0
-      : 0,
-    expert: undefined,
-    mode: inputs.mode === "expert" ? "rooms" : inputs.mode,
-  };
-  const result = estimatePanel(trial, rules, EMPTY);
-  const enc = result.enclosure;
-  if (!enc || enc.status === "blocked") return Infinity;
-  if (enc.overflow || enc.status === "overflow") {
-    return Math.max(
-      ENCLOSURE_MAX_CAPACITY + 1,
-      Number(enc.din_needed) || ENCLOSURE_MAX_CAPACITY + 1,
-    );
-  }
-  return Number(enc.din_needed) || 0;
 }
 
 /** True when a systems.<section> object carries real demand. */
@@ -335,95 +118,15 @@ function systemSectionHasContent(src) {
     if (typeof v === "number" && v > 0) return true;
     if (typeof v === "string" && v.trim() && v !== "none") return true;
     if (typeof v === "boolean" && v) return true;
+    if (Array.isArray(v) && v.length > 0) return true;
   }
   return false;
 }
 
-/**
- * Expert / no-rooms fallback: partition channel demand evenly.
- */
-function autoSplitByChannels(inputs, n, rules) {
-  const count = Math.max(2, Math.floor(Number(n) || 2));
-  const panels = Array.from({ length: count }, (_, i) => ({
-    id: `panel-${i + 1}`,
-    name: `Panel ${i + 1}`,
-    location: "",
-  }));
-
-  const assumptions = [];
-  const normalized = normalize(
-    {
-      ...inputs,
-      cabinets: 1,
-      panels: undefined,
-      _panel_top: undefined,
-      _panel_systems: undefined,
-    },
-    rules,
-    assumptions,
-  );
-  const demand = buildDemand(normalized, rules);
-  const meta = new Set([
-    "shutters",
-    "relay_needs_contactor",
-    "inductive_loads",
-    "_reserve_pct",
-  ]);
-
-  const panel_top = {};
-  for (let i = 0; i < count; i++) {
-    const id = panels[i].id;
-    const d = {};
-    for (const [ch, qty] of Object.entries(demand)) {
-      if (meta.has(ch)) continue;
-      d[ch] = splitInt(qty, count, i);
-    }
-    panel_top[id] = {
-      shutters: 0,
-      light_groups: 0,
-      lights_onoff: 0,
-      underfloor_circuits: 0,
-      relay_needs_contactor: 0,
-      inductive_loads: splitInt(demand.inductive_loads, count, i),
-      expert: {
-        demand: d,
-        shutters: splitInt(demand.shutters, count, i),
-        relay_needs_contactor: splitInt(demand.relay_needs_contactor, count, i),
-        inductive_loads: splitInt(demand.inductive_loads, count, i),
-      },
-    };
-  }
-
-  return {
-    cabinets: 1,
-    mode: "expert",
-    stage: inputs.stage,
-    property_type: inputs.property_type,
-    floor_area_m2: inputs.floor_area_m2,
-    floors: inputs.floors,
-    panels,
-    rooms: [],
-    systems: {
-      system: {
-        ...((inputs.systems && inputs.systems.system) || {}),
-        cabinets: 1,
-        reserve_pct: normalized.reserve_pct,
-      },
-    },
-    shutters: 0,
-    light_groups: 0,
-    lights_onoff: 0,
-    underfloor_circuits: 0,
-    relay_needs_contactor: 0,
-    expert: undefined,
-    _panel_top: panel_top,
-  };
-}
-
-/** Single-panel pipeline (cabinets / enclosure = 1). */
+/** Single-panel pipeline (one logical panel; enclosure may be N coupled sections). */
 function estimatePanel(inputs, rules, prices = EMPTY) {
   const assumptions = [];
-  // Each panel is one enclosure; segment floor is 1.
+  // Each panel is one logical cabinet; RS-485 / incomer floor is 1.
   const forced = {
     ...inputs,
     cabinets: 1,
@@ -452,7 +155,8 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
     assumptions,
     demand,
   );
-  const enclosure = computeEnclosure(topology.modules, companions, rules, 1);
+  // Coupled section count is chosen inside computeEnclosure (not inputs.cabinets).
+  const enclosure = computeEnclosure(topology.modules, companions, rules);
   const companionsFinal = finalizeEnclosureCompanions(
     companions,
     enclosure,
@@ -723,6 +427,9 @@ function aggregatePanelResults(panelResults, rules) {
   let dinCapacity = 0;
   let dinModules = 0;
   let dinCompanions = 0;
+  let dinReserve = 0;
+  let dinFree = 0;
+  let enclosureCabinets = 0;
   let enclosureBlocked = false;
   let enclosureOverflow = false;
   const blockedMods = [];
@@ -777,6 +484,9 @@ function aggregatePanelResults(panelResults, rules) {
       dinCapacity += p.enclosure.capacity || 0;
       dinModules += p.enclosure.din_modules || 0;
       dinCompanions += p.enclosure.din_companions || 0;
+      dinReserve += p.enclosure.din_reserve || 0;
+      dinFree += p.enclosure.din_free || 0;
+      enclosureCabinets += p.enclosure.cabinets || 0;
       if (
         p.enclosure.overflow ||
         p.enclosure.status === "overflow" ||
@@ -878,12 +588,17 @@ function aggregatePanelResults(panelResults, rules) {
             din_modules: Math.round(dinModules * 100) / 100,
             din_companions: Math.round(dinCompanions * 100) / 100,
             din_total: Math.round(dinTotal * 100) / 100,
+            din_occupied: Math.round(dinTotal * 100) / 100,
+            din_reserve: dinReserve,
             din_needed: dinNeeded,
+            din_free: dinFree,
             capacity: dinCapacity,
+            cabinets: enclosureCabinets,
             panels: panelResults.length,
             reserve_pct: panelResults[0]?.enclosure?.reserve_pct ?? 25,
             overflow: enclosureOverflow,
             max_capacity: ENCLOSURE_MAX_CAPACITY,
+            max_sections: ENCLOSURE_MAX_SECTIONS,
           },
     lines,
     assumptions,
@@ -2646,15 +2361,53 @@ function pickEnclosureLayout(needed) {
 }
 
 /**
- * Sum DIN units across HomeMaster modules + companions, apply reserve,
- * pick ONE enclosure layout. Blanking / enclosure BOM lines are added
- * afterwards (they must not inflate din_needed).
+ * Pick 1..ENCLOSURE_MAX_SECTIONS identical bodies so total capacity ≥ need.
+ * Prefer fewer sections, then least spare, then best single-body aspect.
  */
-function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
+function pickCoupledEnclosure(dinNeeded) {
+  const need = Math.max(0, Math.ceil(Number(dinNeeded) || 0));
+  let best = null;
+  for (let sections = 1; sections <= ENCLOSURE_MAX_SECTIONS; sections++) {
+    const needPer = Math.ceil(need / sections);
+    const layout = pickEnclosureLayout(needPer);
+    if (!layout) continue;
+    const capacity = layout.capacity * sections;
+    const spare = capacity - need;
+    const cand = {
+      cabinets: sections,
+      row_width: layout.row_width,
+      rows: layout.rows,
+      capacity_each: layout.capacity,
+      capacity,
+      width_mm: layout.width_mm * sections,
+      height_mm: layout.height_mm,
+      section_width_mm: layout.width_mm,
+      aspect: layout.aspect,
+      spare,
+    };
+    if (
+      !best ||
+      cand.cabinets < best.cabinets ||
+      (cand.cabinets === best.cabinets && cand.spare < best.spare) ||
+      (cand.cabinets === best.cabinets &&
+        cand.spare === best.spare &&
+        cand.aspect < best.aspect - 1e-9)
+    ) {
+      best = cand;
+    }
+  }
+  return best;
+}
+
+/**
+ * Sum DIN units across HomeMaster modules + companions, apply reserve
+ * once, then pick coupled enclosure section(s). Blanking / enclosure BOM
+ * lines are added afterwards (they must not inflate din_needed).
+ */
+function computeEnclosure(modulesList, companions, rules) {
   const moduleSpecs = rules.modules ?? EMPTY;
   const dinMap = rules.companion_din_units ?? EMPTY;
   const missing = [];
-  const cabinetCount = Math.max(1, Number(cabinets) || 1);
 
   for (const line of modulesList) {
     const { missing: miss } = dinWidthForModule(line, moduleSpecs);
@@ -2703,9 +2456,11 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
 
   const dinTotal = dinModules + dinCompanions;
   const reservePct = rules.policy?.enclosure_reserve_pct ?? 25;
-  const dinNeeded = Math.ceil(dinTotal * (1 + reservePct / 100));
-  const perCabinet = Math.ceil(dinNeeded / cabinetCount);
-  const layout = pickEnclosureLayout(perCabinet);
+  // Reserve once (occupied × pct), then ceil to a whole-module target for sizing.
+  // Spare from enclosure row/section rounding is din_free — not a second reserve.
+  const dinReserve = Math.ceil((dinTotal * reservePct) / 100);
+  const dinNeeded = Math.ceil(dinTotal + dinReserve - 1e-9);
+  const layout = pickCoupledEnclosure(dinNeeded);
 
   if (!layout) {
     return {
@@ -2713,9 +2468,12 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
       din_modules: round2(dinModules),
       din_companions: round2(dinCompanions),
       din_total: round2(dinTotal),
+      din_occupied: round2(dinTotal),
+      din_reserve: dinReserve,
       reserve_pct: reservePct,
       din_needed: dinNeeded,
-      cabinets: cabinetCount,
+      din_free: null,
+      cabinets: null,
       row_width: null,
       rows: null,
       capacity_each: null,
@@ -2724,25 +2482,34 @@ function computeEnclosure(modulesList, companions, rules, cabinets = 1) {
       height_mm: null,
       overflow: true,
       max_capacity: ENCLOSURE_MAX_CAPACITY,
+      max_sections: ENCLOSURE_MAX_SECTIONS,
       breakdown,
     };
   }
+
+  const dinFree = Math.max(0, layout.capacity - dinNeeded);
 
   return {
     status: "ok",
     din_modules: round2(dinModules),
     din_companions: round2(dinCompanions),
     din_total: round2(dinTotal),
+    din_occupied: round2(dinTotal),
+    din_reserve: dinReserve,
     reserve_pct: reservePct,
     din_needed: dinNeeded,
-    cabinets: cabinetCount,
+    din_free: dinFree,
+    cabinets: layout.cabinets,
     row_width: layout.row_width,
     rows: layout.rows,
-    capacity_each: layout.capacity,
-    capacity: layout.capacity * cabinetCount,
+    capacity_each: layout.capacity_each,
+    capacity: layout.capacity,
     width_mm: layout.width_mm,
     height_mm: layout.height_mm,
+    section_width_mm: layout.section_width_mm,
     overflow: false,
+    max_capacity: ENCLOSURE_MAX_CAPACITY,
+    max_sections: ENCLOSURE_MAX_SECTIONS,
     breakdown,
   };
 }
@@ -2765,7 +2532,7 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
   }
 
   const capacity = Number(enclosure.capacity) || 0;
-  const occupied = Number(enclosure.din_total) || 0;
+  const occupied = Number(enclosure.din_occupied ?? enclosure.din_total) || 0;
   const blankQty = Math.max(0, Math.floor(capacity - occupied + 1e-9));
   if (blankQty > 0) {
     out.push({
@@ -2777,25 +2544,34 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
       sku: "",
       unit_price: null,
       rating: null,
-      note: "Covers unused DIN slots behind the false panel.",
+      note: "Covers unused DIN slots behind the false panel (includes planning reserve).",
     });
   }
 
   const rows = enclosure.rows;
   const rowWidth = enclosure.row_width;
   const capEach = enclosure.capacity_each;
+  const cabinets = Math.max(1, enclosure.cabinets || 1);
   const w = enclosure.width_mm;
   const h = enclosure.height_mm;
+  const note =
+    `Occupied ${enclosure.din_occupied} M · reserve ${enclosure.din_reserve} M (${enclosure.reserve_pct}%) · ` +
+    `free after rounding ${enclosure.din_free} M.` +
+    (cabinets > 1 ? " Coupled enclosure sections." : " Final enclosure selection by the electrical design.");
   out.push({
     id: "din_enclosure",
-    qty: Math.max(1, enclosure.cabinets || 1),
-    label: `DIN enclosure, ${rows} rows × ${rowWidth} = ${capEach} modules, approx. ${w} × ${h} mm`,
+    // Single quote line; section count lives in enclosure.cabinets and the label.
+    qty: 1,
+    label:
+      cabinets > 1
+        ? `DIN enclosure, ${cabinets} × (${rows} rows × ${rowWidth}) = ${capacity} modules, approx. ${w} × ${h} mm — supplied as coupled sections.`
+        : `DIN enclosure, ${rows} rows × ${rowWidth} = ${capEach} modules, approx. ${w} × ${h} mm`,
     requirement: true,
     din_units: dinMap.din_enclosure ?? 0,
     sku: "",
     unit_price: null,
     rating: null,
-    note: "Final enclosure selection by the electrical design.",
+    note,
   });
   enclosure.blanking_qty = blankQty;
 
@@ -4790,7 +4566,12 @@ function saveState() {
 }
 
 function buildInputs() {
-  const panels = resolvePanels({ panels: state.panels });
+  // Simple mode always uses one panel; Advanced keeps user-created panels.
+  const panels =
+    state.ui_mode === "simple"
+      ? [{ id: "panel-1", name: "Main panel", location: "" }]
+      : resolvePanels({ panels: state.panels });
+  const mainId = panels[0]?.id || "panel-1";
   if (state.expert) {
     return {
       panels,
@@ -4802,6 +4583,21 @@ function buildInputs() {
       },
     };
   }
+  const systems = JSON.parse(JSON.stringify(state.systems));
+  if (state.ui_mode === "simple") {
+    for (const sec of [
+      "heating",
+      "ventilation",
+      "water",
+      "electrical",
+      "security",
+      "lighting_scenes",
+    ]) {
+      if (systems[sec] && typeof systems[sec] === "object") {
+        systems[sec].panel_id = mainId;
+      }
+    }
+  }
   return {
     panels,
     property_type: state.object.property_type,
@@ -4811,9 +4607,10 @@ function buildInputs() {
     name: state.object.name,
     rooms: state.rooms.map((r) => ({
       ...r,
-      panel_id: r.panel_id || firstPanelId(),
+      panel_id:
+        state.ui_mode === "simple" ? mainId : r.panel_id || mainId,
     })),
-    systems: JSON.parse(JSON.stringify(state.systems)),
+    systems,
   };
 }
 
@@ -4851,22 +4648,34 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
     return `<p class="hm-warn">Panel layout: blocked — ${enclosure.reason}</p>`;
   }
   if (enclosure.status === "overflow" || enclosure.overflow) {
-    return `<p class="hm-warn">Enclosure: ${enclosure.din_needed} M needed exceeds capacity ${enclosure.capacity ?? "—"} M (max 6×24=${enclosure.max_capacity || 144} M) — split into more panels.</p>`;
+    return `<p class="hm-warn">Enclosure: ${enclosure.din_needed} M needed exceeds max ${enclosure.max_sections || 4}×(6×24)=${(enclosure.max_sections || 4) * (enclosure.max_capacity || 144)} M — add another panel on screen 1 or reduce demand.</p>`;
   }
+  const occupied = enclosure.din_occupied ?? enclosure.din_total;
+  const reserve = enclosure.din_reserve;
+  const free = enclosure.din_free;
+  const breakdown =
+    reserve != null && free != null
+      ? `occupied ${occupied} M · reserve ${reserve} M (${enclosure.reserve_pct}%) · needed ${enclosure.din_needed} M · free ${free} M`
+      : `${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve`;
   if (compact || enclosure.panels > 1) {
-    return `<p>DIN units (all panels): ${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve → ${enclosure.capacity} M capacity</p>`;
+    return `<p>DIN (${enclosure.panels > 1 ? "all panels" : "panel"}): ${breakdown} → capacity ${enclosure.capacity} M</p>`;
   }
+  const cabinets = enclosure.cabinets || 1;
   const each = enclosure.capacity_each ?? enclosure.capacity;
-  const layout = `${enclosure.rows} rows × ${enclosure.row_width}`;
+  const layout =
+    cabinets > 1
+      ? `${cabinets} × (${enclosure.rows} rows × ${enclosure.row_width})`
+      : `${enclosure.rows} rows × ${enclosure.row_width}`;
   const mm =
     enclosure.width_mm != null && enclosure.height_mm != null
       ? `, approx. ${enclosure.width_mm} × ${enclosure.height_mm} mm`
       : "";
+  const coupled = cabinets > 1 ? " — coupled sections" : "";
   const blank =
     enclosure.blanking_qty > 0
       ? ` · ${enclosure.blanking_qty} blanking plate(s)`
       : "";
-  return `<p>Enclosure: ${enclosure.din_total} M used → ${enclosure.din_needed} M with ${enclosure.reserve_pct}% reserve → 1× enclosure ${each} M (${layout}${mm})${blank}</p>`;
+  return `<p>Enclosure: ${breakdown} → ${cabinets > 1 ? `${cabinets}×` : "1×"} enclosure ${each} M (${layout}${mm})${coupled}${blank}</p>`;
 }
 
 function channelUsageTable(usage) {
