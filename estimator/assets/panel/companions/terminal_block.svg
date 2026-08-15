@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="360" viewBox="0 0 24 360">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d2d6da"/>
+      <stop offset="55%" stop-color="#b8bec4"/>
+      <stop offset="100%" stop-color="#9aa1a8"/>
+    </linearGradient>
+    <linearGradient id="bevel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.28"/>
+      <stop offset="18%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="82%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.22"/>
+    </linearGradient>
+    <radialGradient id="recess" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#6a7078"/>
+      <stop offset="70%" stop-color="#3e444c"/>
+      <stop offset="100%" stop-color="#2a3036"/>
+    </radialGradient>
+  </defs>
+  <rect x="0.5" y="4" width="23" height="352" rx="1.5"
+        fill="url(#face)" stroke="#7a8188" stroke-width="0.75"/>
+  <rect x="0.5" y="4" width="23" height="352" rx="1.5" fill="url(#bevel)"/>
+  
+  <circle cx="12.0" cy="79.2" r="6.720000000000001" fill="url(#recess)"/>
+  <circle cx="12.0" cy="79.2" r="3.6960000000000006" fill="#b8bec6" stroke="#5a6168" stroke-width="0.6"/>
+  <line x1="9.648" y1="79.2" x2="14.352" y2="79.2"
+        stroke="#4a5058" stroke-width="0.7"/>
+  <line x1="12.0" y1="76.848" x2="12.0" y2="81.552"
+        stroke="#4a5058" stroke-width="0.7"/>
+  <circle cx="12.0" cy="280.8" r="6.720000000000001" fill="url(#recess)"/>
+  <circle cx="12.0" cy="280.8" r="3.6960000000000006" fill="#b8bec6" stroke="#5a6168" stroke-width="0.6"/>
+  <line x1="9.648" y1="280.8" x2="14.352" y2="280.8"
+        stroke="#4a5058" stroke-width="0.7"/>
+  <line x1="12.0" y1="278.44800000000004" x2="12.0" y2="283.152"
+        stroke="#4a5058" stroke-width="0.7"/>
+</svg>

@@ -1,7 +1,11 @@
 {
   "unit_px": 70,
   "height_px": 360,
-  "items": {
+  "rail": {
+    "file": "rail-empty.svg",
+    "units": 1
+  },
+  "modules": {
     "HM-AIO-422-R1": {
       "file": "modules/HM-AIO-422-R1.png",
       "units": 4
@@ -45,78 +49,190 @@
     "HM-WLD-521-R1": {
       "file": "modules/HM-WLD-521-R1.png",
       "units": 4
-    },
-    "rail-empty": {
-      "file": "rail-empty.svg",
-      "units": 1
-    },
-    "blank-1m": {
-      "file": "blank-1m.svg",
-      "units": 1
-    },
+    }
+  },
+  "companions": {
     "blanking_plate": {
-      "file": "blank-1m.svg",
-      "units": 1
+      "file": "companions/blanking_plate.svg",
+      "units": 1.0
     },
     "contactor_modular": {
-      "file": null,
+      "file": "companions/contactor_modular.png",
       "units": 2.0
     },
-    "din_enclosure": {
-      "file": null,
-      "units": 0.0
-    },
-    "internal_wiring": {
-      "file": null,
-      "units": 0.0
-    },
     "mcb_1p": {
-      "file": null,
+      "file": "companions/mcb_1p.png",
       "units": 1.0
     },
     "mcb_1p_n": {
-      "file": null,
-      "units": 2.0
+      "file": "companions/mcb_1p_n.png",
+      "units": 2.0,
+      "derived_from": "mcb_1p"
     },
     "mcb_3p": {
-      "file": null,
-      "units": 3.0
+      "file": "companions/mcb_3p.png",
+      "units": 3.0,
+      "derived_from": "mcb_1p"
     },
     "n_bar": {
-      "file": null,
+      "file": "companions/n_bar.svg",
       "units": 0.35
     },
     "pe_bar": {
-      "file": null,
+      "file": "companions/pe_bar.svg",
       "units": 0.35
     },
     "psu_din_100w": {
-      "file": "modules/psu_din_100w.png",
-      "units": 6.0
+      "file": "companions/psu_din_100w.png",
+      "units": 6.0,
+      "derived_from": "psu_din_60w"
     },
     "psu_din_60w": {
-      "file": "modules/psu_din_60w.png",
+      "file": "companions/psu_din_60w.png",
       "units": 4.0
     },
     "rcbo_1p_n": {
-      "file": null,
-      "units": 2.0
+      "file": "companions/rcbo_1p_n.png",
+      "units": 2.0,
+      "derived_from": "rcd_2p"
     },
     "rcd_2p": {
-      "file": null,
+      "file": "companions/rcd_2p.png",
       "units": 2.0
     },
     "rcd_4p": {
-      "file": null,
-      "units": 4.0
-    },
-    "snubber_rc": {
-      "file": null,
-      "units": 0.0
+      "file": "companions/rcd_4p.png",
+      "units": 4.0,
+      "derived_from": "rcd_2p"
     },
     "terminal_block": {
-      "file": null,
+      "file": "companions/terminal_block.svg",
       "units": 0.35
+    }
+  },
+  "sprite": {
+    "file": "modules-sprite.png",
+    "frames": {
+      "HM-AIO-422-R1": {
+        "x": 0,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "HM-ALM-173-R1": {
+        "x": 280,
+        "y": 0,
+        "w": 630,
+        "h": 360
+      },
+      "HM-DIM-420-R1": {
+        "x": 910,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "HM-DIO-430-R1": {
+        "x": 1190,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "HM-ENM-223-R1": {
+        "x": 1470,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "HM-MICROPLC": {
+        "x": 1750,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "HM-MINIPLC": {
+        "x": 1890,
+        "y": 0,
+        "w": 630,
+        "h": 360
+      },
+      "HM-OPENTHERM-GW": {
+        "x": 2520,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "HM-RGB-621-R1": {
+        "x": 2660,
+        "y": 0,
+        "w": 210,
+        "h": 360
+      },
+      "HM-STR-3221-R1": {
+        "x": 2870,
+        "y": 0,
+        "w": 630,
+        "h": 360
+      },
+      "HM-WLD-521-R1": {
+        "x": 3500,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "contactor_modular": {
+        "x": 3780,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "mcb_1p": {
+        "x": 3920,
+        "y": 0,
+        "w": 70,
+        "h": 360
+      },
+      "mcb_1p_n": {
+        "x": 3990,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "mcb_3p": {
+        "x": 4130,
+        "y": 0,
+        "w": 210,
+        "h": 360
+      },
+      "psu_din_100w": {
+        "x": 4340,
+        "y": 0,
+        "w": 420,
+        "h": 360
+      },
+      "psu_din_60w": {
+        "x": 4760,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      },
+      "rcbo_1p_n": {
+        "x": 5040,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "rcd_2p": {
+        "x": 5180,
+        "y": 0,
+        "w": 140,
+        "h": 360
+      },
+      "rcd_4p": {
+        "x": 5320,
+        "y": 0,
+        "w": 280,
+        "h": 360
+      }
     }
   }
 }
