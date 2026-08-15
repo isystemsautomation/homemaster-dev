@@ -58,7 +58,8 @@ function estimateCore(inputs, rules, prices = EMPTY) {
     const roomNames = (sliced.rooms || [])
       .map((r) => String(r?.name ?? "").trim())
       .filter(Boolean);
-    const systems = systemsAssignedToPanel(inputs, panel, panels);
+    const systems = listSystemsForPanel(inputs, panel, panels, sliced);
+    const enc = one.enclosure || null;
     return {
       id: panel.id,
       name: panel.name,
@@ -66,9 +67,16 @@ function estimateCore(inputs, rules, prices = EMPTY) {
       ...one,
       rooms: roomNames,
       systems,
-      din_needed: one.enclosure?.din_needed ?? null,
-      capacity: one.enclosure?.capacity ?? null,
-      enclosure: one.enclosure,
+      din_needed: enc?.din_needed ?? null,
+      capacity: enc?.capacity ?? null,
+      // Hoist reserve breakdown onto the panel (same names as enclosure).
+      din_occupied: enc?.din_occupied ?? enc?.din_total ?? null,
+      din_reserve: enc?.din_reserve ?? null,
+      din_free: enc?.din_free ?? null,
+      occupied: enc?.din_occupied ?? enc?.din_total ?? null,
+      reserve: enc?.din_reserve ?? null,
+      free: enc?.din_free ?? null,
+      enclosure: enc,
     };
   });
 
@@ -97,6 +105,38 @@ function estimateCore(inputs, rules, prices = EMPTY) {
 }
 
 /**
+ * System section ids on this panel. Single-panel projects get every
+ * contentful section (panel_id optional). Multi-panel uses panel_id with
+ * fallback to the first panel — same rule as sliceInputsForPanel.
+ */
+function listSystemsForPanel(inputs, panel, panels, sliced) {
+  const fromSliced = SYSTEM_SECTION_IDS.filter((sec) =>
+    systemSectionHasContent(sliced?.systems?.[sec]),
+  );
+  if (panels.length === 1) {
+    const fromInputs = SYSTEM_SECTION_IDS.filter((sec) =>
+      systemSectionHasContent(inputs.systems?.[sec]),
+    );
+    return uniqueStrings([...fromSliced, ...fromInputs]);
+  }
+  return uniqueStrings([
+    ...fromSliced,
+    ...systemsAssignedToPanel(inputs, panel, panels),
+  ]);
+}
+
+function uniqueStrings(ids) {
+  const out = [];
+  const seen = new Set();
+  for (const id of ids) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+/**
  * System sections on this panel: explicit panel_id, else first panel
  * (house engineering defaults to panel 1).
  */
@@ -115,10 +155,19 @@ function systemSectionHasContent(src) {
   if (!src || typeof src !== "object") return false;
   for (const [k, v] of Object.entries(src)) {
     if (k === "panel_id") continue;
-    if (typeof v === "number" && v > 0) return true;
-    if (typeof v === "string" && v.trim() && v !== "none") return true;
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) return true;
     if (typeof v === "boolean" && v) return true;
     if (Array.isArray(v) && v.length > 0) return true;
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (!t || t === "none") continue;
+      const n = Number(t);
+      if (Number.isFinite(n)) {
+        if (n > 0) return true;
+        continue;
+      }
+      return true;
+    }
   }
   return false;
 }
@@ -592,6 +641,9 @@ function aggregatePanelResults(panelResults, rules) {
             din_reserve: dinReserve,
             din_needed: dinNeeded,
             din_free: dinFree,
+            occupied: Math.round(dinTotal * 100) / 100,
+            reserve: dinReserve,
+            free: dinFree,
             capacity: dinCapacity,
             cabinets: enclosureCabinets,
             panels: panelResults.length,
@@ -2473,6 +2525,10 @@ function computeEnclosure(modulesList, companions, rules) {
       reserve_pct: reservePct,
       din_needed: dinNeeded,
       din_free: null,
+      // Aliases for the quote / console (same values as din_*).
+      occupied: round2(dinTotal),
+      reserve: dinReserve,
+      free: null,
       cabinets: null,
       row_width: null,
       rows: null,
@@ -2499,6 +2555,9 @@ function computeEnclosure(modulesList, companions, rules) {
     reserve_pct: reservePct,
     din_needed: dinNeeded,
     din_free: dinFree,
+    occupied: round2(dinTotal),
+    reserve: dinReserve,
+    free: dinFree,
     cabinets: layout.cabinets,
     row_width: layout.row_width,
     rows: layout.rows,
@@ -4650,12 +4709,12 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
   if (enclosure.status === "overflow" || enclosure.overflow) {
     return `<p class="hm-warn">Enclosure: ${enclosure.din_needed} M needed exceeds max ${enclosure.max_sections || 4}×(6×24)=${(enclosure.max_sections || 4) * (enclosure.max_capacity || 144)} M — add another panel on screen 1 or reduce demand.</p>`;
   }
-  const occupied = enclosure.din_occupied ?? enclosure.din_total;
-  const reserve = enclosure.din_reserve;
-  const free = enclosure.din_free;
+  const occupied = enclosure.occupied ?? enclosure.din_occupied ?? enclosure.din_total;
+  const reserve = enclosure.reserve ?? enclosure.din_reserve;
+  const free = enclosure.free ?? enclosure.din_free;
   const breakdown =
-    reserve != null && free != null
-      ? `occupied ${occupied} M · reserve ${reserve} M (${enclosure.reserve_pct}%) · needed ${enclosure.din_needed} M · free ${free} M`
+    occupied != null && reserve != null && free != null
+      ? `occupied ${occupied} M · reserve ${reserve} M (${enclosure.reserve_pct}%) · needed ${enclosure.din_needed} M · free after rounding ${free} M`
       : `${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve`;
   if (compact || enclosure.panels > 1) {
     return `<p>DIN (${enclosure.panels > 1 ? "all panels" : "panel"}): ${breakdown} → capacity ${enclosure.capacity} M</p>`;
@@ -5697,10 +5756,18 @@ function mountConfigurator(root) {
     const sysLine = (panel.systems || []).length
       ? `Systems: ${panel.systems.map(escapeAttr).join(", ")}`
       : "Systems: —";
+    const occ = panel.occupied ?? panel.din_occupied ?? panel.enclosure?.occupied ?? panel.enclosure?.din_occupied;
+    const res = panel.reserve ?? panel.din_reserve ?? panel.enclosure?.reserve ?? panel.enclosure?.din_reserve;
+    const free = panel.free ?? panel.din_free ?? panel.enclosure?.free ?? panel.enclosure?.din_free;
+    const reserveLine =
+      occ != null && res != null && free != null
+        ? `<p class="hm-muted">DIN: occupied ${occ} M · reserve ${res} M · free after rounding ${free} M · capacity ${panel.capacity ?? panel.enclosure?.capacity ?? "—"} M</p>`
+        : "";
     return `
       <section class="hm-panel-result">
         <h3>${escapeAttr(panel.name)}${loc}</h3>
         <p class="hm-muted">${roomLine} · ${sysLine}</p>
+        ${reserveLine}
         <p class="hm-muted">RS-485: ${segs} segment(s), ${ctrlCount} controller(s), ${terms} terminator(s) · 24 V: ${panel.power?.total_w ?? "—"} W${psu ? ` · ${escapeAttr(psu)}` : ""}</p>
         ${enclosureMessage(panel.enclosure)}
         <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th></tr></thead>
