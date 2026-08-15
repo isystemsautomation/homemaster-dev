@@ -105,24 +105,120 @@ function estimateCore(inputs, rules, prices = EMPTY) {
 }
 
 /**
- * System section ids on this panel. Single-panel projects get every
- * contentful section (panel_id optional). Multi-panel uses panel_id with
- * fallback to the first panel — same rule as sliceInputsForPanel.
+ * Flat demand_mapping shortcuts (systems.leak_zones, underfloor_circuits, …)
+ * → canonical Systems section id for panels[].systems.
+ * Nested systems.heating.* etc. are detected separately via systemSectionHasContent.
+ */
+const FLAT_FIELD_TO_SECTION = Object.freeze({
+  underfloor_circuits: "heating",
+  collector_loops: "heating",
+  heating_pumps: "heating",
+  circulation_pumps: "heating",
+  opentherm_boilers: "heating",
+  opentherm: "heating",
+  rtd_sensors: "heating",
+  rtd_input: "heating",
+  onewire_buses: "heating",
+  onewire_sensor: "heating",
+  pt100_sensors: "heating",
+  ds18b20_sensors: "heating",
+  fan_coils: "heating",
+  heat_pump: "heating",
+  fireplace: "heating",
+  ahu: "ventilation",
+  recuperator: "ventilation",
+  extract_fans: "ventilation",
+  dampers_0_10v: "ventilation",
+  sensors_0_10v: "ventilation",
+  sensors_4_20ma: "ventilation",
+  analog_sensors: "ventilation",
+  analog_in: "ventilation",
+  analog_in_4_20: "ventilation",
+  analog_outputs: "ventilation",
+  analog_out: "ventilation",
+  leak_zones: "water",
+  leak_zone: "water",
+  flow_pulses: "water",
+  flow_pulse: "water",
+  shutoff_valves: "water",
+  water_meters: "water",
+  irrigation: "water",
+  water_pumps: "water",
+  dhw_recirc: "water",
+  gas_valve: "water",
+  energy_meters: "electrical",
+  energy_phases: "electrical",
+  energy_phase: "electrical",
+  alarm_zones: "security",
+  alarm_zone_powered: "security",
+  alarm_zone_dry: "security",
+  dry_contacts: "security",
+  locks: "security",
+  presence_sensors: "security",
+  presence_in: "security",
+  stair_steps: "lighting_scenes",
+  garden_lights: "lighting_scenes",
+  rgb_strips: "lighting_scenes",
+  pwm_led_ch: "lighting_scenes",
+  dimmer_groups: "lighting_scenes",
+});
+
+/**
+ * System section ids on this panel. Includes nested systems.<section> and
+ * flat demand_mapping shortcuts (systems.leak_zones / top-level
+ * underfloor_circuits). Flat + orphan nested → first panel.
  */
 function listSystemsForPanel(inputs, panel, panels, sliced) {
-  const fromSliced = SYSTEM_SECTION_IDS.filter((sec) =>
-    systemSectionHasContent(sliced?.systems?.[sec]),
-  );
-  if (panels.length === 1) {
-    const fromInputs = SYSTEM_SECTION_IDS.filter((sec) =>
-      systemSectionHasContent(inputs.systems?.[sec]),
-    );
-    return uniqueStrings([...fromSliced, ...fromInputs]);
+  const fallback = defaultPanelId(panels);
+  const isFirst = panel.id === fallback;
+  const found = new Set();
+
+  for (const sec of SYSTEM_SECTION_IDS) {
+    const src = sliced?.systems?.[sec];
+    if (systemSectionHasContent(src)) found.add(sec);
   }
-  return uniqueStrings([
-    ...fromSliced,
-    ...systemsAssignedToPanel(inputs, panel, panels),
-  ]);
+
+  if (panels.length === 1 || isFirst) {
+    for (const sec of SYSTEM_SECTION_IDS) {
+      if (systemSectionHasContent(inputs.systems?.[sec])) found.add(sec);
+    }
+    for (const sec of flatDemandSections(inputs)) found.add(sec);
+  } else {
+    for (const sec of systemsAssignedToPanel(inputs, panel, panels)) {
+      found.add(sec);
+    }
+  }
+
+  return SYSTEM_SECTION_IDS.filter((sec) => found.has(sec));
+}
+
+/** Sections implied by positive flat aliases on inputs or inputs.systems. */
+function flatDemandSections(inputs) {
+  const out = new Set();
+  const bags = [inputs, inputs?.systems].filter(Boolean);
+  for (const bag of bags) {
+    if (!bag || typeof bag !== "object") continue;
+    for (const [field, sec] of Object.entries(FLAT_FIELD_TO_SECTION)) {
+      if (!positiveDemandValue(bag[field])) continue;
+      out.add(sec);
+    }
+  }
+  return out;
+}
+
+function positiveDemandValue(v) {
+  if (v == null || v === false) return false;
+  if (v === true) return true;
+  if (typeof v === "number") return Number.isFinite(v) && v > 0;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t || t === "none") return false;
+    const n = Number(t);
+    if (Number.isFinite(n)) return n > 0;
+    return true;
+  }
+  if (Array.isArray(v)) return v.length > 0;
+  return false;
 }
 
 function uniqueStrings(ids) {
@@ -137,8 +233,7 @@ function uniqueStrings(ids) {
 }
 
 /**
- * System sections on this panel: explicit panel_id, else first panel
- * (house engineering defaults to panel 1).
+ * Nested systems.<section> on this panel: explicit panel_id, else first panel.
  */
 function systemsAssignedToPanel(inputs, panel, panels) {
   const fallback = defaultPanelId(panels);
@@ -155,17 +250,8 @@ function systemSectionHasContent(src) {
   if (!src || typeof src !== "object") return false;
   for (const [k, v] of Object.entries(src)) {
     if (k === "panel_id") continue;
-    if (typeof v === "number" && Number.isFinite(v) && v > 0) return true;
-    if (typeof v === "boolean" && v) return true;
-    if (Array.isArray(v) && v.length > 0) return true;
-    if (typeof v === "string") {
-      const t = v.trim();
-      if (!t || t === "none") continue;
-      const n = Number(t);
-      if (Number.isFinite(n)) {
-        if (n > 0) return true;
-        continue;
-      }
+    if (positiveDemandValue(v)) {
+      if (typeof v === "string" && v.trim() === "none") continue;
       return true;
     }
   }
