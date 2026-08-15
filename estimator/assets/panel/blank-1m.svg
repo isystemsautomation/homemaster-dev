@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="70" height="360" viewBox="0 0 70 360">
+  <defs>
+    <linearGradient id="blankFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d2d6da"/>
+      <stop offset="50%" stop-color="#b8bec4"/>
+      <stop offset="100%" stop-color="#9aa1a8"/>
+    </linearGradient>
+    <linearGradient id="blankBevel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="12%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="88%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="8" width="66" height="344" rx="3" fill="url(#blankFace)" stroke="#7e858c" stroke-width="1"/>
+  <rect x="2" y="8" width="66" height="344" rx="3" fill="url(#blankBevel)"/>
+  <!-- false-panel slot hint -->
+  <rect x="10" y="24" width="50" height="4" rx="1" fill="#6a7076" opacity="0.35"/>
+  <rect x="10" y="332" width="50" height="4" rx="1" fill="#6a7076" opacity="0.35"/>
+</svg>

@@ -1,0 +1,122 @@
+{
+  "unit_px": 70,
+  "height_px": 360,
+  "items": {
+    "HM-AIO-422-R1": {
+      "file": "modules/HM-AIO-422-R1.png",
+      "units": 4
+    },
+    "HM-ALM-173-R1": {
+      "file": "modules/HM-ALM-173-R1.png",
+      "units": 9
+    },
+    "HM-DIM-420-R1": {
+      "file": "modules/HM-DIM-420-R1.png",
+      "units": 4
+    },
+    "HM-DIO-430-R1": {
+      "file": "modules/HM-DIO-430-R1.png",
+      "units": 4
+    },
+    "HM-ENM-223-R1": {
+      "file": "modules/HM-ENM-223-R1.png",
+      "units": 4
+    },
+    "HM-MICROPLC": {
+      "file": "modules/HM-MICROPLC.png",
+      "units": 2
+    },
+    "HM-MINIPLC": {
+      "file": "modules/HM-MINIPLC.png",
+      "units": 9
+    },
+    "HM-OPENTHERM-GW": {
+      "file": "modules/HM-OPENTHERM-GW.png",
+      "units": 2
+    },
+    "HM-RGB-621-R1": {
+      "file": "modules/HM-RGB-621-R1.png",
+      "units": 3
+    },
+    "HM-STR-3221-R1": {
+      "file": "modules/HM-STR-3221-R1.png",
+      "units": 9
+    },
+    "HM-WLD-521-R1": {
+      "file": "modules/HM-WLD-521-R1.png",
+      "units": 4
+    },
+    "rail-empty": {
+      "file": "rail-empty.svg",
+      "units": 1
+    },
+    "blank-1m": {
+      "file": "blank-1m.svg",
+      "units": 1
+    },
+    "blanking_plate": {
+      "file": "blank-1m.svg",
+      "units": 1
+    },
+    "contactor_modular": {
+      "file": null,
+      "units": 2.0
+    },
+    "din_enclosure": {
+      "file": null,
+      "units": 0.0
+    },
+    "internal_wiring": {
+      "file": null,
+      "units": 0.0
+    },
+    "mcb_1p": {
+      "file": null,
+      "units": 1.0
+    },
+    "mcb_1p_n": {
+      "file": null,
+      "units": 2.0
+    },
+    "mcb_3p": {
+      "file": null,
+      "units": 3.0
+    },
+    "n_bar": {
+      "file": null,
+      "units": 0.35
+    },
+    "pe_bar": {
+      "file": null,
+      "units": 0.35
+    },
+    "psu_din_100w": {
+      "file": null,
+      "units": 6.0
+    },
+    "psu_din_60w": {
+      "file": null,
+      "units": 4.0
+    },
+    "rcbo_1p_n": {
+      "file": null,
+      "units": 2.0
+    },
+    "rcd_2p": {
+      "file": null,
+      "units": 2.0
+    },
+    "rcd_4p": {
+      "file": null,
+      "units": 4.0
+    },
+    "snubber_rc": {
+      "file": null,
+      "units": 0.0
+    },
+    "terminal_block": {
+      "file": null,
+      "units": 0.35
+    }
+  }
+}
