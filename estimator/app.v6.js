@@ -3377,6 +3377,9 @@ async function buildEstimateXlsx(estimate, opts = {}) {
   rows.push(["HomeMaster estimate"]);
   rows.push([`Currency: ${currency}`]);
   rows.push(["Prices include VAT, same as the shopfront"]);
+  rows.push([
+    "Panel layout drawings are shown on the Result screen only — SheetJS CE cannot embed rail images in .xlsx.",
+  ]);
   if (estimate.split_warning) rows.push([estimate.split_warning]);
   rows.push([]);
   rows.push(["Section", "SKU / requirement", "Qty", "Unit price", "Line total"]);
@@ -4096,11 +4099,521 @@ HM.simpleCustomerSummary = simpleCustomerSummary;
 HM.SIMPLE_ROOM_TYPES = SIMPLE_ROOM_TYPES;
 HM.SIMPLE_DISTRIBUTE_FIELDS = SIMPLE_DISTRIBUTE_FIELDS;
 
+// ===== panel-layout.js =====
+/**
+ * Visual DIN-rail panel layout for the Result screen.
+ * Packs modules + companions into enclosure rows/sections using
+ * assets/panel/manifest.json for tile art.
+ */
+
+const SKIP_LAYOUT_IDS = new Set([
+  "snubber_rc",
+  "internal_wiring",
+  "din_enclosure",
+  "blanking_plate",
+]);
+
+const DISPLAY_UNIT_PX = 28; // ~24×28 = 672 px per row
+
+/** @type {Promise<object>|null} */
+let manifestPromise = null;
+
+function panelAssetsBase() {
+  const rulesUrl =
+    (typeof globalThis !== "undefined" &&
+      (globalThis.HM_ESTIMATOR_RULES_URL || globalThis.HM_RULES_URL)) ||
+    "https://config.home-master.eu/estimator/rules.json";
+  try {
+    return new URL("./assets/panel/", rulesUrl.replace(/[^/]+$/, "")).href;
+  } catch {
+    return "https://config.home-master.eu/estimator/assets/panel/";
+  }
+}
+
+function loadPanelManifest() {
+  if (!manifestPromise) {
+    const url = new URL("manifest.json", panelAssetsBase()).href;
+    manifestPromise = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`panel manifest HTTP ${r.status}`);
+        return r.json();
+      })
+      .catch((err) => {
+        manifestPromise = null;
+        throw err;
+      });
+  }
+  return manifestPromise;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function accIndex(accessories) {
+  const map = new Map();
+  for (const a of accessories || []) {
+    if (!a?.id) continue;
+    map.set(a.id, a);
+  }
+  return map;
+}
+
+function moduleIndex(modules) {
+  const map = new Map();
+  for (const m of modules || []) {
+    if (!m?.id) continue;
+    map.set(m.id, m);
+  }
+  return map;
+}
+
+/**
+ * Expand a BOM line into individual placeable tiles (one per physical unit).
+ * Fractional DIN (terminals) stays as one tile of that width — do not split.
+ * rowBreakBefore applies only to the first copy.
+ */
+function pushCopies(out, base, qty) {
+  const n = Math.max(0, Math.floor(Number(qty) || 0));
+  for (let i = 0; i < n; i++) {
+    out.push({
+      ...base,
+      instance: i,
+      rowBreakBefore: i === 0 ? !!base.rowBreakBefore : false,
+    });
+  }
+}
+
+/**
+ * Ordered queue matching real assembly:
+ * incomer → PSU → each RS-485 segment (new row hint) → protection → field.
+ */
+function buildPlacementQueue(panel, rules = {}) {
+  const specs = rules.modules ?? {};
+  const acc = accIndex(panel.accessories);
+  const mods = moduleIndex(panel.modules);
+  const items = [];
+
+  function fromAcc(id, group, rowBreakBefore = false) {
+    const a = acc.get(id);
+    if (!a || SKIP_LAYOUT_IDS.has(id)) return;
+    const units = Number(a.din_units);
+    if (!Number.isFinite(units) || units <= 0) return;
+    pushCopies(
+      items,
+      {
+        key: `companion:${id}`,
+        id,
+        kind: "companion",
+        label: a.label || id,
+        units,
+        group,
+        rowBreakBefore,
+      },
+      a.qty,
+    );
+  }
+
+  function fromModuleLine(mod, group, rowBreakBefore = false) {
+    if (!mod) return;
+    const units =
+      mod.din_units != null
+        ? Number(mod.din_units)
+        : Number(specs[mod.id]?.din_units);
+    if (!Number.isFinite(units) || units <= 0) return;
+    items.push({
+      key: `module:${mod.id}`,
+      id: mod.id,
+      kind: "module",
+      label: mod.id,
+      units,
+      sku: mod.sku || specs[mod.id]?.sku || "",
+      shop_url: mod.shop_url || specs[mod.id]?.shop_url || "",
+      price: mod.price || null,
+      group,
+      rowBreakBefore,
+    });
+  }
+
+  // 1. Incomer & power
+  fromAcc("mcb_1p_n", "incomer");
+  fromAcc("rcd_2p", "incomer");
+  fromAcc("rcbo_1p_n", "incomer");
+  fromAcc("rcd_4p", "incomer");
+  fromAcc("psu_din_60w", "power");
+  fromAcc("psu_din_100w", "power");
+
+  // 2. Segments — each starts a new row
+  const segments = panel.topology?.segments || [];
+  if (segments.length) {
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const group = `segment-${i + 1}`;
+      const ctrlId = seg.controller;
+      const ctrlMod = mods.get(ctrlId) || {
+        id: ctrlId,
+        din_units: specs[ctrlId]?.din_units,
+        sku: specs[ctrlId]?.sku,
+        shop_url: specs[ctrlId]?.shop_url,
+      };
+      fromModuleLine(ctrlMod, group, true);
+      for (const slave of seg.slaves || []) {
+        const sid = typeof slave === "string" ? slave : slave.id;
+        const sMod = {
+          id: sid,
+          din_units:
+            (typeof slave === "object" && slave.din_units) ||
+            specs[sid]?.din_units,
+          sku: (typeof slave === "object" && slave.sku) || specs[sid]?.sku,
+          shop_url:
+            (typeof slave === "object" && slave.shop_url) ||
+            specs[sid]?.shop_url,
+          price: mods.get(sid)?.price || null,
+        };
+        fromModuleLine(sMod, group, false);
+      }
+    }
+  } else {
+    // Fallback: masters then slaves from flat BOM
+    const masters = (panel.modules || []).filter((m) => specs[m.id]?.master);
+    const slaves = (panel.modules || []).filter((m) => !specs[m.id]?.master);
+    let first = true;
+    for (const m of masters) {
+      for (let i = 0; i < (m.qty || 0); i++) {
+        fromModuleLine(m, "segment-1", first);
+        first = false;
+      }
+    }
+    for (const m of slaves) {
+      for (let i = 0; i < (m.qty || 0); i++) {
+        fromModuleLine(m, "segment-1", false);
+      }
+    }
+  }
+
+  // 3. Per-circuit protection + contactors
+  fromAcc("mcb_1p", "protection", true);
+  fromAcc("mcb_3p", "protection");
+  fromAcc("contactor_modular", "protection");
+
+  // 4. Field terminals / bars
+  fromAcc("terminal_block", "field", true);
+  fromAcc("n_bar", "field");
+  fromAcc("pe_bar", "field");
+
+  return items;
+}
+
+function blankTile(units = 1) {
+  return {
+    key: "companion:blanking_plate",
+    id: "blanking_plate",
+    kind: "companion",
+    label: "DIN blanking plate",
+    units,
+    group: "blank",
+    rowBreakBefore: false,
+  };
+}
+
+/**
+ * Pack items into enclosure.cabinets × rows × row_width.
+ * An item that does not fit the remainder starts a new row; leftover
+ * width is filled with blanking. Items never split across rows.
+ */
+function packEnclosureLayout(items, enclosure) {
+  const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
+  const rowsPer = Math.max(1, Number(enclosure?.rows) || 1);
+  const rowWidth = Math.max(1, Number(enclosure?.row_width) || 24);
+  const eps = 1e-6;
+
+  const sections = Array.from({ length: cabinets }, (_, i) => ({
+    index: i + 1,
+    rows: [],
+  }));
+
+  let secIdx = 0;
+  let rowItems = [];
+  let used = 0;
+
+  function rowLabel(list) {
+    const real = list.filter((t) => t.id !== "blanking_plate");
+    if (!real.length) return "Blanking";
+    const groups = new Set(real.map((t) => t.group));
+    if (
+      [...groups].every((g) => g === "incomer" || g === "power" || g === "blank")
+    ) {
+      return "Incomer & power";
+    }
+    const seg = [...groups].find((g) => String(g).startsWith("segment-"));
+    if (seg) {
+      const n = seg.split("-")[1];
+      const inSeg = real.filter((t) => t.group === seg);
+      const head = inSeg[0]?.id || "controller";
+      const extras = Math.max(0, inSeg.length - 1);
+      return `Segment ${n} — ${head}${extras ? ` + ${extras} module${extras === 1 ? "" : "s"}` : ""}`;
+    }
+    if (groups.has("protection")) return "Per-circuit protection";
+    if (groups.has("field")) return "Field terminals";
+    return real
+      .map((t) => t.label || t.id)
+      .slice(0, 3)
+      .join(", ");
+  }
+
+  function commitRow() {
+    if (!rowItems.length && used === 0) return;
+    ensureCapacity();
+    const remain = rowWidth - used;
+    if (remain > eps) {
+      // Prefer 1 M blanks; leftover fraction as one short blank.
+      let left = remain;
+      while (left > 1 + eps) {
+        rowItems.push(blankTile(1));
+        left -= 1;
+      }
+      if (left > eps) rowItems.push(blankTile(Math.round(left * 100) / 100));
+    }
+    const sec = sections[secIdx];
+    sec.rows.push({
+      items: rowItems,
+      label: rowLabel(rowItems),
+      used: rowWidth,
+    });
+    rowItems = [];
+    used = 0;
+    if (sec.rows.length >= rowsPer) {
+      secIdx += 1;
+    }
+  }
+
+  // Overflow past rated enclosure: keep packing into extra section(s)
+  // so nothing is dropped from the drawing.
+  function ensureCapacity() {
+    while (secIdx >= sections.length) {
+      sections.push({ index: sections.length + 1, rows: [] });
+    }
+  }
+
+  function ensureSlot(units, forceBreak) {
+    ensureCapacity();
+    if (forceBreak && rowItems.length) commitRow();
+    ensureCapacity();
+    if (units > rowWidth + eps) {
+      if (rowItems.length) commitRow();
+      ensureCapacity();
+      return true;
+    }
+    if (used + units > rowWidth + eps) {
+      commitRow();
+      ensureCapacity();
+    }
+    return true;
+  }
+
+  for (const item of items) {
+    const units = Number(item.units) || 0;
+    if (units <= 0) continue;
+    ensureSlot(units, !!item.rowBreakBefore);
+    rowItems.push(item);
+    used += units;
+  }
+
+  if (rowItems.length) commitRow();
+
+  // Fill remaining empty rows in the rated cabinet count with blanking.
+  while (secIdx < cabinets) {
+    ensureCapacity();
+    const sec = sections[secIdx];
+    while (sec.rows.length < rowsPer) {
+      const blanks = [];
+      for (let i = 0; i < rowWidth; i++) blanks.push(blankTile(1));
+      sec.rows.push({ items: blanks, label: "Blanking", used: rowWidth });
+    }
+    secIdx += 1;
+  }
+
+  return {
+    cabinets: Math.max(cabinets, sections.length),
+    rows: rowsPer,
+    row_width: rowWidth,
+    capacity: cabinets * rowsPer * rowWidth,
+    sections,
+    summary: {
+      occupied: enclosure?.din_occupied ?? enclosure?.occupied ?? null,
+      free: enclosure?.din_free ?? enclosure?.free ?? null,
+      reserve: enclosure?.din_reserve ?? enclosure?.reserve ?? null,
+      width_mm: enclosure?.width_mm ?? null,
+      height_mm: enclosure?.height_mm ?? null,
+      capacity_each: enclosure?.capacity_each ?? rowsPer * rowWidth,
+    },
+  };
+}
+
+function buildPanelLayout(panel, rules = {}) {
+  const enc = panel?.enclosure;
+  if (!enc || enc.status === "blocked" || enc.status === "overflow" || enc.overflow) {
+    return null;
+  }
+  const queue = buildPlacementQueue(panel, rules);
+  return packEnclosureLayout(queue, enc);
+}
+
+function resolveTileSrc(manifest, item, assetsBase) {
+  if (!manifest) return { src: null, missing: true };
+  if (item.kind === "module") {
+    const bySku = item.sku ? manifest.modules?.[item.sku] : null;
+    if (bySku?.file) {
+      return { src: new URL(bySku.file, assetsBase).href, missing: false };
+    }
+    return { src: null, missing: true };
+  }
+  const entry = manifest.companions?.[item.id];
+  if (entry?.file) {
+    return { src: new URL(entry.file, assetsBase).href, missing: false };
+  }
+  return { src: null, missing: true };
+}
+
+function tileTooltip(item, priceMap) {
+  const bits = [item.label || item.id, `${item.units} M`];
+  if (item.kind === "module") {
+    const p =
+      item.price ||
+      (item.sku && priceMap?.[item.sku]) ||
+      null;
+    if (p && typeof p.amount === "number") {
+      bits.push(`${p.amount} ${p.currency || ""}`.trim());
+    }
+    if (item.shop_url) bits.push(item.shop_url);
+  }
+  return bits.filter(Boolean).join(" · ");
+}
+
+function renderTile(item, manifest, assetsBase, unitPx, heightPx, priceMap) {
+  const w = Math.max(1, Math.round(item.units * unitPx));
+  const h = heightPx;
+  const tip = escapeHtml(tileTooltip(item, priceMap));
+  const hl = escapeHtml(item.key);
+  const { src, missing } = resolveTileSrc(manifest, item, assetsBase);
+  if (missing || !src) {
+    return `<span class="hm-rail-tile hm-rail-tile--missing" data-hl="${hl}" title="${tip}" style="width:${w}px;height:${h}px"><span class="hm-rail-tile__fallback">${escapeHtml(item.label || item.id)}</span></span>`;
+  }
+  const shop =
+    item.kind === "module" && item.shop_url
+      ? ` data-shop="${escapeHtml(item.shop_url)}"`
+      : "";
+  return `<img class="hm-rail-tile" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" width="${w}" height="${h}" loading="lazy" decoding="async" style="width:${w}px;height:${h}px">`;
+}
+
+/**
+ * @returns {string} HTML
+ */
+function renderPanelLayoutHtml(layout, manifest, opts = {}) {
+  if (!layout) return "";
+  const assetsBase = opts.assetsBase || panelAssetsBase();
+  const srcUnit = Number(manifest?.unit_px) || 70;
+  const srcHeight = Number(manifest?.height_px) || 360;
+  const unitPx = Number(opts.unitPx) || DISPLAY_UNIT_PX;
+  const scale = unitPx / srcUnit;
+  const heightPx = Math.round(srcHeight * scale);
+  const priceMap = opts.priceMap || {};
+  const railFile = manifest?.rail?.file || "rail-empty.svg";
+  const railUrl = new URL(railFile, assetsBase).href;
+
+  const occ = layout.summary.occupied;
+  const free = layout.summary.free;
+  const wmm = layout.summary.width_mm;
+  const hmm = layout.summary.height_mm;
+  const each = layout.summary.capacity_each;
+  const cab = layout.cabinets;
+  const layoutBits =
+    cab > 1
+      ? `${cab} × (${layout.rows} rows × ${layout.row_width}) = ${layout.capacity} modules`
+      : `${layout.rows} rows × ${layout.row_width} = ${each} modules`;
+  const dinBits = [
+    occ != null ? `occupied ${occ}` : null,
+    free != null ? `free ${free}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const mmBits =
+    wmm != null && hmm != null ? `approx. ${wmm} × ${hmm} mm` : null;
+  const headline = [layoutBits, dinBits, mmBits].filter(Boolean).join(" · ");
+
+  const sectionsHtml = layout.sections
+    .map((sec) => {
+      const rowsHtml = sec.rows
+        .map((row) => {
+          const tiles = row.items
+            .map((it) =>
+              renderTile(it, manifest, assetsBase, unitPx, heightPx, priceMap),
+            )
+            .join("");
+          return `<div class="hm-rail-row-wrap">
+            <div class="hm-rail-row" style="height:${heightPx}px;background-image:url('${escapeHtml(railUrl)}');background-size:${unitPx}px ${heightPx}px;background-repeat:repeat-x;">${tiles}</div>
+            <div class="hm-rail-row__label">${escapeHtml(row.label)}</div>
+          </div>`;
+        })
+        .join("");
+      const head =
+        layout.cabinets > 1
+          ? `<div class="hm-rail-section__title">Section ${sec.index}</div>`
+          : "";
+      return `<div class="hm-rail-section" data-section="${sec.index}">${head}${rowsHtml}</div>`;
+    })
+    .join("");
+
+  return `<div class="hm-rail-layout" data-unit-px="${unitPx}">
+    <p class="hm-rail-layout__summary">${escapeHtml(headline)}</p>
+    <div class="hm-rail-layout__sections">${sectionsHtml}</div>
+  </div>`;
+}
+
+/** Bind hover cross-highlight between BOM table rows and rail tiles. */
+function bindLayoutHighlight(root) {
+  if (!root) return;
+  const sync = (key, on) => {
+    if (!key) return;
+    root.querySelectorAll("[data-hl]").forEach((el) => {
+      if (el.getAttribute("data-hl") === key) el.classList.toggle("is-hl", on);
+    });
+  };
+  root.querySelectorAll("[data-hl]").forEach((el) => {
+    el.addEventListener("mouseenter", () => sync(el.getAttribute("data-hl"), true));
+    el.addEventListener("mouseleave", () => sync(el.getAttribute("data-hl"), false));
+  });
+}
+
+/**
+ * Build a layout model for every panel that has an enclosure.
+ * Used by Result UI (and tests).
+ */
+function layoutsForEstimate(estimate, rules) {
+  return (estimate?.panels || []).map((p) => ({
+    panel: p,
+    layout: buildPanelLayout(p, rules),
+  }));
+}
+
+HM.loadPanelManifest = loadPanelManifest;
+HM.buildPlacementQueue = buildPlacementQueue;
+HM.packEnclosureLayout = packEnclosureLayout;
+HM.buildPanelLayout = buildPanelLayout;
+HM.renderPanelLayoutHtml = renderPanelLayoutHtml;
+HM.bindLayoutHighlight = bindLayoutHighlight;
+HM.layoutsForEstimate = layoutsForEstimate;
+
 // ===== ui.js =====
 /**
  * Configurator UI: Simple (one screen) or Advanced (Property → Rooms → Systems → Result).
  * See odoo/configurator/configurator-ui-spec.md.
  */
+
 
 
 
@@ -5794,16 +6307,17 @@ function mountConfigurator(root) {
     };
   }
 
-  function panelResultBlock(panel) {
+  function panelResultBlock(panel, opts = {}) {
+    const { manifest = null, priceMap: prices = priceMap } = opts;
     const ctrl = (panel.modules || []).filter((m) => rules.modules?.[m.id]?.master);
     const slaves = (panel.modules || []).filter((m) => !rules.modules?.[m.id]?.master);
     const modRows = [...ctrl, ...slaves]
       .map((m) => {
-        const p = priceMap[m.sku];
+        const p = prices[m.sku];
         const priceCell =
           p && typeof p.amount === "number" ? `${p.amount} ${p.currency || ""}` : "—";
         const din = m.din_units != null ? `${m.din_units} M` : "—";
-        return `<tr>
+        return `<tr data-hl="module:${escapeAttr(m.id)}">
           <td>${m.qty}×</td>
           <td><a href="${m.shop_url || "#"}">${m.id}</a></td>
           <td>${m.sku || ""}</td>
@@ -5815,7 +6329,7 @@ function mountConfigurator(root) {
     const companions = (panel.accessories || [])
       .map((a) => {
         const din = a.din_units != null ? `${a.din_units} M` : "—";
-        return `<tr>
+        return `<tr data-hl="companion:${escapeAttr(a.id)}">
           <td>${a.qty}×</td>
           <td>${escapeAttr(a.label || a.id)}</td>
           <td class="hm-muted">requirement</td>
@@ -5849,6 +6363,15 @@ function mountConfigurator(root) {
       occ != null && res != null && free != null
         ? `<p class="hm-muted">DIN: occupied ${occ} M · reserve ${res} M · free after rounding ${free} M · capacity ${panel.capacity ?? panel.enclosure?.capacity ?? "—"} M</p>`
         : "";
+
+    let layoutHtml = "";
+    if (manifest) {
+      const layout = buildPanelLayout(panel, rules);
+      if (layout) {
+        layoutHtml = `<div class="hm-rail-block"><h4>Panel layout</h4>${renderPanelLayoutHtml(layout, manifest, { priceMap: prices })}</div>`;
+      }
+    }
+
     return `
       <section class="hm-panel-result">
         <h3>${escapeAttr(panel.name)}${loc}</h3>
@@ -5858,6 +6381,7 @@ function mountConfigurator(root) {
         ${enclosureMessage(panel.enclosure)}
         <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th></tr></thead>
         <tbody>${modRows}${companions}</tbody></table>
+        ${layoutHtml}
         ${channelUsageTable(panel.channel_usage)}
         <details><summary>ESPHome YAML</summary><pre>${yaml}</pre></details>
       </section>`;
@@ -5870,8 +6394,15 @@ function mountConfigurator(root) {
     result = liveResult();
     renderSummary(result);
 
+    let manifest = null;
+    try {
+      manifest = await loadPanelManifest();
+    } catch (err) {
+      console.warn("panel layout manifest:", err);
+    }
+
     const panelBlocks = (result.panels || [])
-      .map((p) => panelResultBlock(p))
+      .map((p) => panelResultBlock(p, { manifest, priceMap }))
       .join("");
 
     const almWarn = (result.assumptions || [])
@@ -5904,6 +6435,8 @@ function mountConfigurator(root) {
       </div>
       <div id="hm-cart-status"></div>
     `;
+
+    bindLayoutHighlight(main);
 
     main.querySelector("#hm-xlsx").onclick = () =>
       downloadXlsx(result).catch(() => downloadCsv(result));
