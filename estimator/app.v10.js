@@ -3385,7 +3385,8 @@ async function fetchPrice(shopUrl, opts = {}) {
   if (!fetchImpl) return { sku: "", price: NaN, currency: "", available: false, error: "no_fetch" };
 
   try {
-    const res = await fetchImpl(shopUrl, { credentials: "same-origin" });
+    const ctrl = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined;
+    const res = await fetchImpl(shopUrl, { credentials: "same-origin", signal: ctrl });
     if (!res.ok) {
       return { sku: "", price: NaN, currency: "", available: false, error: `http_${res.status}` };
     }
@@ -3419,11 +3420,15 @@ async function fetchPrices(shopUrls, opts = {}) {
   const map = new Map();
   const urls = [...new Set((shopUrls || []).filter(Boolean))];
   const sessionCurrency = opts.preferredCurrency ?? detectShopCurrency();
-  for (const url of urls) {
-    const info = await fetchPrice(url, {
-      ...opts,
-      preferredCurrency: opts.preferredCurrency ?? sessionCurrency,
-    });
+  const results = await Promise.all(
+    urls.map((url) =>
+      fetchPrice(url, {
+        ...opts,
+        preferredCurrency: opts.preferredCurrency ?? sessionCurrency,
+      }).then((info) => ({ url, info })),
+    ),
+  );
+  for (const { url, info } of results) {
     if (info?.sku && Number.isFinite(info.price)) {
       map.set(info.sku, info);
       cacheSet(info.sku, info);
@@ -6756,9 +6761,13 @@ function moduleIsAvailable(moduleId) {
 /** Fetch shop pages for every module SKU so example presets can drop OOS features. */
 async function ensureStockCatalog() {
   const specs = rules?.modules || {};
-  const urls = Object.values(specs)
-    .map((s) => s?.shop_url)
-    .filter(Boolean);
+  const urls = [
+    ...new Set(
+      Object.values(specs)
+        .map((s) => s?.shop_url)
+        .filter(Boolean),
+    ),
+  ];
   if (!urls.length) return;
   const missing = urls.filter((u) => {
     const spec = Object.values(specs).find((s) => s.shop_url === u);
@@ -7343,6 +7352,10 @@ function mountConfigurator(root) {
       </div>`;
     examplesEl.querySelectorAll("[data-preset]").forEach((btn) => {
       btn.onclick = async () => {
+        // Apply immediately so the UI matches the card; then refresh stock and re-apply.
+        applyPreset(btn.dataset.preset);
+        saveState();
+        render();
         await ensureStockCatalog();
         applyPreset(btn.dataset.preset);
         saveState();
