@@ -959,6 +959,15 @@
   color: var(--hm-muted);
 }
 
+#hm-system-builder .hm-simple-actions__spec {
+  margin: 0.45rem 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: left;
+  max-width: 36rem;
+}
+
 #hm-system-builder .hm-simple-actions__links {
   display: flex;
   flex-wrap: wrap;
@@ -1117,6 +1126,13 @@
 
 #hm-system-builder .hm-simple-buy__h:not(:first-child) {
   margin-top: 1.15rem;
+}
+
+#hm-system-builder .hm-simple-buy__note {
+  margin: -0.25rem 0 0.65rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--hm-muted);
 }
 
 #hm-system-builder .hm-simple-buy__list {
@@ -1647,6 +1663,13 @@
   margin: 0.35rem 0 0;
   font-size: 13px;
   color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-result-hero__sub--detail {
+  margin-top: 0.2rem;
+  max-width: 28rem;
+  line-height: 1.35;
+  font-size: 12px;
 }
 
 #hm-system-builder .hm-result-stats {

@@ -3719,6 +3719,9 @@ HM.cartTotal = cartTotal;
 /**
  * True .xlsx export via SheetJS (CDN). Formulas, not baked values.
  * SheetJS is loaded at runtime — not shipped in the public dist whitelist.
+ *
+ * Simple and Advanced share this path: panel modules + companions
+ * (protection, terminals, PSUs, enclosure) + not_included.
  */
 
 const SHEETJS_CDN = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mjs";
@@ -3734,6 +3737,100 @@ function loadXlsx() {
 }
 
 /**
+ * Structured rows for the estimate sheet — same content Simple Download uses.
+ * Pure (no SheetJS). Used by buildEstimateXlsx and unit tests.
+ *
+ * @param {object} estimate
+ * @returns {{ title: string, lines: Array<{label: string, sku?: string, qty: number, unit_price?: number|string, available?: boolean}> }[]}
+ */
+function estimateExportSections(estimate) {
+  const sections = [];
+  const panels = estimate.panels || [];
+
+  if (panels.length > 0) {
+    for (const panel of panels) {
+      const hmLines = (panel.modules || []).map((m) => ({
+        sku: m.sku,
+        label: m.id,
+        qty: m.qty,
+        unit_price: m.price?.amount ?? m.unit_price ?? "",
+        available: m.price?.available,
+      }));
+      // Prefer panel accessories; fall back to project-level companions if empty.
+      const accSrc =
+        (panel.accessories || []).length > 0
+          ? panel.accessories
+          : estimate.accessories || [];
+      const accLines = accSrc.map((a) => ({
+        label: a.label || a.id || "Accessory",
+        qty: a.qty ?? 1,
+        unit_price: "",
+      }));
+      const title = panel.location
+        ? `${panel.name} (${panel.location})`
+        : panel.name || "Panel";
+      sections.push({ title, lines: [...hmLines, ...accLines] });
+
+      const enc = panel.enclosure || (panels.length === 1 ? estimate.enclosure : null);
+      if (enc && enc.status !== "blocked") {
+        const cabinets = enc.cabinets || 1;
+        const each = enc.capacity_each ?? enc.capacity;
+        const rows = enc.rows;
+        const rowWidth = enc.row_width;
+        const layout =
+          rows && rowWidth
+            ? `${cabinets > 1 ? `${cabinets} × ` : ""}${rows} rows × ${rowWidth} = ${enc.capacity} M`
+            : `${enc.capacity} M capacity`;
+        const size =
+          enc.width_mm && enc.height_mm
+            ? `, approx. ${enc.width_mm} × ${enc.height_mm} mm`
+            : "";
+        sections.push({
+          title: `${title} — enclosure`,
+          lines: [
+            {
+              label: `DIN enclosure ${layout}${size}`,
+              qty: cabinets,
+              unit_price: "",
+            },
+            {
+              label: `Occupied ${enc.din_total ?? enc.occupied ?? "—"} M · needed ${enc.din_needed ?? "—"} M · free ${enc.din_free ?? enc.free ?? "—"} M`,
+              qty: 1,
+              unit_price: "",
+            },
+          ],
+        });
+      }
+    }
+  } else {
+    const hmLines = (estimate.modules || []).map((m) => ({
+      sku: m.sku,
+      label: m.id,
+      qty: m.qty,
+      unit_price: m.price?.amount ?? m.unit_price ?? "",
+      available: m.price?.available,
+    }));
+    const accLines = (estimate.accessories || []).map((a) => ({
+      label: a.label || a.id || "Accessory",
+      qty: a.qty ?? 1,
+      unit_price: "",
+    }));
+    sections.push({ title: "HomeMaster", lines: [...hmLines, ...accLines] });
+  }
+
+  const projectHm = (estimate.modules || []).map((m) => ({
+    sku: m.sku,
+    label: m.id,
+    qty: m.qty,
+    unit_price: m.price?.amount ?? m.unit_price ?? "",
+    available: m.price?.available,
+  }));
+  sections.push({ title: "Project total (HomeMaster)", lines: projectHm });
+
+  return sections;
+}
+
+/**
  * @param {object} estimate
  * @param {{ currency?: string }} [opts]
  * @returns {Promise<ArrayBuffer>}
@@ -3746,6 +3843,9 @@ async function buildEstimateXlsx(estimate, opts = {}) {
   rows.push(["HomeMaster estimate"]);
   rows.push([`Currency: ${currency}`]);
   rows.push(["Prices include VAT, same as the shopfront"]);
+  rows.push([
+    "HomeMaster module prices only. Protection, terminals, power supplies and enclosure are listed without shop prices — send this file to an installer for a quote.",
+  ]);
   rows.push([
     "Panel layout drawings are shown on the Result screen only — SheetJS CE cannot embed rail images in .xlsx.",
   ]);
@@ -3787,54 +3887,19 @@ async function buildEstimateXlsx(estimate, opts = {}) {
     return r - 2;
   }
 
-  const panels = estimate.panels || [];
-  const subRows = [];
-
-  if (panels.length > 0) {
-    for (const panel of panels) {
-      const hmLines = (panel.modules || []).map((m) => ({
-        sku: m.sku,
-        label: m.id,
-        qty: m.qty,
-        unit_price: m.price?.amount ?? m.unit_price ?? "",
-        available: m.price?.available,
-      }));
-      const accLines = (panel.accessories || []).map((a) => ({
-        label: a.label || a.id || "Accessory",
-        qty: a.qty ?? 1,
-        unit_price: "",
-      }));
-      const title = panel.location
-        ? `${panel.name} (${panel.location})`
-        : panel.name || "Panel";
-      subRows.push(pushSection(title, [...hmLines, ...accLines]));
-    }
-  } else {
-    const hmLines = (estimate.modules || []).map((m) => ({
-      sku: m.sku,
-      label: m.id,
-      qty: m.qty,
-      unit_price: m.price?.amount ?? m.unit_price ?? "",
-      available: m.price?.available,
-    }));
-    subRows.push(pushSection("HomeMaster", hmLines));
+  const sections = estimateExportSections(estimate);
+  let projectSub = null;
+  for (const sec of sections) {
+    const sub = pushSection(sec.title, sec.lines);
+    if (sec.title === "Project total (HomeMaster)") projectSub = sub;
   }
-
-  const projectHm = (estimate.modules || []).map((m) => ({
-    sku: m.sku,
-    label: m.id,
-    qty: m.qty,
-    unit_price: m.price?.amount ?? m.unit_price ?? "",
-    available: m.price?.available,
-  }));
-  const projectSub = pushSection("Project total (HomeMaster)", projectHm);
 
   rows.push([
     "Grand total (HomeMaster)",
     "",
     "",
     "",
-    { f: `E${projectSub}` },
+    projectSub != null ? { f: `E${projectSub}` } : 0,
   ]);
   r += 1;
   rows.push([]);
@@ -3888,7 +3953,11 @@ function estimateToCsv(estimate) {
         m.price?.currency ?? "",
       ]);
     }
-    for (const a of panel.accessories || []) {
+    const accSrc =
+      (panel.accessories || []).length > 0
+        ? panel.accessories
+        : estimate.accessories || [];
+    for (const a of accSrc) {
       rows.push([
         panel.name,
         "companion",
@@ -3901,6 +3970,28 @@ function estimateToCsv(estimate) {
     }
   }
   if (!(estimate.panels || []).length) {
+    for (const m of estimate.modules || []) {
+      rows.push([
+        "",
+        "module",
+        m.sku ?? "",
+        m.id ?? "",
+        String(m.qty ?? ""),
+        m.price?.amount != null ? String(m.price.amount) : "",
+        m.price?.currency ?? "",
+      ]);
+    }
+    for (const a of estimate.accessories || []) {
+      rows.push([
+        "",
+        "companion",
+        "",
+        a.label || a.id || "",
+        String(a.qty ?? ""),
+        "",
+        "",
+      ]);
+    }
     for (const line of estimate.lines ?? []) {
       rows.push([
         "",
@@ -3933,6 +4024,7 @@ function downloadCsv(estimate, filename = "homemaster-estimate.csv") {
   URL.revokeObjectURL(url);
 }
 
+HM.estimateExportSections = estimateExportSections;
 HM.buildEstimateXlsx = buildEstimateXlsx;
 HM.downloadXlsx = downloadXlsx;
 HM.estimateToCsv = estimateToCsv;
@@ -7320,7 +7412,8 @@ function resultHeroHtml({ priceHtml, stats, actionsHtml = "" }) {
   return `<div class="hm-card hm-result-hero${actionsHtml ? "" : " hm-result-hero--simple"}">
           <div>
             ${priceHtml}
-            <p class="hm-result-hero__sub">incl. VAT · equipment only</p>
+            <p class="hm-result-hero__sub">incl. VAT · HomeMaster modules only</p>
+            <p class="hm-result-hero__sub hm-result-hero__sub--detail">Panel, protection, terminals and power supplies are listed in the specification but not priced.</p>
           </div>
           <div class="hm-result-stats">${statsHtml}</div>
           ${actions}
@@ -7378,20 +7471,25 @@ function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
   return `<ul class="hm-simple-buy__list">${list}${extras}${more}</ul>`;
 }
 
-/** Subtitle under Add to cart: in-stock cart total only. */
+/** Subtitle under Add to cart: in-stock cart total only + full-spec reminder. */
 function cartHintHtml(cartTot, sysTot) {
+  let cartLine;
   if (!cartTot || !cartTot.pricedQty) {
     if (sysTot && sysTot.pricedQty > 0 && sysTot.unavailableLineCount > 0) {
-      return `<p class="hm-simple-actions__hint hm-muted">In cart now: nothing — ${sysTot.unavailableLineCount} module${sysTot.unavailableLineCount === 1 ? "" : "s"} unavailable</p>`;
+      cartLine = `<p class="hm-simple-actions__hint hm-muted">In cart now: nothing — ${sysTot.unavailableLineCount} module${sysTot.unavailableLineCount === 1 ? "" : "s"} unavailable</p>`;
+    } else {
+      cartLine = `<p class="hm-simple-actions__hint hm-muted">No priced units to add</p>`;
     }
-    return `<p class="hm-simple-actions__hint hm-muted">No priced units to add</p>`;
+  } else {
+    let text = `In cart now: ${cartTot.total} ${escapeAttr(cartTot.currency)}`;
+    const n = sysTot?.unavailableLineCount || cartTot.unavailableSku?.length || 0;
+    if (n > 0) {
+      text += ` · ${n} module${n === 1 ? "" : "s"} unavailable`;
+    }
+    cartLine = `<p class="hm-simple-actions__hint">${text}</p>`;
   }
-  let text = `In cart now: ${cartTot.total} ${escapeAttr(cartTot.currency)}`;
-  const n = sysTot?.unavailableLineCount || cartTot.unavailableSku?.length || 0;
-  if (n > 0) {
-    text += ` · ${n} module${n === 1 ? "" : "s"} unavailable`;
-  }
-  return `<p class="hm-simple-actions__hint">${text}</p>`;
+  const specNote = `<p class="hm-simple-actions__spec hm-muted">The specification covers the whole panel — modules, protection, terminals, power supplies and enclosure — ready to send to an installer for a quote.</p>`;
+  return `${cartLine}${specNote}`;
 }
 
 function channelUsageTable(usage, { fold = true } = {}) {
@@ -9105,6 +9203,7 @@ function mountConfigurator(root) {
         <h3 class="hm-simple-buy__h">What it covers</h3>
         <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the controls to build your system.</li>"}</ul>
         <h3 class="hm-simple-buy__h">Modules you buy</h3>
+        <p class="hm-simple-buy__note">These go to the cart. The full panel needs more equipment — see the downloaded specification.</p>
         ${modulesYouBuyHtml(rows)}
       </div>
       <div class="hm-card hm-simple-actions">
