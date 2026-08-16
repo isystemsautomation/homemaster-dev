@@ -4284,7 +4284,7 @@ function buildPlacementQueue(panel, rules = {}) {
   const mods = moduleIndex(panel.modules);
   const items = [];
 
-  function fromAcc(id, group, rowBreakBefore = false) {
+  function fromAcc(id, group) {
     const a = acc.get(id);
     if (!a || SKIP_LAYOUT_IDS.has(id)) return;
     const units = Number(a.din_units);
@@ -4298,13 +4298,13 @@ function buildPlacementQueue(panel, rules = {}) {
         label: a.label || id,
         units,
         group,
-        rowBreakBefore,
+        rowBreakBefore: false,
       },
       a.qty,
     );
   }
 
-  function fromModuleLine(mod, group, rowBreakBefore = false) {
+  function fromModuleLine(mod, group) {
     if (!mod) return;
     const units =
       mod.din_units != null
@@ -4321,7 +4321,7 @@ function buildPlacementQueue(panel, rules = {}) {
       shop_url: mod.shop_url || specs[mod.id]?.shop_url || "",
       price: mod.price || null,
       group,
-      rowBreakBefore,
+      rowBreakBefore: false,
     });
   }
 
@@ -4358,8 +4358,8 @@ function buildPlacementQueue(panel, rules = {}) {
     });
   }
 
-  function placeModuleInstance(mod, group, rowBreakBefore) {
-    fromModuleLine(mod, group, rowBreakBefore);
+  function placeModuleInstance(mod, group) {
+    fromModuleLine(mod, group);
     if (mod?.id === "RGB-621-R1" || mod?.id === "STR-3221-R1") {
       placeLedFor(mod.id, group);
     }
@@ -4378,7 +4378,7 @@ function buildPlacementQueue(panel, rules = {}) {
         sku: specs[ctrlId]?.sku,
         shop_url: specs[ctrlId]?.shop_url,
       };
-      placeModuleInstance(ctrlMod, group, true);
+      placeModuleInstance(ctrlMod, group);
       for (const slave of seg.slaves || []) {
         const sid = typeof slave === "string" ? slave : slave.id;
         const sMod = {
@@ -4392,22 +4392,20 @@ function buildPlacementQueue(panel, rules = {}) {
             specs[sid]?.shop_url,
           price: mods.get(sid)?.price || null,
         };
-        placeModuleInstance(sMod, group, false);
+        placeModuleInstance(sMod, group);
       }
     }
   } else {
     const masters = (panel.modules || []).filter((m) => specs[m.id]?.master);
     const slaves = (panel.modules || []).filter((m) => !specs[m.id]?.master);
-    let first = true;
     for (const m of masters) {
       for (let i = 0; i < (m.qty || 0); i++) {
-        placeModuleInstance(m, "segment-1", first);
-        first = false;
+        placeModuleInstance(m, "segment-1");
       }
     }
     for (const m of slaves) {
       for (let i = 0; i < (m.qty || 0); i++) {
-        placeModuleInstance(m, "segment-1", false);
+        placeModuleInstance(m, "segment-1");
       }
     }
   }
@@ -4429,11 +4427,11 @@ function buildPlacementQueue(panel, rules = {}) {
   }
 
   // 2. Module-logic PSU — immediately after modules
-  fromAcc("psu_din_60w", "logic-psu", true);
+  fromAcc("psu_din_60w", "logic-psu");
   fromAcc("psu_din_100w", "logic-psu");
 
   // 3. Protection — incomer and outgoing may share a rail
-  fromAcc("mcb_1p_n", "protection", true);
+  fromAcc("mcb_1p_n", "protection");
   fromAcc("rcd_2p", "protection");
   fromAcc("rcbo_1p_n", "protection");
   fromAcc("rcd_4p", "protection");
@@ -4442,7 +4440,7 @@ function buildPlacementQueue(panel, rules = {}) {
   fromAcc("contactor_modular", "protection");
 
   // 4. Field terminals and N/PE bars last (cables enter from below)
-  fromAcc("terminal_block", "field", true);
+  fromAcc("terminal_block", "field");
   fromAcc("terminal_block_2t", "field");
   fromAcc("n_bar_12", "field");
   fromAcc("pe_bar_12", "field");
@@ -4463,9 +4461,35 @@ function blankTile(units = 1) {
 }
 
 /**
+ * Group placement queue into atomic chunks. A strip module and its LED PS
+ * must stay on the same row — move both together when the pair does not fit.
+ */
+function placementChunks(items) {
+  const chunks = [];
+  for (let i = 0; i < (items || []).length; i++) {
+    const cur = items[i];
+    const nxt = items[i + 1];
+    const paired =
+      nxt &&
+      ((cur.id === "RGB-621-R1" && nxt.id === "psu_led_rgb") ||
+        (cur.id === "STR-3221-R1" && nxt.id === "psu_led_str"));
+    if (paired) {
+      const u0 = Number(cur.units) || 0;
+      const u1 = Number(nxt.units) || 0;
+      chunks.push({ items: [cur, nxt], units: u0 + u1 });
+      i += 1;
+    } else {
+      chunks.push({ items: [cur], units: Number(cur.units) || 0 });
+    }
+  }
+  return chunks;
+}
+
+/**
  * Pack items into enclosure.cabinets × rows × row_width.
- * An item that does not fit the remainder starts a new row; leftover
- * width is filled with blanking. Items never split across rows.
+ * Fill the current row until the next chunk does not fit, then start a new
+ * row. Blanking only fills the remainder after a wrap or at the end.
+ * Module + LED PS pairs never split across rows.
  */
 function packEnclosureLayout(items, enclosure) {
   const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
@@ -4499,7 +4523,24 @@ function packEnclosureLayout(items, enclosure) {
       const ledNote = led.length
         ? ` + ${led.length} LED PS`
         : "";
-      return `Modules — segment ${n} (${head}${extraMods ? ` + ${extraMods}` : ""}${ledNote})`;
+      const extraGroups = [...groups].filter(
+        (g) => g !== seg && g !== "blank",
+      );
+      const mix =
+        extraGroups.length > 0
+          ? ` · ${extraGroups
+              .map((g) =>
+                g === "logic-psu"
+                  ? "logic PSU"
+                  : g === "protection"
+                    ? "protection"
+                    : g === "field"
+                      ? "terminals"
+                      : g,
+              )
+              .join(", ")}`
+          : "";
+      return `Modules — segment ${n} (${head}${extraMods ? ` + ${extraMods}` : ""}${ledNote})${mix}`;
     }
     if (groups.has("logic-psu") || groups.has("power")) {
       return "Module logic PSU";
@@ -4520,7 +4561,6 @@ function packEnclosureLayout(items, enclosure) {
     ensureCapacity();
     const remain = rowWidth - used;
     if (remain > eps) {
-      // Prefer 1 M blanks; leftover fraction as one short blank.
       let left = remain;
       while (left > 1 + eps) {
         rowItems.push(blankTile(1));
@@ -4541,36 +4581,33 @@ function packEnclosureLayout(items, enclosure) {
     }
   }
 
-  // Overflow past rated enclosure: keep packing into extra section(s)
-  // so nothing is dropped from the drawing.
   function ensureCapacity() {
     while (secIdx >= sections.length) {
       sections.push({ index: sections.length + 1, rows: [] });
     }
   }
 
-  function ensureSlot(units, forceBreak) {
-    ensureCapacity();
-    if (forceBreak && rowItems.length) commitRow();
+  function ensureSlot(units) {
     ensureCapacity();
     if (units > rowWidth + eps) {
       if (rowItems.length) commitRow();
       ensureCapacity();
-      return true;
+      return;
     }
     if (used + units > rowWidth + eps) {
       commitRow();
       ensureCapacity();
     }
-    return true;
   }
 
-  for (const item of items) {
-    const units = Number(item.units) || 0;
+  for (const chunk of placementChunks(items)) {
+    const units = Number(chunk.units) || 0;
     if (units <= 0) continue;
-    ensureSlot(units, !!item.rowBreakBefore);
-    rowItems.push(item);
-    used += units;
+    ensureSlot(units);
+    for (const item of chunk.items) {
+      rowItems.push(item);
+      used += Number(item.units) || 0;
+    }
   }
 
   if (rowItems.length) commitRow();
@@ -4614,19 +4651,29 @@ function buildPanelLayout(panel, rules = {}) {
 }
 
 function resolveTileSrc(manifest, item, assetsBase) {
-  if (!manifest) return { src: null, missing: true };
+  if (!manifest) return { src: null, missing: true, artUnits: null, noStretch: false };
   if (item.kind === "module") {
     const bySku = item.sku ? manifest.modules?.[item.sku] : null;
     if (bySku?.file) {
-      return { src: new URL(bySku.file, assetsBase).href, missing: false };
+      return {
+        src: new URL(bySku.file, assetsBase).href,
+        missing: false,
+        artUnits: bySku.art_units ?? bySku.units ?? null,
+        noStretch: !!bySku.no_stretch,
+      };
     }
-    return { src: null, missing: true };
+    return { src: null, missing: true, artUnits: null, noStretch: false };
   }
   const entry = manifest.companions?.[item.id];
   if (entry?.file) {
-    return { src: new URL(entry.file, assetsBase).href, missing: false };
+    return {
+      src: new URL(entry.file, assetsBase).href,
+      missing: false,
+      artUnits: entry.art_units ?? entry.units ?? null,
+      noStretch: !!entry.no_stretch,
+    };
   }
-  return { src: null, missing: true };
+  return { src: null, missing: true, artUnits: null, noStretch: false };
 }
 
 function tileTooltip(item, priceMap) {
@@ -4652,9 +4699,19 @@ function renderTile(item, manifest, assetsBase, rowWidth, priceMap) {
   const units = Number(item.units) || 0;
   const tip = escapeHtml(tileTooltip(item, priceMap));
   const hl = escapeHtml(item.key);
-  const { src, missing } = resolveTileSrc(manifest, item, assetsBase);
+  const { src, missing, artUnits, noStretch } = resolveTileSrc(
+    manifest,
+    item,
+    assetsBase,
+  );
   const tab = ` tabindex="0" role="button"`;
   const flex = `flex:0 0 calc(100% * ${units} / ${rowWidth});width:calc(100% * ${units} / ${rowWidth});height:100%;`;
+  // Do not stretch artwork that is narrower than the DIN slot (e.g. 4 M
+  // PSU face in a 6 M logic-PSU / LED-PS slot) — text would duplicate.
+  const stretch =
+    !noStretch &&
+    !(artUnits != null && Number(artUnits) + 1e-6 < units);
+  const fit = stretch ? "fill" : "contain";
 
   if (missing || !src) {
     return `<span class="hm-rail-tile hm-rail-tile--missing" data-hl="${hl}" title="${tip}"${tab} style="${flex}"></span>`;
@@ -4664,7 +4721,7 @@ function renderTile(item, manifest, assetsBase, rowWidth, priceMap) {
     item.kind === "module" && item.shop_url
       ? ` data-shop="${escapeHtml(item.shop_url)}"`
       : "";
-  return `<img class="hm-rail-tile" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" loading="lazy" decoding="async"${tab} style="${flex};object-fit:fill">`;
+  return `<img class="hm-rail-tile${stretch ? "" : " hm-rail-tile--contain"}" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" loading="lazy" decoding="async"${tab} style="${flex};object-fit:${fit};object-position:center;background:transparent">`;
 }
 
 /**
@@ -4871,6 +4928,7 @@ function layoutsForEstimate(estimate, rules) {
 
 HM.loadPanelManifest = loadPanelManifest;
 HM.buildPlacementQueue = buildPlacementQueue;
+HM.placementChunks = placementChunks;
 HM.packEnclosureLayout = packEnclosureLayout;
 HM.buildPanelLayout = buildPanelLayout;
 HM.renderPanelLayoutHtml = renderPanelLayoutHtml;

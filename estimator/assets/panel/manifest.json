@@ -84,23 +84,29 @@
       "units": 1.0
     },
     "psu_din_100w": {
-      "file": "companions/psu_din_100w.png",
+      "file": "companions/psu_din_60w.png",
       "units": 6.0,
-      "derived_from": "psu_din_60w"
+      "derived_from": "psu_din_60w",
+      "art_units": 4.0,
+      "no_stretch": true
     },
     "psu_din_60w": {
       "file": "companions/psu_din_60w.png",
       "units": 4.0
     },
     "psu_led_rgb": {
-      "file": "companions/psu_din_100w.png",
+      "file": "companions/psu_din_60w.png",
       "units": 6.0,
-      "derived_from": "psu_din_100w"
+      "derived_from": "psu_din_60w",
+      "art_units": 4.0,
+      "no_stretch": true
     },
     "psu_led_str": {
-      "file": "companions/psu_din_100w.png",
+      "file": "companions/psu_din_60w.png",
       "units": 6.0,
-      "derived_from": "psu_din_100w"
+      "derived_from": "psu_din_60w",
+      "art_units": 4.0,
+      "no_stretch": true
     },
     "rcbo_1p_n": {
       "file": "companions/rcbo_1p_n.png",
