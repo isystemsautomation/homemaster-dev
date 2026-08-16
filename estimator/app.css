@@ -680,8 +680,13 @@
       "result";
   }
 
+  #hm-system-builder .hm-simple__settings {
+    order: 1;
+  }
+
   #hm-system-builder .hm-simple__result {
     position: static;
+    order: 2;
   }
 }
 
@@ -922,7 +927,6 @@
 
 #hm-system-builder .hm-simple-actions {
   padding: 0.85rem 1rem;
-  max-height: 120px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -937,8 +941,9 @@
 }
 
 #hm-system-builder .hm-simple-actions__primary .hm-btn-pill {
-  flex: 1 1 auto;
+  flex: 1 1 calc(50% - 0.5rem);
   min-width: 9rem;
+  justify-content: center;
 }
 
 #hm-system-builder .hm-simple-actions__hint {

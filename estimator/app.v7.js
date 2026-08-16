@@ -3608,6 +3608,51 @@ function cartEligibleLines(estimate, prices) {
 }
 
 /**
+ * Sum every HomeMaster line that has a numeric shop price (including out of stock).
+ * @param {object} estimate
+ * @param {Record<string, {amount: number, currency: string, currencyAmbiguous?: boolean, available?: boolean}>} prices
+ * @returns {{total: number, currency: string, pricedQty: number, lineCount: number, unavailableQty: number, unavailableLineCount: number, currencyAmbiguous: boolean} | null}
+ */
+function systemTotal(estimate, prices) {
+  let total = 0;
+  let currency = null;
+  let pricedQty = 0;
+  let lineCount = 0;
+  let unavailableQty = 0;
+  let unavailableLineCount = 0;
+  let currencyAmbiguous = false;
+  const lines =
+    (estimate.cart_lines && estimate.cart_lines.length
+      ? estimate.cart_lines
+      : (estimate.modules || []).map((m) => ({ sku: m.sku, qty: m.qty }))) || [];
+  for (const line of lines) {
+    const p = prices[line.sku];
+    if (!p || !Number.isFinite(p.amount)) continue;
+    const qty = line.qty || 1;
+    total += p.amount * qty;
+    currency = p.currency || currency || "EUR";
+    pricedQty += qty;
+    lineCount += 1;
+    if (p.available === false) {
+      unavailableQty += qty;
+      unavailableLineCount += 1;
+    }
+    if (p.currencyAmbiguous) currencyAmbiguous = true;
+  }
+  if (lines.length === 0) return null;
+  if (pricedQty === 0) return null;
+  return {
+    total: Math.round(total * 100) / 100,
+    currency: currency || "EUR",
+    pricedQty,
+    lineCount,
+    unavailableQty,
+    unavailableLineCount,
+    currencyAmbiguous,
+  };
+}
+
+/**
  * Sum HomeMaster lines that have a numeric price and are available.
  * Missing / out-of-stock prices do not null the whole subtotal;
  * currencyAmbiguous never hides amounts.
@@ -3662,6 +3707,7 @@ HM.priceIsCartEligible = priceIsCartEligible;
 HM.modulePurchaseRows = modulePurchaseRows;
 HM.stockAvailability = stockAvailability;
 HM.cartEligibleLines = cartEligibleLines;
+HM.systemTotal = systemTotal;
 HM.cartTotal = cartTotal;
 
 // ===== xlsx.js =====
@@ -3700,26 +3746,35 @@ async function buildEstimateXlsx(estimate, opts = {}) {
   ]);
   if (estimate.split_warning) rows.push([estimate.split_warning]);
   rows.push([]);
-  rows.push(["Section", "SKU / requirement", "Qty", "Unit price", "Line total"]);
+  rows.push(["Section", "SKU / requirement", "Qty", "Unit price", "Line total", "Availability"]);
 
   let r = rows.length + 1; // 1-based next data row
 
   function pushSection(title, lines) {
-    rows.push([title, "", "", "", ""]);
+    rows.push([title, "", "", "", "", ""]);
     r += 1;
     const start = r;
     for (const line of lines) {
       const qty = line.qty ?? 1;
       const price = line.unit_price;
       const priceCell = price != null && price !== "" ? Number(price) : "";
-      rows.push(["", line.label || line.sku || line.requirement || "", qty, priceCell, { f: `C${r}*D${r}` }]);
+      const avail =
+        line.available === false ? "out of stock" : line.available === true ? "in stock" : "";
+      rows.push([
+        "",
+        line.label || line.sku || line.requirement || "",
+        qty,
+        priceCell,
+        { f: `C${r}*D${r}` },
+        avail,
+      ]);
       r += 1;
     }
     const end = r - 1;
     if (end >= start) {
-      rows.push(["", `${title} subtotal`, "", "", { f: `SUM(E${start}:E${end})` }]);
+      rows.push(["", `${title} subtotal`, "", "", { f: `SUM(E${start}:E${end})` }, ""]);
     } else {
-      rows.push(["", `${title} subtotal`, "", "", 0]);
+      rows.push(["", `${title} subtotal`, "", "", 0, ""]);
     }
     r += 1;
     rows.push([]);
@@ -3737,6 +3792,7 @@ async function buildEstimateXlsx(estimate, opts = {}) {
         label: m.id,
         qty: m.qty,
         unit_price: m.price?.amount ?? m.unit_price ?? "",
+        available: m.price?.available,
       }));
       const accLines = (panel.accessories || []).map((a) => ({
         label: a.label || a.id || "Accessory",
@@ -3753,7 +3809,8 @@ async function buildEstimateXlsx(estimate, opts = {}) {
       sku: m.sku,
       label: m.id,
       qty: m.qty,
-      unit_price: m.unit_price ?? "",
+      unit_price: m.price?.amount ?? m.unit_price ?? "",
+      available: m.price?.available,
     }));
     subRows.push(pushSection("HomeMaster", hmLines));
   }
@@ -3763,6 +3820,7 @@ async function buildEstimateXlsx(estimate, opts = {}) {
     label: m.id,
     qty: m.qty,
     unit_price: m.price?.amount ?? m.unit_price ?? "",
+    available: m.price?.available,
   }));
   const projectSub = pushSection("Project total (HomeMaster)", projectHm);
 
@@ -4232,6 +4290,34 @@ function togglesFromSystems(systems) {
 }
 
 /**
+ * Blank room seed for Simple — only slider totals / toggles create demand.
+ * Do not copy Advanced room_templates (extract_fan, DS18B20, …) into examples.
+ */
+function simpleRoomDefaults(type = "living") {
+  return {
+    name: "",
+    template: type,
+    lights_onoff: 0,
+    lights_dimmable: 0,
+    led_strips: 0,
+    led_strip_channels: 4,
+    led_single: 0,
+    switches: 0,
+    shutters: 0,
+    ufh_loops: 0,
+    ufh_electric: 0,
+    lights_0_10v: 0,
+    temp_sensor: "none",
+    leak_sensors: 0,
+    motion_sensors: 0,
+    presence_sensors: 0,
+    door_contacts: 0,
+    smart_sockets: 0,
+    extract_fan: 0,
+  };
+}
+
+/**
  * Map unavailable shop modules → Simple preset fields to clear.
  * Used only for Apartment / House / Villa examples — not for manual sliders.
  *
@@ -4395,17 +4481,18 @@ function simplePreset(kind, roomTemplates) {
         garage: 1,
         boiler_room: 1,
       },
+      // ~1.6× house (160 m² → 320 m²). Previous totals ballooned to 35–37 HM modules.
       totals: {
-        lights_onoff: 36,
-        lights_dimmable: 10,
-        led_strips: 3,
-        switches: 40,
-        shutters: 12,
-        ufh_loops: 20,
-        leak_sensors: 5,
-        motion_sensors: 8,
-        door_contacts: 10,
-        smart_sockets: 6,
+        lights_onoff: 28,
+        lights_dimmable: 6,
+        led_strips: 2,
+        switches: 32,
+        shutters: 6,
+        ufh_loops: 14,
+        leak_sensors: 4,
+        motion_sensors: 5,
+        door_contacts: 6,
+        smart_sockets: 3,
       },
       toggles: {
         boiler: "opentherm",
@@ -4500,6 +4587,7 @@ HM.distributeFieldToRooms = distributeFieldToRooms;
 HM.applySimpleDistribution = applySimpleDistribution;
 HM.applySimpleToggles = applySimpleToggles;
 HM.togglesFromSystems = togglesFromSystems;
+HM.simpleRoomDefaults = simpleRoomDefaults;
 HM.adaptPresetForAvailability = adaptPresetForAvailability;
 HM.simplePreset = simplePreset;
 HM.simpleCustomerSummary = simpleCustomerSummary;
@@ -6571,7 +6659,7 @@ function runSimpleSync({ rebuildCounts = false } = {}) {
     rooms: state.rooms,
     roomTypeLabels: rules?.room_type_labels,
     roomTemplates: rules?.room_templates,
-    roomDefaultsFn: (t) => roomDefaults(t),
+    roomDefaultsFn: (t) => simpleRoomDefaults(t),
     panelId: firstPanelId(),
   });
   state.rooms = rooms;
@@ -6585,37 +6673,75 @@ function runSimpleSync({ rebuildCounts = false } = {}) {
   );
 }
 
-function syncSimpleSlidersFromRooms() {
-  state.simple.totals = totalsFromRooms(state.rooms);
-  state.simple.counts = countsFromRooms(state.rooms);
-  state.simple.toggles = togglesFromSystems(state.systems);
-  state.simple.warnings = [];
-}
-
-function applyPreset(kind) {
+/**
+ * Build the exact Simple example configuration used for card price AND click apply.
+ * Always starts from emptySystems — never merges leftover Advanced/Simple systems.
+ */
+function buildExampleConfig(kind) {
   const raw = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
   const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(
     raw,
     moduleIsAvailable,
   );
-  state.object.property_type = p.property_type;
-  state.object.floor_area_m2 = p.floor_area_m2;
-  state.object.floors = p.floors;
-  state.simple.counts = p.counts;
-  state.simple.totals = p.totals;
-  state.simple.toggles = p.toggles;
-  state.simple.preset = kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment";
-  state.simple.stockExclusions = exclusions;
-  state.simple.controllersOk = controllersOk;
-  state.rooms = [];
-  runSimpleSync();
-  if (p.clearStairLighting && state.systems?.lighting_scenes) {
-    state.systems.lighting_scenes.stair_steps = 0;
-    state.systems.lighting_scenes.accent_zones = 0;
+  const { rooms, warnings } = applySimpleDistribution({
+    counts: p.counts,
+    totals: p.totals,
+    rooms: [],
+    roomTypeLabels: rules?.room_type_labels,
+    roomTemplates: rules?.room_templates,
+    roomDefaultsFn: (t) => simpleRoomDefaults(t),
+    panelId: firstPanelId(),
+  });
+  let systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
+  systems.heating.collector_loops = Math.max(0, Number(p.totals.ufh_loops) || 0);
+  if (p.clearStairLighting && systems.lighting_scenes) {
+    systems.lighting_scenes.stair_steps = 0;
+    systems.lighting_scenes.accent_zones = 0;
   }
-  if ((Number(p.totals?.ufh_loops) || 0) === 0 && state.systems?.heating) {
-    state.systems.heating.collector_loops = 0;
-  }
+  const inputs = {
+    panels: resolvePanels({ panels: [{ id: "panel-1", name: "Main panel", location: "" }] }),
+    rooms,
+    systems,
+    stage: state.object.stage || "design",
+    property_type: p.property_type,
+    floor_area_m2: p.floor_area_m2,
+    floors: p.floors,
+  };
+  return {
+    kind: kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment",
+    preset: p,
+    exclusions,
+    controllersOk,
+    rooms,
+    systems,
+    warnings,
+    inputs,
+  };
+}
+
+function applyPreset(kind) {
+  const cfg = buildExampleConfig(kind);
+  state.object.property_type = cfg.preset.property_type;
+  state.object.floor_area_m2 = cfg.preset.floor_area_m2;
+  state.object.floors = cfg.preset.floors;
+  state.simple.counts = cfg.preset.counts;
+  state.simple.totals = cfg.preset.totals;
+  state.simple.toggles = cfg.preset.toggles;
+  state.simple.preset = cfg.kind;
+  state.simple.stockExclusions = cfg.exclusions;
+  state.simple.controllersOk = cfg.controllersOk;
+  state.simple.warnings = cfg.warnings || [];
+  state.rooms = cfg.rooms;
+  state.systems = cfg.systems;
+  state.rooms_user_edited = true;
+  state.panels = [{ id: "panel-1", name: "Main panel", location: "" }];
+}
+
+function syncSimpleSlidersFromRooms() {
+  state.simple.totals = totalsFromRooms(state.rooms);
+  state.simple.counts = countsFromRooms(state.rooms);
+  state.simple.toggles = togglesFromSystems(state.systems);
+  state.simple.warnings = [];
 }
 
 /** True when shop ld+json marks the module InStock (or we have no price yet). */
@@ -6720,8 +6846,7 @@ async function copyShareLink(button) {
       button.textContent = "Link copied";
       button.disabled = true;
       setTimeout(() => {
-        const sz = button.classList.contains("hm-text-link") ? 14 : 16;
-        button.innerHTML = `${hmIcon("link", sz)} Copy link`;
+        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
         button.disabled = false;
       }, 2000);
     }
@@ -6731,8 +6856,7 @@ async function copyShareLink(button) {
     if (button) {
       button.textContent = "Copy failed";
       setTimeout(() => {
-        const sz = button.classList.contains("hm-text-link") ? 14 : 16;
-        button.innerHTML = `${hmIcon("link", sz)} Copy link`;
+        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
       }, 2000);
     }
     return false;
@@ -6853,7 +6977,11 @@ function formatPriceCell(p) {
   if (!p || typeof p.amount !== "number" || !Number.isFinite(p.amount)) {
     return `<span class="hm-price-dot" title="Price unavailable — not counted in the total" aria-label="Price unavailable"></span>`;
   }
-  return `<span class="hm-bom__price">${p.amount} ${escapeAttr(p.currency || "")}</span>`;
+  const stock =
+    p.available === false
+      ? ` <span class="hm-warn">out of stock</span>`
+      : "";
+  return `<span class="hm-bom__price">${p.amount} ${escapeAttr(p.currency || "")}${stock}</span>`;
 }
 
 /**
@@ -6950,18 +7078,25 @@ function bindNotesToggle(root) {
 }
 
 function formatModuleBuyPrice(row) {
-  if (row.status === "ok" && row.amount != null) {
-    const qty = Number(row.qty) || 1;
+  const qty = Number(row.qty) || 1;
+  const cur = escapeAttr(row.currency || "");
+  if (row.amount != null && Number.isFinite(row.amount)) {
     const line = Math.round(row.amount * qty * 100) / 100;
-    const cur = escapeAttr(row.currency || "");
     const unit = `${row.amount}${cur ? ` ${cur}` : ""}`;
     const total = `${line}${cur ? ` ${cur}` : ""}`;
-    if (qty > 1) {
-      return `<span class="hm-simple-buy__price">${unit} each · ${total}</span>`;
+    const priceBit =
+      qty > 1
+        ? `<span class="hm-simple-buy__price">${unit} each · ${total}</span>`
+        : `<span class="hm-simple-buy__price">${total}</span>`;
+    if (row.status === "oos") {
+      return `${priceBit} · <span class="hm-simple-buy__oos">out of stock</span>`;
     }
-    return `<span class="hm-simple-buy__price">${total}</span>`;
+    if (row.status === "ok") return priceBit;
   }
-  return `<span class="hm-simple-buy__oos">out of stock</span>`;
+  if (row.status === "oos") {
+    return `<span class="hm-simple-buy__oos">out of stock</span>`;
+  }
+  return `<span class="hm-muted">price pending</span>`;
 }
 
 function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
@@ -6981,15 +7116,18 @@ function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
   return `<ul class="hm-simple-buy__list">${list}${extras}${more}</ul>`;
 }
 
-/** One-line cart subtitle: units · total · unavailable. */
-function cartHintHtml(tot, unavailableModules) {
-  if (!tot || !tot.pricedQty) {
+/** Subtitle under Add to cart: in-stock cart total only. */
+function cartHintHtml(cartTot, sysTot) {
+  if (!cartTot || !cartTot.pricedQty) {
+    if (sysTot && sysTot.pricedQty > 0 && sysTot.unavailableLineCount > 0) {
+      return `<p class="hm-simple-actions__hint hm-muted">In cart now: nothing — ${sysTot.unavailableLineCount} module${sysTot.unavailableLineCount === 1 ? "" : "s"} unavailable</p>`;
+    }
     return `<p class="hm-simple-actions__hint hm-muted">No priced units to add</p>`;
   }
-  const units = tot.pricedQty;
-  let text = `${units} unit${units === 1 ? "" : "s"} · ${tot.total} ${escapeAttr(tot.currency)}`;
-  if (unavailableModules > 0) {
-    text += ` · ${unavailableModules} module${unavailableModules === 1 ? "" : "s"} unavailable`;
+  let text = `In cart now: ${cartTot.total} ${escapeAttr(cartTot.currency)}`;
+  const n = sysTot?.unavailableLineCount || cartTot.unavailableSku?.length || 0;
+  if (n > 0) {
+    text += ` · ${n} module${n === 1 ? "" : "s"} unavailable`;
   }
   return `<p class="hm-simple-actions__hint">${text}</p>`;
 }
@@ -7218,27 +7356,19 @@ function mountConfigurator(root) {
   async function refreshExamplePrices() {
     if (state.ui_mode !== "simple") return;
     await ensureStockCatalog();
-    const saved = structuredClone({
-      object: state.object,
-      rooms: state.rooms,
-      systems: state.systems,
-      simple: state.simple,
-    });
     for (const kind of ["apartment", "house", "villa"]) {
       const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
       const elExcl = examplesEl.querySelector(`[data-preset-excl="${kind}"]`);
       if (!elPrice) continue;
       try {
-        const raw = simplePreset(kind);
-        const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(
-          raw,
-          moduleIsAvailable,
-        );
+        const cfg = buildExampleConfig(kind);
         if (elExcl) {
-          if (exclusions.length || !controllersOk) {
-            const lines = [...exclusions];
-            if (!controllersOk) {
-              lines.push("Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.");
+          if (cfg.exclusions.length || !cfg.controllersOk) {
+            const lines = [...cfg.exclusions];
+            if (!cfg.controllersOk) {
+              lines.push(
+                "Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.",
+              );
             }
             elExcl.hidden = false;
             elExcl.innerHTML = lines.map((t) => `<p>${escapeAttr(t)}</p>`).join("");
@@ -7247,55 +7377,42 @@ function mountConfigurator(root) {
             elExcl.innerHTML = "";
           }
         }
-        if (!controllersOk) {
+        if (!cfg.controllersOk) {
           elPrice.textContent = "unavailable";
           continue;
         }
-        const { rooms } = applySimpleDistribution({
-          counts: p.counts,
-          totals: p.totals,
-          rooms: [],
-          roomTypeLabels: rules?.room_type_labels,
-          roomTemplates: rules?.room_templates,
-          roomDefaultsFn: (t) => roomDefaults(t),
-          panelId: firstPanelId(),
-        });
-        let systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
-        systems.heating.collector_loops = p.totals.ufh_loops || 0;
-        if (p.clearStairLighting && systems.lighting_scenes) {
-          systems.lighting_scenes.stair_steps = 0;
-          systems.lighting_scenes.accent_zones = 0;
-        }
-        const inputs = {
-          panels: resolvePanels({ panels: state.panels }),
-          rooms,
-          systems,
-          stage: state.object.stage,
-          property_type: p.property_type,
-          floor_area_m2: p.floor_area_m2,
-          floors: p.floors,
-        };
-        let result = estimate(inputs, rules, priceMap);
+        let result = estimate(cfg.inputs, rules, priceMap);
         const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
         if (urls.length) {
           const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
           priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
-          result = estimate(inputs, rules, priceMap);
+          // Re-adapt after prices: OOS gates may change once availability is known.
+          const cfg2 = buildExampleConfig(kind);
+          if (elExcl) {
+            if (cfg2.exclusions.length || !cfg2.controllersOk) {
+              const lines = [...cfg2.exclusions];
+              if (!cfg2.controllersOk) {
+                lines.push(
+                  "Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.",
+                );
+              }
+              elExcl.hidden = false;
+              elExcl.innerHTML = lines.map((t) => `<p>${escapeAttr(t)}</p>`).join("");
+            }
+          }
+          if (!cfg2.controllersOk) {
+            elPrice.textContent = "unavailable";
+            continue;
+          }
+          result = estimate(cfg2.inputs, rules, priceMap);
         }
-        const tot = cartTotal(result, priceMap);
+        const sys = systemTotal(result, priceMap);
         elPrice.textContent =
-          tot && tot.pricedQty > 0
-            ? `from ${tot.total} ${tot.currency}`
-            : "see estimate";
+          sys && sys.pricedQty > 0 ? `${sys.total} ${sys.currency}` : "see estimate";
       } catch {
         elPrice.textContent = "—";
       }
     }
-    // Restore live state (presets must not clobber).
-    state.object = saved.object;
-    state.rooms = saved.rooms;
-    state.systems = saved.systems;
-    state.simple = saved.simple;
   }
 
   function renderSteps() {
@@ -8730,13 +8847,14 @@ function mountConfigurator(root) {
     result = liveResult();
     await refreshPrices(result);
     result = liveResult();
-    const tot = cartTotal(result, priceMap);
+    const cartTot = cartTotal(result, priceMap);
+    const sysTot = systemTotal(result, priceMap);
     const rows = modulePurchaseRows(result, priceMap);
     const modQty = rows.reduce((s, r) => s + (r.qty || 0), 0);
     const roomN =
       (state.rooms || []).filter((r) => r?.name?.trim()).length ||
       Object.values(state.simple?.counts || {}).reduce((s, n) => s + (Number(n) || 0), 0);
-    const unavailableLines = rows.filter((r) => r.status !== "ok").length;
+    const unavailableLines = rows.filter((r) => r.status === "oos").length;
     const lines = simpleCustomerSummary(
       state.simple.totals,
       state.simple.toggles,
@@ -8749,8 +8867,8 @@ function mountConfigurator(root) {
       )
       .join("");
     let priceHtml = `<p class="hm-result-hero__price">—</p>`;
-    if (tot && tot.pricedQty > 0) {
-      priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
+    if (sysTot && sysTot.pricedQty > 0) {
+      priceHtml = `<p class="hm-result-hero__price">${sysTot.total} <span>${escapeAttr(sysTot.currency)}</span></p>`;
     }
     const stats = [
       { icon: "cube", value: modQty, label: "Modules" },
@@ -8775,11 +8893,6 @@ function mountConfigurator(root) {
 
     const head = resultHeroHtml({ priceHtml, stats });
 
-    const unavailableFooter =
-      unavailableLines > 0
-        ? `<p class="hm-simple-buy__excl">${unavailableLines} module${unavailableLines === 1 ? "" : "s"} unavailable — total excludes them.</p>`
-        : "";
-
     host.innerHTML = `
       ${head}
       ${shareOlder}
@@ -8789,18 +8902,15 @@ function mountConfigurator(root) {
         <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the controls to build your system.</li>"}</ul>
         <h3 class="hm-simple-buy__h">Modules you buy</h3>
         ${modulesYouBuyHtml(rows)}
-        ${unavailableFooter}
       </div>
       <div class="hm-card hm-simple-actions">
         <div class="hm-simple-actions__primary">
           <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="s-cart">${hmIcon("cart", 16)} Add to cart</button>
           <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-fullspec">${hmIcon("gear", 16)} Configure in detail</button>
+          <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-xlsx">${hmIcon("download", 16)} Download</button>
+          <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-share">${hmIcon("link", 16)} Copy link</button>
         </div>
-        ${cartHintHtml(tot, unavailableLines)}
-        <div class="hm-simple-actions__links">
-          <button type="button" class="hm-text-link" id="s-xlsx">${hmIcon("download", 14)} Download</button>
-          <button type="button" class="hm-text-link" id="s-share">${hmIcon("link", 14)} Copy link</button>
-        </div>
+        ${cartHintHtml(cartTot, sysTot)}
       </div>
       ${warn}
       <div id="s-cart-status"></div>`;
@@ -8839,8 +8949,8 @@ function mountConfigurator(root) {
     // Mobile sticky price bar — desktop hides via CSS.
     if (simpleDock) {
       const dockPrice =
-        tot && tot.pricedQty > 0
-          ? `${tot.total} ${escapeAttr(tot.currency)}`
+        sysTot && sysTot.pricedQty > 0
+          ? `${sysTot.total} ${escapeAttr(sysTot.currency)}`
           : "—";
       simpleDock.hidden = false;
       simpleDock.innerHTML = `
