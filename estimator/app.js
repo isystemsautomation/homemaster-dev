@@ -3737,7 +3737,7 @@ HM.toEstimatePriceMap = toEstimatePriceMap;
  * Cached in sessionStorage — the list changes rarely.
  */
 
-const CACHE_KEY = "hm_partners_directory_v1";
+const CACHE_KEY = "hm_partners_directory_v2";
 const LISTING_PATH = "/partners?country_all=1";
 
 /**
@@ -4037,7 +4037,9 @@ function parsePartnersListingDom(html) {
     if (!m) continue;
     const id = m[1];
     if (seen.has(id)) continue;
-    const name = partnersCleanText(a.textContent || "");
+    const name = partnersCleanText(a.textContent || "")
+      .replace(/\s+\d+\s*$/, "")
+      .trim();
     if (!name || /^all\b/i.test(name)) continue;
     seen.add(id);
     countries.push({ id, name, path });
@@ -4103,7 +4105,9 @@ function parsePartnersListingFallback(html) {
     const path = cm[1];
     const id = cm[2];
     if (seen.has(id)) continue;
-    const name = partnersDecodeHtmlEntities(cm[3]);
+    const name = partnersDecodeHtmlEntities(cm[3])
+      .replace(/\s+\d+\s*$/, "")
+      .trim();
     if (!name || /^all\b/i.test(name)) continue;
     seen.add(id);
     countries.push({ id, name, path });
