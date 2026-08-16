@@ -92,6 +92,16 @@
       "file": "companions/psu_din_60w.png",
       "units": 4.0
     },
+    "psu_led_rgb": {
+      "file": "companions/psu_din_100w.png",
+      "units": 6.0,
+      "derived_from": "psu_din_100w"
+    },
+    "psu_led_str": {
+      "file": "companions/psu_din_100w.png",
+      "units": 6.0,
+      "derived_from": "psu_din_100w"
+    },
     "rcbo_1p_n": {
       "file": "companions/rcbo_1p_n.png",
       "units": 2.0,

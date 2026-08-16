@@ -578,7 +578,10 @@ function aggregatePanelResults(panelResults, rules) {
       modMap[m.id].qty += m.qty || 0;
     }
     for (const a of p.accessories || []) {
-      const key = a.id || a.label;
+      const key =
+        a.bind_module && a.bind_index != null
+          ? `${a.id}::${p.id || p.name || ""}::${a.bind_module}#${a.bind_index}`
+          : a.id || a.label;
       if (!accMap[key]) accMap[key] = { ...a, qty: 0 };
       accMap[key].qty += a.qty || 0;
     }
@@ -1973,9 +1976,22 @@ function moduleLine(id, qty, moduleSpecs, allocated) {
 // ── Stage 5: power ──────────────────────────────────────────────────
 //
 // Three independent supplies — never sum field LED load into logic PSU:
-//   1. Module logic PSU (24 V DC) — Σ power_w_max × headroom
-//   2. STR LED PS (12/24 V) — assigned actuators × inrush; not module capacity
-//   3. RGB LED PS (12/24 V) — ceiling only; strip length unknown
+//   1. Module logic PSU (24 V DC) — Σ power_w_max × headroom — one per panel
+//   2. One LED PS per RGB / STR module (separate LED PS inputs, 12/24 V)
+//   3. Strip length unknown — RGB ceiling only; STR sized by assigned actuators
+
+function splitAcrossModules(total, moduleQty, perMod) {
+  const out = [];
+  let left = Math.max(0, Number(total) || 0);
+  const n = Math.max(0, Math.floor(Number(moduleQty) || 0));
+  const cap = Math.max(1, Number(perMod) || 32);
+  for (let i = 0; i < n; i++) {
+    const take = Math.min(cap, left);
+    out.push(take);
+    left -= take;
+  }
+  return out;
+}
 
 function computePower(modulesList, rules, assumptions, demand = EMPTY) {
   const moduleSpecs = rules.modules ?? EMPTY;
@@ -1986,6 +2002,7 @@ function computePower(modulesList, rules, assumptions, demand = EMPTY) {
   let strModules = 0;
   let rgbModules = 0;
   const requirements = [];
+  const ledSupplies = [];
 
   for (const line of modulesList) {
     const spec = moduleSpecs[line.id] ?? EMPTY;
@@ -2027,7 +2044,7 @@ function computePower(modulesList, rules, assumptions, demand = EMPTY) {
   const moduleCount = modulesList.reduce((s, l) => s + l.qty, 0);
   const capacitanceUF = 330 * moduleCount;
 
-  // 1. Logic only — no field / LED load.
+  // 1. Logic only — shared 24 V source for this panel.
   const logicTotal = logicW * headroomFactor;
   const logicWMin = Math.ceil(logicTotal);
   requirements.unshift({
@@ -2035,41 +2052,54 @@ function computePower(modulesList, rules, assumptions, demand = EMPTY) {
     text: `Module logic PSU — 24 V DC, ≥${logicWMin} W`,
   });
 
-  // 2. STR LED PS — assigned actuators only (not module channel capacity).
+  const inrushA = rules.policy?.str_actuator_inrush_a ?? 0.3;
+  const perMod = rules.policy?.str_actuators_per_module ?? 32;
+  const strLim =
+    moduleSpecs["STR-3221-R1"]?.led_ps_input_a ??
+    rules.policy?.str_led_ps_input_a ??
+    20;
+  const rgbLim =
+    moduleSpecs["RGB-621-R1"]?.led_ps_input_a ??
+    rules.policy?.rgb_led_ps_input_a ??
+    10;
+
+  // 2. One LED PS per STR — actuators split across modules (not capacity).
+  const assigned = Math.max(0, Number(demand.out_24v_ch) || 0);
+  const strShare = splitAcrossModules(assigned, strModules, perMod);
   let strLedPsA = 0;
   let strActuators = 0;
-  if (strModules > 0) {
-    const inrushA = rules.policy?.str_actuator_inrush_a ?? 0.3;
-    const perMod = rules.policy?.str_actuators_per_module ?? 32;
-    const cap = perMod * strModules;
-    const assigned = Math.max(0, Number(demand.out_24v_ch) || 0);
-    strActuators = Math.min(assigned, cap);
-    strLedPsA = round1(strActuators * inrushA);
-    const lim =
-      moduleSpecs["STR-3221-R1"]?.led_ps_input_a ??
-      rules.policy?.str_led_ps_input_a ??
-      20;
+  for (let i = 0; i < strShare.length; i++) {
+    const n = strShare[i];
+    strActuators += n;
+    const a = round1(n * inrushA);
+    strLedPsA = round1(strLedPsA + a);
     const sized =
-      strActuators > 0
-        ? `≥${strLedPsA} A for ${strActuators} actuators; up to ${lim} A per module`
-        : `up to ${lim} A per module`;
-    requirements.push({
-      kind: "str_led_ps",
-      text:
-        `STR LED PS — 12/24 V, ${sized}. Size for strips separately.`,
+      n > 0
+        ? `≥${a} A for ${n} actuators, up to ${strLim} A`
+        : `up to ${strLim} A`;
+    const text = `LED PS for STR-3221-R1 #${i + 1} — 12/24 V, ${sized}`;
+    requirements.push({ kind: "str_led_ps", text, module: "STR-3221-R1", index: i + 1 });
+    ledSupplies.push({
+      id: "psu_led_str",
+      module: "STR-3221-R1",
+      index: i + 1,
+      label: text,
+      actuators: n,
+      amps: a,
     });
   }
 
-  // 3. RGB LED PS — ceiling only; strip length / W/m unknown.
-  if (rgbModules > 0) {
-    const lim =
-      moduleSpecs["RGB-621-R1"]?.led_ps_input_a ??
-      rules.policy?.rgb_led_ps_input_a ??
-      10;
-    requirements.push({
-      kind: "rgb_led_ps",
-      text:
-        `RGB LED PS — 12/24 V, up to ${lim} A per module. Depends on strip length and W/m.`,
+  // 3. One LED PS per RGB — ceiling only.
+  for (let i = 0; i < rgbModules; i++) {
+    const text = `LED PS for RGB-621-R1 #${i + 1} — 12/24 V, up to ${rgbLim} A`;
+    requirements.push({ kind: "rgb_led_ps", text, module: "RGB-621-R1", index: i + 1 });
+    ledSupplies.push({
+      id: "psu_led_rgb",
+      module: "RGB-621-R1",
+      index: i + 1,
+      label: text,
+      actuators: 0,
+      amps: 0,
     });
   }
 
@@ -2078,14 +2108,13 @@ function computePower(modulesList, rules, assumptions, demand = EMPTY) {
     text: `Bulk capacitance: ${capacitanceUF} µF recommended (330 µF × ${moduleCount} modules).`,
   });
 
-  // DIN companion PSU is logic only. STR/RGB LED PS are separate supplies
-  // (requirement lines) — never inflate the logic PSU pick.
   return {
     logic_w: round1(logicW),
     field_w: 0,
     str_led_ps_a: strLedPsA,
     str_led_ps_actuators: strActuators,
     str_led_ps_w: 0,
+    led_supplies: ledSupplies,
     total_w: round1(logicTotal),
     headroom_pct: headroomPct,
     capacitance_uF: capacitanceUF,
@@ -2136,26 +2165,45 @@ function buildCompanions(
       out.push({
         id: "psu_din_60w",
         qty: 1,
-        label: labels.psu_din_60w || "DIN PSU 60 W",
+        label: labels.psu_din_60w || "DIN PSU 60 W (module logic)",
         requirement: true,
         din_units: dinMap.psu_din_60w ?? 4,
         sku: "",
         unit_price: null,
         rating: null,
+        role: "logic",
       });
     } else {
       const qty = Math.max(1, Math.ceil(watts / 100));
       out.push({
         id: "psu_din_100w",
         qty,
-        label: labels.psu_din_100w || "DIN PSU 100 W",
+        label: labels.psu_din_100w || "DIN PSU 100 W (module logic)",
         requirement: true,
         din_units: dinMap.psu_din_100w ?? 6,
         sku: "",
         unit_price: null,
         rating: null,
+        role: "logic",
       });
     }
+  }
+
+  // One DIN LED PSU per RGB / STR module (separate LED PS inputs).
+  for (const led of power.led_supplies || []) {
+    out.push({
+      id: led.id,
+      qty: 1,
+      label: led.label,
+      requirement: true,
+      din_units: dinMap[led.id] ?? dinMap.psu_din_100w ?? 6,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      role: "led_ps",
+      bind_module: led.module,
+      bind_index: led.index,
+    });
   }
 
   const cabinets = Math.max(1, normalized.cabinets || 1);
@@ -4221,12 +4269,15 @@ function pushCopies(out, base, qty) {
 }
 
 /**
- * Ordered queue matching real assembly:
- * incomer → PSU → each RS-485 segment (new row hint) → protection → field.
+ * Ordered queue matching real assembly (top → bottom):
+ * HomeMaster modules (LED PS paired after each RGB/STR) →
+ * module-logic PSU → protection (incomer + outgoing mixed) →
+ * field terminals last (cables enter from below).
  */
 function buildPlacementQueue(panel, rules = {}) {
   const specs = rules.modules ?? {};
-  const acc = accIndex(panel.accessories);
+  const accessories = panel.accessories || [];
+  const acc = accIndex(accessories);
   const mods = moduleIndex(panel.modules);
   const items = [];
 
@@ -4271,15 +4322,47 @@ function buildPlacementQueue(panel, rules = {}) {
     });
   }
 
-  // 1. Incomer & power
-  fromAcc("mcb_1p_n", "incomer");
-  fromAcc("rcd_2p", "incomer");
-  fromAcc("rcbo_1p_n", "incomer");
-  fromAcc("rcd_4p", "incomer");
-  fromAcc("psu_din_60w", "power");
-  fromAcc("psu_din_100w", "power");
+  /** LED PS companions bound to a strip module — consumed as each module is placed. */
+  const ledByModule = {
+    "RGB-621-R1": [],
+    "STR-3221-R1": [],
+  };
+  for (const a of accessories) {
+    if (!a?.bind_module || !ledByModule[a.bind_module]) continue;
+    const units = Number(a.din_units);
+    if (!Number.isFinite(units) || units <= 0) continue;
+    const copies = Math.max(1, Math.floor(Number(a.qty) || 1));
+    for (let i = 0; i < copies; i++) {
+      ledByModule[a.bind_module].push(a);
+    }
+  }
 
-  // 2. Segments — each starts a new row
+  function placeLedFor(modId, group) {
+    const pool = ledByModule[modId];
+    if (!pool?.length) return;
+    const a = pool.shift();
+    const units = Number(a.din_units);
+    items.push({
+      key: `companion:${a.id}:${a.bind_index ?? items.length}`,
+      id: a.id,
+      kind: "companion",
+      label: a.label || a.id,
+      units,
+      group,
+      rowBreakBefore: false,
+      bind_module: a.bind_module,
+      bind_index: a.bind_index,
+    });
+  }
+
+  function placeModuleInstance(mod, group, rowBreakBefore) {
+    fromModuleLine(mod, group, rowBreakBefore);
+    if (mod?.id === "RGB-621-R1" || mod?.id === "STR-3221-R1") {
+      placeLedFor(mod.id, group);
+    }
+  }
+
+  // 1. Controllers & HomeMaster modules (LED PS immediately after each RGB/STR)
   const segments = panel.topology?.segments || [];
   if (segments.length) {
     for (let i = 0; i < segments.length; i++) {
@@ -4292,7 +4375,7 @@ function buildPlacementQueue(panel, rules = {}) {
         sku: specs[ctrlId]?.sku,
         shop_url: specs[ctrlId]?.shop_url,
       };
-      fromModuleLine(ctrlMod, group, true);
+      placeModuleInstance(ctrlMod, group, true);
       for (const slave of seg.slaves || []) {
         const sid = typeof slave === "string" ? slave : slave.id;
         const sMod = {
@@ -4306,33 +4389,56 @@ function buildPlacementQueue(panel, rules = {}) {
             specs[sid]?.shop_url,
           price: mods.get(sid)?.price || null,
         };
-        fromModuleLine(sMod, group, false);
+        placeModuleInstance(sMod, group, false);
       }
     }
   } else {
-    // Fallback: masters then slaves from flat BOM
     const masters = (panel.modules || []).filter((m) => specs[m.id]?.master);
     const slaves = (panel.modules || []).filter((m) => !specs[m.id]?.master);
     let first = true;
     for (const m of masters) {
       for (let i = 0; i < (m.qty || 0); i++) {
-        fromModuleLine(m, "segment-1", first);
+        placeModuleInstance(m, "segment-1", first);
         first = false;
       }
     }
     for (const m of slaves) {
       for (let i = 0; i < (m.qty || 0); i++) {
-        fromModuleLine(m, "segment-1", false);
+        placeModuleInstance(m, "segment-1", false);
       }
     }
   }
 
-  // 3. Per-circuit protection + contactors
-  fromAcc("mcb_1p", "protection", true);
+  // Any LED PS left unbound (should not happen) — still place after modules.
+  for (const pool of Object.values(ledByModule)) {
+    while (pool.length) {
+      const a = pool.shift();
+      items.push({
+        key: `companion:${a.id}:orphan:${items.length}`,
+        id: a.id,
+        kind: "companion",
+        label: a.label || a.id,
+        units: Number(a.din_units),
+        group: "led-psu",
+        rowBreakBefore: false,
+      });
+    }
+  }
+
+  // 2. Module-logic PSU — immediately after modules
+  fromAcc("psu_din_60w", "logic-psu", true);
+  fromAcc("psu_din_100w", "logic-psu");
+
+  // 3. Protection — incomer and outgoing may share a rail
+  fromAcc("mcb_1p_n", "protection", true);
+  fromAcc("rcd_2p", "protection");
+  fromAcc("rcbo_1p_n", "protection");
+  fromAcc("rcd_4p", "protection");
+  fromAcc("mcb_1p", "protection");
   fromAcc("mcb_3p", "protection");
   fromAcc("contactor_modular", "protection");
 
-  // 4. Field terminals / bars
+  // 4. Field terminals last (cables enter from below)
   fromAcc("terminal_block", "field", true);
   fromAcc("n_bar", "field");
   fromAcc("pe_bar", "field");
@@ -4376,20 +4482,28 @@ function packEnclosureLayout(items, enclosure) {
     const real = list.filter((t) => t.id !== "blanking_plate");
     if (!real.length) return "Blanking";
     const groups = new Set(real.map((t) => t.group));
-    if (
-      [...groups].every((g) => g === "incomer" || g === "power" || g === "blank")
-    ) {
-      return "Incomer & power";
-    }
     const seg = [...groups].find((g) => String(g).startsWith("segment-"));
     if (seg) {
       const n = seg.split("-")[1];
       const inSeg = real.filter((t) => t.group === seg);
-      const head = inSeg[0]?.id || "controller";
-      const extras = Math.max(0, inSeg.length - 1);
-      return `Segment ${n} — ${head}${extras ? ` + ${extras} module${extras === 1 ? "" : "s"}` : ""}`;
+      const modules = inSeg.filter((t) => t.kind === "module");
+      const led = inSeg.filter(
+        (t) => t.id === "psu_led_rgb" || t.id === "psu_led_str",
+      );
+      const head = modules[0]?.id || "controller";
+      const extraMods = Math.max(0, modules.length - 1);
+      const ledNote = led.length
+        ? ` + ${led.length} LED PS`
+        : "";
+      return `Modules — segment ${n} (${head}${extraMods ? ` + ${extraMods}` : ""}${ledNote})`;
     }
-    if (groups.has("protection")) return "Per-circuit protection";
+    if (groups.has("logic-psu") || groups.has("power")) {
+      return "Module logic PSU";
+    }
+    if (groups.has("led-psu")) return "LED PS (strip / actuator supply)";
+    if (groups.has("protection") || groups.has("incomer")) {
+      return "Protection";
+    }
     if (groups.has("field")) return "Field terminals";
     return real
       .map((t) => t.label || t.id)
@@ -5804,6 +5918,8 @@ const MODULE_ICON_BY_ID = {
 const COMPANION_ICON_BY_ID = {
   psu_din_60w: "psu",
   psu_din_100w: "psu",
+  psu_led_rgb: "psu",
+  psu_led_str: "psu",
   mcb_1p: "mcb",
   mcb_1p_n: "mcb",
   mcb_3p: "mcb",
@@ -5823,6 +5939,8 @@ const COMPANION_ICON_BY_ID = {
 const COMPANION_NOTE_BY_ID = {
   psu_din_60w: "24 V module logic supply",
   psu_din_100w: "24 V module logic supply",
+  psu_led_rgb: "12/24 V LED PS — dedicated to one RGB module",
+  psu_led_str: "12/24 V LED PS — dedicated to one STR module",
   mcb_1p: "Per-circuit protection",
   mcb_1p_n: "Incomer protection",
   mcb_3p: "Three-phase protection",
