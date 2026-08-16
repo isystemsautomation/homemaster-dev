@@ -3673,6 +3673,9 @@ function modulePurchaseRows(estimate, prices) {
         status: "noprice",
         amount: null,
         currency: null,
+        section: "homemaster",
+        pricing: "unpriced",
+        checkoutEligible: false,
       };
     }
     if (p.available === false) {
@@ -3683,6 +3686,9 @@ function modulePurchaseRows(estimate, prices) {
         status: "oos",
         amount: p.amount,
         currency: p.currency || "EUR",
+        section: "homemaster",
+        pricing: "exact",
+        checkoutEligible: false,
       };
     }
     return {
@@ -3692,6 +3698,9 @@ function modulePurchaseRows(estimate, prices) {
       status: "ok",
       amount: p.amount,
       currency: p.currency || "EUR",
+      section: "homemaster",
+      pricing: "exact",
+      checkoutEligible: true,
     };
   });
 }
@@ -3877,6 +3886,282 @@ function cartTotal(estimate, prices) {
   };
 }
 
+/** @type {Array<{id: string, label: string, ids: string[], required: boolean}>} */
+const OTHER_MATERIAL_CATEGORIES = [
+  {
+    id: "enclosure",
+    label: "Enclosure, DIN rails and blanking plates",
+    ids: ["din_enclosure", "blanking_plate", "din_rail"],
+    required: true,
+  },
+  {
+    id: "power",
+    label: "24 V power supply and distribution",
+    ids: [
+      "psu_din_60w",
+      "psu_din_100w",
+      "psu_led_rgb",
+      "psu_led_str",
+      "fuse_24v_branch",
+      "terminal_24v",
+    ],
+    required: true,
+  },
+  {
+    id: "protection",
+    label: "Protection devices",
+    ids: [
+      "mcb_1p",
+      "mcb_1p_n",
+      "mcb_3p",
+      "rcd_2p",
+      "rcd_4p",
+      "rcbo_1p_n",
+      "contactor_modular",
+      "snubber_rc",
+    ],
+    required: true,
+  },
+  {
+    id: "terminals",
+    label: "Field terminals, N/PE bars and markers",
+    ids: [
+      "terminal_block",
+      "terminal_block_2t",
+      "n_bar_12",
+      "pe_bar_12",
+      "terminal_markers",
+      "internal_wiring",
+      "cable_rs485",
+    ],
+    required: true,
+  },
+  {
+    id: "network",
+    label: "Network and server (optional)",
+    ids: ["eth_switch_din", "ha_server_din"],
+    required: false,
+  },
+];
+
+const CATEGORY_BY_ID = (() => {
+  /** @type {Record<string, (typeof OTHER_MATERIAL_CATEGORIES)[number]>} */
+  const map = {};
+  for (const cat of OTHER_MATERIAL_CATEGORIES) {
+    for (const id of cat.ids) map[id] = cat;
+  }
+  return map;
+})();
+
+function accessoryLineTotal(a) {
+  const p = a?.price;
+  if (!p || !p.indicative) return null;
+  const line = Number.isFinite(p.line_total)
+    ? p.line_total
+    : Number.isFinite(p.amount)
+      ? p.amount * (Number(p.qty_priced ?? a.qty) || 0)
+      : NaN;
+  if (!Number.isFinite(line) || line <= 0) return null;
+  return line;
+}
+
+/**
+ * Commercial view of an estimate: explicit section/pricing flags and separate totals.
+ * @param {object} estimate
+ * @param {Record<string, {amount: number, currency: string, available?: boolean, currencyAmbiguous?: boolean}>} prices
+ */
+function buildCommercialSummary(estimate, prices) {
+  const moduleRows = modulePurchaseRows(estimate, prices);
+  const homemasterLines = moduleRows.map((r) => ({
+    id: r.id,
+    sku: r.sku,
+    label: r.id,
+    qty: r.qty,
+    amount: r.amount,
+    currency: r.currency,
+    section: "homemaster",
+    pricing: r.pricing,
+    checkoutEligible: r.checkoutEligible,
+    status: r.status,
+  }));
+
+  const accessories = allAccessories(estimate);
+  const materialLines = accessories.map((a) => {
+    const line = accessoryLineTotal(a);
+    const cat = CATEGORY_BY_ID[a.id];
+    const priced = line != null;
+    return {
+      id: a.id,
+      label: a.label || a.id,
+      qty: a.qty || 0,
+      amount: priced ? a.price.amount : null,
+      lineTotal: line,
+      currency: priced ? a.price.currency || "EUR" : null,
+      confidence: priced ? a.price.confidence || "estimate" : null,
+      section: "other_materials",
+      pricing: priced ? "estimated" : "unpriced",
+      checkoutEligible: false,
+      required: cat ? cat.required : true,
+      categoryId: cat?.id || "other",
+    };
+  });
+
+  const installationLines = (estimate?.installation || []).map((row) => ({
+    id: row.id || row.label || row.name_en,
+    label: row.label || row.name_en || row.id,
+    qty: 1,
+    amount: null,
+    currency: null,
+    section: "installation",
+    pricing: "unpriced",
+    checkoutEligible: false,
+  }));
+
+  const cart = cartTotal(estimate, prices);
+  const availableLines = moduleRows.filter((r) => r.checkoutEligible);
+  const unavailableLines = moduleRows.filter((r) => r.status === "oos");
+  const moduleCount = moduleRows.length;
+  const availableModuleCount = availableLines.length;
+  const unavailableModuleCount = unavailableLines.length;
+  const availableQty = availableLines.reduce((s, r) => s + (r.qty || 0), 0);
+
+  const homemasterCartTotal =
+    cart && cart.pricedQty > 0
+      ? {
+          total: cart.total,
+          currency: cart.currency,
+          pricedQty: cart.pricedQty,
+          lineCount: cart.lineCount,
+          moduleCount,
+          availableModuleCount,
+          unavailableModuleCount,
+          availableQty,
+        }
+      : null;
+
+  let materialsTotal = 0;
+  let materialsCurrency = null;
+  let materialsPricedCount = 0;
+  let otherMaterialsUnpricedCount = 0;
+  let otherMaterialsRequiredUnpricedCount = 0;
+  for (const m of materialLines) {
+    if (m.pricing === "estimated" && m.lineTotal != null) {
+      materialsTotal += m.lineTotal;
+      materialsCurrency = m.currency || materialsCurrency || "EUR";
+      materialsPricedCount += 1;
+    } else {
+      otherMaterialsUnpricedCount += 1;
+      if (m.required) otherMaterialsRequiredUnpricedCount += 1;
+    }
+  }
+  const otherMaterialsEstimatedTotal =
+    materialsPricedCount > 0
+      ? {
+          total: Math.round(materialsTotal * 100) / 100,
+          currency:
+            materialsCurrency ||
+            estimate?.reference_prices_meta?.currency ||
+            "EUR",
+          lineCount: materialsPricedCount,
+          indicative: true,
+          as_of: estimate?.reference_prices_meta?.as_of || null,
+          disclaimer: estimate?.reference_prices_meta?.disclaimer_en || null,
+        }
+      : null;
+
+  const categories = OTHER_MATERIAL_CATEGORIES.map((cat) => {
+    const items = materialLines.filter((m) => m.categoryId === cat.id);
+    const unpriced = items.filter((m) => m.pricing === "unpriced");
+    const priced = items.filter((m) => m.pricing === "estimated");
+    let total = null;
+    let currency = null;
+    if (items.length > 0 && unpriced.length === 0 && priced.length > 0) {
+      total =
+        Math.round(priced.reduce((s, m) => s + m.lineTotal, 0) * 100) / 100;
+      currency = priced[0].currency || "EUR";
+    }
+    return {
+      id: cat.id,
+      label: cat.label,
+      required: cat.required,
+      items,
+      total,
+      currency,
+      hasUnpriced: unpriced.length > 0,
+      empty: items.length === 0,
+    };
+  }).filter((c) => !c.empty);
+
+  const known = new Set(OTHER_MATERIAL_CATEGORIES.flatMap((c) => c.ids));
+  const orphans = materialLines.filter((m) => !known.has(m.id));
+  if (orphans.length) {
+    const unpriced = orphans.filter((m) => m.pricing === "unpriced");
+    const priced = orphans.filter((m) => m.pricing === "estimated");
+    let total = null;
+    let currency = null;
+    if (unpriced.length === 0 && priced.length > 0) {
+      total =
+        Math.round(priced.reduce((s, m) => s + m.lineTotal, 0) * 100) / 100;
+      currency = priced[0].currency || "EUR";
+    }
+    categories.push({
+      id: "other",
+      label: "Other panel materials",
+      required: true,
+      items: orphans,
+      total,
+      currency,
+      hasUnpriced: unpriced.length > 0,
+      empty: false,
+    });
+  }
+
+  const sameCurrency =
+    homemasterCartTotal &&
+    otherMaterialsEstimatedTotal &&
+    homemasterCartTotal.currency === otherMaterialsEstimatedTotal.currency;
+
+  const completeHardwareEstimatedTotal =
+    sameCurrency && otherMaterialsRequiredUnpricedCount === 0
+      ? {
+          total:
+            Math.round(
+              (homemasterCartTotal.total + otherMaterialsEstimatedTotal.total) *
+                100,
+            ) / 100,
+          currency: homemasterCartTotal.currency,
+          homemaster: homemasterCartTotal.total,
+          materials: otherMaterialsEstimatedTotal.total,
+        }
+      : null;
+
+  return {
+    lines: [...homemasterLines, ...materialLines, ...installationLines],
+    homemasterCartTotal,
+    otherMaterialsEstimatedTotal,
+    otherMaterialsUnpricedCount,
+    otherMaterialsRequiredUnpricedCount,
+    completeHardwareEstimatedTotal,
+    installationIncluded: false,
+    materialCategories: categories,
+    moduleRows,
+    installationLabels: installationLines.map((l) => l.label).filter(Boolean),
+  };
+}
+
+/**
+ * Human-readable stock line under the HomeMaster price / buy button.
+ * @param {{moduleCount: number, availableModuleCount: number, unavailableModuleCount: number}|null|undefined} hm
+ */
+function homemasterStockLabel(hm) {
+  if (!hm || !hm.moduleCount) return "No modules in this estimate";
+  if (hm.unavailableModuleCount <= 0) {
+    return `${hm.moduleCount} module${hm.moduleCount === 1 ? "" : "s"} · all in stock`;
+  }
+  const n = hm.unavailableModuleCount;
+  return `${hm.availableModuleCount} of ${hm.moduleCount} available · ${n} item${n === 1 ? "" : "s"} unavailable`;
+}
+
 HM.addCartLine = addCartLine;
 HM.addAllToCart = addAllToCart;
 HM.cartLineCount = cartLineCount;
@@ -3888,6 +4173,9 @@ HM.formatMoney = formatMoney;
 HM.systemTotal = systemTotal;
 HM.panelEquipmentTotal = panelEquipmentTotal;
 HM.cartTotal = cartTotal;
+HM.buildCommercialSummary = buildCommercialSummary;
+HM.homemasterStockLabel = homemasterStockLabel;
+HM.OTHER_MATERIAL_CATEGORIES = OTHER_MATERIAL_CATEGORIES;
 
 // ===== simple.js =====
 /**
@@ -5278,13 +5566,13 @@ function exampleCardPrice(cfg, rules, priceMap) {
     return { text: "unavailable", total: null, currency: null, result: null };
   }
   const result = estimate(cfg.inputs, rules, priceMap);
-  const sys = systemTotal(result, priceMap);
-  if (sys && sys.pricedQty > 0) {
-    const amount = formatMoney(sys.total);
+  const hm = buildCommercialSummary(result, priceMap).homemasterCartTotal;
+  if (hm && hm.pricedQty > 0) {
+    const amount = formatMoney(hm.total);
     return {
-      text: `${amount} ${sys.currency}`,
-      total: sys.total,
-      currency: sys.currency,
+      text: `${amount} ${hm.currency}`,
+      total: hm.total,
+      currency: hm.currency,
       result,
     };
   }

@@ -754,20 +754,30 @@
 
   #hm-system-builder .hm-estimator--simple .hm-simple-dock:not([hidden]) {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 50;
-    height: 56px;
+    height: auto;
+    min-height: 56px;
     box-sizing: border-box;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.5rem 0.85rem;
+    gap: 0.15rem;
+    padding: 0.55rem 0.85rem 0.65rem;
     background: var(--hm-card);
     border-top: 1px solid var(--hm-line);
     box-shadow: 0 -4px 18px rgba(28, 36, 48, 0.08);
+  }
+
+  #hm-system-builder .hm-estimator--simple {
+    padding-bottom: 5.75rem;
+  }
+
+  #hm-system-builder .hm-simple-dock__cart {
+    width: 100%;
+    justify-content: center;
   }
 
   #hm-system-builder .hm-simple-dock__price {
@@ -2596,3 +2606,197 @@
 .hm-not-included h3 { margin: 0 0 0.5rem; font-size: 1rem; }
 .hm-not-included__list { margin: 0; padding-left: 1.25rem; }
 .hm-not-included__list li { margin: 0.35rem 0; }
+
+
+/* —— Simple commercial column (HomeMaster / materials / complete) —— */
+
+#hm-system-builder .hm-hm-price {
+  padding: 1.1rem 1.25rem;
+  text-align: left;
+}
+
+#hm-system-builder .hm-hm-price__h {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-hm-price__amt {
+  margin: 0;
+  font-size: clamp(1.85rem, 3.6vw, 2.55rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--hm-ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-hm-price__amt span {
+  font-size: 0.42em;
+  font-weight: 600;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-hm-price__tag,
+#hm-system-builder .hm-hm-price__stock {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  color: var(--hm-muted);
+  text-align: center;
+}
+
+#hm-system-builder .hm-hm-price__stock {
+  font-weight: 600;
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-mat {
+  padding: 0.85rem 1.1rem 1rem;
+}
+
+#hm-system-builder .hm-mat__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+#hm-system-builder .hm-mat__summary::-webkit-details-marker { display: none; }
+
+#hm-system-builder .hm-mat__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-mat__total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-mat__note {
+  margin: 0.45rem 0 0.65rem;
+  font-size: 12px;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-mat__cat {
+  border-top: 1px solid var(--hm-line);
+  padding: 0.35rem 0;
+}
+
+#hm-system-builder .hm-mat__cat > summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+#hm-system-builder .hm-mat__cat > summary::-webkit-details-marker { display: none; }
+
+#hm-system-builder .hm-mat__cat-amt {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--hm-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-mat__items {
+  list-style: none;
+  margin: 0.35rem 0 0.15rem;
+  padding: 0;
+}
+
+#hm-system-builder .hm-mat__items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+  font-size: 0.86rem;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-mat__item-amt {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+#hm-system-builder .hm-mat__expand-all {
+  margin-top: 0.55rem;
+}
+
+#hm-system-builder .hm-complete {
+  padding: 1rem 1.2rem;
+  text-align: left;
+}
+
+#hm-system-builder .hm-complete__h {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-complete__amt {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-complete__amt span {
+  font-size: 0.55em;
+  font-weight: 600;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-complete__formula,
+#hm-system-builder .hm-complete__note {
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  color: var(--hm-muted);
+  line-height: 1.35;
+}
+
+#hm-system-builder .hm-simple-actions-secondary {
+  padding: 0.95rem 1.1rem;
+}
+
+#hm-system-builder .hm-simple-xlsx {
+  width: 100%;
+  justify-content: center;
+}
+
+#hm-system-builder .hm-simple-xlsx__note {
+  margin: 0.45rem 0 0.65rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-simple-dock__hint {
+  margin: 0.35rem 0 0;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--hm-muted);
+  text-align: left;
+  width: 100%;
+}
