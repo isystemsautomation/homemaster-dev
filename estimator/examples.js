@@ -610,8 +610,12 @@ function buildSplitWarning(panelResults, merged, rules, panelCount) {
   const extraMods = splitSlaves - oneSlaves;
   if (extraCtrl <= 0 && extraMods <= 0) return null;
   return (
-    `Splitting into ${panelCount} panels adds ${Math.max(0, extraCtrl)} controllers` +
-    ` and ${Math.max(0, extraMods)} modules compared with a single panel.`
+    `Splitting into ${panelCount} panels adds ${Math.max(0, extraCtrl)} ${
+      Math.max(0, extraCtrl) === 1 ? "controller" : "controllers"
+    }` +
+    ` and ${Math.max(0, extraMods)} ${
+      Math.max(0, extraMods) === 1 ? "module" : "modules"
+    } compared with a single panel.`
   );
 }
 

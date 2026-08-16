@@ -64,22 +64,58 @@
   gap: 0.75rem 1.1rem;
 }
 
-#hm-system-builder .hm-mode-detail {
+#hm-system-builder .hm-mode-caption {
+  margin: 0.4rem 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--hm-ink);
+  max-width: 36rem;
+}
+
+#hm-system-builder .hm-mode-hint {
+  margin: 0.55rem 0 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--hm-line);
+  border-radius: var(--hm-r-ctl);
+  background: var(--hm-accent-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--hm-ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+}
+
+#hm-system-builder .hm-mode-hint__dismiss {
   border: none;
   background: none;
   padding: 0;
-  margin: 0;
   font: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--hm-accent);
   cursor: pointer;
   text-decoration: underline;
-  text-underline-offset: 0.15em;
+  text-underline-offset: 0.12em;
 }
 
-#hm-system-builder .hm-mode-detail:hover {
+#hm-system-builder .hm-details-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
   color: var(--hm-ink);
+}
+
+#hm-system-builder details[open] > summary .hm-details-chev,
+#hm-system-builder details[open] > .hm-mat__summary .hm-details-chev,
+#hm-system-builder details[open] > .hm-caveat-fold__sum .hm-details-chev {
+  transform: rotate(90deg);
+}
+
+#hm-system-builder .hm-step--back {
+  margin-left: auto;
 }
 
 #hm-system-builder .hm-steps {
@@ -135,6 +171,34 @@
   gap: 0.25rem;
   margin-bottom: 0.65rem;
   font-size: 0.95rem;
+  text-align: left;
+  justify-items: stretch;
+}
+
+#hm-system-builder .hm-main h2,
+#hm-system-builder .hm-main h3,
+#hm-system-builder .hm-main h4,
+#hm-system-builder .hm-card,
+#hm-system-builder .hm-card h3,
+#hm-system-builder .hm-card h4,
+#hm-system-builder .hm-sys-section__head,
+#hm-system-builder .hm-sys-section__title,
+#hm-system-builder .hm-panel-tabs__bar,
+#hm-system-builder .hm-acc-head,
+#hm-system-builder .hm-power h4,
+#hm-system-builder .hm-power-list,
+#hm-system-builder .hm-power-list li,
+#hm-system-builder .hm-installation,
+#hm-system-builder .hm-installation__h,
+#hm-system-builder .hm-installation__lead,
+#hm-system-builder .hm-installation__list,
+#hm-system-builder .hm-installation__list li,
+#hm-system-builder .hm-not-included,
+#hm-system-builder .hm-not-included__h,
+#hm-system-builder .hm-not-included__list,
+#hm-system-builder .hm-not-included__list li,
+#hm-system-builder .hm-linkish {
+  text-align: left;
 }
 
 #hm-system-builder .hm-main input[type="number"],
@@ -907,9 +971,10 @@
 }
 
 #hm-system-builder .hm-count-row__btn {
-  width: 2.15rem;
-  height: 2.15rem;
-  min-width: 2.15rem;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   border: 1px solid var(--hm-line);
   border-radius: 8px;
   background: var(--hm-card);
@@ -1109,6 +1174,9 @@
 }
 
 #hm-system-builder .hm-add-equip > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   cursor: pointer;
   font-weight: 600;
   color: var(--hm-accent);
@@ -1620,7 +1688,10 @@
   background: var(--hm-paper);
   color: var(--hm-ink);
   border-radius: var(--hm-radius);
-  height: 2rem;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   font: inherit;
   font-size: 1.1rem;
   line-height: 1;
@@ -1896,7 +1967,7 @@
 
 #hm-system-builder .hm-totals__tag {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--hm-muted);
   margin-top: -0.15rem;
 }
@@ -1908,9 +1979,9 @@
 #hm-system-builder .hm-totals__disclaimer,
 #hm-system-builder .hm-totals__install-note {
   margin: 0.35rem 0 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
   max-width: 32rem;
 }
 
@@ -1927,29 +1998,32 @@
 }
 
 #hm-system-builder .hm-installation__list {
-  list-style: none;
+  list-style: disc;
+  list-style-position: outside;
   margin: 0.35rem 0 0;
-  padding: 0;
+  padding: 0 0 0 1.25rem;
+  text-align: left;
 }
 
 #hm-system-builder .hm-installation__list li {
   padding: 0.2rem 0;
   border: none;
-  font-size: 0.86rem;
+  font-size: 13px;
   line-height: 1.35;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
   display: list-item;
-  list-style: disc;
-  margin-left: 1.1rem;
+  margin-left: 0;
+  text-align: left;
 }
 
 #hm-system-builder .hm-installation__h {
   margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
+  text-align: left;
 }
 
 #hm-system-builder .hm-installation__lead {
@@ -2175,11 +2249,11 @@
 #hm-system-builder .hm-result-stat__l {
   display: block;
   margin-top: 0.2rem;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--hm-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 #hm-system-builder .hm-result-stat--ok {
@@ -2208,7 +2282,7 @@
 
 #hm-system-builder .hm-result-hero__cart-hint {
   margin: -0.25rem 0 0.15rem;
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   color: var(--hm-ink);
   font-weight: 600;
@@ -2357,11 +2431,11 @@
 }
 
 #hm-system-builder .hm-bom th {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--hm-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-align: left;
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--hm-line);
@@ -2520,7 +2594,7 @@
 
 #hm-system-builder .hm-rail-section__meta {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--hm-muted);
   margin-top: 0.15rem;
 }
@@ -2610,6 +2684,30 @@
 
 /* —— Simple commercial column (HomeMaster / materials / complete) —— */
 
+#hm-system-builder .hm-simple-result__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+#hm-system-builder .hm-card--commerce {
+  border: 2px solid var(--hm-accent);
+  box-shadow: 0 8px 24px rgba(31, 122, 36, 0.08);
+  padding: 0;
+  overflow: hidden;
+}
+
+#hm-system-builder .hm-card--commerce .hm-hm-price {
+  padding: 1.1rem 1.25rem 0.65rem;
+  border: none;
+  background: transparent;
+}
+
+#hm-system-builder .hm-card--ref {
+  border: 1px solid var(--hm-line);
+  background: var(--hm-paper);
+}
+
 #hm-system-builder .hm-hm-price {
   padding: 1.1rem 1.25rem;
   text-align: left;
@@ -2617,11 +2715,11 @@
 
 #hm-system-builder .hm-hm-price__h {
   margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
 }
 
 #hm-system-builder .hm-hm-price__amt {
@@ -2644,7 +2742,7 @@
 #hm-system-builder .hm-hm-price__tag,
 #hm-system-builder .hm-hm-price__stock {
   margin: 0.25rem 0 0;
-  font-size: 0.88rem;
+  font-size: 13px;
   color: var(--hm-muted);
   text-align: center;
 }
@@ -2654,6 +2752,13 @@
   color: var(--hm-ink);
 }
 
+#hm-system-builder .hm-simple-buy--nested {
+  padding: 0.35rem 1.25rem 1.15rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 #hm-system-builder .hm-mat {
   padding: 0.85rem 1.1rem 1rem;
 }
@@ -2661,33 +2766,49 @@
 #hm-system-builder .hm-mat__summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.35rem 0.75rem;
+  gap: 0.45rem 0.75rem;
   cursor: pointer;
   list-style: none;
 }
 
 #hm-system-builder .hm-mat__summary::-webkit-details-marker { display: none; }
 
+#hm-system-builder .hm-mat__summary-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
 #hm-system-builder .hm-mat__title {
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-mat__badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--hm-ink);
+  background: #fff;
+  border: 1px solid var(--hm-line);
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
 }
 
 #hm-system-builder .hm-mat__total {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--hm-ink);
-}
-
-#hm-system-builder .hm-mat__note {
-  margin: 0.45rem 0 0.65rem;
-  font-size: 12px;
-  color: var(--hm-muted);
+  flex-shrink: 0;
 }
 
 #hm-system-builder .hm-mat__cat {
@@ -2695,17 +2816,25 @@
   padding: 0.35rem 0;
 }
 
+#hm-system-builder .hm-mat__cat-sum,
 #hm-system-builder .hm-mat__cat > summary {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
   cursor: pointer;
   list-style: none;
   font-size: 0.92rem;
   font-weight: 650;
+  text-align: left;
 }
 
+#hm-system-builder .hm-mat__cat-sum .hm-mat__cat-amt,
+#hm-system-builder .hm-mat__cat > summary .hm-mat__cat-amt {
+  margin-left: auto;
+}
+
+#hm-system-builder .hm-mat__cat-sum::-webkit-details-marker,
 #hm-system-builder .hm-mat__cat > summary::-webkit-details-marker { display: none; }
 
 #hm-system-builder .hm-mat__cat-amt {
@@ -2727,8 +2856,9 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.2rem 0;
-  font-size: 0.86rem;
+  font-size: 13px;
   color: var(--hm-muted);
+  text-align: left;
 }
 
 #hm-system-builder .hm-mat__item-amt {
@@ -2748,11 +2878,11 @@
 
 #hm-system-builder .hm-complete__h {
   margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
 }
 
 #hm-system-builder .hm-complete__amt {
@@ -2771,9 +2901,44 @@
 #hm-system-builder .hm-complete__formula,
 #hm-system-builder .hm-complete__note {
   margin: 0.35rem 0 0;
-  font-size: 0.85rem;
-  color: var(--hm-muted, #666);
+  font-size: 13px;
+  color: var(--hm-ink);
   line-height: 1.4;
+}
+
+#hm-system-builder .hm-caveat-fold {
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0 0.35rem;
+}
+
+#hm-system-builder .hm-caveat-fold__sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-caveat-fold__sum::-webkit-details-marker { display: none; }
+
+#hm-system-builder .hm-caveat-fold__title {
+  letter-spacing: 0.02em;
+}
+
+#hm-system-builder .hm-caveat-fold__body {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#hm-system-builder .hm-field--nested,
+#hm-system-builder .hm-installation--nested {
+  padding: 0;
 }
 
 #hm-system-builder .hm-field {
@@ -2782,10 +2947,11 @@
 
 #hm-system-builder .hm-field__h {
   margin: 0 0 0.65rem;
-  font-size: 0.95rem;
+  font-size: 13px;
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  text-align: left;
 }
 
 #hm-system-builder .hm-field__list {
@@ -2798,11 +2964,12 @@
 
 #hm-system-builder .hm-field__list li {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.35rem 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
   font-size: 0.9rem;
   line-height: 1.35;
+  text-align: left;
 }
 
 #hm-system-builder .hm-field__lab {
@@ -2811,9 +2978,16 @@
 
 #hm-system-builder .hm-field__note {
   color: var(--hm-muted, #666);
-  font-size: 0.82rem;
-  text-align: right;
-  max-width: 22rem;
+  font-size: 13px;
+  text-align: left;
+  max-width: none;
+}
+
+#hm-system-builder .hm-installer--quiet {
+  padding: 0.35rem 0.15rem 0.55rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 #hm-system-builder .hm-installer {
@@ -2822,16 +2996,22 @@
 
 #hm-system-builder .hm-installer__h {
   margin: 0 0 0.75rem;
-  font-size: 0.78rem;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-installer--quiet .hm-installer__h {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--hm-ink);
 }
 
 #hm-system-builder .hm-installer__label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 13px;
   font-weight: 600;
   margin: 0 0 0.35rem;
 }
@@ -2850,7 +3030,7 @@
 #hm-system-builder .hm-installer__hint,
 #hm-system-builder .hm-installer__empty {
   margin: 0.25rem 0 0;
-  font-size: 0.9rem;
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -2924,6 +3104,9 @@
 }
 
 #hm-system-builder .hm-installer__dist-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   cursor: pointer;
   list-style: none;
   font-size: 0.88rem;
@@ -2942,7 +3125,10 @@
 }
 
 #hm-system-builder .hm-simple-actions-secondary {
-  padding: 0.95rem 1.1rem;
+  padding: 0.35rem 0.15rem 0.55rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 #hm-system-builder .hm-simple-xlsx {
@@ -2950,18 +3136,77 @@
   justify-content: center;
 }
 
-#hm-system-builder .hm-simple-xlsx__note {
+#hm-system-builder .hm-simple-xlsx__note,
+#hm-system-builder .hm-result-xlsx__note {
   margin: 0.45rem 0 0.65rem;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
-  color: var(--hm-muted);
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-result-xlsx__note {
+  margin: -0.25rem 0 0.35rem;
 }
 
 #hm-system-builder .hm-simple-dock__hint {
   margin: 0.35rem 0 0;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.3;
   color: var(--hm-muted);
   text-align: left;
   width: 100%;
+}
+
+#hm-system-builder .hm-not-included__h {
+  margin: 0 0 0.5rem;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-not-included__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+  list-style-position: outside;
+  text-align: left;
+}
+
+#hm-system-builder .hm-not-included__list li {
+  margin: 0.35rem 0;
+  font-size: 13px;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-power-list,
+#hm-system-builder .hm-power-list li {
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-buy__h {
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-buy__note {
+  font-size: 13px;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-cta__status {
+  font-size: 13px;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-actions__hint,
+#hm-system-builder .hm-simple-actions__spec {
+  font-size: 13px;
 }
