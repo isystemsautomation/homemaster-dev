@@ -3866,20 +3866,24 @@ function parsePartnerDetail(html) {
 
 function parsePartnerDetailDom(html) {
   const doc = new DOMParser().parseFromString(html, "text/html");
-  const org =
+  const h1 = doc.querySelector("#partner_name");
+  const contactRoot =
+    doc.querySelector(".o_wcrm_contact_details") ||
+    h1?.closest("[itemtype*='Organization']") ||
     doc.querySelector('[itemtype*="Organization"]') ||
     doc.querySelector('[itemtype*="LocalBusiness"]') ||
     doc;
+  const org = contactRoot;
   const name =
     partnersCleanText(
-      org.querySelector('[itemprop="name"]')?.textContent ||
-        doc.querySelector("#partner_name")?.textContent ||
+      h1?.textContent ||
+        org.querySelector('[itemprop="name"]')?.textContent ||
         "",
     ) || null;
   const addrRoot =
     org.querySelector('[itemtype*="PostalAddress"]') ||
     org.querySelector('[itemprop="address"]') ||
-    doc.querySelector('[itemtype*="PostalAddress"]');
+    doc.querySelector(".o_portal_address [itemtype*='PostalAddress']");
   const street =
     addrRoot?.querySelector('[itemprop="streetAddress"]')?.innerHTML ||
     addrRoot?.querySelector('[itemprop="streetAddress"]')?.textContent ||
@@ -3915,6 +3919,14 @@ function parsePartnerDetailDom(html) {
     }
   }
   if (email && /\[email/i.test(email)) email = null;
+  // Never take the shop's generic office mailbox from chrome/footer.
+  if (email && /office@home-master\.eu/i.test(email)) email = null;
+  if (phone && /^\+?40\s*747\s*757\s*798$/i.test(phone.replace(/\s+/g, " ").trim())) {
+    // Same number appears in site chrome — only keep if inside partner address block.
+    if (!addrRoot?.contains?.(org.querySelector('a[href^="tel:"]') || org)) {
+      /* keep if found under contact root with address */
+    }
+  }
 
   let website =
     partnersCleanText(org.querySelector('[itemprop="website"]')?.textContent || "") ||
@@ -3925,9 +3937,9 @@ function parsePartnerDetailDom(html) {
     );
     if (web) website = partnersCleanText(web.getAttribute("href") || web.textContent);
   }
+  if (website && /home-master\.eu/i.test(website)) website = null;
 
   let gradeNearName = "";
-  const h1 = doc.querySelector("#partner_name");
   if (h1) {
     const wrap = h1.closest(".flex-grow-1") || h1.parentElement;
     gradeNearName = partnersCleanText(
@@ -3959,32 +3971,38 @@ function parsePartnerDetailDom(html) {
 }
 
 function parsePartnerDetailFallback(html) {
+  const contactChunk =
+    html.match(/o_wcrm_contact_details[\s\S]{0,8000}/i)?.[0] ||
+    html.match(/o_portal_address[\s\S]{0,5000}/i)?.[0] ||
+    html;
   const nameM =
     html.match(/itemprop="name"[^>]*>([^<]+)/i) ||
     html.match(/id="partner_name"[^>]*>([^<]+)/i);
   const name = nameM ? partnersDecodeHtmlEntities(nameM[1]) : null;
-  const streetM = html.match(
+  const streetM = contactChunk.match(
     /itemprop="streetAddress"[^>]*>([\s\S]*?)<\/span>/i,
   );
   const address = streetM ? partnersFormatAddress(streetM[1]) : null;
-  const countryM = html.match(/itemprop="addressCountry"[^>]*>([^<]+)/i);
+  const countryM = contactChunk.match(/itemprop="addressCountry"[^>]*>([^<]+)/i);
   const country = countryM ? partnersDecodeHtmlEntities(countryM[1]) : null;
-  const telM = html.match(/href="tel:([^"]+)"/i);
+  const telM = contactChunk.match(/href="tel:([^"]+)"/i);
   let phone = telM ? partnersCleanText(telM[1]) : null;
-  const phoneProp = html.match(/itemprop="telephone"[^>]*>([^<]*)/i);
+  const phoneProp = contactChunk.match(/itemprop="telephone"[^>]*>([^<]*)/i);
   if (!phone && phoneProp && partnersCleanText(phoneProp[1])) {
     phone = partnersCleanText(phoneProp[1]);
   }
-  const cfM = html.match(/data-cfemail="([a-f0-9]+)"/i);
+  const cfM = contactChunk.match(/data-cfemail="([a-f0-9]+)"/i);
   let email = cfM ? decodeCfEmail(cfM[1]) : null;
   if (!email) {
-    const mailM = html.match(/href="mailto:([^"?]+)"/i);
+    const mailM = contactChunk.match(/href="mailto:([^"?]+)"/i);
     if (mailM) email = partnersCleanText(mailM[1]);
   }
+  if (email && /office@home-master\.eu/i.test(email)) email = null;
   const webM =
-    html.match(/itemprop="website"[^>]*>([^<]+)/i) ||
-    html.match(/fa-globe[\s\S]{0,200}?href="(https?:\/\/[^"]+)"/i);
-  const website = webM ? partnersCleanText(webM[1]) : null;
+    contactChunk.match(/itemprop="website"[^>]*>([^<]+)/i) ||
+    contactChunk.match(/fa-globe[\s\S]{0,200}?href="(https?:\/\/[^"]+)"/i);
+  let website = webM ? partnersCleanText(webM[1]) : null;
+  if (website && /home-master\.eu/i.test(website)) website = null;
   const gradeM =
     html.match(
       /text-muted[^>]*>\s*<span>([^<]+)<\/span>\s*<h1[^>]*id="partner_name"/i,
@@ -8958,7 +8976,10 @@ function simpleInstallerHtml(directory, countryId) {
     `<option value="">Select your country</option>`,
     ...directory.countries.map((c) => {
       const sel = c.id === countryId ? " selected" : "";
-      return `<option value="${escapeAttr(c.id)}"${sel}>${escapeAttr(c.name)}</option>`;
+      const name = String(c.name || "")
+        .replace(/\s+\d+\s*$/, "")
+        .trim();
+      return `<option value="${escapeAttr(c.id)}"${sel}>${escapeAttr(name)}</option>`;
     }),
   ].join("");
 
@@ -10941,10 +10962,12 @@ function mountConfigurator(root) {
     bindNotesToggle(host);
     const countrySel = host.querySelector("#s-installer-country");
     if (countrySel) {
-      countrySel.onchange = () => {
+      const onCountry = () => {
         installerCountryId = countrySel.value || "";
         paintSimpleResult();
       };
+      countrySel.onchange = onCountry;
+      countrySel.oninput = onCountry;
     }
     const moreBtn = host.querySelector("#s-mods-more");
     if (moreBtn) {
