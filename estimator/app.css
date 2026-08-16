@@ -1752,3 +1752,7 @@
 #hm-system-builder .hm-rail-legend__swatch--blank {
   background: #fafbfc;
 }
+
+.hm-not-included h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.hm-not-included__list { margin: 0; padding-left: 1.25rem; }
+.hm-not-included__list li { margin: 0.35rem 0; }

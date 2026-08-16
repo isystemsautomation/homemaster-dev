@@ -60,6 +60,18 @@
       "file": "companions/contactor_modular.png",
       "units": 2.0
     },
+    "eth_switch_din": {
+      "file": "companions/eth_switch_din.png",
+      "units": 4.0
+    },
+    "fuse_24v_branch": {
+      "file": "companions/fuse_24v_branch.png",
+      "units": 1.0
+    },
+    "ha_server_din": {
+      "file": "companions/ha_server_din.png",
+      "units": 6.0
+    },
     "mcb_1p": {
       "file": "companions/mcb_1p.png",
       "units": 1.0
@@ -121,6 +133,11 @@
       "file": "companions/rcd_4p.png",
       "units": 4.0,
       "derived_from": "rcd_2p"
+    },
+    "terminal_24v": {
+      "file": "companions/terminal_block_2t.png",
+      "units": 0.35,
+      "derived_from": "terminal_block_2t"
     },
     "terminal_block": {
       "file": "companions/terminal_block.svg",

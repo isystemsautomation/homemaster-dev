@@ -52,9 +52,14 @@ function estimate(inputs, rules, prices = EMPTY) {
 
 function estimateCore(inputs, rules, prices = EMPTY) {
   const panels = resolvePanels(inputs);
-  const panelResults = panels.map((panel) => {
+  const haNeeded =
+    (inputs.systems?.system?.ha_server || "needed") !== "own";
+  const panelResults = panels.map((panel, index) => {
     const sliced = sliceInputsForPanel(inputs, panel, panels);
-    const one = estimatePanel(sliced, rules, prices);
+    const one = estimatePanel(sliced, rules, prices, {
+      includeHaServer: index === 0 && haNeeded,
+      haServerNeeded: haNeeded,
+    });
     const roomNames = (sliced.rooms || [])
       .map((r) => String(r?.name ?? "").trim())
       .filter(Boolean);
@@ -69,7 +74,6 @@ function estimateCore(inputs, rules, prices = EMPTY) {
       systems,
       din_needed: enc?.din_needed ?? null,
       capacity: enc?.capacity ?? null,
-      // Hoist reserve breakdown onto the panel (same names as enclosure).
       din_occupied: enc?.din_occupied ?? enc?.din_total ?? null,
       din_reserve: enc?.din_reserve ?? null,
       din_free: enc?.din_free ?? null,
@@ -88,6 +92,7 @@ function estimateCore(inputs, rules, prices = EMPTY) {
       mergeInputsToSinglePanel(inputs, panels),
       rules,
       prices,
+      { includeHaServer: haNeeded, haServerNeeded: haNeeded },
     );
     split_warning = buildSplitWarning(
       panelResults,
@@ -101,8 +106,28 @@ function estimateCore(inputs, rules, prices = EMPTY) {
     ...aggregated,
     panels: panelResults,
     split_warning,
+    not_included: listNotIncluded(rules),
   };
 }
+
+function listNotIncluded(rules) {
+  const fromRules = rules?.not_included;
+  if (Array.isArray(fromRules) && fromRules.length) {
+    return fromRules.map((x) => String(x));
+  }
+  return [...DEFAULT_NOT_INCLUDED];
+}
+
+const DEFAULT_NOT_INCLUDED = [
+  "Main isolator — not included. Rating depends on the supply; to be specified by the electrical design.",
+  "Group breakers on the 230 V side — not included. Load grouping is a site design decision.",
+  "Voltage monitoring relay — not included. Specify if required by the installation or local code.",
+  "Busbar comb — not included. Depends on the final arrangement of protective devices.",
+  "Cable duct between DIN rows — not included. Depends on enclosure make and wiring route.",
+  "False panel and enclosure door — not included. Chosen with the enclosure manufacturer.",
+  "24 V buffer / UPS — not included. Without it the automation stops on mains failure; specify if required.",
+];
+
 
 /**
  * Flat demand_mapping shortcuts (systems.leak_zones, underfloor_circuits, …)
@@ -259,7 +284,7 @@ function systemSectionHasContent(src) {
 }
 
 /** Single-panel pipeline (one logical panel; enclosure may be N coupled sections). */
-function estimatePanel(inputs, rules, prices = EMPTY) {
+function estimatePanel(inputs, rules, prices = EMPTY, opts = {}) {
   const assumptions = [];
   // Each panel is one logical cabinet; RS-485 / incomer floor is 1.
   const forced = {
@@ -289,6 +314,7 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
     rules,
     assumptions,
     demand,
+    opts,
   );
   // Coupled section count is chosen inside computeEnclosure (not inputs.cabinets).
   const enclosure = computeEnclosure(topology.modules, companions, rules);
@@ -2106,6 +2132,7 @@ function buildCompanions(
   rules,
   assumptions,
   demand = EMPTY,
+  opts = {},
 ) {
   const labels = rules.companion_labels ?? EMPTY;
   const dinMap = rules.companion_din_units ?? EMPTY;
@@ -2121,6 +2148,51 @@ function buildCompanions(
       sku: "",
       unit_price: null,
       rating: null,
+    });
+  }
+
+  const moduleCount = (modulesList || []).reduce(
+    (s, l) => s + Math.max(0, Number(l.qty) || 0),
+    0,
+  );
+  const hasMiniPlc = (modulesList || []).some(
+    (l) => l.id === "MiniPLC" && (l.qty || 0) > 0,
+  );
+  const haNeeded =
+    opts.haServerNeeded != null
+      ? !!opts.haServerNeeded
+      : (normalized.ha_server || "needed") !== "own";
+  const includeHa = !!opts.includeHaServer && haNeeded;
+
+  if (includeHa) {
+    out.push({
+      id: "ha_server_din",
+      qty: 1,
+      label: labels.ha_server_din || "Home Assistant server (DIN)",
+      requirement: true,
+      din_units: dinMap.ha_server_din ?? 6,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      role: "network",
+      note: "One per project — first panel when Home Assistant server is needed.",
+    });
+  }
+
+  if (hasMiniPlc || haNeeded) {
+    out.push({
+      id: "eth_switch_din",
+      qty: 1,
+      label: labels.eth_switch_din || "Ethernet switch (DIN)",
+      requirement: true,
+      din_units: dinMap.eth_switch_din ?? 4,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      role: "network",
+      note: hasMiniPlc
+        ? "MiniPLC has Ethernet — DIN switch in this panel."
+        : "Home Assistant server needed — DIN Ethernet switch in this panel.",
     });
   }
 
@@ -2168,6 +2240,34 @@ function buildCompanions(
       role: "led_ps",
       bind_module: led.module,
       bind_index: led.index,
+    });
+  }
+
+  // 24 V logic distribution — fused per branch (RGB README); terminals V+/0V per module.
+  if (moduleCount > 0 && watts > 0) {
+    out.push({
+      id: "fuse_24v_branch",
+      qty: moduleCount,
+      label: labels.fuse_24v_branch || "24 V branch fuse (1 M)",
+      requirement: true,
+      din_units: dinMap.fuse_24v_branch ?? 1,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      role: "logic_dist",
+      note: "One fuse per module on the shared 24 V logic PSU (fused per branch).",
+    });
+    out.push({
+      id: "terminal_24v",
+      qty: moduleCount * 2,
+      label: labels.terminal_24v || "24 V distribution terminal",
+      requirement: true,
+      din_units: dinMap.terminal_24v ?? 0.35,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      role: "logic_dist",
+      note: "V+ and 0 V landing per module on the logic supply.",
     });
   }
 
@@ -2325,6 +2425,31 @@ function buildCompanions(
     meters: null,
     note: "Cross-section per circuit; labelling per project. Meterage TBD.",
   });
+
+  // Markers: field + 24 V terminals + protective devices.
+  const termQty =
+    termCounts.single +
+    termCounts.double +
+    (out.find((c) => c.id === "terminal_24v")?.qty || 0);
+  const breakerQty = out
+    .filter((c) =>
+      /^(mcb_|rcd_|rcbo_)/.test(c.id),
+    )
+    .reduce((s, c) => s + (Number(c.qty) || 0), 0);
+  const markerQty = termQty + breakerQty;
+  if (markerQty > 0) {
+    out.push({
+      id: "terminal_markers",
+      qty: markerQty,
+      label: labels.terminal_markers || "Terminal / circuit markers",
+      requirement: true,
+      din_units: dinMap.terminal_markers ?? 0,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      note: `${termQty} terminal(s) + ${breakerQty} protective device(s).`,
+    });
+  }
 
   const dinModules = (modulesList || []).reduce((s, l) => {
     const w = Number(rules.modules?.[l.id]?.din_units);
@@ -2774,6 +2899,21 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
     note,
   });
   enclosure.blanking_qty = blankQty;
+
+  const railRows =
+    Math.max(1, Number(enclosure.rows) || 1) *
+    Math.max(1, Number(enclosure.cabinets) || 1);
+  out.push({
+    id: "din_rail",
+    qty: railRows,
+    label: labels.din_rail || "DIN rail",
+    requirement: true,
+    din_units: dinMap.din_rail ?? 0,
+    sku: "",
+    unit_price: null,
+    rating: null,
+    note: `One rail per enclosure row (${enclosure.row_width} M). Base of the row — no DIN width.`,
+  });
 
   return out;
 }
@@ -3540,6 +3680,19 @@ async function buildEstimateXlsx(estimate, opts = {}) {
     "",
     { f: `E${projectSub}` },
   ]);
+  r += 1;
+  rows.push([]);
+  r += 1;
+
+  const notInc = estimate.not_included || [];
+  if (notInc.length) {
+    rows.push(["Not included — to be specified by the electrical design"]);
+    r += 1;
+    for (const line of notInc) {
+      rows.push(["", String(line)]);
+      r += 1;
+    }
+  }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -4196,6 +4349,8 @@ const SKIP_LAYOUT_IDS = new Set([
   "internal_wiring",
   "din_enclosure",
   "blanking_plate",
+  "din_rail",
+  "terminal_markers",
 ]);
 
 /** @type {Promise<object>|null} */
@@ -4366,7 +4521,16 @@ function buildPlacementQueue(panel, rules = {}) {
   }
 
   // 1. Controllers & HomeMaster modules (LED PS immediately after each RGB/STR)
+  //    Network gear (HA server, Ethernet switch) sits next to the controller.
   const segments = panel.topology?.segments || [];
+  let networkPlaced = false;
+  function placeNetworkGear(group) {
+    if (networkPlaced) return;
+    fromAcc("ha_server_din", group);
+    fromAcc("eth_switch_din", group);
+    networkPlaced = true;
+  }
+
   if (segments.length) {
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
@@ -4379,6 +4543,7 @@ function buildPlacementQueue(panel, rules = {}) {
         shop_url: specs[ctrlId]?.shop_url,
       };
       placeModuleInstance(ctrlMod, group);
+      if (i === 0) placeNetworkGear(group);
       for (const slave of seg.slaves || []) {
         const sid = typeof slave === "string" ? slave : slave.id;
         const sMod = {
@@ -4401,8 +4566,10 @@ function buildPlacementQueue(panel, rules = {}) {
     for (const m of masters) {
       for (let i = 0; i < (m.qty || 0); i++) {
         placeModuleInstance(m, "segment-1");
+        placeNetworkGear("segment-1");
       }
     }
+    placeNetworkGear("segment-1");
     for (const m of slaves) {
       for (let i = 0; i < (m.qty || 0); i++) {
         placeModuleInstance(m, "segment-1");
@@ -4429,6 +4596,10 @@ function buildPlacementQueue(panel, rules = {}) {
   // 2. Module-logic PSU — immediately after modules
   fromAcc("psu_din_60w", "logic-psu");
   fromAcc("psu_din_100w", "logic-psu");
+
+  // 2b. 24 V logic distribution (fuses + V+/0V terminals) after logic PSU
+  fromAcc("fuse_24v_branch", "logic-dist");
+  fromAcc("terminal_24v", "logic-dist");
 
   // 3. Protection — incomer and outgoing may share a rail
   fromAcc("mcb_1p_n", "protection");
@@ -4545,6 +4716,7 @@ function packEnclosureLayout(items, enclosure) {
     if (groups.has("logic-psu") || groups.has("power")) {
       return "Module logic PSU";
     }
+    if (groups.has("logic-dist")) return "24 V logic distribution";
     if (groups.has("led-psu")) return "LED PS (strip / actuator supply)";
     if (groups.has("protection") || groups.has("incomer")) {
       return "Protection";
@@ -5979,6 +6151,12 @@ const COMPANION_ICON_BY_ID = {
   psu_din_100w: "psu",
   psu_led_rgb: "psu",
   psu_led_str: "psu",
+  fuse_24v_branch: "mcb",
+  terminal_24v: "terminal",
+  eth_switch_din: "gear",
+  ha_server_din: "gateway",
+  din_rail: "blank",
+  terminal_markers: "terminal",
   mcb_1p: "mcb",
   mcb_1p_n: "mcb",
   mcb_3p: "mcb",
@@ -6001,6 +6179,12 @@ const COMPANION_NOTE_BY_ID = {
   psu_din_100w: "24 V module logic supply",
   psu_led_rgb: "12/24 V LED PS — dedicated to one RGB module",
   psu_led_str: "12/24 V LED PS — dedicated to one STR module",
+  fuse_24v_branch: "24 V logic branch fuse (per module)",
+  terminal_24v: "24 V logic distribution (V+ / 0 V)",
+  eth_switch_din: "DIN Ethernet switch",
+  ha_server_din: "Home Assistant server (DIN)",
+  din_rail: "DIN rail — one per enclosure row",
+  terminal_markers: "Markers for terminals and circuits",
   mcb_1p: "Per-circuit protection",
   mcb_1p_n: "Incomer protection",
   mcb_3p: "Three-phase protection",
@@ -6021,9 +6205,12 @@ const COMPANION_NOTE_BY_ID = {
 const CONSUMABLE_COMPANION_IDS = new Set([
   "terminal_block",
   "terminal_block_2t",
+  "terminal_24v",
+  "terminal_markers",
   "n_bar_12",
   "pe_bar_12",
   "blanking_plate",
+  "din_rail",
   "snubber_rc",
   "internal_wiring",
 ]);
@@ -6496,6 +6683,16 @@ function channelUsageTable(usage, { fold = true } = {}) {
     <summary>${hmIcon("chart", 18)} Channel usage <span class="hm-fold__chev">${hmIcon("chevron", 16)}</span></summary>
     <div class="hm-fold__body">${table}</div>
   </details>`;
+}
+
+function notIncludedBlock(items) {
+  const list = (items || []).map((t) => String(t).trim()).filter(Boolean);
+  if (!list.length) return "";
+  const body = list.map((t) => `<li>${escapeAttr(t)}</li>`).join("");
+  return `<div class="hm-card hm-not-included">
+    <h3>Not included — to be specified by the electrical design</h3>
+    <ul class="hm-not-included__list">${body}</ul>
+  </div>`;
 }
 
 function enclosureMessage(enclosure, { compact = false } = {}) {
@@ -7907,6 +8104,7 @@ function mountConfigurator(root) {
         ${notesBar}
         ${panelBlocks || `<div class="hm-card"><p>No panels.</p></div>`}
         ${channelUsageTable(result.channel_usage)}
+        ${notIncludedBlock(result.not_included)}
         <div id="hm-cart-status"></div>
       </div>
     `;
