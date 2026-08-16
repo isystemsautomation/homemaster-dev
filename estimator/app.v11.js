@@ -6226,14 +6226,6 @@ const RULES_URL =
     (globalThis.HM_ESTIMATOR_RULES_URL || globalThis.HM_RULES_URL)) ||
   "https://config.home-master.eu/estimator/rules.json";
 
-function examplesAssetsBase() {
-  return examplesAssetsBaseCore(RULES_URL);
-}
-
-function loadExamplesManifest() {
-  return loadExamplesManifestCore(RULES_URL);
-}
-
 const ROOM_FIELDS_LIGHT = [
   ["lights_onoff", "Light groups", "number", { icon: "light" }],
   ["lights_dimmable", "Dimmable 230 V", "number", { parent: "lights_onoff", icon: "dim" }],
@@ -6982,20 +6974,20 @@ function runSimpleSync({ rebuildCounts = false } = {}) {
 }
 
 /**
- * Build the exact Simple example configuration used for card price AND click apply.
- * Always starts from emptySystems — never merges leftover Advanced/Simple systems.
+ * UI wrapper around shared buildExampleConfig — must not reuse that name
+ * (concat bundler flattens modules into one scope).
  */
-function buildExampleConfig(kind) {
-  return buildExampleConfigCore(kind, {
+function uiExampleConfig(kind) {
+  return buildExampleConfig(kind, {
     rules,
-    isAvailable: (id) => moduleIsAvailable(id),
+    isAvailable: (id) => moduleIsAvailable(id, rules, priceMap),
     stage: state.object.stage || "design",
     panelId: firstPanelId(),
   });
 }
 
 function applyPreset(kind) {
-  const cfg = buildExampleConfig(kind);
+  const cfg = uiExampleConfig(kind);
   state.object.property_type = cfg.preset.property_type;
   state.object.floor_area_m2 = cfg.preset.floor_area_m2;
   state.object.floors = cfg.preset.floors;
@@ -7016,11 +7008,6 @@ function syncSimpleSlidersFromRooms() {
   state.simple.counts = countsFromRooms(state.rooms);
   state.simple.toggles = togglesFromSystems(state.systems);
   state.simple.warnings = [];
-}
-
-/** True when shop ld+json marks the module InStock (or we have no price yet). */
-function moduleIsAvailable(moduleId) {
-  return moduleIsAvailableCore(moduleId, rules, priceMap);
 }
 
 /** Fetch shop pages for every module SKU so example presets can drop OOS features. */
@@ -7614,9 +7601,9 @@ function mountConfigurator(root) {
         refreshExamplePrices();
       };
     });
-    loadExamplesManifest()
+    loadExamplesManifest(RULES_URL)
       .then((manifest) => {
-        const base = examplesAssetsBase();
+        const base = examplesAssetsBase(RULES_URL);
         for (const [id] of cards) {
           const entry = manifest?.[id];
           const img = examplesEl.querySelector(`[data-preset-img="${id}"]`);
@@ -7636,7 +7623,7 @@ function mountConfigurator(root) {
       const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
       if (!elPrice) continue;
       try {
-        let cfg = buildExampleConfig(kind);
+        let cfg = uiExampleConfig(kind);
         if (!cfg.controllersOk) {
           elPrice.textContent = "unavailable";
           continue;
@@ -7647,7 +7634,7 @@ function mountConfigurator(root) {
           const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
           priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
           // Re-adapt after prices: OOS gates may change once availability is known.
-          cfg = buildExampleConfig(kind);
+          cfg = uiExampleConfig(kind);
           priced = exampleCardPrice(cfg, rules, priceMap);
         }
         elPrice.textContent = priced.text;
