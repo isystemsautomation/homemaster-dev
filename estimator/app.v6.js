@@ -2900,6 +2900,7 @@ HM.resolvePanels = resolvePanels;
  */
 
 const CACHE_PREFIX = "hm_price_";
+const URL_CACHE_PREFIX = "hm_price_url_";
 
 /**
  * @param {unknown} node
@@ -3118,9 +3119,31 @@ function parseProductLdJsonFallback(html, opts) {
 function cacheSet(sku, info) {
   try {
     if (typeof sessionStorage === "undefined") return;
-    sessionStorage.setItem(CACHE_PREFIX + sku, JSON.stringify(info));
+    if (sku) sessionStorage.setItem(CACHE_PREFIX + sku, JSON.stringify(info));
   } catch {
     /* ignore quota */
+  }
+}
+
+function cacheSetUrl(shopUrl, info) {
+  try {
+    if (typeof sessionStorage === "undefined" || !shopUrl) return;
+    sessionStorage.setItem(URL_CACHE_PREFIX + shopUrl, JSON.stringify(info));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function cacheGetUrl(shopUrl) {
+  try {
+    if (typeof sessionStorage === "undefined" || !shopUrl) return null;
+    const raw = sessionStorage.getItem(URL_CACHE_PREFIX + shopUrl);
+    if (!raw) return null;
+    const info = JSON.parse(raw);
+    if (!info?.sku || !Number.isFinite(info.price)) return null;
+    return info;
+  } catch {
+    return null;
   }
 }
 
@@ -3150,10 +3173,14 @@ function detectShopCurrency() {
 
 /**
  * @param {string} shopUrl
- * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch }} [opts]
+ * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch, bypassCache?: boolean }} [opts]
  */
 async function fetchPrice(shopUrl, opts = {}) {
   if (!shopUrl) return null;
+  if (!opts.bypassCache) {
+    const cached = cacheGetUrl(shopUrl);
+    if (cached) return cached;
+  }
   const fetchImpl = opts.fetchImpl || (typeof fetch !== "undefined" ? fetch : null);
   if (!fetchImpl) return { sku: "", price: NaN, currency: "", available: false, error: "no_fetch" };
 
@@ -3171,6 +3198,7 @@ async function fetchPrice(shopUrl, opts = {}) {
       return { sku: "", price: NaN, currency: "", available: false, error: "no_ldjson" };
     }
     cacheSet(parsed.sku, parsed);
+    cacheSetUrl(shopUrl, parsed);
     return parsed;
   } catch (err) {
     return {
@@ -3185,7 +3213,7 @@ async function fetchPrice(shopUrl, opts = {}) {
 
 /**
  * @param {string[]} shopUrls
- * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch }} [opts]
+ * @param {{ preferredCurrency?: string|null, fetchImpl?: typeof fetch, bypassCache?: boolean }} [opts]
  */
 async function fetchPrices(shopUrls, opts = {}) {
   const map = new Map();
@@ -3199,6 +3227,7 @@ async function fetchPrices(shopUrls, opts = {}) {
     if (info?.sku && Number.isFinite(info.price)) {
       map.set(info.sku, info);
       cacheSet(info.sku, info);
+      cacheSetUrl(url, info);
     } else if (info?.error) {
       map.set(url, info);
     }
@@ -3219,6 +3248,7 @@ function toEstimatePriceMap(prices) {
       amount: info.price,
       currency: info.currency || "EUR",
       currencyAmbiguous: !!info.currencyAmbiguous,
+      available: info.available !== false,
     };
   }
   return out;
@@ -4762,6 +4792,8 @@ const SYSTEM_SECTIONS = [
 let rules = null;
 /** @type {Record<string, {amount:number, currency:string, currencyAmbiguous?:boolean}>} */
 let priceMap = {};
+/** Monotonic token so a slow refreshPrices cannot clobber a newer one. */
+let priceFetchGen = 0;
 /** @type {object} */
 let state = {
   step: 0,
@@ -5280,20 +5312,91 @@ function runEstimate(inputs, prices = priceMap) {
 async function refreshPrices(result) {
   const fromPanels = (result.panels || []).flatMap((p) => p.modules || []);
   const mods = fromPanels.length ? fromPanels : result.modules || [];
-  const urls = mods.map((m) => m.shop_url).filter(Boolean);
-  if (!urls.length) return;
-  const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
-  priceMap = toEstimatePriceMap(map);
+  const urls = [...new Set(mods.map((m) => m.shop_url).filter(Boolean))];
+  if (!urls.length) return { missingSkus: [], unavailable: [] };
+
+  const gen = ++priceFetchGen;
+  const preferred = detectShopCurrency();
+  let map = await fetchPrices(urls, { preferredCurrency: preferred });
+  if (gen !== priceFetchGen) return { missingSkus: [], unavailable: [], superseded: true };
+
+  // Merge — never wipe prices already known (avoids blank first paint / races).
+  const next = toEstimatePriceMap(map);
+  priceMap = { ...priceMap, ...next };
+
+  // Retry once for modules still missing a price (transient shop failures).
+  const stillMissingUrls = mods
+    .filter((m) => m.shop_url && m.sku && !(priceMap[m.sku] && Number.isFinite(priceMap[m.sku].amount)))
+    .map((m) => m.shop_url);
+  const retryUrls = [...new Set(stillMissingUrls)];
+  if (retryUrls.length) {
+    map = await fetchPrices(retryUrls, {
+      preferredCurrency: preferred,
+      bypassCache: true,
+    });
+    if (gen !== priceFetchGen) return { missingSkus: [], unavailable: [], superseded: true };
+    priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
+  }
+
+  const missingSkus = [
+    ...new Set(
+      mods
+        .filter((m) => m.sku && !(priceMap[m.sku] && Number.isFinite(priceMap[m.sku].amount)))
+        .map((m) => m.sku),
+    ),
+  ];
+  const unavailable = mods.filter(
+    (m) => m.sku && priceMap[m.sku] && priceMap[m.sku].available === false,
+  );
+  return { missingSkus, unavailable };
 }
 
 function formatPrice(p) {
   if (!p || typeof p.amount !== "number" || !Number.isFinite(p.amount)) {
-    return '<span class="hm-muted">price unavailable</span>';
+    return '<span class="hm-muted">—</span>';
   }
   const amb = p.currencyAmbiguous
     ? ' <span class="hm-muted">(currency may not match shop session)</span>'
     : "";
-  return `${p.amount} ${p.currency || ""}${amb}`;
+  const stock =
+    p.available === false
+      ? ' <span class="hm-warn">not available in shop</span>'
+      : "";
+  return `${p.amount} ${p.currency || ""}${amb}${stock}`;
+}
+
+/** Banner when HomeMaster lines lack prices or are out of stock. */
+function priceIntegrityHtml(result, prices) {
+  const tot = cartTotal(result, prices);
+  const missing = tot?.missingSku?.length
+    ? [...new Set(tot.missingSku)]
+    : [];
+  const mods = [
+    ...((result.panels || []).flatMap((p) => p.modules || [])),
+    ...(result.modules || []),
+  ];
+  const seen = new Set();
+  const unavailable = [];
+  for (const m of mods) {
+    if (!m?.sku || seen.has(m.sku)) continue;
+    seen.add(m.sku);
+    const p = prices[m.sku];
+    if (p && Number.isFinite(p.amount) && p.available === false) {
+      unavailable.push(m.id || m.sku);
+    }
+  }
+  const parts = [];
+  if (missing.length) {
+    parts.push(
+      `<p class="hm-warn">${missing.length} line(s) without a price — total is understated (${missing.join(", ")}).</p>`,
+    );
+  }
+  if (unavailable.length) {
+    parts.push(
+      `<p class="hm-warn">Not available in the shop (cannot add to cart as shown): ${unavailable.join(", ")}.</p>`,
+    );
+  }
+  return parts.join("");
 }
 
 function enclosureMessage(enclosure, { compact = false } = {}) {
@@ -5582,6 +5685,7 @@ function mountConfigurator(root) {
         : "";
       totalLine = `HomeMaster subtotal: ${tot.total} ${tot.currency} (incl. VAT)${amb}`;
     }
+    const priceNotes = priceIntegrityHtml(result, priceMap);
     const warns = (result.assumptions || [])
       .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
       .map((a) => `<p class="hm-warn">${escapeAttr(a)}</p>`)
@@ -5611,6 +5715,7 @@ function mountConfigurator(root) {
       ${enclosureMessage(result.enclosure, { compact: true })}
       ${split}
       ${warns}
+      ${priceNotes}
       <p class="hm-total">${totalLine}</p>
     `;
   }
@@ -6314,8 +6419,7 @@ function mountConfigurator(root) {
     const modRows = [...ctrl, ...slaves]
       .map((m) => {
         const p = prices[m.sku];
-        const priceCell =
-          p && typeof p.amount === "number" ? `${p.amount} ${p.currency || ""}` : "—";
+        const priceCell = formatPrice(p);
         const din = m.din_units != null ? `${m.din_units} M` : "—";
         return `<tr data-hl="module:${escapeAttr(m.id)}">
           <td>${m.qty}×</td>
@@ -6390,6 +6494,10 @@ function mountConfigurator(root) {
   async function renderResult() {
     let result = liveResult();
     main.innerHTML = `<p>Loading prices from the shop…</p>`;
+    // Prices affect controller economics — fetch, re-estimate, fetch again
+    // for any module that appeared only after priced picks.
+    await refreshPrices(result);
+    result = liveResult();
     await refreshPrices(result);
     result = liveResult();
     renderSummary(result);
@@ -6417,6 +6525,7 @@ function mountConfigurator(root) {
     if (tot && typeof tot.total === "number") {
       totalLine = `<p class="hm-total">Project total (HomeMaster): ${tot.total} ${tot.currency} (incl. VAT)</p>`;
     }
+    const priceNotes = priceIntegrityHtml(result, priceMap);
 
     main.innerHTML = `
       <h2>Result</h2>
@@ -6427,6 +6536,7 @@ function mountConfigurator(root) {
       ${channelUsageTable(result.channel_usage)}
       ${enclosureMessage(result.enclosure, { compact: true })}
       ${totalLine}
+      ${priceNotes}
       <div class="hm-actions">
         <button type="button" id="hm-cart">Add to cart</button>
         <button type="button" id="hm-xlsx">Download .xlsx</button>
@@ -6645,6 +6755,8 @@ function mountConfigurator(root) {
     let result = liveResult();
     await refreshPrices(result);
     result = liveResult();
+    await refreshPrices(result);
+    result = liveResult();
     const tot = cartTotal(result, priceMap);
     const lines = simpleCustomerSummary(
       state.simple.totals,
@@ -6661,6 +6773,7 @@ function mountConfigurator(root) {
     if (tot && typeof tot.total === "number") {
       priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
+    const priceNotes = priceIntegrityHtml(result, priceMap);
     const warn = (state.simple.warnings || [])
       .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
       .join("");
@@ -6670,6 +6783,7 @@ function mountConfigurator(root) {
         <h2>Your estimate</h2>
       </div>
       ${priceHtml}
+      ${priceNotes}
       <p class="hm-muted">Equipment only, excluding installation. Prices incl. VAT, as shown in the shop.</p>
       <ul class="hm-simple-lines">${list || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
       ${warn}

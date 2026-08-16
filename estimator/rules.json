@@ -770,7 +770,7 @@
     "OpenthermGateway": {
       "product_template_id": 59,
       "product_id": 59,
-      "sku": "HM-OPENTHERM-GW",
+      "sku": "HM-OTG-001",
       "shop_url": "/shop/opentherm-gateway-59",
       "din_units": 2,
       "provides": {
@@ -1031,5 +1031,5 @@
       ]
     }
   },
-  "generated_at": "2026-08-15"
+  "generated_at": "2026-08-16"
 }
