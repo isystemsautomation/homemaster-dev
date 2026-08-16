@@ -6131,7 +6131,12 @@ async function copyShareLink(button) {
     return true;
   } catch (err) {
     console.warn("copy link", err);
-    if (button) button.textContent = "Copy failed";
+    if (button) {
+      button.textContent = "Copy failed";
+      setTimeout(() => {
+        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
+      }, 2000);
+    }
     return false;
   }
 }
