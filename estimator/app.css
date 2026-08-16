@@ -1459,6 +1459,19 @@
   gap: var(--hm-gap);
 }
 
+#hm-system-builder .hm-power-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.55rem;
+  color: var(--hm-ink);
+  line-height: 1.45;
+}
+
+#hm-system-builder .hm-power-list li {
+  padding-left: 0.15rem;
+}
+
 #hm-system-builder .hm-chip {
   display: inline-flex;
   align-items: center;

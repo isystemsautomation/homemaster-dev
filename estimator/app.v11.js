@@ -280,7 +280,7 @@ function estimatePanel(inputs, rules, prices = EMPTY) {
   warnAlmRail(allocated, normalized, rules, assumptions);
   const topology = buildTopology(allocated, normalized, rules, assumptions);
   warnOnewireRails(demand, topology.modules, rules, assumptions);
-  const power = computePower(topology.modules, rules, assumptions);
+  const power = computePower(topology.modules, rules, assumptions, demand);
   const companions = buildCompanions(
     allocated,
     topology.modules,
@@ -1971,45 +1971,29 @@ function moduleLine(id, qty, moduleSpecs, allocated) {
 }
 
 // ── Stage 5: power ──────────────────────────────────────────────────
+//
+// Three independent supplies — never sum field LED load into logic PSU:
+//   1. Module logic PSU (24 V DC) — Σ power_w_max × headroom
+//   2. STR LED PS (12/24 V) — assigned actuators × inrush; not module capacity
+//   3. RGB LED PS (12/24 V) — ceiling only; strip length unknown
 
-function computePower(modulesList, rules, assumptions) {
+function computePower(modulesList, rules, assumptions, demand = EMPTY) {
   const moduleSpecs = rules.modules ?? EMPTY;
   const headroomPct = rules.policy?.psu_headroom_pct ?? 30;
+  const headroomFactor = 1 + headroomPct / 100;
 
   let logicW = 0;
-  let fieldW = 0;
-  let strLedPsW = 0;
+  let strModules = 0;
+  let rgbModules = 0;
   const requirements = [];
 
   for (const line of modulesList) {
     const spec = moduleSpecs[line.id] ?? EMPTY;
-    const pw = spec.power_w_max ?? 0;
-    logicW += pw * line.qty;
+    logicW += (spec.power_w_max ?? 0) * line.qty;
 
-    if (line.id === "RGB-621-R1" && line.qty > 0) {
-      requirements.push({
-        kind: "rgb_field_supply",
-        text: `${line.qty}× RGB-621-R1: plan 5 A × 24 V field supply per module (120 W each) if strips are driven at full white.`,
-      });
-      fieldW += 120 * line.qty;
-    }
-    if (line.id === "STR-3221-R1" && line.qty > 0) {
-      // LED PS is a separate physical input from logic V+/0V. Size for
-      // simultaneous thermal-actuator inrush across all policy channels.
-      const ch = rules.policy?.str_actuators_per_module ?? 32;
-      const inrushA = rules.policy?.str_actuator_inrush_a ?? 0.3;
-      const v = rules.policy?.str_actuator_voltage_v ?? 24;
-      const wPer = Math.round(ch * inrushA * v);
-      const w = wPer * line.qty;
-      strLedPsW += w;
-      requirements.push({
-        kind: "str_led_ps",
-        text:
-          `${line.qty}× STR-3221-R1: separate LED PS field PSU ≥ ${w} W at ${v} V ` +
-          `(thermal-actuator inrush ${inrushA} A × ${ch} channels). ` +
-          `Do not share with module logic V+/0V. Simultaneous open is OK — no stagger required.`,
-      });
-    }
+    if (line.id === "STR-3221-R1") strModules += line.qty;
+    if (line.id === "RGB-621-R1") rgbModules += line.qty;
+
     if (line.id === "ALM-173-R1" && line.qty > 0) {
       const { v12, v5 } = almSensorRails(rules);
       requirements.push({
@@ -2019,15 +2003,12 @@ function computePower(modulesList, rules, assumptions) {
           `12 V @ ${v12} mA shared across PS/1+PS/2; 5 V @ ${v5} mA. ` +
           `12 V and 5 V share GND_ISO (not separate islands); isolation is field↔logic only.`,
       });
-      // Converter budgets: 12 V × 150 mA + 5 V × 200 mA per module.
-      fieldW += (12 * (v12 / 1000) + 5 * (v5 / 1000)) * line.qty;
     }
     if (line.id === "WLD-521-R1" && line.qty > 0) {
       requirements.push({
         kind: "wld_supply",
         text: `${line.qty}× WLD-521-R1: ~150 mA sensor supply budget per module (+12 V / +5 V ISO shared).`,
       });
-      fieldW += 3.6 * line.qty;
     }
     if (line.id === "OpenthermGateway" && line.qty > 0) {
       requirements.push({
@@ -2046,43 +2027,66 @@ function computePower(modulesList, rules, assumptions) {
   const moduleCount = modulesList.reduce((s, l) => s + l.qty, 0);
   const capacitanceUF = 330 * moduleCount;
 
-  const logicTotal = (logicW + fieldW) * (1 + headroomPct / 100);
-  if (fieldW > 0) {
+  // 1. Logic only — no field / LED load.
+  const logicTotal = logicW * headroomFactor;
+  const logicWMin = Math.ceil(logicTotal);
+  requirements.unshift({
+    kind: "module_logic_psu",
+    text: `Module logic PSU — 24 V DC, ≥${logicWMin} W`,
+  });
+
+  // 2. STR LED PS — assigned actuators only (not module channel capacity).
+  let strLedPsA = 0;
+  let strActuators = 0;
+  if (strModules > 0) {
+    const inrushA = rules.policy?.str_actuator_inrush_a ?? 0.3;
+    const perMod = rules.policy?.str_actuators_per_module ?? 32;
+    const cap = perMod * strModules;
+    const assigned = Math.max(0, Number(demand.out_24v_ch) || 0);
+    strActuators = Math.min(assigned, cap);
+    strLedPsA = round1(strActuators * inrushA);
+    const lim =
+      moduleSpecs["STR-3221-R1"]?.led_ps_input_a ??
+      rules.policy?.str_led_ps_input_a ??
+      20;
+    const sized =
+      strActuators > 0
+        ? `≥${strLedPsA} A for ${strActuators} actuators; up to ${lim} A per module`
+        : `up to ${lim} A per module`;
     requirements.push({
-      kind: "psu",
+      kind: "str_led_ps",
       text:
-        `Logic PSU: (${logicW.toFixed(1)} W logic + ${fieldW.toFixed(1)} W field) × ` +
-        `${1 + headroomPct / 100} headroom ≈ ${logicTotal.toFixed(1)} W total.`,
-    });
-  } else {
-    requirements.push({
-      kind: "psu",
-      text:
-        `Logic PSU: ${logicW.toFixed(1)} W logic × ${1 + headroomPct / 100} headroom ` +
-        `≈ ${logicTotal.toFixed(1)} W total.`,
+        `STR LED PS — 12/24 V, ${sized}. Size for strips separately.`,
     });
   }
-  if (strLedPsW > 0) {
+
+  // 3. RGB LED PS — ceiling only; strip length / W/m unknown.
+  if (rgbModules > 0) {
+    const lim =
+      moduleSpecs["RGB-621-R1"]?.led_ps_input_a ??
+      rules.policy?.rgb_led_ps_input_a ??
+      10;
     requirements.push({
-      kind: "str_led_ps_total",
+      kind: "rgb_led_ps",
       text:
-        `LED PS (STR field) PSU: ≥ ${strLedPsW} W at 24 V — separate supply from module logic.`,
+        `RGB LED PS — 12/24 V, up to ${lim} A per module. Depends on strip length and W/m.`,
     });
   }
+
   requirements.push({
     kind: "capacitance",
     text: `Bulk capacitance: ${capacitanceUF} µF recommended (330 µF × ${moduleCount} modules).`,
   });
 
-  // Companion DIN PSU is sized for logic (+ non-STR field). STR LED PS is a
-  // separate field supply and must not inflate the logic PSU pick.
-  const totalW = logicTotal;
-
+  // DIN companion PSU is logic only. STR/RGB LED PS are separate supplies
+  // (requirement lines) — never inflate the logic PSU pick.
   return {
     logic_w: round1(logicW),
-    field_w: round1(fieldW),
-    str_led_ps_w: round1(strLedPsW),
-    total_w: round1(totalW),
+    field_w: 0,
+    str_led_ps_a: strLedPsA,
+    str_led_ps_actuators: strActuators,
+    str_led_ps_w: 0,
+    total_w: round1(logicTotal),
     headroom_pct: headroomPct,
     capacitance_uF: capacitanceUF,
     requirements,
@@ -5817,8 +5821,8 @@ const COMPANION_ICON_BY_ID = {
 };
 
 const COMPANION_NOTE_BY_ID = {
-  psu_din_60w: "24 V panel supply",
-  psu_din_100w: "24 V panel supply",
+  psu_din_60w: "24 V module logic supply",
+  psu_din_100w: "24 V module logic supply",
   mcb_1p: "Per-circuit protection",
   mcb_1p_n: "Incomer protection",
   mcb_3p: "Three-phase protection",
@@ -7592,6 +7596,18 @@ function mountConfigurator(root) {
         ? `<tr><td colspan="3"><span class="hm-warn">Subtotal understated — ${missingPrice} line(s) without a price</span></td></tr>`
         : "";
 
+    const powerRows = (panel.power?.requirements || []).filter((r) =>
+      ["module_logic_psu", "str_led_ps", "rgb_led_ps"].includes(r.kind),
+    );
+    const powerHtml = powerRows.length
+      ? `<div class="hm-card">
+          <h4>Power supplies</h4>
+          <ul class="hm-power-list">
+            ${powerRows.map((r) => `<li>${escapeAttr(r.text)}</li>`).join("")}
+          </ul>
+        </div>`
+      : "";
+
     return `
       <section class="hm-panel-result">
         <div class="hm-card">
@@ -7599,10 +7615,11 @@ function mountConfigurator(root) {
           <div class="hm-chip-row">
             <span class="hm-chip">${hmIcon("ruler", 18)} DIN ${occ != null ? `${occ} M occupied` : "—"} · ${free != null ? `${free} M free` : ""} · ${cap} M</span>
             <span class="hm-chip">${hmIcon("busbar", 18)} RS-485 · ${segs} seg · ${ctrlCount} ctrl · ${terms} term</span>
-            <span class="hm-chip">${hmIcon("psu", 18)} 24 V · ${psuW} W</span>
+            <span class="hm-chip">${hmIcon("psu", 18)} Logic 24 V · ≥${typeof psuW === "number" ? Math.ceil(psuW) : psuW} W</span>
             <span class="hm-chip">${hmIcon("enclosure", 18)} Enclosure · ${escapeAttr(encChip)}</span>
           </div>
         </div>
+        ${powerHtml}
         <div class="hm-card">
           <h4>HomeMaster modules</h4>
           <table class="hm-bom">

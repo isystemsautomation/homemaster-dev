@@ -179,7 +179,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 - Outputs are grouped in fours, each group with its own + rail - nine groups in total.
 - Low-side switching: load + to the group + rail, load - to O.n.
 - Two separate presence inputs SENS.A and SENS.B, each with its own + and Gnd.
-- Per channel <=1.5 A (ferrite BLM31PG601SN1L). Module total <=18 A (DB128L-5.08 field terminals; choke is 24 A).
+- Output path: per channel ≤1.5 A (ferrite BLM31PG601SN1L); module total ≤18 A (DB128L-5.08 green/orange field terminals). LED PS **input** path is separate: grey PowerSupply terminals 20 A (path limit), SL1265-1R0M choke 24 A — not the same as the 18 A output total.
 
 <!-- hm:terminal-map:end -->
 
@@ -205,7 +205,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
 | **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
 | **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
-| **Full-Load Current (all outputs)** | — | — | 18 | A | Module path limit (DB128L-5.08 field terminals). Per channel ≤1.5 A (BLM31PG601SN1L). |
+| **Full-Load Current (all outputs)** | — | — | 18 | A | **Output** path limit (DB128L green/orange terminals). Per channel ≤1.5 A (BLM). LED PS **input** path ≤20 A (grey terminals; choke 24 A). |
 | **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
 | **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
 | **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** (**1206L150THWR**); **≤150 mA** continuous per rail. |

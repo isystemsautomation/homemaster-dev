@@ -13,6 +13,8 @@
     "str_actuators_per_module": 32,
     "str_actuator_inrush_a": 0.3,
     "str_actuator_voltage_v": 24,
+    "str_led_ps_input_a": 20,
+    "rgb_led_ps_input_a": 10,
     "enclosure_reserve_pct": 25,
     "onewire_sensor_design_ma": 5
   },
@@ -42,8 +44,8 @@
     "rcd_4p": "RCD 4P",
     "rcbo_1p_n": "RCBO 1P+N",
     "contactor_modular": "Modular contactor",
-    "psu_din_60w": "DIN PSU 60 W",
-    "psu_din_100w": "DIN PSU 100 W",
+    "psu_din_60w": "DIN PSU 60 W (module logic)",
+    "psu_din_100w": "DIN PSU 100 W (module logic)",
     "terminal_block": "Field terminal",
     "n_bar": "N bar (neutral)",
     "pe_bar": "PE bar (protective earth)",
@@ -606,12 +608,14 @@
       },
       "relay_contact": "spst_no",
       "features": [],
+      "led_ps_input_a": 10,
       "power_w_max": 3.0,
       "poll_weight": 1.2,
       "sources": {
         "din_units": "measured",
         "power_w_max": "README",
-        "provides": "README"
+        "provides": "README",
+        "led_ps_input_a": "shipping_board"
       }
     },
     "STR-3221-R1": {
@@ -628,6 +632,7 @@
       "features": [],
       "out_channel_a": 1.5,
       "out_module_a": 18,
+      "led_ps_input_a": 20,
       "sensor_rails": [
         {
           "voltage_v": 5,
@@ -647,7 +652,8 @@
         "provides": "README",
         "sensor_rails": "README",
         "out_channel_a": "hardware",
-        "out_module_a": "hardware"
+        "out_module_a": "hardware",
+        "led_ps_input_a": "hardware"
       }
     },
     "WLD-521-R1": {
