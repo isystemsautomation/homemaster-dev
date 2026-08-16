@@ -6601,7 +6601,8 @@ async function copyShareLink(button) {
       button.textContent = "Link copied";
       button.disabled = true;
       setTimeout(() => {
-        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
+        const sz = button.classList.contains("hm-text-link") ? 14 : 16;
+        button.innerHTML = `${hmIcon("link", sz)} Copy link`;
         button.disabled = false;
       }, 2000);
     }
@@ -6611,7 +6612,8 @@ async function copyShareLink(button) {
     if (button) {
       button.textContent = "Copy failed";
       setTimeout(() => {
-        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
+        const sz = button.classList.contains("hm-text-link") ? 14 : 16;
+        button.innerHTML = `${hmIcon("link", sz)} Copy link`;
       }, 2000);
     }
     return false;
@@ -6793,23 +6795,26 @@ function resultNotesBarHtml(notes) {
 }
 
 /**
- * Shared Result hero — price | metric tiles | action stack.
- * @param {{ priceHtml: string, stats: Array<{icon:string,value:string|number,label:string,tone?:string}>, actionsHtml: string }} opts
+ * Shared Result hero — price | metric tiles | optional action stack (Advanced).
+ * @param {{ priceHtml: string, stats: Array<{icon:string,value:string|number,label:string,tone?:string}>, actionsHtml?: string }} opts
  */
-function resultHeroHtml({ priceHtml, stats, actionsHtml }) {
+function resultHeroHtml({ priceHtml, stats, actionsHtml = "" }) {
   const statsHtml = (stats || [])
     .map((s) => {
       const tone = s.tone ? ` hm-result-stat--${escapeAttr(s.tone)}` : "";
       return `<div class="hm-result-stat${tone}">${hmIcon(s.icon, 20)}<span class="hm-result-stat__n">${s.value}</span><span class="hm-result-stat__l">${escapeAttr(s.label)}</span></div>`;
     })
     .join("");
-  return `<div class="hm-card hm-result-hero">
+  const actions = actionsHtml
+    ? `<div class="hm-result-hero__actions">${actionsHtml}</div>`
+    : "";
+  return `<div class="hm-card hm-result-hero${actionsHtml ? "" : " hm-result-hero--simple"}">
           <div>
             ${priceHtml}
             <p class="hm-result-hero__sub">incl. VAT · equipment only</p>
           </div>
           <div class="hm-result-stats">${statsHtml}</div>
-          <div class="hm-result-hero__actions">${actionsHtml}</div>
+          ${actions}
         </div>`;
 }
 
@@ -6827,7 +6832,15 @@ function bindNotesToggle(root) {
 
 function formatModuleBuyPrice(row) {
   if (row.status === "ok" && row.amount != null) {
-    return `<span class="hm-simple-buy__price">${row.amount} ${escapeAttr(row.currency || "")}</span>`;
+    const qty = Number(row.qty) || 1;
+    const line = Math.round(row.amount * qty * 100) / 100;
+    const cur = escapeAttr(row.currency || "");
+    const unit = `${row.amount}${cur ? ` ${cur}` : ""}`;
+    const total = `${line}${cur ? ` ${cur}` : ""}`;
+    if (qty > 1) {
+      return `<span class="hm-simple-buy__price">${unit} each · ${total}</span>`;
+    }
+    return `<span class="hm-simple-buy__price">${total}</span>`;
   }
   return `<span class="hm-simple-buy__oos">out of stock</span>`;
 }
@@ -6839,7 +6852,7 @@ function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
   const shown = rows.slice(0, limit);
   const rest = rows.length - shown.length;
   const item = (r, extra = false) =>
-    `<li${extra ? ' class="hm-simple-buy__extra" hidden' : ""}><span class="hm-simple-buy__qty">${r.qty}×</span> <span class="hm-simple-buy__id">${escapeAttr(r.id)}</span> <span class="hm-simple-buy__right">${formatModuleBuyPrice(r)}</span></li>`;
+    `<li${extra ? ' class="hm-simple-buy__extra" hidden' : ""}><span class="hm-simple-buy__line"><span class="hm-simple-buy__qty">${r.qty}×</span> <span class="hm-simple-buy__id">${escapeAttr(r.id)}</span> · ${formatModuleBuyPrice(r)}</span></li>`;
   const list = shown.map((r) => item(r)).join("");
   const extras = rest > 0 ? rows.slice(limit).map((r) => item(r, true)).join("") : "";
   const more =
@@ -6849,16 +6862,17 @@ function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
   return `<ul class="hm-simple-buy__list">${list}${extras}${more}</ul>`;
 }
 
-function cartHintHtml(tot, excludedN) {
+/** One-line cart subtitle: units · total · unavailable. */
+function cartHintHtml(tot, unavailableModules) {
   if (!tot || !tot.pricedQty) {
-    return `<p class="hm-result-hero__cart-hint hm-muted">No priced items to add</p>`;
+    return `<p class="hm-simple-actions__hint hm-muted">No priced units to add</p>`;
   }
-  const lines = tot.lineCount ?? 0;
-  let html = `<p class="hm-result-hero__cart-hint">${lines} item${lines === 1 ? "" : "s"} · ${tot.total} ${escapeAttr(tot.currency)}</p>`;
-  if (excludedN > 0) {
-    html += `<p class="hm-result-hero__cart-hint hm-muted">${excludedN} unavailable — not added to cart</p>`;
+  const units = tot.pricedQty;
+  let text = `${units} unit${units === 1 ? "" : "s"} · ${tot.total} ${escapeAttr(tot.currency)}`;
+  if (unavailableModules > 0) {
+    text += ` · ${unavailableModules} module${unavailableModules === 1 ? "" : "s"} unavailable`;
   }
-  return html;
+  return `<p class="hm-simple-actions__hint">${text}</p>`;
 }
 
 function channelUsageTable(usage, { fold = true } = {}) {
@@ -6959,7 +6973,7 @@ function mountConfigurator(root) {
     <div class="hm-estimator">
       <header class="hm-estimator__header">
         <h1>How much does a HomeMaster system cost?</h1>
-        <p class="hm-estimator__tagline">Get an instant estimate for your home</p>
+        <p class="hm-estimator__tagline">HomeMaster modules only — panel, protection and installation are quoted separately.</p>
         <div class="hm-mode-toggle" role="group" aria-label="Configurator mode">
           <button type="button" id="hm-mode-simple" class="hm-mode-btn">Simple</button>
           <button type="button" id="hm-mode-advanced" class="hm-mode-btn">Advanced</button>
@@ -8339,12 +8353,17 @@ function mountConfigurator(root) {
     const hi = Number(max) || 1;
     const v = Number(value) || 0;
     const pct = hi > lo ? Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)) : 0;
-    return `<div class="hm-slider">
+    return `<div class="hm-slider" data-slider="${escapeAttr(id)}">
       <div class="hm-slider__label">
         <span class="hm-slider__name">${icon ? hmIcon(icon, 16) : ""}<span>${escapeAttr(label)}</span></span>
-        <strong id="${id}-val">${value}</strong>
+        <strong class="hm-slider__val-desk" id="${id}-val">${value}</strong>
       </div>
-      <input type="range" id="${id}" min="${min}" max="${max}" value="${value}" style="--hm-slider-pct:${pct}%">
+      <input type="range" class="hm-slider__range" id="${id}" min="${min}" max="${max}" value="${value}" style="--hm-slider-pct:${pct}%">
+      <div class="hm-stepper" aria-label="${escapeAttr(label)}">
+        <button type="button" class="hm-stepper__btn" data-for="${escapeAttr(id)}" data-step="-1" aria-label="Decrease">−</button>
+        <strong class="hm-stepper__val" id="${id}-val-step">${value}</strong>
+        <button type="button" class="hm-stepper__btn" data-for="${escapeAttr(id)}" data-step="1" aria-label="Increase">+</button>
+      </div>
     </div>`;
   }
 
@@ -8375,7 +8394,7 @@ function mountConfigurator(root) {
       sliderRow(`sc-${id}`, label, c[id] ?? 0, 0, 10, roomIcons[id]),
     ).join("");
 
-    const equip = [
+    const equipFields = [
       ["lights_onoff", "Light groups", 40, "light"],
       ["lights_dimmable", "of which dimmable", 40, "dim"],
       ["led_strips", "RGB strips", 20, "rgb"],
@@ -8386,12 +8405,31 @@ function mountConfigurator(root) {
       ["motion_sensors", "Motion detectors", 30, "motion"],
       ["door_contacts", "Door contacts", 40, "door"],
       ["smart_sockets", "Sockets", 30, "socket"],
-    ]
+    ];
+    const lightsOn = (Number(t.lights_onoff) || 0) > 0;
+    const equipVisible = (id) => {
+      if (id === "lights_dimmable") return lightsOn;
+      return (Number(t[id]) || 0) > 0;
+    };
+    const activeEquip = equipFields.filter(([id]) => equipVisible(id));
+    const hiddenEquip = equipFields.filter(([id]) => !equipVisible(id));
+    const equipActiveHtml = activeEquip
       .map(([id, label, max, icon]) => sliderRow(`st-${id}`, label, t[id] ?? 0, 0, max, icon))
       .join("");
+    const equipHiddenHtml = hiddenEquip
+      .map(([id, label, max, icon]) => sliderRow(`st-${id}`, label, t[id] ?? 0, 0, max, icon))
+      .join("");
+    const equipAdd =
+      hiddenEquip.length > 0
+        ? `<details class="hm-add-equip"><summary>Add equipment</summary><div class="hm-slider-stack">${equipHiddenHtml}</div></details>`
+        : "";
 
+    // Result first in DOM (mobile / keyboard); CSS places it right on desktop.
     main.innerHTML = `
       <div class="hm-simple">
+        <div class="hm-simple__result" id="hm-simple-result">
+          <p class="hm-muted">Calculating…</p>
+        </div>
         <div class="hm-simple__settings">
           <div class="hm-simple-sec hm-simple-sec--top">
             <label class="hm-simple__ptype">Property type
@@ -8400,7 +8438,6 @@ function mountConfigurator(root) {
                   `<option value="${v}" ${v === state.object.property_type ? "selected" : ""}>${lab}</option>`,
               ).join("")}</select>
             </label>
-            <button type="button" id="s-defaults" class="hm-btn-secondary">${hmIcon("spark", 16)} Use default configuration</button>
           </div>
 
           <section class="hm-simple-sec">
@@ -8410,7 +8447,8 @@ function mountConfigurator(root) {
 
           <section class="hm-simple-sec">
             ${sectionTitle("gear", "Equipment")}
-            <div class="hm-slider-stack">${equip}</div>
+            <div class="hm-slider-stack">${equipActiveHtml}</div>
+            ${equipAdd}
           </section>
 
           <section class="hm-simple-sec">
@@ -8433,20 +8471,25 @@ function mountConfigurator(root) {
           </section>
           ${warn}
         </div>
-        <div class="hm-simple__result" id="hm-simple-result">
-          <p class="hm-muted">Calculating…</p>
-        </div>
       </div>`;
 
-    const bindRange = (id, apply) => {
+    const setValDisplays = (id, n) => {
+      const a = main.querySelector(`#${id}-val`);
+      const b = main.querySelector(`#${id}-val-step`);
+      if (a) a.textContent = String(n);
+      if (b) b.textContent = String(n);
+    };
+
+    const bindControl = (id, apply) => {
       const input = main.querySelector(`#${id}`);
-      const val = main.querySelector(`#${id}-val`);
       if (!input) return;
-      input.oninput = () => {
-        const n = Number(input.value) || 0;
-        if (val) val.textContent = String(n);
+      const sync = (raw) => {
+        let n = Number(raw) || 0;
         const lo = Number(input.min) || 0;
         const hi = Number(input.max) || 1;
+        n = Math.max(lo, Math.min(hi, n));
+        input.value = String(n);
+        setValDisplays(id, n);
         const pct = hi > lo ? Math.max(0, Math.min(100, ((n - lo) / (hi - lo)) * 100)) : 0;
         input.style.setProperty("--hm-slider-pct", `${pct}%`);
         apply(n);
@@ -8454,24 +8497,40 @@ function mountConfigurator(root) {
         saveState();
         paintSimpleResult();
       };
+      input.oninput = () => sync(input.value);
+      main.querySelectorAll(`[data-for="${id}"]`).forEach((btn) => {
+        btn.onclick = () => {
+          const step = Number(btn.dataset.step) || 0;
+          sync((Number(input.value) || 0) + step);
+        };
+      });
     };
 
     for (const { id } of SIMPLE_ROOM_TYPES) {
-      bindRange(`sc-${id}`, (n) => {
+      bindControl(`sc-${id}`, (n) => {
         state.simple.counts[id] = n;
       });
     }
     for (const field of SIMPLE_DISTRIBUTE_FIELDS) {
-      bindRange(`st-${field}`, (n) => {
+      bindControl(`st-${field}`, (n) => {
         state.simple.totals[field] = n;
         if (field === "lights_dimmable") {
           const lights = Number(state.simple.totals.lights_onoff) || 0;
           if (n > lights) {
             state.simple.totals.lights_dimmable = lights;
             const inp = main.querySelector("#st-lights_dimmable");
-            const v = main.querySelector("#st-lights_dimmable-val");
             if (inp) inp.value = String(lights);
-            if (v) v.textContent = String(lights);
+            setValDisplays("st-lights_dimmable", lights);
+          }
+        }
+        // Promote newly non-zero equipment out of "Add equipment" on next paint of settings.
+        if (field !== "lights_dimmable" && n > 0) {
+          const details = main.querySelector(".hm-add-equip");
+          const row = main.querySelector(`[data-slider="st-${field}"]`);
+          if (details && row && details.contains(row)) {
+            const stack = main.querySelector(".hm-simple-sec .hm-slider-stack");
+            if (stack) stack.appendChild(row);
+            if (!details.querySelector("[data-slider]")) details.remove();
           }
         }
       });
@@ -8480,17 +8539,6 @@ function mountConfigurator(root) {
     main.querySelector("#s-ptype").onchange = (e) => {
       state.object.property_type = e.target.value;
       saveState();
-    };
-    main.querySelector("#s-defaults").onclick = () => {
-      const kind =
-        state.object.property_type === "house" || state.object.property_type === "townhouse"
-          ? "house"
-          : state.object.property_type === "commercial"
-            ? "apartment"
-            : "apartment";
-      applyPreset(kind);
-      saveState();
-      render();
     };
     main.querySelector("#s-boiler").onchange = (e) => {
       state.simple.toggles.boiler = e.target.value;
@@ -8526,15 +8574,11 @@ function mountConfigurator(root) {
     result = liveResult();
     const tot = cartTotal(result, priceMap);
     const rows = modulePurchaseRows(result, priceMap);
-    const stock = stockAvailability(rows);
     const modQty = rows.reduce((s, r) => s + (r.qty || 0), 0);
     const roomN =
       (state.rooms || []).filter((r) => r?.name?.trim()).length ||
       Object.values(state.simple?.counts || {}).reduce((s, n) => s + (Number(n) || 0), 0);
-    const dinW =
-      result.enclosure?.din_modules ??
-      result.panels?.reduce((s, p) => s + (p.enclosure?.din_modules || 0), 0) ??
-      "—";
+    const unavailableLines = rows.filter((r) => r.status !== "ok").length;
     const lines = simpleCustomerSummary(
       state.simple.totals,
       state.simple.toggles,
@@ -8550,9 +8594,18 @@ function mountConfigurator(root) {
     if (tot && tot.pricedQty > 0) {
       priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
-    const excludedN =
-      (tot?.missingSku?.length || 0) + (tot?.unavailableSku?.length || 0);
-    const unavailableLines = rows.filter((r) => r.status !== "ok").length;
+    const stats = [
+      { icon: "cube", value: modQty, label: "Modules" },
+      { icon: "rooms", value: roomN, label: "Rooms" },
+    ];
+    if (unavailableLines > 0) {
+      stats.push({
+        icon: "warning",
+        value: unavailableLines,
+        label: "Unavailable",
+        tone: "warn",
+      });
+    }
     const notes = collectResultNotes(result, priceMap, { omitShopUnavailable: true });
     const notesBar = resultNotesBarHtml(notes);
     const shareOlder = state.shareLinkOlder
@@ -8562,43 +8615,34 @@ function mountConfigurator(root) {
       .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
       .join("");
 
-    const hero = resultHeroHtml({
-      priceHtml,
-      stats: [
-        { icon: "cube", value: modQty, label: "Modules" },
-        { icon: "rooms", value: roomN, label: "Rooms" },
-        { icon: "ruler", value: dinW, label: "DIN width" },
-        {
-          icon: "stock",
-          value: `${stock.inStock}/${stock.total || 0}`,
-          label: "In stock",
-          tone: stock.allOk ? "ok" : "warn",
-        },
-      ],
-      actionsHtml: `
-            <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="s-cart">${hmIcon("cart", 16)} Add to cart</button>
-            ${cartHintHtml(tot, excludedN)}
-            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-fullspec">${hmIcon("gear", 16)} Configure in detail</button>
-            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-xlsx">${hmIcon("download", 16)} Download</button>
-            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-share">${hmIcon("link", 16)} Copy link</button>
-            <a class="hm-btn-pill hm-btn-pill--ghost" id="s-quote" href="https://www.home-master.eu/contactus" target="_blank" rel="noopener">${hmIcon("quote", 16)} Request quote</a>`,
-    });
+    const head = resultHeroHtml({ priceHtml, stats });
 
     const unavailableFooter =
       unavailableLines > 0
-        ? `<p class="hm-simple-buy__excl">${unavailableLines} item${unavailableLines === 1 ? "" : "s"} unavailable — total excludes them.</p>`
+        ? `<p class="hm-simple-buy__excl">${unavailableLines} module${unavailableLines === 1 ? "" : "s"} unavailable — total excludes them.</p>`
         : "";
 
     host.innerHTML = `
-      ${hero}
+      ${head}
       ${shareOlder}
       ${notesBar}
       <div class="hm-card hm-simple-buy">
         <h3 class="hm-simple-buy__h">What it covers</h3>
-        <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
+        <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the controls to build your system.</li>"}</ul>
         <h3 class="hm-simple-buy__h">Modules you buy</h3>
         ${modulesYouBuyHtml(rows)}
         ${unavailableFooter}
+      </div>
+      <div class="hm-card hm-simple-actions">
+        <div class="hm-simple-actions__primary">
+          <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="s-cart">${hmIcon("cart", 16)} Add to cart</button>
+          <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-fullspec">${hmIcon("gear", 16)} Configure in detail</button>
+        </div>
+        ${cartHintHtml(tot, unavailableLines)}
+        <div class="hm-simple-actions__links">
+          <button type="button" class="hm-text-link" id="s-xlsx">${hmIcon("download", 14)} Download</button>
+          <button type="button" class="hm-text-link" id="s-share">${hmIcon("link", 14)} Copy link</button>
+        </div>
       </div>
       ${warn}
       <div id="s-cart-status"></div>`;
@@ -8625,7 +8669,8 @@ function mountConfigurator(root) {
         status.innerHTML = `<p class="hm-warn">Added ${added.length}; failed on ${failed.line?.sku}</p>`;
         return;
       }
-      status.innerHTML = `<p>Done: ${added.length} item(s). <a href="/shop/cart">Go to cart</a></p>`;
+      const units = added.reduce((s, a) => s + (a.line?.qty || 0), 0);
+      status.innerHTML = `<p>Done: ${units} unit${units === 1 ? "" : "s"}. <a href="/shop/cart">Go to cart</a></p>`;
     };
   }
 
