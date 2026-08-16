@@ -5958,6 +5958,33 @@ const RULES_URL =
     (globalThis.HM_ESTIMATOR_RULES_URL || globalThis.HM_RULES_URL)) ||
   "https://config.home-master.eu/estimator/rules.json";
 
+function examplesAssetsBase() {
+  try {
+    return new URL("./assets/examples/", RULES_URL.replace(/[^/]+$/, "")).href;
+  } catch {
+    return "https://config.home-master.eu/estimator/assets/examples/";
+  }
+}
+
+/** @type {Promise<object>|null} */
+let examplesManifestPromise = null;
+
+function loadExamplesManifest() {
+  if (!examplesManifestPromise) {
+    const url = new URL("manifest.json", examplesAssetsBase()).href;
+    examplesManifestPromise = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`examples manifest HTTP ${r.status}`);
+        return r.json();
+      })
+      .catch((err) => {
+        examplesManifestPromise = null;
+        throw err;
+      });
+  }
+  return examplesManifestPromise;
+}
+
 const ROOM_FIELDS_LIGHT = [
   ["lights_onoff", "Light groups", "number", { icon: "light" }],
   ["lights_dimmable", "Dimmable 230 V", "number", { parent: "lights_onoff", icon: "dim" }],
@@ -7402,24 +7429,26 @@ function mountConfigurator(root) {
       return;
     }
     const cards = [
-      ["apartment", "Apartment", "apartment"],
-      ["house", "Detached house", "house"],
-      ["villa", "Large villa", "villa"],
+      ["apartment", "Apartment"],
+      ["house", "Detached house"],
+      ["villa", "Large villa"],
     ];
     examplesEl.innerHTML = `
       <p class="hm-examples__label">Start from an example</p>
       <div class="hm-examples__row">
         ${cards
           .map(
-            ([id, label, icon]) =>
+            ([id, label]) =>
               `<div class="hm-example-wrap">
                 <button type="button" class="hm-example-card${
                   state.simple?.preset === id ? " is-selected" : ""
                 }" data-preset="${id}">
-                  <span class="hm-example-card__ico">${hmIcon(icon, 22)}</span>
-                  <span class="hm-example-card__text">
-                    <strong>${label}</strong>
-                    <span class="hm-example-price" data-preset-price="${id}">…</span>
+                  <span class="hm-example-card__media">
+                    <img class="hm-example-card__img" data-preset-img="${id}" alt="" width="600" height="335" decoding="async">
+                    <span class="hm-example-card__caption">
+                      <strong>${label}</strong>
+                      <span class="hm-example-price" data-preset-price="${id}">…</span>
+                    </span>
                   </span>
                 </button>
                 <div class="hm-example-excl" data-preset-excl="${id}" hidden></div>
@@ -7440,6 +7469,18 @@ function mountConfigurator(root) {
         refreshExamplePrices();
       };
     });
+    loadExamplesManifest()
+      .then((manifest) => {
+        const base = examplesAssetsBase();
+        for (const [id] of cards) {
+          const entry = manifest?.[id];
+          const img = examplesEl.querySelector(`[data-preset-img="${id}"]`);
+          if (!img || !entry?.file) continue;
+          img.src = new URL(entry.file, base).href;
+          img.alt = entry.alt || "";
+        }
+      })
+      .catch((err) => console.warn("examples manifest:", err));
     refreshExamplePrices();
   }
 

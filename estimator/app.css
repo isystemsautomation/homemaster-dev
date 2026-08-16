@@ -553,17 +553,16 @@
 }
 
 #hm-system-builder .hm-example-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
+  display: block;
+  width: 100%;
+  padding: 0;
   border: 1px solid var(--hm-line);
   border-radius: var(--hm-radius);
   background: var(--hm-card);
-  padding: 0.85rem 1rem;
   font: inherit;
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -574,31 +573,58 @@
 
 #hm-system-builder .hm-example-card.is-selected {
   border-color: var(--hm-accent);
-  background: var(--hm-accent-soft);
+  box-shadow: 0 0 0 2px var(--hm-accent-soft);
 }
 
-#hm-system-builder .hm-example-card__ico {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 8px;
-  background: var(--hm-accent-soft);
-  color: var(--hm-accent);
-  flex-shrink: 0;
+#hm-system-builder .hm-example-card__media {
+  position: relative;
+  display: block;
+  width: 100%;
 }
 
-#hm-system-builder .hm-example-card__text {
+#hm-system-builder .hm-example-card__img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  object-position: center;
+  background: #2a2f36;
+  border-radius: calc(var(--hm-radius) - 1px) calc(var(--hm-radius) - 1px) 0 0;
+}
+
+@media (max-width: 720px) {
+  #hm-system-builder .hm-example-card__img {
+    height: 100px;
+  }
+}
+
+#hm-system-builder .hm-example-card__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
+  gap: 0.1rem;
+  padding: 1.6rem 0.85rem 0.65rem;
+  color: #fff;
+  background: linear-gradient(
+    to top,
+    rgba(12, 16, 22, 0.88) 0%,
+    rgba(12, 16, 22, 0.55) 55%,
+    rgba(12, 16, 22, 0) 100%
+  );
+}
+
+#hm-system-builder .hm-example-card__caption strong {
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 #hm-system-builder .hm-example-price {
-  color: var(--hm-muted);
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.88rem;
 }
 
 #hm-system-builder .hm-ico {

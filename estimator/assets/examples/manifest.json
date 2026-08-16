@@ -1,0 +1,5 @@
+{
+  "apartment": { "file": "apartment.jpg", "alt": "Modern apartment living room at dusk" },
+  "house": { "file": "house.jpg", "alt": "Detached house living area with lit staircase" },
+  "villa": { "file": "villa.jpg", "alt": "Large villa living room overlooking a pool" }
+}
