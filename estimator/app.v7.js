@@ -3529,18 +3529,95 @@ function cartLineCount(estimate) {
 }
 
 /**
- * Sum HomeMaster lines that have a numeric price. Missing prices do not
- * null the whole subtotal; currencyAmbiguous never hides amounts.
+ * True when the shop line can be added and counted in the payable total.
+ * @param {{amount?: number, available?: boolean}|null|undefined} p
+ */
+function priceIsCartEligible(p) {
+  return !!(p && Number.isFinite(p.amount) && p.available !== false);
+}
+
+/**
+ * HomeMaster module rows for the purchase list (not companions).
  * @param {object} estimate
- * @param {Record<string, {amount: number, currency: string, currencyAmbiguous?: boolean}>} prices
- * @returns {{total: number, currency: string, pricedQty: number, missingSku: string[], currencyAmbiguous: boolean} | null}
+ * @param {Record<string, {amount: number, currency: string, available?: boolean}>} prices
+ * @returns {Array<{id: string, sku: string, qty: number, status: 'ok'|'oos'|'noprice', amount: number|null, currency: string|null}>}
+ */
+function modulePurchaseRows(estimate, prices) {
+  const mods = estimate?.modules || [];
+  return mods.map((m) => {
+    const p = prices?.[m.sku];
+    if (!p || !Number.isFinite(p.amount)) {
+      return {
+        id: m.id,
+        sku: m.sku || "",
+        qty: m.qty || 0,
+        status: "noprice",
+        amount: null,
+        currency: null,
+      };
+    }
+    if (p.available === false) {
+      return {
+        id: m.id,
+        sku: m.sku || "",
+        qty: m.qty || 0,
+        status: "oos",
+        amount: p.amount,
+        currency: p.currency || "EUR",
+      };
+    }
+    return {
+      id: m.id,
+      sku: m.sku || "",
+      qty: m.qty || 0,
+      status: "ok",
+      amount: p.amount,
+      currency: p.currency || "EUR",
+    };
+  });
+}
+
+/**
+ * IN STOCK tile: priced+available SKUs over all module lines.
+ * @param {ReturnType<typeof modulePurchaseRows>} rows
+ */
+function stockAvailability(rows) {
+  const total = rows.length;
+  const inStock = rows.filter((r) => r.status === "ok").length;
+  return {
+    inStock,
+    total,
+    allOk: total > 0 && inStock === total,
+  };
+}
+
+/**
+ * Cart lines that have a price and are available in the shop.
+ * @param {object} estimate
+ * @param {Record<string, {amount: number, currency: string, available?: boolean}>} prices
+ */
+function cartEligibleLines(estimate, prices) {
+  return (estimate?.cart_lines || []).filter((line) =>
+    priceIsCartEligible(prices?.[line.sku]),
+  );
+}
+
+/**
+ * Sum HomeMaster lines that have a numeric price and are available.
+ * Missing / out-of-stock prices do not null the whole subtotal;
+ * currencyAmbiguous never hides amounts.
+ * @param {object} estimate
+ * @param {Record<string, {amount: number, currency: string, currencyAmbiguous?: boolean, available?: boolean}>} prices
+ * @returns {{total: number, currency: string, pricedQty: number, lineCount: number, missingSku: string[], unavailableSku: string[], currencyAmbiguous: boolean} | null}
  */
 function cartTotal(estimate, prices) {
   let total = 0;
   let currency = null;
   let pricedQty = 0;
+  let lineCount = 0;
   let currencyAmbiguous = false;
   const missingSku = [];
+  const unavailableSku = [];
   const lines =
     (estimate.cart_lines && estimate.cart_lines.length
       ? estimate.cart_lines
@@ -3551,17 +3628,24 @@ function cartTotal(estimate, prices) {
       if (line.sku) missingSku.push(line.sku);
       continue;
     }
+    if (p.available === false) {
+      if (line.sku) unavailableSku.push(line.sku);
+      continue;
+    }
     total += p.amount * (line.qty || 1);
     currency = p.currency || currency || "EUR";
     pricedQty += line.qty || 1;
+    lineCount += 1;
     if (p.currencyAmbiguous) currencyAmbiguous = true;
   }
-  if (pricedQty === 0) return null;
+  if (lines.length === 0) return null;
   return {
     total: Math.round(total * 100) / 100,
     currency: currency || "EUR",
     pricedQty,
+    lineCount,
     missingSku,
+    unavailableSku,
     currencyAmbiguous,
   };
 }
@@ -3569,6 +3653,10 @@ function cartTotal(estimate, prices) {
 HM.addCartLine = addCartLine;
 HM.addAllToCart = addAllToCart;
 HM.cartLineCount = cartLineCount;
+HM.priceIsCartEligible = priceIsCartEligible;
+HM.modulePurchaseRows = modulePurchaseRows;
+HM.stockAvailability = stockAvailability;
+HM.cartEligibleLines = cartEligibleLines;
 HM.cartTotal = cartTotal;
 
 // ===== xlsx.js =====
@@ -5280,6 +5368,7 @@ function buildSharePayload(state) {
 
   const payload = { v: SHARE_SCHEMA_VERSION };
 
+  if (state.ui_mode === "simple") payload.m = "s";
   if (state.expert) payload.x = 1;
 
   const o = state.object || {};
@@ -5528,13 +5617,15 @@ function expandSharePayload(payload) {
   const expertDemand =
     expert && payload.d && typeof payload.d === "object" ? payload.d : {};
 
+  const ui_mode = payload.m === "s" ? "simple" : "advanced";
+
   return {
     ok: true,
     older: warn,
     patch: {
-      ui_mode: "advanced",
-      step: 3,
-      expert,
+      ui_mode,
+      step: ui_mode === "advanced" ? 3 : 0,
+      expert: ui_mode === "simple" ? false : expert,
       object,
       panels,
       rooms,
@@ -6126,6 +6217,9 @@ function hmIcon(name, size = 18) {
     blank: '<rect x="7" y="4" width="10" height="16" rx="1"/><path d="M10 8h4M10 12h4M10 16h4"/>',
     enclosure: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h2M14 14h2"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    stock:
+      '<path d="M20 7l-8-4-8 4v10l8 4 8-4V7z"/><path d="M12 11v10M4 7l8 4 8-4"/>',
+    quote: '<path d="M7 8h6M7 12h4"/><path d="M5 5h10a2 2 0 0 1 2 2v7l-4 4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>',
   };
   const d = paths[name] || paths.gear;
   return `<svg class="hm-ico" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -6436,11 +6530,13 @@ function applySharePatch(patch) {
   Object.assign(state, patch);
   if (!state.panels?.length) state.panels = defaultPanels();
   if (!state.systems) state.systems = emptySystems(firstPanelId());
-  state.ui_mode = "advanced";
-  state.step = 3;
+  const mode = patch.ui_mode === "simple" ? "simple" : "advanced";
+  state.ui_mode = mode;
+  if (mode === "advanced") state.step = 3;
+  if (mode === "simple") syncSimpleSlidersFromRooms();
   saveState();
   try {
-    localStorage.setItem(MODE_KEY, "advanced");
+    localStorage.setItem(MODE_KEY, mode);
   } catch {
     /* ignore */
   }
@@ -6629,7 +6725,13 @@ function formatPriceCell(p) {
   return `<span class="hm-bom__price">${p.amount} ${escapeAttr(p.currency || "")}</span>`;
 }
 
-function collectResultNotes(result, prices) {
+/**
+ * @param {object} result
+ * @param {object} prices
+ * @param {{ omitShopUnavailable?: boolean }} [opts]
+ *   omitShopUnavailable — Simple shows OOS inline; skip the top warning.
+ */
+function collectResultNotes(result, prices, opts = {}) {
   const notes = [];
   if (result.split_warning) notes.push(result.split_warning);
   for (const a of result.assumptions || []) {
@@ -6638,30 +6740,115 @@ function collectResultNotes(result, prices) {
     }
   }
   const tot = cartTotal(result, prices);
-  if (tot?.missingSku?.length) {
+  if (tot?.missingSku?.length && !opts.omitShopUnavailable) {
     const skus = [...new Set(tot.missingSku)];
     notes.push(
       `${skus.length} line(s) without a price — total is understated (${skus.join(", ")}).`,
     );
   }
-  const mods = [
-    ...((result.panels || []).flatMap((p) => p.modules || [])),
-    ...(result.modules || []),
-  ];
-  const seen = new Set();
-  const unavailable = [];
-  for (const m of mods) {
-    if (!m?.sku || seen.has(m.sku)) continue;
-    seen.add(m.sku);
-    const p = prices[m.sku];
-    if (p && Number.isFinite(p.amount) && p.available === false) {
-      unavailable.push(m.id || m.sku);
+  if (!opts.omitShopUnavailable) {
+    const mods = [
+      ...((result.panels || []).flatMap((p) => p.modules || [])),
+      ...(result.modules || []),
+    ];
+    const seen = new Set();
+    const unavailable = [];
+    for (const m of mods) {
+      if (!m?.sku || seen.has(m.sku)) continue;
+      seen.add(m.sku);
+      const p = prices[m.sku];
+      if (p && Number.isFinite(p.amount) && p.available === false) {
+        unavailable.push(m.id || m.sku);
+      }
+    }
+    if (unavailable.length) {
+      notes.push(`Not available in the shop: ${unavailable.join(", ")}.`);
     }
   }
-  if (unavailable.length) {
-    notes.push(`Not available in the shop: ${unavailable.join(", ")}.`);
-  }
   return [...new Set(notes)];
+}
+
+function resultNotesBarHtml(notes) {
+  if (!notes.length) return "";
+  return `<div class="hm-notes">
+            <button type="button" class="hm-notes-bar" id="hm-notes-toggle" aria-expanded="false">
+              ${hmIcon("warning", 18)}
+              <span>${notes.length} note${notes.length === 1 ? "" : "s"} to review</span>
+              <span class="hm-notes-bar__chev">${hmIcon("chevron", 16)}</span>
+            </button>
+            <div class="hm-notes-body" id="hm-notes-body" hidden>
+              ${notes.map((n) => `<p class="hm-warn">${escapeAttr(n)}</p>`).join("")}
+            </div>
+          </div>`;
+}
+
+/**
+ * Shared Result hero — price | metric tiles | action stack.
+ * @param {{ priceHtml: string, stats: Array<{icon:string,value:string|number,label:string,tone?:string}>, actionsHtml: string }} opts
+ */
+function resultHeroHtml({ priceHtml, stats, actionsHtml }) {
+  const statsHtml = (stats || [])
+    .map((s) => {
+      const tone = s.tone ? ` hm-result-stat--${escapeAttr(s.tone)}` : "";
+      return `<div class="hm-result-stat${tone}">${hmIcon(s.icon, 20)}<span class="hm-result-stat__n">${s.value}</span><span class="hm-result-stat__l">${escapeAttr(s.label)}</span></div>`;
+    })
+    .join("");
+  return `<div class="hm-card hm-result-hero">
+          <div>
+            ${priceHtml}
+            <p class="hm-result-hero__sub">incl. VAT · equipment only</p>
+          </div>
+          <div class="hm-result-stats">${statsHtml}</div>
+          <div class="hm-result-hero__actions">${actionsHtml}</div>
+        </div>`;
+}
+
+function bindNotesToggle(root) {
+  const notesBtn = root.querySelector("#hm-notes-toggle");
+  if (!notesBtn) return;
+  notesBtn.onclick = () => {
+    const body = root.querySelector("#hm-notes-body");
+    if (!body) return;
+    const open = body.hidden;
+    body.hidden = !open;
+    notesBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+}
+
+function formatModuleBuyPrice(row) {
+  if (row.status === "ok" && row.amount != null) {
+    return `<span class="hm-simple-buy__price">${row.amount} ${escapeAttr(row.currency || "")}</span>`;
+  }
+  return `<span class="hm-simple-buy__oos">out of stock</span>`;
+}
+
+function modulesYouBuyHtml(rows, { limit = 6 } = {}) {
+  if (!rows.length) {
+    return `<p class="hm-muted">No HomeMaster modules in this estimate.</p>`;
+  }
+  const shown = rows.slice(0, limit);
+  const rest = rows.length - shown.length;
+  const item = (r, extra = false) =>
+    `<li${extra ? ' class="hm-simple-buy__extra" hidden' : ""}><span class="hm-simple-buy__qty">${r.qty}×</span> <span class="hm-simple-buy__id">${escapeAttr(r.id)}</span> <span class="hm-simple-buy__right">${formatModuleBuyPrice(r)}</span></li>`;
+  const list = shown.map((r) => item(r)).join("");
+  const extras = rest > 0 ? rows.slice(limit).map((r) => item(r, true)).join("") : "";
+  const more =
+    rest > 0
+      ? `<li class="hm-simple-buy__more"><button type="button" id="s-mods-more">+ ${rest} more</button></li>`
+      : "";
+  return `<ul class="hm-simple-buy__list">${list}${extras}${more}</ul>`;
+}
+
+function cartHintHtml(tot, excludedN) {
+  if (!tot || !tot.pricedQty) {
+    return `<p class="hm-result-hero__cart-hint hm-muted">No priced items to add</p>`;
+  }
+  const lines = tot.lineCount ?? 0;
+  let html = `<p class="hm-result-hero__cart-hint">${lines} item${lines === 1 ? "" : "s"} · ${tot.total} ${escapeAttr(tot.currency)}</p>`;
+  if (excludedN > 0) {
+    html += `<p class="hm-result-hero__cart-hint hm-muted">${excludedN} unavailable — not added to cart</p>`;
+  }
+  return html;
 }
 
 function channelUsageTable(usage, { fold = true } = {}) {
@@ -6915,7 +7102,7 @@ function mountConfigurator(root) {
         }
         const tot = cartTotal(result, priceMap);
         elPrice.textContent =
-          tot && typeof tot.total === "number"
+          tot && tot.pricedQty > 0
             ? `from ${tot.total} ${tot.currency}`
             : "see estimate";
       } catch {
@@ -6970,7 +7157,7 @@ function mountConfigurator(root) {
     }
     const tot = cartTotal(result, priceMap);
     let priceHtml = `<p class="hm-simple-price">—</p>`;
-    if (tot && typeof tot.total === "number") {
+    if (tot && tot.pricedQty > 0) {
       priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
     const ptype =
@@ -8054,23 +8241,11 @@ function mountConfigurator(root) {
     ) ?? 1;
 
     let priceHtml = `<p class="hm-result-hero__price">—</p>`;
-    if (tot && typeof tot.total === "number") {
+    if (tot && tot.pricedQty > 0) {
       priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
 
-    const notesBar =
-      notes.length === 0
-        ? ""
-        : `<div class="hm-notes">
-            <button type="button" class="hm-notes-bar" id="hm-notes-toggle" aria-expanded="false">
-              ${hmIcon("warning", 18)}
-              <span>${notes.length} note${notes.length === 1 ? "" : "s"} to review</span>
-              <span class="hm-notes-bar__chev">${hmIcon("chevron", 16)}</span>
-            </button>
-            <div class="hm-notes-body" id="hm-notes-body" hidden>
-              ${notes.map((n) => `<p class="hm-warn">${escapeAttr(n)}</p>`).join("")}
-            </div>
-          </div>`;
+    const notesBar = resultNotesBarHtml(notes);
 
     const shareOlder = state.shareLinkOlder
       ? `<p class="hm-warn hm-share-older">This link was created with an older version — some settings may have changed</p>`
@@ -8080,26 +8255,24 @@ function mountConfigurator(root) {
       .map((p) => panelResultBlock(p, { manifest, priceMap }))
       .join("");
 
-    main.innerHTML = `
-      <div class="hm-result">
-        <div class="hm-card hm-result-hero">
-          <div>
-            ${priceHtml}
-            <p class="hm-result-hero__sub">incl. VAT · equipment only</p>
-          </div>
-          <div class="hm-result-stats">
-            <div class="hm-result-stat">${hmIcon("cube", 20)}<span class="hm-result-stat__n">${modQty}</span><span class="hm-result-stat__l">Modules</span></div>
-            <div class="hm-result-stat">${hmIcon("panel", 20)}<span class="hm-result-stat__n">${panelN}</span><span class="hm-result-stat__l">Panel</span></div>
-            <div class="hm-result-stat">${hmIcon("ruler", 20)}<span class="hm-result-stat__n">${dinW}</span><span class="hm-result-stat__l">DIN width</span></div>
-            <div class="hm-result-stat">${hmIcon("layers", 20)}<span class="hm-result-stat__n">${sections}</span><span class="hm-result-stat__l">Sections</span></div>
-          </div>
-          <div class="hm-result-hero__actions">
+    const hero = resultHeroHtml({
+      priceHtml,
+      stats: [
+        { icon: "cube", value: modQty, label: "Modules" },
+        { icon: "panel", value: panelN, label: "Panel" },
+        { icon: "ruler", value: dinW, label: "DIN width" },
+        { icon: "layers", value: sections, label: "Sections" },
+      ],
+      actionsHtml: `
             <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="hm-cart">${hmIcon("cart", 16)} Add to cart</button>
             <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-xlsx">${hmIcon("download", 16)} Download</button>
             <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-share">${hmIcon("link", 16)} Copy link</button>
-            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-back">Back</button>
-          </div>
-        </div>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-back">Back</button>`,
+    });
+
+    main.innerHTML = `
+      <div class="hm-result">
+        ${hero}
         ${shareOlder}
         ${notesBar}
         ${panelBlocks || `<div class="hm-card"><p>No panels.</p></div>`}
@@ -8110,16 +8283,7 @@ function mountConfigurator(root) {
     `;
 
     bindLayoutHighlight(main);
-
-    const notesBtn = main.querySelector("#hm-notes-toggle");
-    if (notesBtn) {
-      notesBtn.onclick = () => {
-        const body = main.querySelector("#hm-notes-body");
-        const open = body.hidden;
-        body.hidden = !open;
-        notesBtn.setAttribute("aria-expanded", open ? "true" : "false");
-      };
-    }
+    bindNotesToggle(main);
     main.querySelectorAll("[data-acc-more]").forEach((btn) => {
       btn.onclick = () => {
         const table = btn.closest("table");
@@ -8143,7 +8307,8 @@ function mountConfigurator(root) {
     main.querySelector("#hm-cart").onclick = async () => {
       const status = main.querySelector("#hm-cart-status");
       status.textContent = "Adding…";
-      const { added, failed } = await addAllToCart(result.cart_lines || []);
+      const lines = cartEligibleLines(result, priceMap);
+      const { added, failed } = await addAllToCart(lines);
       if (failed) {
         status.innerHTML = `
           <p class="hm-warn">Added ${added.length} item(s); failed on ${failed.line?.sku}: ${failed.error}</p>
@@ -8350,45 +8515,102 @@ function mountConfigurator(root) {
     await refreshPrices(result);
     result = liveResult();
     const tot = cartTotal(result, priceMap);
+    const rows = modulePurchaseRows(result, priceMap);
+    const stock = stockAvailability(rows);
+    const modQty = rows.reduce((s, r) => s + (r.qty || 0), 0);
+    const roomN =
+      (state.rooms || []).filter((r) => r?.name?.trim()).length ||
+      Object.values(state.simple?.counts || {}).reduce((s, n) => s + (Number(n) || 0), 0);
+    const dinW =
+      result.enclosure?.din_modules ??
+      result.panels?.reduce((s, p) => s + (p.enclosure?.din_modules || 0), 0) ??
+      "—";
     const lines = simpleCustomerSummary(
       state.simple.totals,
       state.simple.toggles,
       state.systems,
     );
-    const list = lines
+    const coverList = lines
       .map(
         (l) =>
           `<li><span class="hm-simple-line__ico">${hmIcon(l.kind, 18)}</span><span>${escapeAttr(l.text)}</span></li>`,
       )
       .join("");
-    let priceHtml = `<p class="hm-simple-price">—</p>`;
-    if (tot && typeof tot.total === "number") {
-      priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
+    let priceHtml = `<p class="hm-result-hero__price">—</p>`;
+    if (tot && tot.pricedQty > 0) {
+      priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
-    const priceNotes = priceIntegrityHtml(result, priceMap);
+    const excludedN =
+      (tot?.missingSku?.length || 0) + (tot?.unavailableSku?.length || 0);
+    const unavailableLines = rows.filter((r) => r.status !== "ok").length;
+    const notes = collectResultNotes(result, priceMap, { omitShopUnavailable: true });
+    const notesBar = resultNotesBarHtml(notes);
+    const shareOlder = state.shareLinkOlder
+      ? `<p class="hm-warn hm-share-older">This link was created with an older version — some settings may have changed</p>`
+      : "";
     const warn = (state.simple.warnings || [])
       .map((w) => `<p class="hm-warn">${escapeAttr(w)}</p>`)
       .join("");
+
+    const hero = resultHeroHtml({
+      priceHtml,
+      stats: [
+        { icon: "cube", value: modQty, label: "Modules" },
+        { icon: "rooms", value: roomN, label: "Rooms" },
+        { icon: "ruler", value: dinW, label: "DIN width" },
+        {
+          icon: "stock",
+          value: `${stock.inStock}/${stock.total || 0}`,
+          label: "In stock",
+          tone: stock.allOk ? "ok" : "warn",
+        },
+      ],
+      actionsHtml: `
+            <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="s-cart">${hmIcon("cart", 16)} Add to cart</button>
+            ${cartHintHtml(tot, excludedN)}
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-fullspec">${hmIcon("gear", 16)} Configure in detail</button>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-xlsx">${hmIcon("download", 16)} Download</button>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="s-share">${hmIcon("link", 16)} Copy link</button>
+            <a class="hm-btn-pill hm-btn-pill--ghost" id="s-quote" href="https://www.home-master.eu/contactus" target="_blank" rel="noopener">${hmIcon("quote", 16)} Request quote</a>`,
+    });
+
+    const unavailableFooter =
+      unavailableLines > 0
+        ? `<p class="hm-simple-buy__excl">${unavailableLines} item${unavailableLines === 1 ? "" : "s"} unavailable — total excludes them.</p>`
+        : "";
+
     host.innerHTML = `
-      <div class="hm-simple-result__head">
-        ${hmIcon("estimate", 20)}
-        <h2>Your estimate</h2>
+      ${hero}
+      ${shareOlder}
+      ${notesBar}
+      <div class="hm-card hm-simple-buy">
+        <h3 class="hm-simple-buy__h">What it covers</h3>
+        <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
+        <h3 class="hm-simple-buy__h">Modules you buy</h3>
+        ${modulesYouBuyHtml(rows)}
+        ${unavailableFooter}
       </div>
-      ${priceHtml}
-      ${priceNotes}
-      <p class="hm-muted">Equipment only, excluding installation. Prices incl. VAT, as shown in the shop.</p>
-      <ul class="hm-simple-lines">${list || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
       ${warn}
-      <div class="hm-actions">
-        <button type="button" id="s-fullspec">Configure in detail</button>
-        <button type="button" id="s-cart">Add to cart</button>
-      </div>
       <div id="s-cart-status"></div>`;
+
+    bindNotesToggle(host);
+    const moreBtn = host.querySelector("#s-mods-more");
+    if (moreBtn) {
+      moreBtn.onclick = () => {
+        host.querySelectorAll(".hm-simple-buy__extra").forEach((li) => {
+          li.hidden = false;
+        });
+        moreBtn.closest("li")?.remove();
+      };
+    }
     host.querySelector("#s-fullspec").onclick = () => setUiMode("advanced");
+    host.querySelector("#s-xlsx").onclick = () =>
+      downloadXlsx(result).catch(() => downloadCsv(result));
+    host.querySelector("#s-share").onclick = (ev) => copyShareLink(ev.currentTarget);
     host.querySelector("#s-cart").onclick = async () => {
       const status = host.querySelector("#s-cart-status");
       status.textContent = "Adding…";
-      const { added, failed } = await addAllToCart(result.cart_lines || []);
+      const { added, failed } = await addAllToCart(cartEligibleLines(result, priceMap));
       if (failed) {
         status.innerHTML = `<p class="hm-warn">Added ${added.length}; failed on ${failed.line?.sku}</p>`;
         return;
