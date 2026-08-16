@@ -4009,6 +4009,68 @@ function defaultSimpleToggles() {
   };
 }
 
+/** Empty engineering systems tree (one panel). Shared by UI and homepage examples. */
+function emptySystems(panelId = "panel-1") {
+  return {
+    heating: {
+      panel_id: panelId,
+      boiler: "none",
+      collector_loops: 0,
+      heating_pumps: 0,
+      fan_coils: 0,
+      heat_pump: 0,
+      fireplace: 0,
+      pt100_sensors: 0,
+      ds18b20_sensors: 0,
+    },
+    ventilation: {
+      panel_id: panelId,
+      ahu: 0,
+      recuperator: 0,
+      extract_fans: 0,
+      dampers_0_10v: 0,
+      sensors_0_10v: 0,
+      sensors_4_20ma: 0,
+    },
+    water: {
+      panel_id: panelId,
+      leak_zones: 0,
+      shutoff_valves: 0,
+      water_meters: 0,
+      irrigation: 0,
+      water_pumps: 0,
+      dhw_recirc: 0,
+      gas_valve: 0,
+    },
+    electrical: {
+      panel_id: panelId,
+      energy_phases: 0,
+      load_shed: 0,
+      ev_chargers: 0,
+      pv_inverters: 0,
+      fault_contacts: 0,
+    },
+    security: {
+      panel_id: panelId,
+      powered_sensors: [],
+      dry_contacts: 0,
+      gates: 0,
+      locks: 0,
+      panic_buttons: 0,
+    },
+    lighting_scenes: {
+      panel_id: panelId,
+      stair_steps: 0,
+      accent_zones: 0,
+      garden_lights: 0,
+    },
+    system: {
+      manual_control: true,
+      ha_server: "needed",
+    },
+  };
+}
+
 /**
  * Deterministic weighted distribution of `total` integer units across `n` slots.
  * weights[i] ≥ 0. Remainder goes to highest weight first, ties by lower index.
@@ -4575,6 +4637,7 @@ function simpleCustomerSummary(totals, toggles, systems) {
 HM.defaultSimpleRoomCounts = defaultSimpleRoomCounts;
 HM.defaultSimpleTotals = defaultSimpleTotals;
 HM.defaultSimpleToggles = defaultSimpleToggles;
+HM.emptySystems = emptySystems;
 HM.distributeByWeights = distributeByWeights;
 HM.buildRoomsFromCounts = buildRoomsFromCounts;
 HM.sumRoomField = sumRoomField;
@@ -4590,6 +4653,218 @@ HM.simplePreset = simplePreset;
 HM.simpleCustomerSummary = simpleCustomerSummary;
 HM.SIMPLE_ROOM_TYPES = SIMPLE_ROOM_TYPES;
 HM.SIMPLE_DISTRIBUTE_FIELDS = SIMPLE_DISTRIBUTE_FIELDS;
+
+// ===== example-configs.js =====
+/**
+ * Shared Simple-mode example presets (Apartment / House / Villa).
+ * Used by the configurator UI and the homepage embed — one code path for
+ * estimate inputs, card prices, and ?c= share links.
+ */
+
+
+
+
+const EXAMPLE_CARDS = [
+  ["apartment", "Apartment"],
+  ["house", "Detached house"],
+  ["villa", "Large villa"],
+];
+
+const DEFAULT_RULES_URL = "https://config.home-master.eu/estimator/rules.json";
+
+/**
+ * @param {string} [rulesUrl]
+ */
+function examplesAssetsBase(rulesUrl = DEFAULT_RULES_URL) {
+  try {
+    return new URL("./assets/examples/", String(rulesUrl).replace(/[^/]+$/, "")).href;
+  } catch {
+    return "https://config.home-master.eu/estimator/assets/examples/";
+  }
+}
+
+/** @type {Promise<object>|null} */
+let examplesManifestPromise = null;
+
+/**
+ * @param {string} [rulesUrl]
+ * @returns {Promise<object>}
+ */
+function loadExamplesManifest(rulesUrl = DEFAULT_RULES_URL) {
+  if (!examplesManifestPromise) {
+    const url = new URL("manifest.json", examplesAssetsBase(rulesUrl)).href;
+    examplesManifestPromise = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`examples manifest HTTP ${r.status}`);
+        return r.json();
+      })
+      .catch((err) => {
+        examplesManifestPromise = null;
+        throw err;
+      });
+  }
+  return examplesManifestPromise;
+}
+
+/**
+ * @param {string} moduleId
+ * @param {object|null} rules
+ * @param {Record<string, {available?: boolean}>} priceMap
+ */
+function moduleIsAvailable(moduleId, rules, priceMap) {
+  const spec = rules?.modules?.[moduleId];
+  if (!spec?.sku) return true;
+  const p = priceMap?.[spec.sku];
+  if (!p) return true;
+  return p.available !== false;
+}
+
+/**
+ * Build the exact Simple example configuration used for card price AND share/apply.
+ * Always starts from emptySystems — never merges leftover Advanced/Simple systems.
+ *
+ * @param {string} kind
+ * @param {{ rules?: object|null, isAvailable?: (id: string) => boolean, stage?: string, panelId?: string }} opts
+ */
+function buildExampleConfig(kind, opts = {}) {
+  const rules = opts.rules || null;
+  const panelId = opts.panelId || "panel-1";
+  const stage = opts.stage || "design";
+  const isAvailable =
+    typeof opts.isAvailable === "function" ? opts.isAvailable : () => true;
+
+  const raw = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
+  const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(raw, isAvailable);
+  const { rooms, warnings } = applySimpleDistribution({
+    counts: p.counts,
+    totals: p.totals,
+    rooms: [],
+    roomTypeLabels: rules?.room_type_labels,
+    roomTemplates: rules?.room_templates,
+    roomDefaultsFn: (t) => simpleRoomDefaults(t),
+    panelId,
+  });
+  let systems = applySimpleToggles(emptySystems(panelId), p.toggles);
+  systems.heating.collector_loops = Math.max(0, Number(p.totals.ufh_loops) || 0);
+  if (p.clearStairLighting && systems.lighting_scenes) {
+    systems.lighting_scenes.stair_steps = 0;
+    systems.lighting_scenes.accent_zones = 0;
+  }
+  const inputs = {
+    panels: resolvePanels({ panels: [{ id: panelId, name: "Main panel", location: "" }] }),
+    rooms,
+    systems,
+    stage,
+    property_type: p.property_type,
+    floor_area_m2: p.floor_area_m2,
+    floors: p.floors,
+  };
+  return {
+    kind: kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment",
+    preset: p,
+    exclusions,
+    controllersOk,
+    rooms,
+    systems,
+    warnings,
+    inputs,
+  };
+}
+
+/**
+ * Configurator-shaped state for encodeShareLink / applySharePatch.
+ * @param {ReturnType<typeof buildExampleConfig>} cfg
+ * @param {{ stage?: string }} [opts]
+ */
+function shareStateFromExampleConfig(cfg, opts = {}) {
+  const stage = opts.stage || "design";
+  return {
+    ui_mode: "simple",
+    step: 0,
+    expert: false,
+    object: {
+      property_type: cfg.preset.property_type,
+      floor_area_m2: cfg.preset.floor_area_m2,
+      floors: cfg.preset.floors,
+      stage,
+      name: "",
+      cabinets: 1,
+    },
+    panels: [{ id: "panel-1", name: "Main panel", location: "" }],
+    rooms: cfg.rooms,
+    rooms_user_edited: true,
+    systems: cfg.systems,
+    expertDemand: {},
+    simple: {
+      counts: cfg.preset.counts,
+      totals: cfg.preset.totals,
+      toggles: cfg.preset.toggles,
+      preset: cfg.kind,
+      controllersOk: cfg.controllersOk,
+      warnings: cfg.warnings || [],
+    },
+  };
+}
+
+/**
+ * @param {ReturnType<typeof buildExampleConfig>} cfg
+ * @param {{ path?: string, stage?: string }} [opts]
+ */
+function exampleShareHref(cfg, opts = {}) {
+  const path = opts.path || "/system-builder";
+  const token = encodeShareLink(shareStateFromExampleConfig(cfg, { stage: opts.stage }));
+  return `${path}?c=${token}`;
+}
+
+/**
+ * Same label the configurator card shows.
+ * @param {ReturnType<typeof buildExampleConfig>} cfg
+ * @param {object} rules
+ * @param {Record<string, {amount:number, currency:string, available?: boolean}>} priceMap
+ * @returns {{ text: string, total: number|null, currency: string|null, result: object|null }}
+ */
+function exampleCardPrice(cfg, rules, priceMap) {
+  if (!cfg?.controllersOk) {
+    return { text: "unavailable", total: null, currency: null, result: null };
+  }
+  const result = estimate(cfg.inputs, rules, priceMap);
+  const sys = systemTotal(result, priceMap);
+  if (sys && sys.pricedQty > 0) {
+    return {
+      text: `${sys.total} ${sys.currency}`,
+      total: sys.total,
+      currency: sys.currency,
+      result,
+    };
+  }
+  return { text: "see estimate", total: null, currency: null, result };
+}
+
+/**
+ * Shop URLs for every module in rules (stock catalog), same idea as configurator.
+ * @param {object|null} rules
+ * @returns {string[]}
+ */
+function allModuleShopUrls(rules) {
+  const specs = rules?.modules || {};
+  return [
+    ...new Set(
+      Object.values(specs)
+        .map((s) => s?.shop_url)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+HM.examplesAssetsBase = examplesAssetsBase;
+HM.loadExamplesManifest = loadExamplesManifest;
+HM.moduleIsAvailable = moduleIsAvailable;
+HM.buildExampleConfig = buildExampleConfig;
+HM.shareStateFromExampleConfig = shareStateFromExampleConfig;
+HM.exampleShareHref = exampleShareHref;
+HM.exampleCardPrice = exampleCardPrice;
+HM.allModuleShopUrls = allModuleShopUrls;
+HM.EXAMPLE_CARDS = EXAMPLE_CARDS;
 
 // ===== panel-layout.js =====
 /**
@@ -5942,6 +6217,7 @@ HM.SHARE_SCHEMA_VERSION = SHARE_SCHEMA_VERSION;
 
 
 
+
 const STORAGE_KEY = "hm_configurator_v6";
 const MODE_KEY = "hm_configurator_ui_mode";
 
@@ -5951,30 +6227,11 @@ const RULES_URL =
   "https://config.home-master.eu/estimator/rules.json";
 
 function examplesAssetsBase() {
-  try {
-    return new URL("./assets/examples/", RULES_URL.replace(/[^/]+$/, "")).href;
-  } catch {
-    return "https://config.home-master.eu/estimator/assets/examples/";
-  }
+  return examplesAssetsBaseCore(RULES_URL);
 }
 
-/** @type {Promise<object>|null} */
-let examplesManifestPromise = null;
-
 function loadExamplesManifest() {
-  if (!examplesManifestPromise) {
-    const url = new URL("manifest.json", examplesAssetsBase()).href;
-    examplesManifestPromise = fetch(url)
-      .then((r) => {
-        if (!r.ok) throw new Error(`examples manifest HTTP ${r.status}`);
-        return r.json();
-      })
-      .catch((err) => {
-        examplesManifestPromise = null;
-        throw err;
-      });
-  }
-  return examplesManifestPromise;
+  return loadExamplesManifestCore(RULES_URL);
 }
 
 const ROOM_FIELDS_LIGHT = [
@@ -6170,67 +6427,6 @@ const STEPS = ["Property", "Rooms", "Systems", "Result"];
 
 function defaultPanels() {
   return [{ id: "panel-1", name: "Main panel", location: "" }];
-}
-
-function emptySystems(panelId = "panel-1") {
-  return {
-    heating: {
-      panel_id: panelId,
-      boiler: "none",
-      collector_loops: 0,
-      heating_pumps: 0,
-      fan_coils: 0,
-      heat_pump: 0,
-      fireplace: 0,
-      pt100_sensors: 0,
-      ds18b20_sensors: 0,
-    },
-    ventilation: {
-      panel_id: panelId,
-      ahu: 0,
-      recuperator: 0,
-      extract_fans: 0,
-      dampers_0_10v: 0,
-      sensors_0_10v: 0,
-      sensors_4_20ma: 0,
-    },
-    water: {
-      panel_id: panelId,
-      leak_zones: 0,
-      shutoff_valves: 0,
-      water_meters: 0,
-      irrigation: 0,
-      water_pumps: 0,
-      dhw_recirc: 0,
-      gas_valve: 0,
-    },
-    electrical: {
-      panel_id: panelId,
-      energy_phases: 0,
-      load_shed: 0,
-      ev_chargers: 0,
-      pv_inverters: 0,
-      fault_contacts: 0,
-    },
-    security: {
-      panel_id: panelId,
-      powered_sensors: [],
-      dry_contacts: 0,
-      gates: 0,
-      locks: 0,
-      panic_buttons: 0,
-    },
-    lighting_scenes: {
-      panel_id: panelId,
-      stair_steps: 0,
-      accent_zones: 0,
-      garden_lights: 0,
-    },
-    system: {
-      manual_control: true,
-      ha_server: "needed",
-    },
-  };
 }
 
 function firstPanelId() {
@@ -6790,45 +6986,12 @@ function runSimpleSync({ rebuildCounts = false } = {}) {
  * Always starts from emptySystems — never merges leftover Advanced/Simple systems.
  */
 function buildExampleConfig(kind) {
-  const raw = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
-  const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(
-    raw,
-    moduleIsAvailable,
-  );
-  const { rooms, warnings } = applySimpleDistribution({
-    counts: p.counts,
-    totals: p.totals,
-    rooms: [],
-    roomTypeLabels: rules?.room_type_labels,
-    roomTemplates: rules?.room_templates,
-    roomDefaultsFn: (t) => simpleRoomDefaults(t),
+  return buildExampleConfigCore(kind, {
+    rules,
+    isAvailable: (id) => moduleIsAvailable(id),
+    stage: state.object.stage || "design",
     panelId: firstPanelId(),
   });
-  let systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
-  systems.heating.collector_loops = Math.max(0, Number(p.totals.ufh_loops) || 0);
-  if (p.clearStairLighting && systems.lighting_scenes) {
-    systems.lighting_scenes.stair_steps = 0;
-    systems.lighting_scenes.accent_zones = 0;
-  }
-  const inputs = {
-    panels: resolvePanels({ panels: [{ id: "panel-1", name: "Main panel", location: "" }] }),
-    rooms,
-    systems,
-    stage: state.object.stage || "design",
-    property_type: p.property_type,
-    floor_area_m2: p.floor_area_m2,
-    floors: p.floors,
-  };
-  return {
-    kind: kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment",
-    preset: p,
-    exclusions,
-    controllersOk,
-    rooms,
-    systems,
-    warnings,
-    inputs,
-  };
 }
 
 function applyPreset(kind) {
@@ -6857,11 +7020,7 @@ function syncSimpleSlidersFromRooms() {
 
 /** True when shop ld+json marks the module InStock (or we have no price yet). */
 function moduleIsAvailable(moduleId) {
-  const spec = rules?.modules?.[moduleId];
-  if (!spec?.sku) return true;
-  const p = priceMap[spec.sku];
-  if (!p) return true;
-  return p.available !== false;
+  return moduleIsAvailableCore(moduleId, rules, priceMap);
 }
 
 /** Fetch shop pages for every module SKU so example presets can drop OOS features. */
@@ -7419,11 +7578,7 @@ function mountConfigurator(root) {
       examplesEl.innerHTML = "";
       return;
     }
-    const cards = [
-      ["apartment", "Apartment"],
-      ["house", "Detached house"],
-      ["villa", "Large villa"],
-    ];
+    const cards = EXAMPLE_CARDS;
     examplesEl.innerHTML = `
       <p class="hm-examples__label">Start from an example</p>
       <div class="hm-examples__row">
@@ -7481,27 +7636,21 @@ function mountConfigurator(root) {
       const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
       if (!elPrice) continue;
       try {
-        const cfg = buildExampleConfig(kind);
+        let cfg = buildExampleConfig(kind);
         if (!cfg.controllersOk) {
           elPrice.textContent = "unavailable";
           continue;
         }
-        let result = estimate(cfg.inputs, rules, priceMap);
-        const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
+        let priced = exampleCardPrice(cfg, rules, priceMap);
+        const urls = (priced.result?.modules || []).map((m) => m.shop_url).filter(Boolean);
         if (urls.length) {
           const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
           priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
           // Re-adapt after prices: OOS gates may change once availability is known.
-          const cfg2 = buildExampleConfig(kind);
-          if (!cfg2.controllersOk) {
-            elPrice.textContent = "unavailable";
-            continue;
-          }
-          result = estimate(cfg2.inputs, rules, priceMap);
+          cfg = buildExampleConfig(kind);
+          priced = exampleCardPrice(cfg, rules, priceMap);
         }
-        const sys = systemTotal(result, priceMap);
-        elPrice.textContent =
-          sys && sys.pricedQty > 0 ? `${sys.total} ${sys.currency}` : "see estimate";
+        elPrice.textContent = priced.text;
       } catch {
         elPrice.textContent = "—";
       }

@@ -1,0 +1,100 @@
+/* Homepage Simple examples embed (#hm-examples). Scoped — safe on Odoo pages. */
+
+#hm-examples {
+  --hm-ex-ink: #1c2430;
+  --hm-ex-line: #d5dde6;
+  --hm-ex-card: #ffffff;
+  --hm-ex-accent: #0b6e4f;
+  --hm-ex-radius: 10px;
+  --hm-ex-font: "Source Sans 3", "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: var(--hm-ex-font);
+  color: var(--hm-ex-ink);
+  box-sizing: border-box;
+}
+
+#hm-examples *,
+#hm-examples *::before,
+#hm-examples *::after {
+  box-sizing: border-box;
+}
+
+#hm-examples .hm-home-examples__row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+@media (max-width: 720px) {
+  #hm-examples .hm-home-examples__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+#hm-examples .hm-home-examples__card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--hm-ex-line);
+  border-radius: var(--hm-ex-radius);
+  background: var(--hm-ex-card);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#hm-examples .hm-home-examples__card:hover {
+  border-color: var(--hm-ex-accent);
+  box-shadow: 0 2px 10px rgba(31, 122, 36, 0.1);
+}
+
+#hm-examples .hm-home-examples__media {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+#hm-examples .hm-home-examples__img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  object-position: center;
+  background: #2a2f36;
+}
+
+@media (max-width: 720px) {
+  #hm-examples .hm-home-examples__img {
+    height: 100px;
+  }
+}
+
+#hm-examples .hm-home-examples__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 1.6rem 0.85rem 0.65rem;
+  color: #fff;
+  background: linear-gradient(
+    to top,
+    rgba(12, 16, 22, 0.88) 0%,
+    rgba(12, 16, 22, 0.55) 55%,
+    rgba(12, 16, 22, 0) 100%
+  );
+}
+
+#hm-examples .hm-home-examples__caption strong {
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+#hm-examples .hm-home-examples__price {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.88rem;
+  min-height: 1.2em;
+}
