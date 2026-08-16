@@ -3728,7 +3728,10 @@ function cartEligibleLines(estimate, prices) {
  */
 function formatMoney(n) {
   if (n == null || !Number.isFinite(Number(n))) return null;
-  return (Math.round(Number(n) * 100) / 100).toFixed(2);
+  const fixed = (Math.round(Number(n) * 100) / 100).toFixed(2);
+  const [whole, frac] = fixed.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f");
+  return `${grouped}.${frac}`;
 }
 
 /**

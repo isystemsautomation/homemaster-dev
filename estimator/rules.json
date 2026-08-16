@@ -584,6 +584,7 @@
       "product_id": 58,
       "sku": "HM-DIO-430-R1",
       "shop_url": "/shop/dio-430-r1-relay-module-58",
+      "blurb": "relay outputs and dry inputs",
       "din_units": 4,
       "provides": {
         "relay_out_3a": 3,
@@ -606,6 +607,7 @@
       "product_id": 736,
       "sku": "HM-DIM-420-R1",
       "shop_url": "/shop/dim-420-r1-dimmer-module-736",
+      "blurb": "trailing-edge dimmers for mains lights",
       "din_units": 4,
       "provides": {
         "dimmer_ac_ch": 2,
@@ -625,6 +627,7 @@
       "product_id": 57,
       "sku": "HM-RGB-621-R1",
       "shop_url": "/shop/rgb-621-r1-led-controller-57",
+      "blurb": "RGBCCT LED strip controller",
       "din_units": 3,
       "provides": {
         "pwm_led_ch": 5,
@@ -648,6 +651,7 @@
       "product_id": 66,
       "sku": "HM-STR-3221-R1",
       "shop_url": "/shop/str-3221-r1-actuator-driver-66",
+      "blurb": "underfloor heating actuator driver",
       "din_units": 9,
       "provides": {
         "out_24v_ch": 32,
@@ -686,6 +690,7 @@
       "product_id": 1035,
       "sku": "HM-WLD-521-R1",
       "shop_url": "/shop/wld-521-r1-leak-detector-1035",
+      "blurb": "leak detection and water metering",
       "din_units": 4,
       "provides": {
         "leak_or_pulse": 5,
@@ -720,6 +725,7 @@
       "product_id": 737,
       "sku": "HM-ENM-223-R1",
       "shop_url": "/shop/enm-223-r1-energy-meter-737",
+      "blurb": "three-phase energy metering",
       "din_units": 4,
       "provides": {
         "energy_phase": 3,
@@ -740,6 +746,7 @@
       "product_id": 735,
       "sku": "HM-AIO-422-R1",
       "shop_url": "/shop/aio-422-r1-analog-io-rtd-735",
+      "blurb": "analogue I/O and RTD temperature inputs",
       "din_units": 4,
       "provides": {
         "analog_in": 4,
@@ -761,6 +768,7 @@
       "product_id": 733,
       "sku": "HM-ALM-173-R1",
       "shop_url": "/shop/alm-173-r1-alarm-module-733",
+      "blurb": "wired alarm zones",
       "din_units": 9,
       "provides": {
         "alarm_zone": 17,
@@ -803,6 +811,7 @@
       "product_id": 59,
       "sku": "HM-OTG-001",
       "shop_url": "/shop/opentherm-gateway-59",
+      "blurb": "OpenTherm boiler gateway",
       "din_units": 2,
       "provides": {
         "opentherm": 1,
@@ -835,6 +844,7 @@
       "product_id": 56,
       "sku": "HM-MICROPLC",
       "shop_url": "/shop/microplc-rs485-controller-56",
+      "blurb": "bus controller",
       "din_units": 2,
       "master": true,
       "provides": {
@@ -869,6 +879,7 @@
       "product_id": 55,
       "sku": "HM-MINIPLC",
       "shop_url": "/shop/esp32-miniplc-55",
+      "blurb": "bus controller with onboard I/O",
       "din_units": 9,
       "master": true,
       "provides": {

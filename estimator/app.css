@@ -45,6 +45,41 @@
 
 #hm-system-builder .hm-estimator__header {
   margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+#hm-system-builder .hm-estimator__tagline {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--hm-muted);
+  text-align: left;
+  max-width: 40rem;
+}
+
+#hm-system-builder .hm-estimator__mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.1rem;
+}
+
+#hm-system-builder .hm-mode-detail {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--hm-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+#hm-system-builder .hm-mode-detail:hover {
+  color: var(--hm-ink);
 }
 
 #hm-system-builder .hm-steps {
@@ -509,7 +544,7 @@
 #hm-system-builder .hm-mode-toggle {
   display: inline-flex;
   gap: 0;
-  margin: 0.75rem 0 0.5rem;
+  margin: 0;
   border: 1px solid var(--hm-line);
   border-radius: 8px;
   overflow: hidden;
@@ -1225,7 +1260,7 @@
 
 #hm-system-builder .hm-simple-buy__left {
   display: inline-flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.35rem;
   min-width: 0;
   text-align: left;
@@ -1883,17 +1918,208 @@
 
 #hm-system-builder .hm-installation__list {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0.35rem 0 0;
   padding: 0;
 }
 
 #hm-system-builder .hm-installation__list li {
+  padding: 0.2rem 0;
+  border: none;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--hm-muted);
+  display: list-item;
+  list-style: disc;
+  margin-left: 1.1rem;
+}
+
+#hm-system-builder .hm-installation__h {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-installation__lead {
+  margin: 0 0 0.45rem;
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-equip {
+  padding: 1.1rem 1.25rem;
+  text-align: left;
+}
+
+#hm-system-builder .hm-equip__hero-amt {
+  margin: 0;
+  font-size: clamp(1.85rem, 3.6vw, 2.55rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--hm-ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-equip__hero-amt span {
+  font-size: 0.45em;
+  font-weight: 600;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-equip__hero-lab {
+  margin: 0.2rem 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--hm-muted);
+  text-align: center;
+}
+
+#hm-system-builder .hm-equip__break {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--hm-line);
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0 0 0.65rem;
+}
+
+#hm-system-builder .hm-equip__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.75rem;
+  align-items: baseline;
+  text-align: left;
+}
+
+#hm-system-builder .hm-equip__name {
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-equip__amt {
   font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+#hm-system-builder .hm-equip__tag {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--hm-muted);
+  margin-top: -0.05rem;
+}
+
+#hm-system-builder .hm-equip__install-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--hm-line);
+  text-align: left;
+}
+
+#hm-system-builder .hm-equip__install-note {
+  font-size: 0.9rem;
+  color: var(--hm-muted);
+  font-weight: 600;
+}
+
+#hm-system-builder .hm-equip__tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0;
+  font-size: 12px;
+  color: var(--hm-muted);
+  cursor: help;
+  text-align: left;
+}
+
+#hm-system-builder .hm-equip__tip-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid var(--hm-line);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-style: normal;
+  flex-shrink: 0;
+}
+
+#hm-system-builder .hm-simple-buy__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+#hm-system-builder .hm-simple-buy__blurb {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--hm-muted);
+  line-height: 1.3;
+}
+
+#hm-system-builder .hm-simple-cta {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hm-line);
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-cta__btn {
+  width: 100%;
+  justify-content: center;
+}
+
+#hm-system-builder .hm-simple-cta__status {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  color: var(--hm-muted);
+  text-align: left;
+}
+
+#hm-system-builder .hm-simple-cta__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.65rem;
+}
+
+#hm-system-builder .hm-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--hm-accent);
+  cursor: pointer;
+}
+
+#hm-system-builder .hm-text-link:hover {
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-text-link .hm-ico {
+  color: inherit;
 }
 
 #hm-system-builder .hm-result-hero__sub {
