@@ -1,19 +1,27 @@
 /* HomeMaster estimator (published as estimator/app.css) */
 
 #hm-system-builder {
+  /* Accent — board green from module photos */
+  --hm-accent: #1F7A24;
+  --hm-accent-hover: #268C2B;
+  --hm-accent-ink: #FFFFFF;
+  --hm-accent-fill: #43A047;
+  --hm-accent-soft: #E8F5E9;
+  --hm-pcb: #30A830;
+  /* Secondary — terminal blue */
+  --hm-link: #0A6BA8;
+  --hm-link-soft: #E3F0F9;
+  /* Neutrals — match the shop host */
   --hm-ink: #212529;
   --hm-muted: #6C757D;
   --hm-line: #DEE2E6;
   --hm-paper: #F8F9FA;
   --hm-card: #FFFFFF;
-  --hm-accent: #343A40;
-  --hm-accent-ink: #ffffff;
-  --hm-accent-soft: #F1F3F5;
-  --hm-accent-line: #CED4DA;
-  --hm-warn: #9a6700;
-  --hm-danger: #a40e26;
+  --hm-warn: #9A6700;
+  --hm-danger: #A40E26;
   --hm-radius: 8px;
-  --hm-btn-radius: 32px;
+  --hm-radius-pill: 32px;
+  --hm-btn-radius: var(--hm-radius-pill);
   --hm-font: Roboto, "Odoo Unicode Support Noto", sans-serif;
   font-family: var(--hm-font);
   color: var(--hm-ink);
@@ -432,12 +440,20 @@
 #hm-system-builder .hm-actions button,
 #hm-system-builder .hm-main > button {
   border: 0;
-  border-radius: var(--hm-btn-radius);
+  border-radius: var(--hm-radius-pill);
   padding: 0.55rem 1rem;
   background: var(--hm-accent);
   color: var(--hm-accent-ink);
   font: inherit;
   cursor: pointer;
+}
+
+#hm-system-builder .hm-actions button:hover:not(#hm-back):not(#hm-csv):not(#add-room),
+#hm-system-builder .hm-main > button:hover:not(#hm-back):not(#hm-csv):not(#add-room):not(#add-panel):not(#reset-rooms),
+#hm-system-builder .hm-mode-btn.is-active:hover,
+#hm-system-builder .hm-step.is-active:hover {
+  background: var(--hm-accent-hover);
+  border-color: var(--hm-accent-hover);
 }
 
 #hm-system-builder .hm-actions button:nth-child(n+2),
@@ -480,7 +496,7 @@
   vertical-align: top;
 }
 
-#hm-system-builder .hm-table a { color: var(--hm-accent); }
+#hm-system-builder .hm-table a { color: var(--hm-link); }
 
 #hm-system-builder .hm-why {
   background: transparent;
@@ -564,7 +580,12 @@
 
 #hm-system-builder .hm-example-card:hover {
   border-color: var(--hm-accent);
-  box-shadow: 0 2px 10px rgba(33, 37, 41, 0.08);
+  box-shadow: 0 2px 10px rgba(31, 122, 36, 0.10);
+}
+
+#hm-system-builder .hm-example-card.is-selected {
+  border-color: var(--hm-accent);
+  background: var(--hm-accent-soft);
 }
 
 #hm-system-builder .hm-example-card__ico {
@@ -726,18 +747,13 @@
 }
 
 #hm-system-builder .hm-slider__name .hm-ico {
-  color: var(--hm-muted);
+  color: var(--hm-accent);
 }
 
 #hm-system-builder .hm-slider__label strong {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--hm-ink);
-}
-
-#hm-system-builder .hm-slider input[type="range"] {
-  width: 100%;
-  accent-color: var(--hm-accent);
 }
 
 #hm-system-builder .hm-simple-toggles {
@@ -785,7 +801,7 @@
 }
 
 #hm-system-builder .hm-simple-chip:has(input:checked) {
-  border-color: var(--hm-accent-line);
+  border-color: var(--hm-accent);
   background: var(--hm-accent-soft);
 }
 
@@ -930,14 +946,46 @@
   object-fit: fill;
   vertical-align: top;
   background: transparent;
+  cursor: pointer;
+}
+
+#hm-system-builder .hm-rail-tile:focus-visible {
+  outline: 2px solid var(--hm-accent);
+  outline-offset: -2px;
+}
+
+#hm-system-builder .hm-rail-tile--module {
+  background: var(--hm-pcb);
+}
+
+#hm-system-builder .hm-rail-tile--companion {
+  background: var(--hm-paper);
+  border-right: 1px solid var(--hm-line);
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-rail-tile--power {
+  background: var(--hm-link-soft);
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-rail-tile--blank {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      var(--hm-paper),
+      var(--hm-paper) 3px,
+      #eef1f4 3px,
+      #eef1f4 6px
+    );
+  color: var(--hm-muted);
+  border-right: 1px solid var(--hm-line);
 }
 
 #hm-system-builder .hm-rail-tile--missing {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #c5ccd3;
-  color: #3a4450;
   font-size: 0.65rem;
   text-align: center;
   padding: 0.2rem;
@@ -945,8 +993,71 @@
   word-break: break-word;
 }
 
+#hm-system-builder .hm-rail-tile--group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  padding: 0.25rem;
+  box-sizing: border-box;
+}
+
+#hm-system-builder .hm-rail-tile__qty {
+  font-variant-numeric: tabular-nums;
+  color: var(--hm-ink);
+}
+
 #hm-system-builder .hm-rail-tile__fallback {
   max-width: 100%;
+}
+
+#hm-system-builder .hm-rail-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-rail-legend__swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  vertical-align: -0.1rem;
+  border: 1px solid var(--hm-line);
+}
+
+#hm-system-builder .hm-rail-legend__swatch--pcb {
+  background: var(--hm-pcb);
+}
+
+#hm-system-builder .hm-rail-legend__swatch--power {
+  background: var(--hm-link-soft);
+}
+
+#hm-system-builder .hm-rail-legend__swatch--companion {
+  background: var(--hm-paper);
+}
+
+#hm-system-builder .hm-rail-legend__swatch--blank {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      var(--hm-paper),
+      var(--hm-paper) 2px,
+      #eef1f4 2px,
+      #eef1f4 4px
+    );
 }
 
 #hm-system-builder .hm-rail-tile.is-hl,
@@ -958,7 +1069,7 @@
 }
 
 #hm-system-builder .hm-table tbody tr[data-hl] {
-  cursor: default;
+  cursor: pointer;
 }
 
 #hm-system-builder .hm-table tbody tr[data-hl]:hover,
@@ -988,11 +1099,23 @@
 #hm-system-builder .hm-slider input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
+  width: 100%;
   height: 0.4rem;
   border-radius: 999px;
   background: var(--hm-line);
   outline: none;
-  accent-color: var(--hm-accent);
+}
+
+#hm-system-builder .hm-slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--hm-accent-fill) 0%,
+    var(--hm-accent-fill) var(--hm-slider-pct, 0%),
+    var(--hm-line) var(--hm-slider-pct, 0%),
+    var(--hm-line) 100%
+  );
 }
 
 #hm-system-builder .hm-slider input[type="range"]::-webkit-slider-thumb {
@@ -1000,20 +1123,11 @@
   appearance: none;
   width: 1.1rem;
   height: 1.1rem;
+  margin-top: -0.35rem;
   border-radius: 50%;
-  background: var(--hm-accent);
+  background: var(--hm-accent-fill);
   border: 2px solid var(--hm-card);
-  box-shadow: 0 0 0 1px var(--hm-accent-line);
-  cursor: pointer;
-}
-
-#hm-system-builder .hm-slider input[type="range"]::-moz-range-thumb {
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 50%;
-  background: var(--hm-accent);
-  border: 2px solid var(--hm-card);
-  box-shadow: 0 0 0 1px var(--hm-accent-line);
+  box-shadow: 0 0 0 1px var(--hm-accent);
   cursor: pointer;
 }
 
@@ -1021,6 +1135,22 @@
   height: 0.4rem;
   border-radius: 999px;
   background: var(--hm-line);
+}
+
+#hm-system-builder .hm-slider input[type="range"]::-moz-range-progress {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--hm-accent-fill);
+}
+
+#hm-system-builder .hm-slider input[type="range"]::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--hm-accent-fill);
+  border: 2px solid var(--hm-card);
+  box-shadow: 0 0 0 1px var(--hm-accent);
+  cursor: pointer;
 }
 
 #hm-system-builder .hm-ico {
@@ -1119,7 +1249,7 @@
 }
 
 #hm-system-builder .hm-stepper__btn:hover {
-  border-color: var(--hm-accent-line);
+  border-color: var(--hm-accent);
   background: var(--hm-accent-soft);
 }
 

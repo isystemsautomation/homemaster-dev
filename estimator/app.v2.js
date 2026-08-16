@@ -4511,6 +4511,7 @@ function resolveTileSrc(manifest, item, assetsBase) {
 
 function tileTooltip(item, priceMap) {
   const bits = [item.label || item.id, `${item.units} M`];
+  if (item.count > 1) bits.unshift(`${item.count}×`);
   if (item.kind === "module") {
     const p =
       item.price ||
@@ -4524,20 +4525,58 @@ function tileTooltip(item, priceMap) {
   return bits.filter(Boolean).join(" · ");
 }
 
+/** Merge consecutive identical tiles for display (packing unchanged). */
+function collapseAdjacentTiles(items) {
+  const out = [];
+  for (const it of items || []) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      last.id === it.id &&
+      last.kind === it.kind &&
+      last.key === it.key
+    ) {
+      last.count = (last.count || 1) + 1;
+      last.units = Math.round((Number(last.units) + Number(it.units)) * 100) / 100;
+      continue;
+    }
+    out.push({ ...it, count: 1, units: Number(it.units) || 0 });
+  }
+  return out;
+}
+
+function tileToneClass(item) {
+  if (item.id === "blanking_plate" || item.group === "blank") return "hm-rail-tile--blank";
+  if (item.kind === "module") return "hm-rail-tile--module";
+  if (item.group === "power" || item.group === "incomer") return "hm-rail-tile--power";
+  return "hm-rail-tile--companion";
+}
+
 function renderTile(item, manifest, assetsBase, unitPx, heightPx, priceMap) {
   const w = Math.max(1, Math.round(item.units * unitPx));
   const h = heightPx;
   const tip = escapeHtml(tileTooltip(item, priceMap));
   const hl = escapeHtml(item.key);
+  const tone = tileToneClass(item);
+  const count = item.count || 1;
   const { src, missing } = resolveTileSrc(manifest, item, assetsBase);
-  if (missing || !src) {
-    return `<span class="hm-rail-tile hm-rail-tile--missing" data-hl="${hl}" title="${tip}" style="width:${w}px;height:${h}px"><span class="hm-rail-tile__fallback">${escapeHtml(item.label || item.id)}</span></span>`;
+  const tab = ` tabindex="0" role="button"`;
+  const isBlank = item.id === "blanking_plate" || item.group === "blank";
+  const usePhoto = Boolean(src) && !missing && count === 1 && !isBlank;
+
+  if (!usePhoto) {
+    const label =
+      count > 1
+        ? `${count}× ${item.label || item.id}`
+        : item.label || item.id;
+    return `<span class="hm-rail-tile ${tone} hm-rail-tile--group" data-hl="${hl}" title="${tip}"${tab} style="width:${w}px;height:${h}px"><span class="hm-rail-tile__qty">${escapeHtml(label)}</span></span>`;
   }
+
   const shop =
     item.kind === "module" && item.shop_url
       ? ` data-shop="${escapeHtml(item.shop_url)}"`
       : "";
-  return `<img class="hm-rail-tile" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" width="${w}" height="${h}" loading="lazy" decoding="async" style="width:${w}px;height:${h}px">`;
+  return `<img class="hm-rail-tile ${tone}" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" width="${w}" height="${h}" loading="lazy" decoding="async"${tab} style="width:${w}px;height:${h}px">`;
 }
 
 /**
@@ -4579,7 +4618,7 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
     .map((sec) => {
       const rowsHtml = sec.rows
         .map((row) => {
-          const tiles = row.items
+          const tiles = collapseAdjacentTiles(row.items)
             .map((it) =>
               renderTile(it, manifest, assetsBase, unitPx, heightPx, priceMap),
             )
@@ -4598,15 +4637,27 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
     })
     .join("");
 
+  const legend = `<ul class="hm-rail-legend" aria-label="Layout legend">
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--pcb" aria-hidden="true"></span>HomeMaster modules</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--power" aria-hidden="true"></span>Incomer &amp; power</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--companion" aria-hidden="true"></span>Protection &amp; terminals</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--blank" aria-hidden="true"></span>Blanking (reserve)</li>
+  </ul>`;
+
   return `<div class="hm-rail-layout" data-unit-px="${unitPx}">
     <p class="hm-rail-layout__summary">${escapeHtml(headline)}</p>
     <div class="hm-rail-layout__sections">${sectionsHtml}</div>
+    ${legend}
   </div>`;
 }
 
-/** Bind hover cross-highlight between BOM table rows and rail tiles. */
+/** Bind hover/click/focus cross-highlight between BOM table rows and rail tiles. */
 function bindLayoutHighlight(root) {
   if (!root) return;
+  let locked = null;
+  const clear = () => {
+    root.querySelectorAll("[data-hl].is-hl").forEach((el) => el.classList.remove("is-hl"));
+  };
   const sync = (key, on) => {
     if (!key) return;
     root.querySelectorAll("[data-hl]").forEach((el) => {
@@ -4614,8 +4665,45 @@ function bindLayoutHighlight(root) {
     });
   };
   root.querySelectorAll("[data-hl]").forEach((el) => {
-    el.addEventListener("mouseenter", () => sync(el.getAttribute("data-hl"), true));
-    el.addEventListener("mouseleave", () => sync(el.getAttribute("data-hl"), false));
+    const key = () => el.getAttribute("data-hl");
+    el.addEventListener("mouseenter", () => {
+      if (locked) return;
+      sync(key(), true);
+    });
+    el.addEventListener("mouseleave", () => {
+      if (locked) return;
+      sync(key(), false);
+    });
+    el.addEventListener("focus", () => {
+      if (locked && locked !== key()) {
+        clear();
+        locked = null;
+      }
+      sync(key(), true);
+    });
+    el.addEventListener("blur", () => {
+      if (locked) return;
+      sync(key(), false);
+    });
+    el.addEventListener("click", (ev) => {
+      const k = key();
+      if (!k) return;
+      if (el.tagName === "A") return;
+      ev.preventDefault();
+      if (locked === k) {
+        clear();
+        locked = null;
+        return;
+      }
+      clear();
+      locked = k;
+      sync(k, true);
+    });
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      el.click();
+    });
   });
 }
 
@@ -4634,6 +4722,7 @@ HM.loadPanelManifest = loadPanelManifest;
 HM.buildPlacementQueue = buildPlacementQueue;
 HM.packEnclosureLayout = packEnclosureLayout;
 HM.buildPanelLayout = buildPanelLayout;
+HM.collapseAdjacentTiles = collapseAdjacentTiles;
 HM.renderPanelLayoutHtml = renderPanelLayoutHtml;
 HM.bindLayoutHighlight = bindLayoutHighlight;
 HM.layoutsForEstimate = layoutsForEstimate;
@@ -5338,6 +5427,7 @@ function applyPreset(kind) {
   state.simple.counts = p.counts;
   state.simple.totals = p.totals;
   state.simple.toggles = p.toggles;
+  state.simple.preset = kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment";
   state.rooms = [];
   runSimpleSync();
 }
@@ -5666,7 +5756,9 @@ function mountConfigurator(root) {
         ${cards
           .map(
             ([id, label, icon]) =>
-              `<button type="button" class="hm-example-card" data-preset="${id}">
+              `<button type="button" class="hm-example-card${
+                state.simple?.preset === id ? " is-selected" : ""
+              }" data-preset="${id}">
                 <span class="hm-example-card__ico">${hmIcon(icon, 22)}</span>
                 <span class="hm-example-card__text">
                   <strong>${label}</strong>
@@ -6865,12 +6957,16 @@ function mountConfigurator(root) {
   }
 
   function sliderRow(id, label, value, min, max, icon) {
+    const lo = Number(min) || 0;
+    const hi = Number(max) || 1;
+    const v = Number(value) || 0;
+    const pct = hi > lo ? Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)) : 0;
     return `<div class="hm-slider">
       <div class="hm-slider__label">
         <span class="hm-slider__name">${icon ? hmIcon(icon, 16) : ""}<span>${escapeAttr(label)}</span></span>
         <strong id="${id}-val">${value}</strong>
       </div>
-      <input type="range" id="${id}" min="${min}" max="${max}" value="${value}">
+      <input type="range" id="${id}" min="${min}" max="${max}" value="${value}" style="--hm-slider-pct:${pct}%">
     </div>`;
   }
 
@@ -6971,6 +7067,10 @@ function mountConfigurator(root) {
       input.oninput = () => {
         const n = Number(input.value) || 0;
         if (val) val.textContent = String(n);
+        const lo = Number(input.min) || 0;
+        const hi = Number(input.max) || 1;
+        const pct = hi > lo ? Math.max(0, Math.min(100, ((n - lo) / (hi - lo)) * 100)) : 0;
+        input.style.setProperty("--hm-slider-pct", `${pct}%`);
         apply(n);
         runSimpleSync();
         saveState();
