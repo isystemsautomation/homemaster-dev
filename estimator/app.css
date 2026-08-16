@@ -43,23 +43,8 @@
   padding: 1.25rem 1.25rem 3rem;
 }
 
-#hm-system-builder .hm-estimator__header h1 {
-  margin: 0;
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  letter-spacing: -0.03em;
-}
-
-#hm-system-builder .hm-estimator__tagline {
-  margin: 0.35rem 0 0.75rem;
-  color: var(--hm-muted);
-}
-
-#hm-system-builder .hm-expert {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
-  font-size: 0.95rem;
-  color: var(--hm-muted);
+#hm-system-builder .hm-estimator__header {
+  margin-bottom: 0.75rem;
 }
 
 #hm-system-builder .hm-steps {

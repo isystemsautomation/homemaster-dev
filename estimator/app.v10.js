@@ -6688,6 +6688,8 @@ function migrateState(saved) {
     };
   }
   if (saved.ui_mode !== "advanced") saved.ui_mode = "simple";
+  // Expert demand UI removed — keep engine support for fixtures/share only.
+  saved.expert = false;
   return saved;
 }
 
@@ -6882,6 +6884,7 @@ function applySharePatch(patch) {
   if (!state.systems) state.systems = emptySystems(firstPanelId());
   const mode = patch.ui_mode === "simple" ? "simple" : "advanced";
   state.ui_mode = mode;
+  state.expert = false;
   if (mode === "advanced") state.step = 3;
   if (mode === "simple") syncSimpleSlidersFromRooms();
   saveState();
@@ -7324,13 +7327,10 @@ function mountConfigurator(root) {
   const shell = el(`
     <div class="hm-estimator">
       <header class="hm-estimator__header">
-        <h1>How much does a HomeMaster system cost?</h1>
-        <p class="hm-estimator__tagline">HomeMaster modules only — panel, protection and installation are quoted separately.</p>
         <div class="hm-mode-toggle" role="group" aria-label="Configurator mode">
           <button type="button" id="hm-mode-simple" class="hm-mode-btn">Simple</button>
           <button type="button" id="hm-mode-advanced" class="hm-mode-btn">Advanced</button>
         </div>
-        <label class="hm-expert" id="hm-expert-wrap"><input type="checkbox" id="hm-expert"> Expert mode (direct demand)</label>
       </header>
       <div class="hm-examples" id="hm-examples"></div>
       <nav class="hm-steps" id="hm-steps"></nav>
@@ -7349,8 +7349,6 @@ function mountConfigurator(root) {
   const layout = shell.querySelector("#hm-layout");
   const examplesEl = shell.querySelector("#hm-examples");
   const simpleDock = shell.querySelector("#hm-simple-dock");
-  const expertCb = shell.querySelector("#hm-expert");
-  const expertWrap = shell.querySelector("#hm-expert-wrap");
   const modeSimpleBtn = shell.querySelector("#hm-mode-simple");
   const modeAdvancedBtn = shell.querySelector("#hm-mode-advanced");
   const estimatorRoot = shell;
@@ -7370,6 +7368,7 @@ function mountConfigurator(root) {
     }
     // Simple → Advanced: do not redistribute.
     state.ui_mode = next;
+    state.expert = false;
     try {
       localStorage.setItem(MODE_KEY, next);
     } catch {
@@ -7383,19 +7382,11 @@ function mountConfigurator(root) {
   modeSimpleBtn.addEventListener("click", () => setUiMode("simple"));
   modeAdvancedBtn.addEventListener("click", () => setUiMode("advanced"));
 
-  expertCb.checked = !!state.expert;
-  expertCb.addEventListener("change", () => {
-    state.expert = expertCb.checked;
-    saveState();
-    render();
-  });
-
   function renderModeChrome() {
     const simple = state.ui_mode === "simple";
     modeSimpleBtn.classList.toggle("is-active", simple);
     modeAdvancedBtn.classList.toggle("is-active", !simple);
-    stepsNav.hidden = simple || !!state.expert;
-    expertWrap.hidden = simple;
+    stepsNav.hidden = simple;
     layout.classList.toggle("hm-layout--simple", simple);
     examplesEl.hidden = !simple;
     estimatorRoot.classList.toggle("hm-estimator--simple", simple);
@@ -7824,7 +7815,7 @@ function mountConfigurator(root) {
     };
     main.querySelector("#hm-next").onclick = () => {
       if (!state.rooms_user_edited) reseedRooms(true);
-      state.step = state.expert ? 3 : 1;
+      state.step = 1;
       saveState();
       render();
     };
@@ -8434,31 +8425,6 @@ function mountConfigurator(root) {
     };
   }
 
-  function renderExpert() {
-    main.innerHTML = `
-      <h2>Expert demand (JSON)</h2>
-      <textarea id="expert-json" rows="16">${JSON.stringify(state.expertDemand, null, 2)}</textarea>
-      <div class="hm-actions">
-        <button type="button" id="hm-apply">Apply</button>
-        <button type="button" id="hm-next">To result</button>
-      </div>
-    `;
-    main.querySelector("#hm-apply").onclick = () => {
-      try {
-        state.expertDemand = JSON.parse(main.querySelector("#expert-json").value || "{}");
-        saveState();
-        bump();
-      } catch (e) {
-        alert("JSON: " + e.message);
-      }
-    };
-    main.querySelector("#hm-next").onclick = () => {
-      state.step = 3;
-      saveState();
-      render();
-    };
-  }
-
   function panelResultBlock(panel, opts = {}) {
     const { manifest = null, priceMap: prices = priceMap } = opts;
     const ctrl = (panel.modules || []).filter((m) => rules.modules?.[m.id]?.master);
@@ -8698,7 +8664,7 @@ function mountConfigurator(root) {
       downloadXlsx(result).catch(() => downloadCsv(result));
     main.querySelector("#hm-share").onclick = (ev) => copyShareLink(ev.currentTarget);
     main.querySelector("#hm-back").onclick = () => {
-      state.step = state.expert ? 0 : 2;
+      state.step = 2;
       saveState();
       render();
     };
@@ -9069,11 +9035,6 @@ function mountConfigurator(root) {
     if (state.ui_mode === "simple") {
       if (!state.rooms?.length) runSimpleSync();
       renderSimple();
-      return;
-    }
-    if (state.expert && state.step > 0 && state.step < 3) {
-      renderExpert();
-      bump();
       return;
     }
     if (state.step === 0) renderObject();
