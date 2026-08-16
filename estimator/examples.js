@@ -3722,6 +3722,16 @@ function cartEligibleLines(estimate, prices) {
 }
 
 /**
+ * Always two decimal places for money shown to visitors (994.40, not 994.4).
+ * @param {unknown} n
+ * @returns {string|null}
+ */
+function formatMoney(n) {
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return (Math.round(Number(n) * 100) / 100).toFixed(2);
+}
+
+/**
  * Sum every HomeMaster line that has a numeric shop price (including out of stock).
  * @param {object} estimate
  * @param {Record<string, {amount: number, currency: string, currencyAmbiguous?: boolean, available?: boolean}>} prices
@@ -3871,6 +3881,7 @@ HM.priceIsCartEligible = priceIsCartEligible;
 HM.modulePurchaseRows = modulePurchaseRows;
 HM.stockAvailability = stockAvailability;
 HM.cartEligibleLines = cartEligibleLines;
+HM.formatMoney = formatMoney;
 HM.systemTotal = systemTotal;
 HM.panelEquipmentTotal = panelEquipmentTotal;
 HM.cartTotal = cartTotal;
@@ -5266,8 +5277,9 @@ function exampleCardPrice(cfg, rules, priceMap) {
   const result = estimate(cfg.inputs, rules, priceMap);
   const sys = systemTotal(result, priceMap);
   if (sys && sys.pricedQty > 0) {
+    const amount = formatMoney(sys.total);
     return {
-      text: `${sys.total} ${sys.currency}`,
+      text: `${amount} ${sys.currency}`,
       total: sys.total,
       currency: sys.currency,
       result,

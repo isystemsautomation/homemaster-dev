@@ -814,7 +814,7 @@
 #hm-system-builder .hm-slider-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.55rem 1rem;
+  gap: 0.35rem 1rem;
 }
 
 @media (max-width: 560px) {
@@ -825,28 +825,88 @@
 
 #hm-system-builder .hm-slider-stack {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.35rem;
 }
 
-#hm-system-builder .hm-slider {
-  margin: 0;
-}
-
-#hm-system-builder .hm-slider__label {
+/* One-line count control: Label  [−] 2 [+] — no range slider. */
+#hm-system-builder .hm-count-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  margin-bottom: 0.2rem;
+  justify-content: space-between;
+  gap: 0.65rem;
+  text-align: left;
+  min-height: 2.35rem;
 }
 
-#hm-system-builder .hm-slider__name {
+#hm-system-builder .hm-count-row__lab {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  flex: 1 1 auto;
+  font-size: 0.92rem;
   color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-count-row__lab .hm-ico {
+  color: var(--hm-accent);
+  flex-shrink: 0;
+}
+
+#hm-system-builder .hm-count-row__ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+#hm-system-builder .hm-count-row__btn {
+  width: 2.15rem;
+  height: 2.15rem;
+  min-width: 2.15rem;
+  border: 1px solid var(--hm-line);
+  border-radius: 8px;
+  background: var(--hm-card);
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--hm-ink);
+  padding: 0;
+}
+
+#hm-system-builder .hm-count-row__btn:hover {
+  border-color: var(--hm-accent);
+  color: var(--hm-accent);
+}
+
+#hm-system-builder .hm-count-row__input {
+  width: 2.6rem;
+  height: 2.15rem;
+  margin: 0;
+  padding: 0 0.15rem;
+  border: 1px solid var(--hm-line);
+  border-radius: 8px;
+  background: var(--hm-card);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--hm-ink);
+  -moz-appearance: textfield;
+}
+
+#hm-system-builder .hm-count-row__input::-webkit-outer-spin-button,
+#hm-system-builder .hm-count-row__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Legacy slider chrome unused in Simple — keep Advanced steppers intact. */
+#hm-system-builder .hm-slider {
+  margin: 0;
 }
 
 #hm-system-builder .hm-slider__name .hm-ico {
@@ -1099,6 +1159,8 @@
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--hm-ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 #hm-system-builder .hm-simple-price span {
@@ -1144,10 +1206,12 @@
 #hm-system-builder .hm-simple-buy__list li {
   display: flex;
   align-items: baseline;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid var(--hm-line);
   font-size: 0.98rem;
+  text-align: left;
 }
 
 #hm-system-builder .hm-simple-buy__qty {
@@ -1156,13 +1220,22 @@
 }
 
 #hm-system-builder .hm-simple-buy__id {
-  flex: 1;
   font-weight: 600;
 }
 
+#hm-system-builder .hm-simple-buy__left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  text-align: left;
+}
+
 #hm-system-builder .hm-simple-buy__right {
+  flex-shrink: 0;
   margin-left: auto;
   white-space: nowrap;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1683,11 +1756,83 @@
   color: var(--hm-ink);
 }
 
+#hm-system-builder .hm-simple,
+#hm-system-builder .hm-simple__settings,
+#hm-system-builder .hm-simple__result,
+#hm-system-builder .hm-result-hero--simple,
+#hm-system-builder .hm-simple-buy,
+#hm-system-builder .hm-simple-actions,
+#hm-system-builder .hm-simple-sec,
+#hm-system-builder .hm-totals,
+#hm-system-builder .hm-simple-sec__title,
+#hm-system-builder .hm-simple-buy__h,
+#hm-system-builder .hm-simple-buy__note,
+#hm-system-builder .hm-simple-actions__hint,
+#hm-system-builder .hm-simple-actions__spec {
+  text-align: left;
+}
+
+#hm-system-builder .hm-result-hero--simple {
+  align-items: flex-start;
+}
+
+#hm-system-builder .hm-result-hero--simple .hm-result-stats {
+  margin-left: 0;
+}
+
+#hm-system-builder .hm-result-hero--simple .hm-result-stat {
+  text-align: left;
+}
+
+#hm-system-builder .hm-result-hero--simple .hm-result-stat .hm-ico {
+  margin: 0 0 0.25rem;
+}
+
+#hm-system-builder .hm-totals__hero {
+  margin: 0 0 0.55rem;
+  text-align: left;
+}
+
+#hm-system-builder .hm-totals__hero-label {
+  margin: 0 0 0.2rem;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--hm-ink);
+  text-align: left;
+}
+
+#hm-system-builder .hm-totals__hero-price {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--hm-ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-totals__hero-price span {
+  font-size: 0.45em;
+  font-weight: 600;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-totals__hero .hm-totals__tag {
+  text-align: left;
+  margin-top: 0.2rem;
+}
+
 #hm-system-builder .hm-totals__value {
   font-size: 1.15rem;
   font-weight: 700;
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#hm-system-builder .hm-simple-buy__more {
+  justify-content: flex-start;
 }
 
 #hm-system-builder .hm-totals__value span {
@@ -1828,7 +1973,7 @@
 #hm-system-builder .hm-result-hero__cart-hint {
   margin: -0.25rem 0 0.15rem;
   font-size: 12px;
-  text-align: center;
+  text-align: left;
   color: var(--hm-ink);
   font-weight: 600;
 }
