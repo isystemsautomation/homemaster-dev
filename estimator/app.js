@@ -4755,11 +4755,484 @@ HM.renderPanelLayoutHtml = renderPanelLayoutHtml;
 HM.bindLayoutHighlight = bindLayoutHighlight;
 HM.layoutsForEstimate = layoutsForEstimate;
 
+// ===== share.js =====
+/**
+ * Compact shareable configuration links: ?c=<base64url>.
+ * Schema versioned; prices never embedded (re-fetched on open).
+ */
+
+/** Bump when field layout / meaning changes incompatibly. */
+const SHARE_SCHEMA_VERSION = 1;
+
+const PTYPE = ["apartment", "house", "townhouse", "commercial"];
+const STAGE = ["design", "construction", "renovation", "existing"];
+const BOILER = ["none", "opentherm", "relay"];
+const HA = ["needed", "own"];
+const TEMP = ["none", "DS18B20", "PT100", "PT1000"];
+
+/** Room numeric/select fields → 1–2 letter keys (omit zeros / defaults). */
+const ROOM_KEYS = [
+  ["lo", "lights_onoff", 0],
+  ["ld", "lights_dimmable", 0],
+  ["ls", "led_strips", 0],
+  ["lc", "led_strip_channels", 4],
+  ["l1", "led_single", 0],
+  ["sw", "switches", 0],
+  ["sh", "shutters", 0],
+  ["uf", "ufh_loops", 0],
+  ["ue", "ufh_electric", 0],
+  ["l0", "lights_0_10v", 0],
+  ["ts", "temp_sensor", "none"],
+  ["lk", "leak_sensors", 0],
+  ["mo", "motion_sensors", 0],
+  ["pr", "presence_sensors", 0],
+  ["dc", "door_contacts", 0],
+  ["ss", "smart_sockets", 0],
+  ["ef", "extract_fan", 0],
+];
+
+const SYS_SECTIONS = {
+  h: "heating",
+  v: "ventilation",
+  w: "water",
+  e: "electrical",
+  s: "security",
+  l: "lighting_scenes",
+};
+
+const HEATING_KEYS = [
+  ["b", "boiler", "none"],
+  ["c", "collector_loops", 0],
+  ["p", "heating_pumps", 0],
+  ["f", "fan_coils", 0],
+  ["hp", "heat_pump", 0],
+  ["fp", "fireplace", 0],
+  ["pt", "pt100_sensors", 0],
+  ["ds", "ds18b20_sensors", 0],
+];
+const VENT_KEYS = [
+  ["a", "ahu", 0],
+  ["r", "recuperator", 0],
+  ["x", "extract_fans", 0],
+  ["d", "dampers_0_10v", 0],
+  ["s0", "sensors_0_10v", 0],
+  ["s4", "sensors_4_20ma", 0],
+];
+const WATER_KEYS = [
+  ["lz", "leak_zones", 0],
+  ["sv", "shutoff_valves", 0],
+  ["wm", "water_meters", 0],
+  ["ir", "irrigation", 0],
+  ["wp", "water_pumps", 0],
+  ["dh", "dhw_recirc", 0],
+  ["gv", "gas_valve", 0],
+];
+const ELEC_KEYS = [
+  ["ep", "energy_phases", 0],
+  ["ls", "load_shed", 0],
+  ["ev", "ev_chargers", 0],
+  ["pv", "pv_inverters", 0],
+  ["fc", "fault_contacts", 0],
+];
+const SEC_KEYS = [
+  ["dc", "dry_contacts", 0],
+  ["g", "gates", 0],
+  ["lk", "locks", 0],
+  ["pb", "panic_buttons", 0],
+];
+const LIGHT_KEYS = [
+  ["st", "stair_steps", 0],
+  ["az", "accent_zones", 0],
+  ["gl", "garden_lights", 0],
+];
+
+const SECTION_KEYS = {
+  heating: HEATING_KEYS,
+  ventilation: VENT_KEYS,
+  water: WATER_KEYS,
+  electrical: ELEC_KEYS,
+  security: SEC_KEYS,
+  lighting_scenes: LIGHT_KEYS,
+};
+
+function idxOf(list, val, fallback = 0) {
+  const i = list.indexOf(val);
+  return i >= 0 ? i : fallback;
+}
+
+function fromIdx(list, i, fallback) {
+  return list[i] ?? fallback;
+}
+
+function packSparse(obj, keys) {
+  const out = {};
+  for (const [short, long, def] of keys) {
+    const v = obj?.[long];
+    if (v == null || v === def) continue;
+    if (typeof def === "number" && !(Number(v) > 0) && Number(def) === 0) continue;
+    out[short] = typeof def === "number" ? Number(v) || 0 : v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function unpackSparse(packed, keys, target) {
+  if (!packed || typeof packed !== "object") return target;
+  for (const [short, long, def] of keys) {
+    if (Object.prototype.hasOwnProperty.call(packed, short)) {
+      target[long] = typeof def === "number" ? Number(packed[short]) || 0 : packed[short];
+    }
+  }
+  return target;
+}
+
+function bytesToBase64Url(bytes) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  const b64 =
+    typeof btoa === "function"
+      ? btoa(bin)
+      : Buffer.from(bytes).toString("base64");
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(s) {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  if (typeof atob === "function") {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  return new Uint8Array(Buffer.from(b64, "base64"));
+}
+
+function utf8Encode(str) {
+  if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(str);
+  return Buffer.from(str, "utf8");
+}
+
+function utf8Decode(bytes) {
+  if (typeof TextDecoder !== "undefined") return new TextDecoder().decode(bytes);
+  return Buffer.from(bytes).toString("utf8");
+}
+
+/**
+ * Build a minimal share payload from live configurator state.
+ * @param {object} state
+ */
+function buildSharePayload(state) {
+  const panels = Array.isArray(state.panels) && state.panels.length
+    ? state.panels
+    : [{ id: "panel-1", name: "Main panel", location: "" }];
+  const panelIds = panels.map((p) => p.id);
+
+  const payload = { v: SHARE_SCHEMA_VERSION };
+
+  if (state.expert) payload.x = 1;
+
+  const o = state.object || {};
+  const oPacked = [];
+  oPacked.push(idxOf(PTYPE, o.property_type, 0));
+  oPacked.push(Number(o.floor_area_m2) || 0);
+  oPacked.push(Number(o.floors) || 1);
+  oPacked.push(idxOf(STAGE, o.stage, 0));
+  if (o.name) oPacked.push(String(o.name));
+  payload.o = oPacked;
+
+  const needPanels =
+    panels.length !== 1 ||
+    panels[0].id !== "panel-1" ||
+    (panels[0].name && panels[0].name !== "Main panel") ||
+    panels[0].location;
+  if (needPanels) {
+    payload.p = panels.map((p) => {
+      const row = [p.id || "panel-1"];
+      if (p.name && p.name !== "Main panel") row.push(p.name);
+      else row.push("");
+      if (p.location) row.push(p.location);
+      return row;
+    });
+  }
+
+  if (!state.expert) {
+    const rooms = Array.isArray(state.rooms) ? state.rooms.filter((r) => r?.name?.trim()) : [];
+    payload.r = rooms.map((r) => {
+      const pIdx = Math.max(0, panelIds.indexOf(r.panel_id || panelIds[0]));
+      const sparse = {};
+      for (const [short, long, def] of ROOM_KEYS) {
+        let v = r[long];
+        if (long === "temp_sensor") {
+          if (!v || v === def) continue;
+          sparse[short] = idxOf(TEMP, v, 0);
+          continue;
+        }
+        if (long === "led_strip_channels") {
+          const n = Number(v) || 4;
+          if (n === 4) continue;
+          sparse[short] = n;
+          continue;
+        }
+        const n = Number(v) || 0;
+        if (n === def || n === 0) continue;
+        sparse[short] = n;
+      }
+      if (r.manual && typeof r.manual === "object" && Object.keys(r.manual).length) {
+        sparse.m = 1;
+      }
+      const row = [r.template || "living", r.name.trim(), pIdx];
+      if (Object.keys(sparse).length) row.push(sparse);
+      return row;
+    });
+
+    const y = {};
+    for (const [short, long] of Object.entries(SYS_SECTIONS)) {
+      const sec = state.systems?.[long] || {};
+      const keys = SECTION_KEYS[long];
+      const packed = packSparse(sec, keys);
+      const out = packed ? { ...packed } : {};
+      if (long === "heating" && sec.boiler && sec.boiler !== "none") {
+        out.b = idxOf(BOILER, sec.boiler, 0);
+      }
+      if (long === "security" && Array.isArray(sec.powered_sensors) && sec.powered_sensors.length) {
+        out.ps = sec.powered_sensors
+          .filter((row) => (Number(row.qty) || 0) > 0)
+          .map((row) => [row.type || "pir", Number(row.qty) || 0]);
+        if (!out.ps.length) delete out.ps;
+      }
+      const pIdx = Math.max(0, panelIds.indexOf(sec.panel_id || panelIds[0]));
+      if (pIdx > 0) out.pi = pIdx;
+      if (Object.keys(out).length) y[short] = out;
+    }
+    const sys = state.systems?.system || {};
+    const g = {};
+    if (sys.reserve_pct != null && Number(sys.reserve_pct) !== 15) g.r = Number(sys.reserve_pct);
+    if (sys.manual_control === false) g.m = 0;
+    if (sys.ha_server && sys.ha_server !== "needed") g.h = idxOf(HA, sys.ha_server, 0);
+    if (Object.keys(g).length) y.g = g;
+    if (Object.keys(y).length) payload.y = y;
+  } else if (state.expertDemand && typeof state.expertDemand === "object") {
+    payload.d = state.expertDemand;
+  }
+
+  return payload;
+}
+
+/**
+ * @param {object} payload
+ * @returns {{ patch: object, older: boolean, ok: boolean, error?: string }}
+ */
+function expandSharePayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { patch: null, older: false, ok: false, error: "empty" };
+  }
+  const ver = Number(payload.v) || 0;
+  const older = ver > 0 && ver < SHARE_SCHEMA_VERSION;
+  const newer = ver > SHARE_SCHEMA_VERSION;
+  // Newer schema: still try known keys; flag as older-message (settings may differ).
+  const warn = older || newer || ver === 0;
+
+  const panels = Array.isArray(payload.p) && payload.p.length
+    ? payload.p.map((row, i) => ({
+        id: String(row[0] || `panel-${i + 1}`),
+        name: String(row[1] || (i === 0 ? "Main panel" : `Panel ${i + 1}`)),
+        location: String(row[2] || ""),
+      }))
+    : [{ id: "panel-1", name: "Main panel", location: "" }];
+  const panelIds = panels.map((p) => p.id);
+  const mainId = panelIds[0];
+
+  const oIn = Array.isArray(payload.o) ? payload.o : [];
+  const object = {
+    name: oIn[4] != null ? String(oIn[4]) : "",
+    property_type: fromIdx(PTYPE, Number(oIn[0]) || 0, "apartment"),
+    floor_area_m2: Number(oIn[1]) || 60,
+    floors: Math.max(1, Number(oIn[2]) || 1),
+    stage: fromIdx(STAGE, Number(oIn[3]) || 0, "design"),
+  };
+
+  const expert = !!payload.x;
+  let rooms = [];
+  let systems = {
+    heating: {
+      panel_id: mainId,
+      boiler: "none",
+      collector_loops: 0,
+      heating_pumps: 0,
+      fan_coils: 0,
+      heat_pump: 0,
+      fireplace: 0,
+      pt100_sensors: 0,
+      ds18b20_sensors: 0,
+    },
+    ventilation: {
+      panel_id: mainId,
+      ahu: 0,
+      recuperator: 0,
+      extract_fans: 0,
+      dampers_0_10v: 0,
+      sensors_0_10v: 0,
+      sensors_4_20ma: 0,
+    },
+    water: {
+      panel_id: mainId,
+      leak_zones: 0,
+      shutoff_valves: 0,
+      water_meters: 0,
+      irrigation: 0,
+      water_pumps: 0,
+      dhw_recirc: 0,
+      gas_valve: 0,
+    },
+    electrical: {
+      panel_id: mainId,
+      energy_phases: 0,
+      load_shed: 0,
+      ev_chargers: 0,
+      pv_inverters: 0,
+      fault_contacts: 0,
+    },
+    security: {
+      panel_id: mainId,
+      powered_sensors: [],
+      dry_contacts: 0,
+      gates: 0,
+      locks: 0,
+      panic_buttons: 0,
+    },
+    lighting_scenes: {
+      panel_id: mainId,
+      stair_steps: 0,
+      accent_zones: 0,
+      garden_lights: 0,
+    },
+    system: { reserve_pct: 15, manual_control: true, ha_server: "needed" },
+  };
+
+  if (!expert && Array.isArray(payload.r)) {
+    rooms = payload.r.map((row) => {
+      const template = String(row[0] || "living");
+      const name = String(row[1] || "");
+      const pIdx = Number(row[2]) || 0;
+      const sparse = row[3] && typeof row[3] === "object" ? row[3] : {};
+      const room = {
+        template,
+        name,
+        panel_id: panelIds[pIdx] || mainId,
+        lights_onoff: 0,
+        lights_dimmable: 0,
+        led_strips: 0,
+        led_strip_channels: 4,
+        led_single: 0,
+        switches: 0,
+        shutters: 0,
+        ufh_loops: 0,
+        ufh_electric: 0,
+        lights_0_10v: 0,
+        temp_sensor: "none",
+        leak_sensors: 0,
+        motion_sensors: 0,
+        presence_sensors: 0,
+        door_contacts: 0,
+        smart_sockets: 0,
+        extract_fan: 0,
+        manual: sparse.m ? {} : {},
+      };
+      for (const [short, long, def] of ROOM_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(sparse, short)) continue;
+        if (long === "temp_sensor") {
+          room.temp_sensor = fromIdx(TEMP, Number(sparse[short]) || 0, "none");
+        } else {
+          room[long] = typeof def === "number" ? Number(sparse[short]) || 0 : sparse[short];
+        }
+      }
+      return room;
+    });
+  }
+
+  if (!expert && payload.y && typeof payload.y === "object") {
+    for (const [short, long] of Object.entries(SYS_SECTIONS)) {
+      const packed = payload.y[short];
+      if (!packed) continue;
+      unpackSparse(packed, SECTION_KEYS[long], systems[long]);
+      if (long === "heating" && packed.b != null) {
+        systems.heating.boiler = fromIdx(BOILER, Number(packed.b) || 0, "none");
+      }
+      if (long === "security" && Array.isArray(packed.ps)) {
+        systems.security.powered_sensors = packed.ps.map((row) => ({
+          type: String(row[0] || "pir"),
+          qty: Number(row[1]) || 0,
+        }));
+      }
+      if (packed.pi != null) {
+        systems[long].panel_id = panelIds[Number(packed.pi)] || mainId;
+      }
+    }
+    if (payload.y.g) {
+      const g = payload.y.g;
+      if (g.r != null) systems.system.reserve_pct = Number(g.r) || 0;
+      if (g.m === 0) systems.system.manual_control = false;
+      if (g.h != null) systems.system.ha_server = fromIdx(HA, Number(g.h) || 0, "needed");
+    }
+  }
+
+  const expertDemand =
+    expert && payload.d && typeof payload.d === "object" ? payload.d : {};
+
+  return {
+    ok: true,
+    older: warn,
+    patch: {
+      ui_mode: "advanced",
+      step: 3,
+      expert,
+      object,
+      panels,
+      rooms,
+      rooms_user_edited: true,
+      systems,
+      expertDemand,
+      systems_expanded: null,
+      shareFromLink: true,
+      shareLinkOlder: warn,
+    },
+  };
+}
+
+function encodeShareLink(state) {
+  const payload = buildSharePayload(state);
+  const json = JSON.stringify(payload);
+  return bytesToBase64Url(utf8Encode(json));
+}
+
+function decodeShareLink(token) {
+  try {
+    const json = utf8Decode(base64UrlToBytes(String(token || "").trim()));
+    const payload = JSON.parse(json);
+    return expandSharePayload(payload);
+  } catch (err) {
+    return { ok: false, older: false, patch: null, error: String(err?.message || err) };
+  }
+}
+
+/** Full URL length for a page origin + path + ?c= */
+function shareUrlLength(originPath, state) {
+  const c = encodeShareLink(state);
+  return `${originPath}?c=${c}`.length;
+}
+
+HM.buildSharePayload = buildSharePayload;
+HM.expandSharePayload = expandSharePayload;
+HM.encodeShareLink = encodeShareLink;
+HM.decodeShareLink = decodeShareLink;
+HM.shareUrlLength = shareUrlLength;
+HM.SHARE_SCHEMA_VERSION = SHARE_SCHEMA_VERSION;
+
 // ===== ui.js =====
 /**
  * Configurator UI: Simple (one screen) or Advanced (Property → Rooms → Systems → Result).
  * See odoo/configurator/configurator-ui-spec.md.
  */
+
 
 
 
@@ -4958,6 +5431,9 @@ let state = {
     toggles: defaultSimpleToggles(),
     warnings: [],
   },
+  /** Opened from ?c= share link */
+  shareFromLink: false,
+  shareLinkOlder: false,
 };
 
 const STEPS = ["Property", "Rooms", "Systems", "Result"];
@@ -5300,6 +5776,7 @@ function hmIcon(name, size = 18) {
     terminal: '<rect x="9" y="3" width="6" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h6"/>',
     blank: '<rect x="7" y="4" width="10" height="16" rx="1"/><path d="M10 8h4M10 12h4M10 16h4"/>',
     enclosure: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h2M14 14h2"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   };
   const d = paths[name] || paths.gear;
   return `<svg class="hm-ico" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -5580,6 +6057,82 @@ function saveState() {
     );
   } catch {
     /* ignore */
+  }
+}
+
+function applySharePatch(patch) {
+  if (!patch) return false;
+  Object.assign(state, patch);
+  if (!state.panels?.length) state.panels = defaultPanels();
+  if (!state.systems) state.systems = emptySystems(firstPanelId());
+  state.ui_mode = "advanced";
+  state.step = 3;
+  saveState();
+  try {
+    localStorage.setItem(MODE_KEY, "advanced");
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/** Read ?c= from the page URL and restore configuration → Result. */
+function consumeShareQuery() {
+  if (typeof location === "undefined") return false;
+  let params;
+  try {
+    params = new URLSearchParams(location.search);
+  } catch {
+    return false;
+  }
+  const token = params.get("c");
+  if (!token) return false;
+  const decoded = decodeShareLink(token);
+  if (!decoded.ok || !decoded.patch) {
+    console.warn("HM estimator: share link decode failed", decoded.error);
+    return false;
+  }
+  applySharePatch(decoded.patch);
+  state.shareLinkOlder = !!decoded.older;
+  return true;
+}
+
+function buildShareUrl() {
+  const token = encodeShareLink(state);
+  if (typeof location === "undefined") return `?c=${token}`;
+  const url = new URL(location.href);
+  url.searchParams.set("c", token);
+  return url.toString();
+}
+
+async function copyShareLink(button) {
+  const url = buildShareUrl();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    if (button) {
+      button.textContent = "Link copied";
+      button.disabled = true;
+      setTimeout(() => {
+        button.innerHTML = `${hmIcon("link", 16)} Copy link`;
+        button.disabled = false;
+      }, 2000);
+    }
+    return true;
+  } catch (err) {
+    console.warn("copy link", err);
+    if (button) button.textContent = "Copy failed";
+    return false;
   }
 }
 
@@ -7134,6 +7687,10 @@ function mountConfigurator(root) {
             </div>
           </div>`;
 
+    const shareOlder = state.shareLinkOlder
+      ? `<p class="hm-warn hm-share-older">This link was created with an older version — some settings may have changed</p>`
+      : "";
+
     const panelBlocks = (result.panels || [])
       .map((p) => panelResultBlock(p, { manifest, priceMap }))
       .join("");
@@ -7154,9 +7711,11 @@ function mountConfigurator(root) {
           <div class="hm-result-hero__actions">
             <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="hm-cart">${hmIcon("cart", 16)} Add to cart</button>
             <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-xlsx">${hmIcon("download", 16)} Download</button>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-share">${hmIcon("link", 16)} Copy link</button>
             <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-back">Back</button>
           </div>
         </div>
+        ${shareOlder}
         ${notesBar}
         ${panelBlocks || `<div class="hm-card"><p>No panels.</p></div>`}
         ${channelUsageTable(result.channel_usage)}
@@ -7189,6 +7748,7 @@ function mountConfigurator(root) {
     });
     main.querySelector("#hm-xlsx").onclick = () =>
       downloadXlsx(result).catch(() => downloadCsv(result));
+    main.querySelector("#hm-share").onclick = (ev) => copyShareLink(ev.currentTarget);
     main.querySelector("#hm-back").onclick = () => {
       state.step = state.expert ? 0 : 2;
       saveState();
@@ -7488,7 +8048,12 @@ async function init() {
   ensureStylesheet();
   await loadRules();
   loadState();
-  ensureRoomsSeeded();
+  const fromShare = consumeShareQuery();
+  if (!fromShare) {
+    state.shareFromLink = false;
+    state.shareLinkOlder = false;
+    ensureRoomsSeeded();
+  }
   const root = findRoot();
   if (root) mountConfigurator(root);
   else console.error("HM estimator: mount node not found (#hm-configurator / #hm-system-builder)");
@@ -7535,4 +8100,4 @@ HM.mountConfigurator = mountConfigurator;
 HM.init = init;
 
 
-export { estimate, loadRules, runEstimate, mountConfigurator, init, fetchPrice, fetchPrices, addAllToCart, downloadXlsx };
+export { estimate, loadRules, runEstimate, mountConfigurator, init, fetchPrice, fetchPrices, addAllToCart, downloadXlsx, encodeShareLink, decodeShareLink };
