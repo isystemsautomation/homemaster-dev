@@ -4785,21 +4785,30 @@ function packEnclosureLayout(items, enclosure) {
       const extraGroups = [...groups].filter(
         (g) => g !== seg && g !== "blank",
       );
+      const otherSegs = extraGroups
+        .filter((g) => String(g).startsWith("segment-"))
+        .map((g) => g.split("-")[1]);
+      const nonSeg = extraGroups.filter((g) => !String(g).startsWith("segment-"));
+      const segMix = otherSegs.length
+        ? ` + segment ${otherSegs.join(" + segment ")}`
+        : "";
       const mix =
-        extraGroups.length > 0
-          ? ` · ${extraGroups
+        nonSeg.length > 0
+          ? ` · ${nonSeg
               .map((g) =>
                 g === "logic-psu"
                   ? "logic PSU"
-                  : g === "protection"
-                    ? "protection"
-                    : g === "field"
-                      ? "terminals"
-                      : g,
+                  : g === "logic-dist"
+                    ? "24 V distribution"
+                    : g === "protection"
+                      ? "protection"
+                      : g === "field"
+                        ? "terminals"
+                        : g,
               )
               .join(", ")}`
           : "";
-      return `Modules — segment ${n} (${head}${extraMods ? ` + ${extraMods}` : ""}${ledNote})${mix}`;
+      return `Modules — segment ${n}${segMix} (${head}${extraMods ? ` + ${extraMods}` : ""}${ledNote})${mix}`;
     }
     if (groups.has("logic-psu") || groups.has("power")) {
       return "Module logic PSU";
@@ -4872,24 +4881,21 @@ function packEnclosureLayout(items, enclosure) {
 
   if (rowItems.length) commitRow();
 
-  // Fill remaining empty rows in the rated cabinet count with blanking.
-  while (secIdx < cabinets) {
-    ensureCapacity();
-    const sec = sections[secIdx];
-    while (sec.rows.length < rowsPer) {
-      const blanks = [];
-      for (let i = 0; i < rowWidth; i++) blanks.push(blankTile(1));
-      sec.rows.push({ items: blanks, label: "Blanking", used: rowWidth });
-    }
-    secIdx += 1;
-  }
+  // Do not pad unused enclosure capacity with blank-only rows/sections.
+  // Free DIN belongs on the last occupied row only; rated size stays in summary.
+  const usedSections = sections.filter((s) => s.rows.length > 0);
+  const visualCabinets = Math.max(1, usedSections.length);
+  const visualRows = Math.max(
+    1,
+    ...(usedSections.length ? usedSections.map((s) => s.rows.length) : [1]),
+  );
 
   return {
-    cabinets: Math.max(cabinets, sections.length),
-    rows: rowsPer,
+    cabinets: visualCabinets,
+    rows: visualRows,
     row_width: rowWidth,
     capacity: cabinets * rowsPer * rowWidth,
-    sections,
+    sections: usedSections.length ? usedSections : sections.slice(0, 1),
     summary: {
       occupied: enclosure?.din_occupied ?? enclosure?.occupied ?? null,
       free: enclosure?.din_free ?? enclosure?.free ?? null,
@@ -4897,6 +4903,8 @@ function packEnclosureLayout(items, enclosure) {
       width_mm: enclosure?.width_mm ?? null,
       height_mm: enclosure?.height_mm ?? null,
       capacity_each: enclosure?.capacity_each ?? rowsPer * rowWidth,
+      rated_cabinets: cabinets,
+      rated_rows: rowsPer,
     },
   };
 }
@@ -4972,6 +4980,8 @@ function renderTile(item, manifest, assetsBase, rowWidth, priceMap) {
     !noStretch &&
     !(artUnits != null && Number(artUnits) + 1e-6 < units);
   const fit = stretch ? "fill" : "contain";
+  // Keep narrower art flush against the previous module (LED PS / logic PSU).
+  const pos = stretch ? "center" : "left center";
 
   if (missing || !src) {
     return `<span class="hm-rail-tile hm-rail-tile--missing" data-hl="${hl}" title="${tip}"${tab} style="${flex}"></span>`;
@@ -4981,7 +4991,7 @@ function renderTile(item, manifest, assetsBase, rowWidth, priceMap) {
     item.kind === "module" && item.shop_url
       ? ` data-shop="${escapeHtml(item.shop_url)}"`
       : "";
-  return `<img class="hm-rail-tile${stretch ? "" : " hm-rail-tile--contain"}" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" loading="lazy" decoding="async"${tab} style="${flex};object-fit:${fit};object-position:center;background:transparent">`;
+  return `<img class="hm-rail-tile${stretch ? "" : " hm-rail-tile--contain"}" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" loading="lazy" decoding="async"${tab} style="${flex};object-fit:${fit};object-position:${pos};background:transparent">`;
 }
 
 /**
