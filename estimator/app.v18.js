@@ -3737,7 +3737,7 @@ HM.toEstimatePriceMap = toEstimatePriceMap;
  * Cached in sessionStorage — the list changes rarely.
  */
 
-const CACHE_KEY = "hm_partners_directory_v2";
+const CACHE_KEY = "hm_partners_directory_v3";
 const LISTING_PATH = "/partners?country_all=1";
 
 /**
@@ -3894,24 +3894,50 @@ function parsePartnerDetailDom(html) {
       addrRoot?.querySelector('[itemprop="addressCountry"]')?.textContent || "",
     ) || null;
 
-  let phone =
-    partnersCleanText(org.querySelector('[itemprop="telephone"]')?.textContent || "") ||
-    null;
-  if (!phone) {
-    const tel = org.querySelector('a[href^="tel:"]');
-    if (tel) phone = partnersCleanText(tel.getAttribute("href")?.replace(/^tel:/i, ""));
+  // Phone only from the partner PostalAddress card — never site chrome tel: links.
+  let phone = null;
+  if (addrRoot) {
+    for (const el of addrRoot.querySelectorAll('[itemprop="telephone"]')) {
+      const t = partnersCleanText(el.textContent || "");
+      if (t) {
+        phone = t;
+        break;
+      }
+    }
+    if (!phone) {
+      const icon = addrRoot.querySelector(
+        'i[aria-label="Phone"], i[title="Phone"], i.fa-phone',
+      );
+      const row = icon?.closest(".d-flex") || icon?.parentElement;
+      const span =
+        row?.querySelector(".o_force_ltr, [itemprop='telephone'], span") || null;
+      const t = partnersCleanText(span?.textContent || "");
+      if (t) phone = t;
+    }
+    if (!phone) {
+      const tel = addrRoot.querySelector('a[href^="tel:"]');
+      if (tel) {
+        phone = partnersCleanText(
+          tel.getAttribute("href")?.replace(/^tel:/i, "") || tel.textContent,
+        );
+      }
+    }
   }
 
-  let email =
-    partnersCleanText(org.querySelector('[itemprop="email"]')?.textContent || "") ||
-    null;
-  const cf = org.querySelector("[data-cfemail]");
-  if (cf) {
-    const decoded = decodeCfEmail(cf.getAttribute("data-cfemail") || "");
-    if (decoded) email = decoded;
+  let email = null;
+  const emailRoot = addrRoot || org;
+  const emailEl = emailRoot.querySelector('[itemprop="email"]');
+  if (emailEl) {
+    const cf = emailEl.querySelector("[data-cfemail]");
+    if (cf) email = decodeCfEmail(cf.getAttribute("data-cfemail") || "");
+    if (!email) email = partnersCleanText(emailEl.textContent || "");
   }
   if (!email) {
-    const mail = org.querySelector('a[href^="mailto:"]');
+    const cf = emailRoot.querySelector("[data-cfemail]");
+    if (cf) email = decodeCfEmail(cf.getAttribute("data-cfemail") || "");
+  }
+  if (!email) {
+    const mail = emailRoot.querySelector('a[href^="mailto:"]');
     if (mail) {
       email = partnersCleanText(
         mail.getAttribute("href")?.replace(/^mailto:/i, "").split("?")[0],
@@ -3919,20 +3945,14 @@ function parsePartnerDetailDom(html) {
     }
   }
   if (email && /\[email/i.test(email)) email = null;
-  // Never take the shop's generic office mailbox from chrome/footer.
   if (email && /office@home-master\.eu/i.test(email)) email = null;
-  if (phone && /^\+?40\s*747\s*757\s*798$/i.test(phone.replace(/\s+/g, " ").trim())) {
-    // Same number appears in site chrome — only keep if inside partner address block.
-    if (!addrRoot?.contains?.(org.querySelector('a[href^="tel:"]') || org)) {
-      /* keep if found under contact root with address */
-    }
-  }
 
   let website =
-    partnersCleanText(org.querySelector('[itemprop="website"]')?.textContent || "") ||
-    null;
+    partnersCleanText(
+      (addrRoot || org).querySelector('[itemprop="website"]')?.textContent || "",
+    ) || null;
   if (!website) {
-    const web = org.querySelector(
+    const web = (addrRoot || org).querySelector(
       '.o_portal_address a[href^="http"], a[itemprop="url"]',
     );
     if (web) website = partnersCleanText(web.getAttribute("href") || web.textContent);
@@ -3971,10 +3991,14 @@ function parsePartnerDetailDom(html) {
 }
 
 function parsePartnerDetailFallback(html) {
+  // Stay inside the partner address card — site chrome has a generic tel:/mailto.
   const contactChunk =
-    html.match(/o_wcrm_contact_details[\s\S]{0,8000}/i)?.[0] ||
-    html.match(/o_portal_address[\s\S]{0,5000}/i)?.[0] ||
-    html;
+    html.match(
+      /itemtype="http:\/\/schema\.org\/PostalAddress"[\s\S]*?<\/address>/i,
+    )?.[0] ||
+    html.match(/o_portal_address[\s\S]{0,4000}?<\/address>/i)?.[0] ||
+    html.match(/o_wcrm_contact_details[\s\S]{0,5000}/i)?.[0] ||
+    "";
   const nameM =
     html.match(/itemprop="name"[^>]*>([^<]+)/i) ||
     html.match(/id="partner_name"[^>]*>([^<]+)/i);
@@ -3985,12 +4009,25 @@ function parsePartnerDetailFallback(html) {
   const address = streetM ? partnersFormatAddress(streetM[1]) : null;
   const countryM = contactChunk.match(/itemprop="addressCountry"[^>]*>([^<]+)/i);
   const country = countryM ? partnersDecodeHtmlEntities(countryM[1]) : null;
-  const telM = contactChunk.match(/href="tel:([^"]+)"/i);
-  let phone = telM ? partnersCleanText(telM[1]) : null;
-  const phoneProp = contactChunk.match(/itemprop="telephone"[^>]*>([^<]*)/i);
-  if (!phone && phoneProp && partnersCleanText(phoneProp[1])) {
+
+  let phone = null;
+  const phoneProp = contactChunk.match(
+    /itemprop="telephone"[^>]*>([^<]+)</i,
+  );
+  if (phoneProp && partnersCleanText(phoneProp[1])) {
     phone = partnersCleanText(phoneProp[1]);
   }
+  if (!phone) {
+    const phoneRow = contactChunk.match(
+      /aria-label="Phone"[\s\S]{0,200}?<span[^>]*class="[^"]*o_force_ltr[^"]*"[^>]*>([^<]+)</i,
+    );
+    if (phoneRow) phone = partnersCleanText(phoneRow[1]);
+  }
+  if (!phone) {
+    const telM = contactChunk.match(/href="tel:([^"]+)"/i);
+    if (telM) phone = partnersCleanText(telM[1]);
+  }
+
   const cfM = contactChunk.match(/data-cfemail="([a-f0-9]+)"/i);
   let email = cfM ? decodeCfEmail(cfM[1]) : null;
   if (!email) {
@@ -3998,11 +4035,13 @@ function parsePartnerDetailFallback(html) {
     if (mailM) email = partnersCleanText(mailM[1]);
   }
   if (email && /office@home-master\.eu/i.test(email)) email = null;
+
   const webM =
     contactChunk.match(/itemprop="website"[^>]*>([^<]+)/i) ||
     contactChunk.match(/fa-globe[\s\S]{0,200}?href="(https?:\/\/[^"]+)"/i);
   let website = webM ? partnersCleanText(webM[1]) : null;
   if (website && /home-master\.eu/i.test(website)) website = null;
+
   const gradeM =
     html.match(
       /text-muted[^>]*>\s*<span>([^<]+)<\/span>\s*<h1[^>]*id="partner_name"/i,
@@ -8983,59 +9022,77 @@ function simpleInstallerHtml(directory, countryId) {
     }),
   ].join("");
 
+  const renderCards = (list) =>
+    list
+      .map((p) => {
+        const bits = [];
+        if (p.category) {
+          bits.push(
+            `<span class="hm-installer__cat">${escapeAttr(p.category)}</span>`,
+          );
+        }
+        if (p.address) {
+          bits.push(
+            `<p class="hm-installer__addr">${escapeAttr(p.address)}</p>`,
+          );
+        }
+        // Phone first — most useful for calling an installer — then email, then site.
+        const contacts = [];
+        if (p.phone) {
+          const telHref = String(p.phone).replace(/[^\d+]/g, "");
+          contacts.push(
+            `<a class="hm-installer__link" href="tel:${escapeAttr(telHref)}">${escapeAttr(p.phone)}</a>`,
+          );
+        }
+        if (p.email) {
+          contacts.push(
+            `<a class="hm-installer__link" href="mailto:${escapeAttr(p.email)}">${escapeAttr(p.email)}</a>`,
+          );
+        }
+        if (p.website) {
+          const href = /^https?:\/\//i.test(p.website)
+            ? p.website
+            : `https://${p.website}`;
+          contacts.push(
+            `<a class="hm-installer__link" href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeAttr(p.website.replace(/^https?:\/\//i, ""))}</a>`,
+          );
+        }
+        if (contacts.length) {
+          bits.push(
+            `<p class="hm-installer__contacts">${contacts.join(" · ")}</p>`,
+          );
+        }
+        const title = p.url
+          ? `<a class="hm-installer__name" href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${escapeAttr(p.name)}</a>`
+          : `<span class="hm-installer__name">${escapeAttr(p.name)}</span>`;
+        return `<li class="hm-installer__card">${title}${bits.join("")}</li>`;
+      })
+      .join("");
+
   let body = "";
   if (!countryId) {
-    body = `<p class="hm-installer__hint hm-muted">Choose a country to see installers and distributors near you.</p>`;
+    body = `<p class="hm-installer__hint hm-muted">Choose a country to see installers near you.</p>`;
   } else {
     const list = partnersForCountry(directory, countryId);
     if (!list.length) {
       body = `<p class="hm-installer__empty">No partners listed in this country yet.</p>
         <p class="hm-installer__all"><a class="hm-text-link" href="${allUrl}" target="_blank" rel="noopener">See all partners</a></p>`;
     } else {
-      const cards = list
-        .map((p) => {
-          const bits = [];
-          if (p.category) {
-            bits.push(
-              `<span class="hm-installer__cat">${escapeAttr(p.category)}</span>`,
-            );
-          }
-          if (p.address) {
-            bits.push(
-              `<p class="hm-installer__addr">${escapeAttr(p.address)}</p>`,
-            );
-          }
-          const contacts = [];
-          if (p.phone) {
-            contacts.push(
-              `<a href="tel:${escapeAttr(p.phone.replace(/\s+/g, ""))}">${escapeAttr(p.phone)}</a>`,
-            );
-          }
-          if (p.email) {
-            contacts.push(
-              `<a href="mailto:${escapeAttr(p.email)}">${escapeAttr(p.email)}</a>`,
-            );
-          }
-          if (p.website) {
-            const href = /^https?:\/\//i.test(p.website)
-              ? p.website
-              : `https://${p.website}`;
-            contacts.push(
-              `<a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeAttr(p.website.replace(/^https?:\/\//i, ""))}</a>`,
-            );
-          }
-          if (contacts.length) {
-            bits.push(
-              `<p class="hm-installer__contacts">${contacts.join(" · ")}</p>`,
-            );
-          }
-          const title = p.url
-            ? `<a class="hm-installer__name" href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${escapeAttr(p.name)}</a>`
-            : `<span class="hm-installer__name">${escapeAttr(p.name)}</span>`;
-          return `<li class="hm-installer__card">${title}${bits.join("")}</li>`;
-        })
-        .join("");
-      body = `<ul class="hm-installer__list">${cards}</ul>`;
+      const installers = list.filter((p) => p.categoryKey === "installer");
+      const distributors = list.filter((p) => p.categoryKey !== "installer");
+      if (installers.length) {
+        body = `<ul class="hm-installer__list">${renderCards(installers)}</ul>`;
+        if (distributors.length) {
+          const n = distributors.length;
+          body += `<details class="hm-installer__dist">
+            <summary class="hm-installer__dist-sum">Show distributors (${n})</summary>
+            <ul class="hm-installer__list">${renderCards(distributors)}</ul>
+          </details>`;
+        }
+      } else {
+        body = `<p class="hm-installer__hint">No installers listed in this country yet — distributors below.</p>
+          <ul class="hm-installer__list">${renderCards(distributors)}</ul>`;
+      }
     }
   }
 

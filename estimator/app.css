@@ -2906,8 +2906,39 @@
   color: var(--hm-muted, #555);
 }
 
-#hm-system-builder .hm-installer__contacts a {
-  color: inherit;
+#hm-system-builder .hm-installer__contacts a,
+#hm-system-builder a.hm-installer__link {
+  color: #0b57d0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+
+#hm-system-builder .hm-installer__contacts a:hover,
+#hm-system-builder a.hm-installer__link:hover {
+  color: #0842a0;
+}
+
+#hm-system-builder .hm-installer__dist {
+  margin-top: 0.75rem;
+}
+
+#hm-system-builder .hm-installer__dist-sum {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #0b57d0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#hm-system-builder .hm-installer__dist-sum::-webkit-details-marker {
+  display: none;
+}
+
+#hm-system-builder .hm-installer__dist[open] .hm-installer__dist-sum {
+  margin-bottom: 0.55rem;
 }
 
 #hm-system-builder .hm-simple-actions-secondary {
