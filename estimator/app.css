@@ -7,7 +7,6 @@
   --hm-accent-ink: #FFFFFF;
   --hm-accent-fill: #43A047;
   --hm-accent-soft: #E8F5E9;
-  --hm-pcb: #30A830;
   /* Secondary — terminal blue */
   --hm-link: #0A6BA8;
   --hm-link-soft: #E3F0F9;
@@ -896,15 +895,23 @@
   font-size: 0.92rem;
 }
 
+#hm-system-builder .hm-rail-layout {
+  width: 100%;
+  max-width: 100%;
+}
+
 #hm-system-builder .hm-rail-layout__sections {
   display: flex;
   flex-wrap: wrap;
   gap: 1.25rem 1.5rem;
   align-items: flex-start;
+  width: 100%;
 }
 
 #hm-system-builder .hm-rail-section {
   min-width: 0;
+  flex: 1 1 100%;
+  width: 100%;
 }
 
 #hm-system-builder .hm-rail-section__title {
@@ -918,6 +925,7 @@
 
 #hm-system-builder .hm-rail-row-wrap {
   margin-bottom: 0.55rem;
+  width: 100%;
 }
 
 #hm-system-builder .hm-rail-row {
@@ -925,12 +933,13 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: stretch;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid #9aa3ad;
   border-radius: 2px;
   background-color: #aeb4ba;
+  box-sizing: border-box;
 }
 
 #hm-system-builder .hm-rail-row__label {
@@ -942,11 +951,12 @@
 
 #hm-system-builder .hm-rail-tile {
   display: block;
-  flex: 0 0 auto;
+  flex-shrink: 0;
   object-fit: fill;
   vertical-align: top;
   background: transparent;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 #hm-system-builder .hm-rail-tile:focus-visible {
@@ -954,66 +964,9 @@
   outline-offset: -2px;
 }
 
-#hm-system-builder .hm-rail-tile--module {
-  background: var(--hm-pcb);
-}
-
-#hm-system-builder .hm-rail-tile--companion {
+#hm-system-builder .hm-rail-tile--missing {
   background: var(--hm-paper);
   border-right: 1px solid var(--hm-line);
-  color: var(--hm-ink);
-}
-
-#hm-system-builder .hm-rail-tile--power {
-  background: var(--hm-link-soft);
-  color: var(--hm-ink);
-}
-
-#hm-system-builder .hm-rail-tile--blank {
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      var(--hm-paper),
-      var(--hm-paper) 3px,
-      #eef1f4 3px,
-      #eef1f4 6px
-    );
-  color: var(--hm-muted);
-  border-right: 1px solid var(--hm-line);
-}
-
-#hm-system-builder .hm-rail-tile--missing {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  text-align: center;
-  padding: 0.2rem;
-  line-height: 1.15;
-  word-break: break-word;
-}
-
-#hm-system-builder .hm-rail-tile--group {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.15rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.15;
-  text-align: center;
-  padding: 0.25rem;
-  box-sizing: border-box;
-}
-
-#hm-system-builder .hm-rail-tile__qty {
-  font-variant-numeric: tabular-nums;
-  color: var(--hm-ink);
-}
-
-#hm-system-builder .hm-rail-tile__fallback {
-  max-width: 100%;
 }
 
 #hm-system-builder .hm-rail-legend {
@@ -1025,39 +978,6 @@
   list-style: none;
   font-size: 0.85rem;
   color: var(--hm-muted);
-}
-
-#hm-system-builder .hm-rail-legend__swatch {
-  display: inline-block;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 2px;
-  margin-right: 0.35rem;
-  vertical-align: -0.1rem;
-  border: 1px solid var(--hm-line);
-}
-
-#hm-system-builder .hm-rail-legend__swatch--pcb {
-  background: var(--hm-pcb);
-}
-
-#hm-system-builder .hm-rail-legend__swatch--power {
-  background: var(--hm-link-soft);
-}
-
-#hm-system-builder .hm-rail-legend__swatch--companion {
-  background: var(--hm-paper);
-}
-
-#hm-system-builder .hm-rail-legend__swatch--blank {
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      var(--hm-paper),
-      var(--hm-paper) 2px,
-      #eef1f4 2px,
-      #eef1f4 4px
-    );
 }
 
 #hm-system-builder .hm-rail-tile.is-hl,

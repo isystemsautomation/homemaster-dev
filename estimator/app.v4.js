@@ -4143,8 +4143,6 @@ const SKIP_LAYOUT_IDS = new Set([
   "blanking_plate",
 ]);
 
-const DISPLAY_UNIT_PX = 28; // ~24×28 = 672 px per row
-
 /** @type {Promise<object>|null} */
 let manifestPromise = null;
 
@@ -4511,7 +4509,6 @@ function resolveTileSrc(manifest, item, assetsBase) {
 
 function tileTooltip(item, priceMap) {
   const bits = [item.label || item.id, `${item.units} M`];
-  if (item.count > 1) bits.unshift(`${item.count}×`);
   if (item.kind === "module") {
     const p =
       item.price ||
@@ -4525,58 +4522,27 @@ function tileTooltip(item, priceMap) {
   return bits.filter(Boolean).join(" · ");
 }
 
-/** Merge consecutive identical tiles for display (packing unchanged). */
-function collapseAdjacentTiles(items) {
-  const out = [];
-  for (const it of items || []) {
-    const last = out[out.length - 1];
-    if (
-      last &&
-      last.id === it.id &&
-      last.kind === it.kind &&
-      last.key === it.key
-    ) {
-      last.count = (last.count || 1) + 1;
-      last.units = Math.round((Number(last.units) + Number(it.units)) * 100) / 100;
-      continue;
-    }
-    out.push({ ...it, count: 1, units: Number(it.units) || 0 });
-  }
-  return out;
-}
-
-function tileToneClass(item) {
-  if (item.id === "blanking_plate" || item.group === "blank") return "hm-rail-tile--blank";
-  if (item.kind === "module") return "hm-rail-tile--module";
-  if (item.group === "power" || item.group === "incomer") return "hm-rail-tile--power";
-  return "hm-rail-tile--companion";
-}
-
-function renderTile(item, manifest, assetsBase, unitPx, heightPx, priceMap) {
-  const w = Math.max(1, Math.round(item.units * unitPx));
-  const h = heightPx;
+/**
+ * One physical unit → one <img> from the manifest. Never collapse runs;
+ * never replace art with a coloured label block.
+ */
+function renderTile(item, manifest, assetsBase, rowWidth, priceMap) {
+  const units = Number(item.units) || 0;
   const tip = escapeHtml(tileTooltip(item, priceMap));
   const hl = escapeHtml(item.key);
-  const tone = tileToneClass(item);
-  const count = item.count || 1;
   const { src, missing } = resolveTileSrc(manifest, item, assetsBase);
   const tab = ` tabindex="0" role="button"`;
-  const isBlank = item.id === "blanking_plate" || item.group === "blank";
-  const usePhoto = Boolean(src) && !missing && count === 1 && !isBlank;
+  const flex = `flex:0 0 calc(100% * ${units} / ${rowWidth});width:calc(100% * ${units} / ${rowWidth});height:100%;`;
 
-  if (!usePhoto) {
-    const label =
-      count > 1
-        ? `${count}× ${item.label || item.id}`
-        : item.label || item.id;
-    return `<span class="hm-rail-tile ${tone} hm-rail-tile--group" data-hl="${hl}" title="${tip}"${tab} style="width:${w}px;height:${h}px"><span class="hm-rail-tile__qty">${escapeHtml(label)}</span></span>`;
+  if (missing || !src) {
+    return `<span class="hm-rail-tile hm-rail-tile--missing" data-hl="${hl}" title="${tip}"${tab} style="${flex}"></span>`;
   }
 
   const shop =
     item.kind === "module" && item.shop_url
       ? ` data-shop="${escapeHtml(item.shop_url)}"`
       : "";
-  return `<img class="hm-rail-tile ${tone}" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" width="${w}" height="${h}" loading="lazy" decoding="async"${tab} style="width:${w}px;height:${h}px">`;
+  return `<img class="hm-rail-tile" data-hl="${hl}"${shop} src="${escapeHtml(src)}" alt="${escapeHtml(item.label || item.id)}" title="${tip}" loading="lazy" decoding="async"${tab} style="${flex};object-fit:fill">`;
 }
 
 /**
@@ -4587,9 +4553,10 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
   const assetsBase = opts.assetsBase || panelAssetsBase();
   const srcUnit = Number(manifest?.unit_px) || 70;
   const srcHeight = Number(manifest?.height_px) || 360;
-  const unitPx = Number(opts.unitPx) || DISPLAY_UNIT_PX;
-  const scale = unitPx / srcUnit;
-  const heightPx = Math.round(srcHeight * scale);
+  const rowWidth = Number(layout.row_width) || 24;
+  // Aspect: width/height = row_width * unit_px / height_px so tiles stay
+  // proportional to the source art and the row always fits the container.
+  const rowAspect = (rowWidth * srcUnit) / srcHeight;
   const priceMap = opts.priceMap || {};
   const railFile = manifest?.rail?.file || "rail-empty.svg";
   const railUrl = new URL(railFile, assetsBase).href;
@@ -4618,13 +4585,11 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
     .map((sec) => {
       const rowsHtml = sec.rows
         .map((row) => {
-          const tiles = collapseAdjacentTiles(row.items)
-            .map((it) =>
-              renderTile(it, manifest, assetsBase, unitPx, heightPx, priceMap),
-            )
+          const tiles = row.items
+            .map((it) => renderTile(it, manifest, assetsBase, rowWidth, priceMap))
             .join("");
           return `<div class="hm-rail-row-wrap">
-            <div class="hm-rail-row" style="height:${heightPx}px;background-image:url('${escapeHtml(railUrl)}');background-size:${unitPx}px ${heightPx}px;background-repeat:repeat-x;">${tiles}</div>
+            <div class="hm-rail-row" style="--row-units:${rowWidth};aspect-ratio:${rowAspect};background-image:url('${escapeHtml(railUrl)}');background-size:calc(100% / ${rowWidth}) 100%;background-repeat:repeat-x;">${tiles}</div>
             <div class="hm-rail-row__label">${escapeHtml(row.label)}</div>
           </div>`;
         })
@@ -4638,13 +4603,12 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
     .join("");
 
   const legend = `<ul class="hm-rail-legend" aria-label="Layout legend">
-    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--pcb" aria-hidden="true"></span>HomeMaster modules</li>
-    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--power" aria-hidden="true"></span>Incomer &amp; power</li>
-    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--companion" aria-hidden="true"></span>Protection &amp; terminals</li>
-    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--blank" aria-hidden="true"></span>Blanking (reserve)</li>
+    <li>Each tile is one physical DIN unit from the bill of materials</li>
+    <li>Blanking plates fill unused modular space</li>
+    <li>Click a tile or BOM row to highlight the match</li>
   </ul>`;
 
-  return `<div class="hm-rail-layout" data-unit-px="${unitPx}">
+  return `<div class="hm-rail-layout">
     <p class="hm-rail-layout__summary">${escapeHtml(headline)}</p>
     <div class="hm-rail-layout__sections">${sectionsHtml}</div>
     ${legend}
@@ -4722,7 +4686,6 @@ HM.loadPanelManifest = loadPanelManifest;
 HM.buildPlacementQueue = buildPlacementQueue;
 HM.packEnclosureLayout = packEnclosureLayout;
 HM.buildPanelLayout = buildPanelLayout;
-HM.collapseAdjacentTiles = collapseAdjacentTiles;
 HM.renderPanelLayoutHtml = renderPanelLayoutHtml;
 HM.bindLayoutHighlight = bindLayoutHighlight;
 HM.layoutsForEstimate = layoutsForEstimate;
