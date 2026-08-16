@@ -34,8 +34,8 @@
       "file": "modules/HM-MINIPLC.png",
       "units": 9
     },
-    "HM-OPENTHERM-GW": {
-      "file": "modules/HM-OPENTHERM-GW.png",
+    "HM-OTG-001": {
+      "file": "modules/HM-OTG-001.png",
       "units": 2
     },
     "HM-RGB-621-R1": {
@@ -75,13 +75,13 @@
       "derived_from": "mcb_1p",
       "derived_visual": "approximate"
     },
-    "n_bar": {
-      "file": "companions/n_bar.svg",
-      "units": 0.35
+    "n_bar_12": {
+      "file": "companions/n_bar_12.png",
+      "units": 1.0
     },
-    "pe_bar": {
-      "file": "companions/pe_bar.svg",
-      "units": 0.35
+    "pe_bar_12": {
+      "file": "companions/pe_bar_12.png",
+      "units": 1.0
     },
     "psu_din_100w": {
       "file": "companions/psu_din_100w.png",
@@ -118,6 +118,10 @@
     },
     "terminal_block": {
       "file": "companions/terminal_block.svg",
+      "units": 0.35
+    },
+    "terminal_block_2t": {
+      "file": "companions/terminal_block_2t.png",
       "units": 0.35
     }
   }

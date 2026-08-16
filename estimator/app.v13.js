@@ -736,7 +736,7 @@ function aggregatePanelResults(panelResults, rules) {
             capacity: dinCapacity,
             cabinets: enclosureCabinets,
             panels: panelResults.length,
-            reserve_pct: panelResults[0]?.enclosure?.reserve_pct ?? 25,
+            reserve_pct: 0,
             overflow: enclosureOverflow,
             max_capacity: ENCLOSURE_MAX_CAPACITY,
             max_sections: ENCLOSURE_MAX_SECTIONS,
@@ -764,11 +764,8 @@ function normalize(inputs, rules, assumptions) {
     relay_needs_contactor: 0,
     room_ufh_loops: 0,
     inductive_loads: 0,
-    reserve_pct: clamp(
-      Number(systemCfg.reserve_pct ?? rules.policy?.default_reserve_pct ?? 15),
-      0,
-      30,
-    ),
+    // Channel reserve removed — spare is unused channels on allocated modules.
+    reserve_pct: 0,
     stage: inputs.stage || "design",
     property_type: inputs.property_type || "",
     floor_area_m2: Number(inputs.floor_area_m2) || 0,
@@ -1376,16 +1373,11 @@ function moduleForChannel(channel, rules) {
  * @param {{ recordReserve?: boolean, trackInstances?: boolean }} [opts]
  */
 function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {}) {
-  const recordReserve = opts.recordReserve !== false;
   const trackInstances = opts.trackInstances === true;
   const modules = {};
   const accessories = [];
   const provenance = [];
   const instances = [];
-  const reservePct =
-    demand._reserve_pct != null
-      ? demand._reserve_pct
-      : (rules.policy?.default_reserve_pct ?? 15);
 
   const needed = {};
   for (const [ch, n] of Object.entries(demand)) {
@@ -1465,19 +1457,6 @@ function allocateWithPool(demand, rules, assumptions, controllerSupply, opts = {
       added_provides: caps,
       deficit_before: def[channel],
     });
-  }
-
-  // Reserve is a recommendation only — do not inflate the BOM qty.
-  if (recordReserve) {
-    for (const [id, qty] of Object.entries(modules)) {
-      if (id === "_sources") continue;
-      const extra = Math.round(qty * reservePct / 100);
-      if (extra > 0) {
-        assumptions.push(
-          `Reserve suggestion: +${extra}× ${id} (${reservePct}% of ${qty} allocated; not added to BOM).`,
-        );
-      }
-    }
   }
 
   return {
@@ -1737,20 +1716,6 @@ function allocate(demand, rules, assumptions, normalized = EMPTY, prices = EMPTY
         controller: pick.id,
         modules: { ...pick.alloc.modules },
       });
-    }
-  }
-
-  // Final reserve suggestions on the merged slave BOM.
-  const reservePct =
-    demand._reserve_pct != null
-      ? demand._reserve_pct
-      : (rules.policy?.default_reserve_pct ?? 15);
-  for (const [id, qty] of Object.entries(mergedModules)) {
-    const extra = Math.round(qty * reservePct / 100);
-    if (extra > 0) {
-      assumptions.push(
-        `Reserve suggestion: +${extra}× ${id} (${reservePct}% of ${qty} allocated; not added to BOM).`,
-      );
     }
   }
 
@@ -2281,48 +2246,70 @@ function buildCompanions(
     });
   }
 
-  // Mains field circuits need N + PE at the intermediate terminals.
+  // Mains field circuits: phase on field terminals (relay NO+C / dimmer L);
+  // N and PE land on 12-way bars — not the same wires as the switched pair.
   const mainsCircuits =
     relayCircuits + dimmerCircuits + shutterCircuits + contactorLoads;
   if (mainsCircuits > 0) {
+    const barQty = Math.ceil(mainsCircuits / 12);
     out.push({
-      id: "n_bar",
-      qty: mainsCircuits,
-      label: labels.n_bar || "N bar (neutral)",
+      id: "n_bar_12",
+      qty: barQty,
+      label: labels.n_bar_12 || "N bar 12-way (1 M)",
       requirement: true,
-      din_units: dinMap.n_bar ?? 0.35,
+      din_units: dinMap.n_bar_12 ?? 1,
       sku: "",
       unit_price: null,
       rating: null,
+      note: `${mainsCircuits} mains circuit(s) → ${barQty}× 12-way N bar.`,
     });
     out.push({
-      id: "pe_bar",
-      qty: mainsCircuits,
-      label: labels.pe_bar || "PE bar (protective earth)",
+      id: "pe_bar_12",
+      qty: barQty,
+      label: labels.pe_bar_12 || "PE bar 12-way (1 M)",
       requirement: true,
-      din_units: dinMap.pe_bar ?? 0.35,
+      din_units: dinMap.pe_bar_12 ?? 1,
       sku: "",
       unit_price: null,
       rating: null,
+      note: `${mainsCircuits} mains circuit(s) → ${barQty}× 12-way PE bar.`,
     });
+    assumptions.push(
+      `Mains landing: ${mainsCircuits} circuit(s) — switched phase on field ` +
+        `terminal(s) (relay NO+C or dimmer L); N on ${barQty}× n_bar_12; ` +
+        `PE on ${barQty}× pe_bar_12. NO+C are not N/PE.`,
+    );
   }
 
-  const termCount = countFieldTerminals(
+  const termCounts = countFieldTerminals(
     demand,
     modulesList,
     rules,
     assumptions,
   );
-  if (termCount > 0) {
+  if (termCounts.single > 0) {
     out.push({
       id: "terminal_block",
-      qty: termCount,
-      label: labels.terminal_block || "Field terminal",
+      qty: termCounts.single,
+      label: labels.terminal_block || "Field terminal (1-tier)",
       requirement: true,
       din_units: dinMap.terminal_block ?? 0.35,
       sku: "",
       unit_price: null,
       rating: null,
+    });
+  }
+  if (termCounts.double > 0) {
+    out.push({
+      id: "terminal_block_2t",
+      qty: termCounts.double,
+      label: labels.terminal_block_2t || "Field terminal (2-tier, two circuits)",
+      requirement: true,
+      din_units: dinMap.terminal_block_2t ?? 0.35,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      note: "One 2-tier block per channel with exactly two field wires.",
     });
   }
 
@@ -2343,8 +2330,11 @@ function buildCompanions(
     const w = Number(rules.modules?.[l.id]?.din_units);
     return s + (Number.isFinite(w) ? w * (l.qty || 0) : 0);
   }, 0);
-  const termDin = termCount * (dinMap.terminal_block ?? 0.35);
-  if (termDin > dinModules && termCount > 0) {
+  const termDin =
+    termCounts.single * (dinMap.terminal_block ?? 0.35) +
+    termCounts.double * (dinMap.terminal_block_2t ?? 0.35);
+  const termPositions = termCounts.single + termCounts.double;
+  if (termDin > dinModules && termPositions > 0) {
     assumptions.push(
       `Field terminals DIN width (${round2(termDin)} M) exceeds HomeMaster modules (${round2(dinModules)} M).`,
     );
@@ -2359,6 +2349,11 @@ function buildCompanions(
  * cables land on expansion-module terminals before controller onboard I/O.
  * Each shutter DIO uses two relay groups (interlock); the free third relay
  * and DI remain available for other demand on that module.
+ *
+ * A channel with exactly 2 field wires → one 2-tier terminal (0.35 M).
+ * Otherwise one 1-tier terminal per wire.
+ *
+ * @returns {{ single: number, double: number }}
  */
 function countFieldTerminals(demand, modulesList, rules, assumptions) {
   const table = rules.field_wires_per_channel || EMPTY;
@@ -2377,8 +2372,17 @@ function countFieldTerminals(demand, modulesList, rules, assumptions) {
   }
   let shuttersLeft = Math.max(0, Number(demand.shutters) || 0);
 
-  let total = 0;
+  let single = 0;
+  let double = 0;
   const missingMods = [];
+
+  function addWires(wireCount, times = 1) {
+    const n = Math.max(0, Number(times) || 0);
+    if (n <= 0) return;
+    const w = Math.max(0, Number(wireCount) || 0);
+    if (w === 2) double += n;
+    else if (w > 0) single += w * n;
+  }
 
   const ordered = [...(modulesList || [])].sort((a, b) => {
     const am = rules.modules?.[a.id]?.master ? 1 : 0;
@@ -2427,7 +2431,7 @@ function countFieldTerminals(demand, modulesList, rules, assumptions) {
 
       if (canShutter && shuttersLeft > 0) {
         // Interlock pair: two relay terminal groups per shutter.
-        total += 2 * relayPer;
+        addWires(relayPer, 2);
         shuttersLeft -= 1;
         relayCap = Math.max(0, relayCap - 2);
         usedOnThis = true;
@@ -2454,18 +2458,17 @@ function countFieldTerminals(demand, modulesList, rules, assumptions) {
           relayCap = Math.max(0, relayCap - take);
         }
         const per = Number(conf.per_channel) || 0;
-        total += take * per;
+        addWires(per, take);
         if (conf.shared_rail_per_group && conf.group_size) {
-          total +=
-            Math.ceil(take / Number(conf.group_size)) *
-            Number(conf.shared_rail_per_group);
+          const groups = Math.ceil(take / Number(conf.group_size));
+          addWires(Number(conf.shared_rail_per_group) || 0, groups);
         }
         if (conf.shared_return_per_module) {
-          total += Number(conf.shared_return_per_module) || 0;
+          addWires(Number(conf.shared_return_per_module) || 0, 1);
         }
       }
       if (usedOnThis) {
-        total += Number(entry.shared_per_module) || 0;
+        addWires(Number(entry.shared_per_module) || 0, 1);
       }
     }
   }
@@ -2487,7 +2490,7 @@ function countFieldTerminals(demand, modulesList, rules, assumptions) {
       `field_wires table missing/incomplete for: ${[...new Set(missingMods)].join(", ")}.`,
     );
   }
-  return total;
+  return { single, double };
 }
 
 // ── Stage 6: enclosure ──────────────────────────────────────────────
@@ -2645,11 +2648,11 @@ function computeEnclosure(modulesList, companions, rules) {
   }
 
   const dinTotal = dinModules + dinCompanions;
-  const reservePct = rules.policy?.enclosure_reserve_pct ?? 25;
-  // Reserve once (occupied × pct), then ceil to a whole-module target for sizing.
-  // Spare from enclosure row/section rounding is din_free — not a second reserve.
-  const dinReserve = Math.ceil((dinTotal * reservePct) / 100);
-  const dinNeeded = Math.ceil(dinTotal + dinReserve - 1e-9);
+  // No enclosure reserve % — size to occupied DIN (ceil). Unused channels
+  // on modules already in the BOM are free spare and do not add DIN.
+  const dinReserve = 0;
+  const reservePct = 0;
+  const dinNeeded = Math.ceil(dinTotal - 1e-9);
   const layout = pickCoupledEnclosure(dinNeeded);
 
   if (!layout) {
@@ -2741,7 +2744,7 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
       sku: "",
       unit_price: null,
       rating: null,
-      note: "Covers unused DIN slots behind the false panel (includes planning reserve).",
+      note: "Covers unused DIN slots behind the false panel.",
     });
   }
 
@@ -2752,7 +2755,7 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
   const w = enclosure.width_mm;
   const h = enclosure.height_mm;
   const note =
-    `Occupied ${enclosure.din_occupied} M · reserve ${enclosure.din_reserve} M (${enclosure.reserve_pct}%) · ` +
+    `Occupied ${enclosure.din_occupied} M · needed ${enclosure.din_needed} M · ` +
     `free after rounding ${enclosure.din_free} M.` +
     (cabinets > 1 ? " Coupled enclosure sections." : " Final enclosure selection by the electrical design.");
   out.push({
@@ -4438,10 +4441,11 @@ function buildPlacementQueue(panel, rules = {}) {
   fromAcc("mcb_3p", "protection");
   fromAcc("contactor_modular", "protection");
 
-  // 4. Field terminals last (cables enter from below)
+  // 4. Field terminals and N/PE bars last (cables enter from below)
   fromAcc("terminal_block", "field", true);
-  fromAcc("n_bar", "field");
-  fromAcc("pe_bar", "field");
+  fromAcc("terminal_block_2t", "field");
+  fromAcc("n_bar_12", "field");
+  fromAcc("pe_bar_12", "field");
 
   return items;
 }
@@ -4504,7 +4508,7 @@ function packEnclosureLayout(items, enclosure) {
     if (groups.has("protection") || groups.has("incomer")) {
       return "Protection";
     }
-    if (groups.has("field")) return "Field terminals";
+    if (groups.has("field")) return "Field terminals & bars";
     return real
       .map((t) => t.label || t.id)
       .slice(0, 3)
@@ -5123,7 +5127,6 @@ function buildSharePayload(state) {
     }
     const sys = state.systems?.system || {};
     const g = {};
-    if (sys.reserve_pct != null && Number(sys.reserve_pct) !== 15) g.r = Number(sys.reserve_pct);
     if (sys.manual_control === false) g.m = 0;
     if (sys.ha_server && sys.ha_server !== "needed") g.h = idxOf(HA, sys.ha_server, 0);
     if (Object.keys(g).length) y.g = g;
@@ -5223,7 +5226,7 @@ function expandSharePayload(payload) {
       accent_zones: 0,
       garden_lights: 0,
     },
-    system: { reserve_pct: 15, manual_control: true, ha_server: "needed" },
+    system: { manual_control: true, ha_server: "needed" },
   };
 
   if (!expert && Array.isArray(payload.r)) {
@@ -5287,7 +5290,6 @@ function expandSharePayload(payload) {
     }
     if (payload.y.g) {
       const g = payload.y.g;
-      if (g.r != null) systems.system.reserve_pct = Number(g.r) || 0;
       if (g.m === 0) systems.system.manual_control = false;
       if (g.h != null) systems.system.ha_server = fromIdx(HA, Number(g.h) || 0, "needed");
     }
@@ -5615,7 +5617,6 @@ function emptySystems(panelId = "panel-1") {
       garden_lights: 0,
     },
     system: {
-      reserve_pct: 15,
       manual_control: true,
       ha_server: "needed",
     },
@@ -5928,9 +5929,10 @@ const COMPANION_ICON_BY_ID = {
   rcbo_1p_n: "rcd",
   contactor_modular: "relay",
   snubber_rc: "varistor",
-  n_bar: "busbar",
-  pe_bar: "busbar",
+  n_bar_12: "busbar",
+  pe_bar_12: "busbar",
   terminal_block: "terminal",
+  terminal_block_2t: "terminal",
   blanking_plate: "blank",
   din_enclosure: "enclosure",
   internal_wiring: "terminal",
@@ -5949,9 +5951,10 @@ const COMPANION_NOTE_BY_ID = {
   rcbo_1p_n: "Combined MCB/RCD",
   contactor_modular: "Load switching",
   snubber_rc: "Inductive-load protection",
-  n_bar: "Neutral distribution",
-  pe_bar: "Protective-earth distribution",
-  terminal_block: "Field wiring landing",
+  n_bar_12: "Neutral distribution (12-way bar)",
+  pe_bar_12: "Protective-earth distribution (12-way bar)",
+  terminal_block: "Field wiring landing (1-tier)",
+  terminal_block_2t: "Field wiring landing (2-tier)",
   blanking_plate: "Unused DIN space",
   din_enclosure: "DIN enclosure body",
   internal_wiring: "Internal panel wiring",
@@ -5959,8 +5962,9 @@ const COMPANION_NOTE_BY_ID = {
 
 const CONSUMABLE_COMPANION_IDS = new Set([
   "terminal_block",
-  "n_bar",
-  "pe_bar",
+  "terminal_block_2t",
+  "n_bar_12",
+  "pe_bar_12",
   "blanking_plate",
   "snubber_rc",
   "internal_wiring",
@@ -6449,12 +6453,11 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
     return `<p class="hm-warn">Enclosure: ${enclosure.din_needed} M needed exceeds max ${enclosure.max_sections || 4}×(6×24)=${(enclosure.max_sections || 4) * (enclosure.max_capacity || 144)} M — add another panel on screen 1 or reduce demand.</p>`;
   }
   const occupied = enclosure.occupied ?? enclosure.din_occupied ?? enclosure.din_total;
-  const reserve = enclosure.reserve ?? enclosure.din_reserve;
   const free = enclosure.free ?? enclosure.din_free;
   const breakdown =
-    occupied != null && reserve != null && free != null
-      ? `occupied ${occupied} M · reserve ${reserve} M (${enclosure.reserve_pct}%) · needed ${enclosure.din_needed} M · free after rounding ${free} M`
-      : `${enclosure.din_total} M used → ${enclosure.din_needed} M with reserve`;
+    occupied != null && free != null
+      ? `occupied ${occupied} M · needed ${enclosure.din_needed} M · free after rounding ${free} M`
+      : `${enclosure.din_total} M occupied → ${enclosure.din_needed} M needed`;
   if (compact || enclosure.panels > 1) {
     return `<p>DIN (${enclosure.panels > 1 ? "all panels" : "panel"}): ${breakdown} → capacity ${enclosure.capacity} M</p>`;
   }
@@ -6802,11 +6805,6 @@ function mountConfigurator(root) {
         <summary>System</summary>
         <div class="hm-sys-grid">
           <div class="hm-room-field">
-            <div class="hm-room-field__label"><span>Channel reserve</span></div>
-            <input id="f-reserve" type="range" min="0" max="30" value="${s.reserve_pct ?? 15}">
-            <span id="reserve-val">${s.reserve_pct ?? 15}%</span>
-          </div>
-          <div class="hm-room-field">
             <div class="hm-room-field__label"><span>Manual controls on modules</span></div>
             <select id="f-manual">
               <option value="yes" ${s.manual_control !== false ? "selected" : ""}>Yes</option>
@@ -6947,14 +6945,6 @@ function mountConfigurator(root) {
       bump();
     };
 
-    const reserve = main.querySelector("#f-reserve");
-    const reserveVal = main.querySelector("#reserve-val");
-    reserve.oninput = reserve.onchange = () => {
-      state.systems.system.reserve_pct = Number(reserve.value) || 0;
-      reserveVal.textContent = `${state.systems.system.reserve_pct}%`;
-      saveState();
-      bump();
-    };
     main.querySelector("#f-manual").onchange = (e) => {
       state.systems.system.manual_control = e.target.value === "yes";
       saveState();

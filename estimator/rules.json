@@ -7,7 +7,6 @@
     "warn_above": 12
   },
   "policy": {
-    "default_reserve_pct": 15,
     "psu_headroom_pct": 30,
     "psu_sizing_basis": "max",
     "str_actuators_per_module": 32,
@@ -15,7 +14,6 @@
     "str_actuator_voltage_v": 24,
     "str_led_ps_input_a": 20,
     "rgb_led_ps_input_a": 10,
-    "enclosure_reserve_pct": 25,
     "onewire_sensor_design_ma": 5
   },
   "companion_din_units": {
@@ -31,8 +29,9 @@
     "psu_led_rgb": 6,
     "psu_led_str": 6,
     "terminal_block": 0.35,
-    "n_bar": 0.35,
-    "pe_bar": 0.35,
+    "terminal_block_2t": 0.35,
+    "n_bar_12": 1,
+    "pe_bar_12": 1,
     "snubber_rc": 0,
     "internal_wiring": 0,
     "blanking_plate": 1,
@@ -50,9 +49,10 @@
     "psu_din_100w": "DIN PSU 100 W (module logic)",
     "psu_led_rgb": "LED PS (RGB strip supply)",
     "psu_led_str": "LED PS (STR / actuator supply)",
-    "terminal_block": "Field terminal",
-    "n_bar": "N bar (neutral)",
-    "pe_bar": "PE bar (protective earth)",
+    "terminal_block": "Field terminal (1-tier)",
+    "terminal_block_2t": "Field terminal (2-tier, two circuits)",
+    "n_bar_12": "N bar 12-way (1 M)",
+    "pe_bar_12": "PE bar 12-way (1 M)",
     "snubber_rc": "RC snubber / varistor (inductive load)",
     "internal_wiring": "Internal wiring (terminals → modules)",
     "blanking_plate": "DIN blanking plate",
