@@ -708,17 +708,6 @@
   min-width: 0;
 }
 
-#hm-system-builder .hm-example-excl {
-  padding: 0 0.15rem;
-}
-
-#hm-system-builder .hm-example-excl p {
-  margin: 0.15rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--hm-muted);
-}
-
 #hm-system-builder .hm-simple-dock {
   display: none;
 }

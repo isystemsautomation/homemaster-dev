@@ -4325,32 +4325,26 @@ function simpleRoomDefaults(type = "living") {
 /**
  * Map unavailable shop modules → Simple preset fields to clear.
  * Used only for Apartment / House / Villa examples — not for manual sliders.
+ * Adapt silently (no visitor-facing exclusion copy).
  *
  * @param {(moduleId: string) => boolean} isAvailable
  * @returns {{ preset: object, exclusions: string[], controllersOk: boolean }}
  */
 function adaptPresetForAvailability(preset, isAvailable) {
   const p = structuredClone(preset);
-  const exclusions = [];
   const avail = typeof isAvailable === "function" ? isAvailable : () => true;
-  const note = (feature, sku) => {
-    exclusions.push(`${feature} excluded — ${sku} currently unavailable.`);
-  };
 
   if (!avail("DIM-420-R1") && (Number(p.totals?.lights_dimmable) || 0) > 0) {
     p.totals.lights_dimmable = 0;
-    note("Dimming", "DIM-420-R1");
   }
 
   if (!avail("STR-3221-R1")) {
     // out_24v_ch + presence_in both allocate to STR-3221-R1.
     if ((Number(p.totals?.ufh_loops) || 0) > 0) {
       p.totals.ufh_loops = 0;
-      note("Underfloor heating", "STR-3221-R1");
     }
     if ((Number(p.totals?.motion_sensors) || 0) > 0) {
       p.totals.motion_sensors = 0;
-      note("Motion sensors", "STR-3221-R1");
     }
     // Stair / accent lighting also needs STR (or RGB for PWM); strip for stock examples.
     p.clearStairLighting = true;
@@ -4358,43 +4352,41 @@ function adaptPresetForAvailability(preset, isAvailable) {
 
   if (!avail("RGB-621-R1") && (Number(p.totals?.led_strips) || 0) > 0) {
     p.totals.led_strips = 0;
-    note("RGB strips", "RGB-621-R1");
   }
 
   if (!avail("WLD-521-R1") && (Number(p.totals?.leak_sensors) || 0) > 0) {
     p.totals.leak_sensors = 0;
-    note("Leak detection", "WLD-521-R1");
   }
 
   if (!avail("ALM-173-R1") && p.toggles?.security) {
     p.toggles.security = false;
-    note("Security zones", "ALM-173-R1");
   }
 
   if (!avail("ENM-223-R1") && p.toggles?.energy_metering) {
     p.toggles.energy_metering = false;
-    note("Energy metering", "ENM-223-R1");
   }
 
   if (!avail("AIO-422-R1")) {
     // Presets do not set analog/RTD; clear if a caller added them.
-    let cleared = false;
     if ((Number(p.totals?.sensors_0_10v) || 0) > 0) {
       p.totals.sensors_0_10v = 0;
-      cleared = true;
     }
     if ((Number(p.totals?.rtd_sensors) || 0) > 0) {
       p.totals.rtd_sensors = 0;
-      cleared = true;
     }
-    if (cleared) note("Analog / RTD sensors", "AIO-422-R1");
   }
 
   const miniOk = avail("MiniPLC");
   const microOk = avail("MicroPLC");
   const controllersOk = miniOk || microOk;
 
-  return { preset: p, exclusions, controllersOk, preferController: microOk && !miniOk ? "MicroPLC" : miniOk && !microOk ? "MiniPLC" : null };
+  return {
+    preset: p,
+    exclusions: [],
+    controllersOk,
+    preferController:
+      microOk && !miniOk ? "MicroPLC" : miniOk && !microOk ? "MiniPLC" : null,
+  };
 }
 
 /**
@@ -6848,7 +6840,6 @@ function applyPreset(kind) {
   state.simple.totals = cfg.preset.totals;
   state.simple.toggles = cfg.preset.toggles;
   state.simple.preset = cfg.kind;
-  state.simple.stockExclusions = cfg.exclusions;
   state.simple.controllersOk = cfg.controllersOk;
   state.simple.warnings = cfg.warnings || [];
   state.rooms = cfg.rooms;
@@ -7451,7 +7442,6 @@ function mountConfigurator(root) {
                     </span>
                   </span>
                 </button>
-                <div class="hm-example-excl" data-preset-excl="${id}" hidden></div>
               </div>`,
           )
           .join("")}
@@ -7489,25 +7479,9 @@ function mountConfigurator(root) {
     await ensureStockCatalog();
     for (const kind of ["apartment", "house", "villa"]) {
       const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
-      const elExcl = examplesEl.querySelector(`[data-preset-excl="${kind}"]`);
       if (!elPrice) continue;
       try {
         const cfg = buildExampleConfig(kind);
-        if (elExcl) {
-          if (cfg.exclusions.length || !cfg.controllersOk) {
-            const lines = [...cfg.exclusions];
-            if (!cfg.controllersOk) {
-              lines.push(
-                "Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.",
-              );
-            }
-            elExcl.hidden = false;
-            elExcl.innerHTML = lines.map((t) => `<p>${escapeAttr(t)}</p>`).join("");
-          } else {
-            elExcl.hidden = true;
-            elExcl.innerHTML = "";
-          }
-        }
         if (!cfg.controllersOk) {
           elPrice.textContent = "unavailable";
           continue;
@@ -7519,18 +7493,6 @@ function mountConfigurator(root) {
           priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
           // Re-adapt after prices: OOS gates may change once availability is known.
           const cfg2 = buildExampleConfig(kind);
-          if (elExcl) {
-            if (cfg2.exclusions.length || !cfg2.controllersOk) {
-              const lines = [...cfg2.exclusions];
-              if (!cfg2.controllersOk) {
-                lines.push(
-                  "Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.",
-                );
-              }
-              elExcl.hidden = false;
-              elExcl.innerHTML = lines.map((t) => `<p>${escapeAttr(t)}</p>`).join("");
-            }
-          }
           if (!cfg2.controllersOk) {
             elPrice.textContent = "unavailable";
             continue;
