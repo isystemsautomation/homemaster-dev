@@ -4554,8 +4554,6 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
   const srcUnit = Number(manifest?.unit_px) || 70;
   const srcHeight = Number(manifest?.height_px) || 360;
   const rowWidth = Number(layout.row_width) || 24;
-  // Aspect: width/height = row_width * unit_px / height_px so tiles stay
-  // proportional to the source art and the row always fits the container.
   const rowAspect = (rowWidth * srcUnit) / srcHeight;
   const priceMap = opts.priceMap || {};
   const railFile = manifest?.rail?.file || "rail-empty.svg";
@@ -4581,34 +4579,70 @@ function renderPanelLayoutHtml(layout, manifest, opts = {}) {
     wmm != null && hmm != null ? `approx. ${wmm} × ${hmm} mm` : null;
   const headline = [layoutBits, dinBits, mmBits].filter(Boolean).join(" · ");
 
+  function sectionSummary(sec) {
+    const items = sec.rows.flatMap((r) => r.items);
+    const mods = items.filter((t) => t.kind === "module").length;
+    const blank = items
+      .filter((t) => t.id === "blanking_plate")
+      .reduce((s, t) => s + (Number(t.units) || 0), 0);
+    const bits = [];
+    if (mods) bits.push(`${mods} module${mods === 1 ? "" : "s"}`);
+    if (blank > 0) bits.push(`${Math.round(blank * 100) / 100} M free`);
+    bits.push(`${sec.rows.length} rail${sec.rows.length === 1 ? "" : "s"}`);
+    return bits.join(" · ");
+  }
+
   const sectionsHtml = layout.sections
-    .map((sec) => {
+    .map((sec, idx) => {
+      const open = idx === 0;
+      const railsLabel = `DIN rail ${sec.rows.length === 1 ? "1" : `1–${sec.rows.length}`}`;
       const rowsHtml = sec.rows
         .map((row) => {
           const tiles = row.items
             .map((it) => renderTile(it, manifest, assetsBase, rowWidth, priceMap))
             .join("");
           return `<div class="hm-rail-row-wrap">
-            <div class="hm-rail-row" style="--row-units:${rowWidth};aspect-ratio:${rowAspect};background-image:url('${escapeHtml(railUrl)}');background-size:calc(100% / ${rowWidth}) 100%;background-repeat:repeat-x;">${tiles}</div>
+            <div class="hm-rail-row-shell">
+              <span class="hm-rail-end hm-rail-end--left" aria-hidden="true"></span>
+              <div class="hm-rail-row" style="--row-units:${rowWidth};aspect-ratio:${rowAspect};background-image:url('${escapeHtml(railUrl)}');background-size:calc(100% / ${rowWidth}) 100%;background-repeat:repeat-x;">${tiles}</div>
+              <span class="hm-rail-end hm-rail-end--right" aria-hidden="true"></span>
+            </div>
             <div class="hm-rail-row__label">${escapeHtml(row.label)}</div>
           </div>`;
         })
         .join("");
-      const head =
-        layout.cabinets > 1
-          ? `<div class="hm-rail-section__title">Section ${sec.index}</div>`
-          : "";
-      return `<div class="hm-rail-section" data-section="${sec.index}">${head}${rowsHtml}</div>`;
+      return `<div class="hm-rail-section${open ? "" : " is-collapsed"}" data-section="${sec.index}">
+        <button type="button" class="hm-rail-section__toggle" data-rail-toggle aria-expanded="${open ? "true" : "false"}">
+          <span>
+            <strong>Section ${sec.index}</strong>
+            <span class="hm-rail-section__meta">${escapeHtml(railsLabel)} · ${escapeHtml(sectionSummary(sec))}</span>
+          </span>
+        </button>
+        <div class="hm-rail-section__body">${rowsHtml}</div>
+      </div>`;
     })
     .join("");
 
+  const multi = layout.sections.length > 1;
+  const toolbar = `<div class="hm-rail-block__toolbar">
+    <h4>Panel layout</h4>
+    ${
+      multi
+        ? `<button type="button" class="hm-linkish" data-rail-expand-all>Expand all sections</button>`
+        : ""
+    }
+  </div>`;
+
   const legend = `<ul class="hm-rail-legend" aria-label="Layout legend">
-    <li>Each tile is one physical DIN unit from the bill of materials</li>
-    <li>Blanking plates fill unused modular space</li>
-    <li>Click a tile or BOM row to highlight the match</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--mod" aria-hidden="true"></span>Module</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--psu" aria-hidden="true"></span>PSU</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--prot" aria-hidden="true"></span>Protection</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--term" aria-hidden="true"></span>Terminals</li>
+    <li><span class="hm-rail-legend__swatch hm-rail-legend__swatch--blank" aria-hidden="true"></span>Blanking</li>
   </ul>`;
 
   return `<div class="hm-rail-layout">
+    ${toolbar}
     <p class="hm-rail-layout__summary">${escapeHtml(headline)}</p>
     <div class="hm-rail-layout__sections">${sectionsHtml}</div>
     ${legend}
@@ -4669,6 +4703,37 @@ function bindLayoutHighlight(root) {
       el.click();
     });
   });
+
+  root.querySelectorAll("[data-rail-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sec = btn.closest(".hm-rail-section");
+      if (!sec) return;
+      const open = sec.classList.toggle("is-collapsed");
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+    });
+  });
+  const expandAll = root.querySelector("[data-rail-expand-all]");
+  if (expandAll) {
+    expandAll.addEventListener("click", () => {
+      const collapsed = [...root.querySelectorAll(".hm-rail-section.is-collapsed")];
+      if (collapsed.length) {
+        collapsed.forEach((sec) => {
+          sec.classList.remove("is-collapsed");
+          const t = sec.querySelector("[data-rail-toggle]");
+          if (t) t.setAttribute("aria-expanded", "true");
+        });
+        expandAll.textContent = "Collapse sections";
+      } else {
+        root.querySelectorAll(".hm-rail-section").forEach((sec, i) => {
+          if (i === 0) return;
+          sec.classList.add("is-collapsed");
+          const t = sec.querySelector("[data-rail-toggle]");
+          if (t) t.setAttribute("aria-expanded", "false");
+        });
+        expandAll.textContent = "Expand all sections";
+      }
+    });
+  }
 }
 
 /**
@@ -5177,7 +5242,7 @@ function sectionSummaryText(sec, sys) {
   return bits.slice(0, 3).join(", ") + (bits.length > 3 ? "…" : "");
 }
 
-/** Compact stroke icons for Simple mode (no emoji, no external assets). */
+/** Compact stroke icons (Simple + Result). stroke 1.75, 24×24. */
 function hmIcon(name, size = 18) {
   const paths = {
     bed: '<path d="M3 11h18v6H3z"/><path d="M5 11V8a2 2 0 0 1 2-2h5v5"/><path d="M3 17v2M21 17v2"/>',
@@ -5211,9 +5276,121 @@ function hmIcon(name, size = 18) {
     gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
     estimate: '<path d="M4 6h16M4 12h10M4 18h14"/>',
     spark: '<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/>',
+    cube: '<path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><path d="M12 12l9-5M12 12v10M12 12L3 7"/>',
+    panel: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    ruler: '<path d="M3 16l13-13 5 5L8 21H3v-5z"/><path d="M8 8l2 2M11 5l2 2M14 8l2 2"/>',
+    layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5M3 16l9 5 9-5"/>',
+    cart: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M3 4h2l2.5 11h10l2-7H7"/>',
+    download: '<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+    chart: '<path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-8"/>',
+    code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>',
+    chevron: '<path d="M6 9l6 6 6-6"/>',
+    warning: '<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4M12 17h.01"/>',
+    controller: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><path d="M11 10h2M11 14h2"/>',
+    relay: '<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+    dimmer: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2"/>',
+    sensor: '<circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2"/>',
+    meter: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15l2-6 2 4 2-2 2 4"/>',
+    gateway: '<rect x="5" y="8" width="14" height="10" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2M12 13h.01"/>',
+    psu: '<rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 12h2M14 10v4M18 4v3M6 4v3"/>',
+    mcb: '<rect x="8" y="3" width="8" height="18" rx="1"/><path d="M10 8h4M10 12h4M11 16h2"/>',
+    rcd: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 8h6M9 12h6M10 16h4"/>',
+    varistor: '<path d="M5 19L12 5l7 14H5z"/><path d="M12 10v4"/>',
+    busbar: '<path d="M3 8h18M3 12h18M3 16h18"/><path d="M7 6v12M17 6v12"/>',
+    terminal: '<rect x="9" y="3" width="6" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h6"/>',
+    blank: '<rect x="7" y="4" width="10" height="16" rx="1"/><path d="M10 8h4M10 12h4M10 16h4"/>',
+    enclosure: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h2M14 14h2"/>',
   };
   const d = paths[name] || paths.gear;
   return `<svg class="hm-ico" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+}
+
+/** Module id / family → Result row icon. */
+const MODULE_ICON_BY_ID = {
+  MicroPLC: "controller",
+  MiniPLC: "controller",
+  "DIO-430-R1": "relay",
+  "DIM-420-R1": "dimmer",
+  "RGB-621-R1": "rgb",
+  "STR-3221-R1": "rgb",
+  "ALM-173-R1": "sensor",
+  "WLD-521-R1": "leak",
+  "ENM-223-R1": "meter",
+  "AIO-422-R1": "gear",
+  OpenthermGateway: "gateway",
+};
+
+const COMPANION_ICON_BY_ID = {
+  psu_din_60w: "psu",
+  psu_din_100w: "psu",
+  mcb_1p: "mcb",
+  mcb_1p_n: "mcb",
+  mcb_3p: "mcb",
+  rcd_2p: "rcd",
+  rcd_4p: "rcd",
+  rcbo_1p_n: "rcd",
+  contactor_modular: "relay",
+  snubber_rc: "varistor",
+  n_bar: "busbar",
+  pe_bar: "busbar",
+  terminal_block: "terminal",
+  blanking_plate: "blank",
+  din_enclosure: "enclosure",
+  internal_wiring: "terminal",
+};
+
+const COMPANION_NOTE_BY_ID = {
+  psu_din_60w: "24 V panel supply",
+  psu_din_100w: "24 V panel supply",
+  mcb_1p: "Per-circuit protection",
+  mcb_1p_n: "Incomer protection",
+  mcb_3p: "Three-phase protection",
+  rcd_2p: "Residual-current protection",
+  rcd_4p: "Residual-current protection",
+  rcbo_1p_n: "Combined MCB/RCD",
+  contactor_modular: "Load switching",
+  snubber_rc: "Inductive-load protection",
+  n_bar: "Neutral distribution",
+  pe_bar: "Protective-earth distribution",
+  terminal_block: "Field wiring landing",
+  blanking_plate: "Unused DIN space",
+  din_enclosure: "DIN enclosure body",
+  internal_wiring: "Internal panel wiring",
+};
+
+const CONSUMABLE_COMPANION_IDS = new Set([
+  "terminal_block",
+  "n_bar",
+  "pe_bar",
+  "blanking_plate",
+  "snubber_rc",
+  "internal_wiring",
+]);
+
+function moduleRowIcon(id) {
+  if (MODULE_ICON_BY_ID[id]) return MODULE_ICON_BY_ID[id];
+  const u = String(id || "").toUpperCase();
+  if (/PLC/.test(u)) return "controller";
+  if (/^DIO|RELAY/.test(u)) return "relay";
+  if (/^DIM/.test(u)) return "dimmer";
+  if (/^RGB|^STR/.test(u)) return "rgb";
+  if (/^ALM|^PIR/.test(u)) return "sensor";
+  if (/^WLD|LEAK/.test(u)) return "leak";
+  if (/^ENM|METER/.test(u)) return "meter";
+  if (/OPENTHERM|OTG|GATEWAY/.test(u)) return "gateway";
+  return "gear";
+}
+
+function companionRowIcon(id) {
+  return COMPANION_ICON_BY_ID[id] || "gear";
+}
+
+function companionNote(id, label) {
+  return COMPANION_NOTE_BY_ID[id] || label || id;
+}
+
+function icoBox(name, size = 16) {
+  return `<span class="hm-ico-box">${hmIcon(name, size)}</span>`;
 }
 
 function ensureRoomsSeeded() {
@@ -5516,12 +5693,28 @@ function formatPrice(p) {
   return `${p.amount} ${p.currency || ""}${amb}${stock}`;
 }
 
-/** Banner when HomeMaster lines lack prices or are out of stock. */
-function priceIntegrityHtml(result, prices) {
+function formatPriceCell(p) {
+  if (!p || typeof p.amount !== "number" || !Number.isFinite(p.amount)) {
+    return `<span class="hm-price-dot" title="Price unavailable — not counted in the total" aria-label="Price unavailable"></span>`;
+  }
+  return `<span class="hm-bom__price">${p.amount} ${escapeAttr(p.currency || "")}</span>`;
+}
+
+function collectResultNotes(result, prices) {
+  const notes = [];
+  if (result.split_warning) notes.push(result.split_warning);
+  for (const a of result.assumptions || []) {
+    if (/ALM 12 V rail:.*exceeds/i.test(a) || /Reserve suggestion|prices incomplete|exceeds/i.test(a)) {
+      notes.push(a);
+    }
+  }
   const tot = cartTotal(result, prices);
-  const missing = tot?.missingSku?.length
-    ? [...new Set(tot.missingSku)]
-    : [];
+  if (tot?.missingSku?.length) {
+    const skus = [...new Set(tot.missingSku)];
+    notes.push(
+      `${skus.length} line(s) without a price — total is understated (${skus.join(", ")}).`,
+    );
+  }
   const mods = [
     ...((result.panels || []).flatMap((p) => p.modules || [])),
     ...(result.modules || []),
@@ -5536,18 +5729,31 @@ function priceIntegrityHtml(result, prices) {
       unavailable.push(m.id || m.sku);
     }
   }
-  const parts = [];
-  if (missing.length) {
-    parts.push(
-      `<p class="hm-warn">${missing.length} line(s) without a price — total is understated (${missing.join(", ")}).</p>`,
-    );
-  }
   if (unavailable.length) {
-    parts.push(
-      `<p class="hm-warn">Not available in the shop (cannot add to cart as shown): ${unavailable.join(", ")}.</p>`,
-    );
+    notes.push(`Not available in the shop: ${unavailable.join(", ")}.`);
   }
-  return parts.join("");
+  return [...new Set(notes)];
+}
+
+function channelUsageTable(usage, { fold = true } = {}) {
+  const rows = (usage || []).filter((r) => r.needed > 0 || r.reserve);
+  if (!rows.length) return "";
+  const body = rows
+    .map((r) => {
+      const tip = r.note ? ` title="${escapeAttr(r.note)}"` : "";
+      return `<tr${tip}><td>${escapeAttr(r.label)}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`;
+    })
+    .join("");
+  const table = `
+    <table class="hm-table hm-channel-table">
+      <thead><tr><th>Channel type</th><th>Needed</th><th>Supplied</th><th>Spare</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  if (!fold) return table;
+  return `<details class="hm-fold">
+    <summary>${hmIcon("chart", 18)} Channel usage <span class="hm-fold__chev">${hmIcon("chevron", 16)}</span></summary>
+    <div class="hm-fold__body">${table}</div>
+  </details>`;
 }
 
 function enclosureMessage(enclosure, { compact = false } = {}) {
@@ -5590,23 +5796,10 @@ function enclosureMessage(enclosure, { compact = false } = {}) {
   return `<p>Enclosure: ${breakdown} → ${cabinets > 1 ? `${cabinets}×` : "1×"} enclosure ${each} M (${layout}${mm})${coupled}${blank}</p>`;
 }
 
-function channelUsageTable(usage) {
-  const rows = (usage || []).filter((r) => r.needed > 0 || r.reserve);
-  if (!rows.length) return "";
-  const body = rows
-    .map((r) => {
-      const tip = r.note
-        ? ` title="${escapeAttr(r.note)}"`
-        : "";
-      return `<tr${tip}><td>${escapeAttr(r.label)}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`;
-    })
+function priceIntegrityHtml(result, prices) {
+  return collectResultNotes(result, prices)
+    .map((n) => `<p class="hm-warn">${escapeAttr(n)}</p>`)
     .join("");
-  return `
-    <h3 class="hm-channel-heading">Channel usage</h3>
-    <table class="hm-table hm-channel-table">
-      <thead><tr><th>Channel type</th><th>Needed</th><th>Supplied</th><th>Spare</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table>`;
 }
 
 function el(html) {
@@ -6760,86 +6953,139 @@ function mountConfigurator(root) {
     const { manifest = null, priceMap: prices = priceMap } = opts;
     const ctrl = (panel.modules || []).filter((m) => rules.modules?.[m.id]?.master);
     const slaves = (panel.modules || []).filter((m) => !rules.modules?.[m.id]?.master);
-    const modRows = [...ctrl, ...slaves]
+    const modules = [...ctrl, ...slaves];
+    let modSubtotal = 0;
+    let modCurrency = "";
+    let missingPrice = 0;
+    const modRows = modules
       .map((m) => {
         const p = prices[m.sku];
-        const priceCell = formatPrice(p);
+        if (p && typeof p.amount === "number") {
+          modSubtotal += p.amount * (m.qty || 0);
+          modCurrency = p.currency || modCurrency;
+        } else {
+          missingPrice += 1;
+        }
         const din = m.din_units != null ? `${m.din_units} M` : "—";
         return `<tr data-hl="module:${escapeAttr(m.id)}">
-          <td>${m.qty}×</td>
-          <td><a href="${m.shop_url || "#"}">${m.id}</a></td>
-          <td>${m.sku || ""}</td>
-          <td>${din}</td>
-          <td>${priceCell}</td>
+          <td><div class="hm-bom__item">${icoBox(moduleRowIcon(m.id))}<span><strong>${m.qty}×</strong> <a href="${m.shop_url || "#"}">${escapeAttr(m.id)}</a><br><span class="hm-muted">${escapeAttr(m.sku || "")}</span></span></div></td>
+          <td class="hm-bom__num">${din}</td>
+          <td class="hm-bom__price">${formatPriceCell(p)}</td>
         </tr>`;
       })
       .join("");
-    const companions = (panel.accessories || [])
-      .map((a) => {
-        const din = a.din_units != null ? `${a.din_units} M` : "—";
-        return `<tr data-hl="companion:${escapeAttr(a.id)}">
-          <td>${a.qty}×</td>
-          <td>${escapeAttr(a.label || a.id)}</td>
-          <td class="hm-muted">requirement</td>
-          <td>${din}</td>
-          <td></td>
-        </tr>`;
-      })
-      .join("");
+    const accessories = panel.accessories || [];
+    const primaryAcc = accessories.filter((a) => !CONSUMABLE_COMPANION_IDS.has(a.id));
+    const consumableAcc = accessories.filter((a) => CONSUMABLE_COMPANION_IDS.has(a.id));
+    const accAll = [...primaryAcc, ...consumableAcc];
+    const accCount = accAll.reduce((s, a) => s + (Number(a.qty) || 0), 0);
+    const accDin = accAll.reduce(
+      (s, a) => s + (Number(a.din_units) || 0) * (Number(a.qty) || 0),
+      0,
+    );
+    const accRow = (a) => {
+      const din =
+        a.din_units != null
+          ? `${Math.round((Number(a.din_units) || 0) * (Number(a.qty) || 0) * 100) / 100} M`
+          : "—";
+      return `<tr data-hl="companion:${escapeAttr(a.id)}">
+        <td><div class="hm-bom__item">${hmIcon(companionRowIcon(a.id), 18)}<span><strong>${a.qty}×</strong> ${escapeAttr(a.label || a.id)}<br><span class="hm-muted">${escapeAttr(companionNote(a.id, a.label))}</span></span></div></td>
+        <td class="hm-bom__num">${din}</td>
+      </tr>`;
+    };
+    const primaryRows = primaryAcc.map(accRow).join("");
+    const consumableRows = consumableAcc.map(accRow).join("");
+    const consumableN = consumableAcc.reduce((s, a) => s + (Number(a.qty) || 0), 0);
+
     const segs = panel.topology?.segments?.length ?? 0;
     const terms = (panel.topology?.segments || []).reduce(
       (s, seg) => s + (seg.terminators || 0),
       0,
     );
-    const psu = (panel.power?.requirements || [])
-      .filter((r) => r.kind === "psu" || /PSU|power supply/i.test(r.text || ""))
-      .map((r) => r.text || JSON.stringify(r))
-      .join("; ");
+    const ctrlCount = ctrl.reduce((s, m) => s + (m.qty || 0), 0);
+    const psuW = panel.power?.total_w ?? "—";
+    const occ = panel.occupied ?? panel.din_occupied ?? panel.enclosure?.occupied ?? panel.enclosure?.din_occupied;
+    const free = panel.free ?? panel.din_free ?? panel.enclosure?.free ?? panel.enclosure?.din_free;
+    const cap = panel.capacity ?? panel.enclosure?.capacity ?? "—";
+    const enc = panel.enclosure;
+    const encChip =
+      enc?.cabinets > 1
+        ? `${enc.cabinets}× (${enc.rows}×${enc.row_width})`
+        : enc
+          ? `${enc.rows || "—"}×${enc.row_width || "—"}`
+          : "—";
     const loc = panel.location ? ` · ${escapeAttr(panel.location)}` : "";
     const yaml = (panel.topology?.esphome_yaml || "").replace(/</g, "&lt;");
-    const ctrlCount = ctrl.reduce((s, m) => s + (m.qty || 0), 0);
-    const roomLine = (panel.rooms || []).length
-      ? `Rooms: ${panel.rooms.map(escapeAttr).join(", ")}`
-      : "Rooms: —";
-    const sysLine = (panel.systems || []).length
-      ? `Systems: ${panel.systems.map(escapeAttr).join(", ")}`
-      : "Systems: —";
-    const occ = panel.occupied ?? panel.din_occupied ?? panel.enclosure?.occupied ?? panel.enclosure?.din_occupied;
-    const res = panel.reserve ?? panel.din_reserve ?? panel.enclosure?.reserve ?? panel.enclosure?.din_reserve;
-    const free = panel.free ?? panel.din_free ?? panel.enclosure?.free ?? panel.enclosure?.din_free;
-    const reserveLine =
-      occ != null && res != null && free != null
-        ? `<p class="hm-muted">DIN: occupied ${occ} M · reserve ${res} M · free after rounding ${free} M · capacity ${panel.capacity ?? panel.enclosure?.capacity ?? "—"} M</p>`
-        : "";
 
     let layoutHtml = "";
     if (manifest) {
       const layout = buildPanelLayout(panel, rules);
       if (layout) {
-        layoutHtml = `<div class="hm-rail-block"><h4>Panel layout</h4>${renderPanelLayoutHtml(layout, manifest, { priceMap: prices })}</div>`;
+        layoutHtml = `<div class="hm-rail-block hm-card">${renderPanelLayoutHtml(layout, manifest, { priceMap: prices })}</div>`;
       }
     }
 
+    const subLine =
+      typeof modSubtotal === "number" && modSubtotal > 0
+        ? `${Math.round(modSubtotal * 100) / 100} ${escapeAttr(modCurrency)}`
+        : "—";
+    const under =
+      missingPrice > 0
+        ? `<tr><td colspan="3"><span class="hm-warn">Subtotal understated — ${missingPrice} line(s) without a price</span></td></tr>`
+        : "";
+
     return `
       <section class="hm-panel-result">
-        <h3>${escapeAttr(panel.name)}${loc}</h3>
-        <p class="hm-muted">${roomLine} · ${sysLine}</p>
-        ${reserveLine}
-        <p class="hm-muted">RS-485: ${segs} segment(s), ${ctrlCount} controller(s), ${terms} terminator(s) · 24 V: ${panel.power?.total_w ?? "—"} W${psu ? ` · ${escapeAttr(psu)}` : ""}</p>
-        ${enclosureMessage(panel.enclosure)}
-        <table class="hm-table"><thead><tr><th>Qty</th><th>Item</th><th>SKU / note</th><th>Width</th><th>Price incl. VAT</th></tr></thead>
-        <tbody>${modRows}${companions}</tbody></table>
+        <div class="hm-card">
+          <h3>${escapeAttr(panel.name)}${loc}</h3>
+          <div class="hm-chip-row">
+            <span class="hm-chip">${hmIcon("ruler", 18)} DIN ${occ != null ? `${occ} M occupied` : "—"} · ${free != null ? `${free} M free` : ""} · ${cap} M</span>
+            <span class="hm-chip">${hmIcon("busbar", 18)} RS-485 · ${segs} seg · ${ctrlCount} ctrl · ${terms} term</span>
+            <span class="hm-chip">${hmIcon("psu", 18)} 24 V · ${psuW} W</span>
+            <span class="hm-chip">${hmIcon("enclosure", 18)} Enclosure · ${escapeAttr(encChip)}</span>
+          </div>
+        </div>
+        <div class="hm-card">
+          <h4>HomeMaster modules</h4>
+          <table class="hm-bom">
+            <thead><tr><th>Item</th><th class="hm-bom__num">Width</th><th class="hm-bom__price">Price</th></tr></thead>
+            <tbody>${modRows || `<tr><td colspan="3" class="hm-muted">—</td></tr>`}
+              <tr class="hm-bom__sub"><td>Subtotal</td><td></td><td class="hm-bom__price">${subLine}</td></tr>
+              ${under}
+            </tbody>
+          </table>
+        </div>
+        <div class="hm-card hm-card--paper">
+          <div class="hm-acc-head">
+            <h4>Companions &amp; materials</h4>
+            <span class="hm-muted">${accCount} items · ${Math.round(accDin * 100) / 100} M of DIN width</span>
+          </div>
+          <table class="hm-bom hm-bom--acc">
+            <thead><tr><th>Item</th><th class="hm-bom__num">Width</th></tr></thead>
+            <tbody>
+              ${primaryRows}
+              ${consumableRows
+                .replace(/<tr /g, '<tr class="hm-acc-consumable" hidden ')
+                .replace(/<tr>/g, '<tr class="hm-acc-consumable" hidden>')}
+              ${
+                consumableAcc.length
+                  ? `<tr><td colspan="2"><button type="button" class="hm-linkish" data-acc-more data-n="${consumableN || consumableAcc.length}">Show all ${consumableN || consumableAcc.length} items</button></td></tr>`
+                  : ""
+              }
+            </tbody>
+          </table>
+        </div>
         ${layoutHtml}
-        ${channelUsageTable(panel.channel_usage)}
-        <details><summary>ESPHome YAML</summary><pre>${yaml}</pre></details>
+        <details class="hm-fold">
+          <summary>${hmIcon("code", 18)} ESPHome YAML <span class="hm-fold__chev">${hmIcon("chevron", 16)}</span></summary>
+          <div class="hm-fold__body"><pre>${yaml || "—"}</pre></div>
+        </details>
       </section>`;
   }
 
   async function renderResult() {
     let result = liveResult();
     main.innerHTML = `<p>Loading prices from the shop…</p>`;
-    // Prices affect controller economics — fetch, re-estimate, fetch again
-    // for any module that appeared only after priced picks.
     await refreshPrices(result);
     result = liveResult();
     await refreshPrices(result);
@@ -6853,48 +7099,96 @@ function mountConfigurator(root) {
       console.warn("panel layout manifest:", err);
     }
 
+    const tot = cartTotal(result, priceMap);
+    const notes = collectResultNotes(result, priceMap);
+    const modQty = (result.panels || []).reduce(
+      (s, p) => s + (p.modules || []).reduce((a, m) => a + (m.qty || 0), 0),
+      0,
+    );
+    const panelN = result.panels?.length || state.panels.length || 1;
+    const dinW =
+      result.enclosure?.capacity ??
+      result.panels?.reduce((s, p) => s + (p.enclosure?.capacity || 0), 0) ??
+      "—";
+    const sections = result.panels?.reduce(
+      (s, p) => s + (p.enclosure?.cabinets || 1),
+      0,
+    ) ?? 1;
+
+    let priceHtml = `<p class="hm-result-hero__price">—</p>`;
+    if (tot && typeof tot.total === "number") {
+      priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
+    }
+
+    const notesBar =
+      notes.length === 0
+        ? ""
+        : `<div class="hm-notes">
+            <button type="button" class="hm-notes-bar" id="hm-notes-toggle" aria-expanded="false">
+              ${hmIcon("warning", 18)}
+              <span>${notes.length} note${notes.length === 1 ? "" : "s"} to review</span>
+              <span class="hm-notes-bar__chev">${hmIcon("chevron", 16)}</span>
+            </button>
+            <div class="hm-notes-body" id="hm-notes-body" hidden>
+              ${notes.map((n) => `<p class="hm-warn">${escapeAttr(n)}</p>`).join("")}
+            </div>
+          </div>`;
+
     const panelBlocks = (result.panels || [])
       .map((p) => panelResultBlock(p, { manifest, priceMap }))
       .join("");
 
-    const almWarn = (result.assumptions || [])
-      .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
-      .map((a) => `<p class="${/exceeds/i.test(a) ? "hm-warn" : "hm-muted"}">${escapeAttr(a)}</p>`)
-      .join("");
-    const split = result.split_warning
-      ? `<p class="hm-warn">${escapeAttr(result.split_warning)}</p>`
-      : "";
-    const tot = cartTotal(result, priceMap);
-    let totalLine = "";
-    if (tot && typeof tot.total === "number") {
-      totalLine = `<p class="hm-total">Project total (HomeMaster): ${tot.total} ${tot.currency} (incl. VAT)</p>`;
-    }
-    const priceNotes = priceIntegrityHtml(result, priceMap);
-
     main.innerHTML = `
-      <h2>Result</h2>
-      ${split}
-      ${almWarn}
-      ${panelBlocks || "<p>No panels.</p>"}
-      <h3>Project total</h3>
-      ${channelUsageTable(result.channel_usage)}
-      ${enclosureMessage(result.enclosure, { compact: true })}
-      ${totalLine}
-      ${priceNotes}
-      <div class="hm-actions">
-        <button type="button" id="hm-cart">Add to cart</button>
-        <button type="button" id="hm-xlsx">Download .xlsx</button>
-        <button type="button" id="hm-csv">CSV</button>
-        <button type="button" id="hm-back">Back</button>
+      <div class="hm-result">
+        <div class="hm-card hm-result-hero">
+          <div>
+            ${priceHtml}
+            <p class="hm-result-hero__sub">incl. VAT · equipment only</p>
+          </div>
+          <div class="hm-result-stats">
+            <div class="hm-result-stat">${hmIcon("cube", 20)}<span class="hm-result-stat__n">${modQty}</span><span class="hm-result-stat__l">Modules</span></div>
+            <div class="hm-result-stat">${hmIcon("panel", 20)}<span class="hm-result-stat__n">${panelN}</span><span class="hm-result-stat__l">Panel</span></div>
+            <div class="hm-result-stat">${hmIcon("ruler", 20)}<span class="hm-result-stat__n">${dinW}</span><span class="hm-result-stat__l">DIN width</span></div>
+            <div class="hm-result-stat">${hmIcon("layers", 20)}<span class="hm-result-stat__n">${sections}</span><span class="hm-result-stat__l">Sections</span></div>
+          </div>
+          <div class="hm-result-hero__actions">
+            <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="hm-cart">${hmIcon("cart", 16)} Add to cart</button>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-xlsx">${hmIcon("download", 16)} Download</button>
+            <button type="button" class="hm-btn-pill hm-btn-pill--ghost" id="hm-back">Back</button>
+          </div>
+        </div>
+        ${notesBar}
+        ${panelBlocks || `<div class="hm-card"><p>No panels.</p></div>`}
+        ${channelUsageTable(result.channel_usage)}
+        <div id="hm-cart-status"></div>
       </div>
-      <div id="hm-cart-status"></div>
     `;
 
     bindLayoutHighlight(main);
 
+    const notesBtn = main.querySelector("#hm-notes-toggle");
+    if (notesBtn) {
+      notesBtn.onclick = () => {
+        const body = main.querySelector("#hm-notes-body");
+        const open = body.hidden;
+        body.hidden = !open;
+        notesBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+    }
+    main.querySelectorAll("[data-acc-more]").forEach((btn) => {
+      btn.onclick = () => {
+        const table = btn.closest("table");
+        const rows = table?.querySelectorAll("tr.hm-acc-consumable") || [];
+        const show = [...rows].some((r) => r.hidden);
+        rows.forEach((r) => {
+          r.hidden = !show;
+        });
+        const n = btn.dataset.n || "";
+        btn.textContent = show ? `Hide extras` : `Show all ${n} items`;
+      };
+    });
     main.querySelector("#hm-xlsx").onclick = () =>
       downloadXlsx(result).catch(() => downloadCsv(result));
-    main.querySelector("#hm-csv").onclick = () => downloadCsv(result);
     main.querySelector("#hm-back").onclick = () => {
       state.step = state.expert ? 0 : 2;
       saveState();
