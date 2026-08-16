@@ -87,6 +87,10 @@
   gap: 0.5rem 0.85rem;
 }
 
+#hm-system-builder .hm-mode-hint[hidden] {
+  display: none !important;
+}
+
 #hm-system-builder .hm-mode-hint__dismiss {
   border: none;
   background: none;
