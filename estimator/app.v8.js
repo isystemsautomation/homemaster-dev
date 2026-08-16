@@ -4690,9 +4690,10 @@ function pushCopies(out, base, qty) {
 
 /**
  * Ordered queue matching real assembly (left → right, top → bottom):
- * module-logic PSU (left of first controller) → controllers & modules
- * (LED PS immediately left of each RGB/STR) → 24 V logic distribution →
- * protection → field terminals last (cables enter from below).
+ * Zone 1 — logic PSU left of first controller, HomeMaster modules
+ *   (LED PS left of each RGB/STR), network gear;
+ * Zone 2 — 24 V branch fuses, then protection (MCB / RCD / contactors);
+ * Zone 3 — distribution & field terminals, N/PE bars.
  */
 function buildPlacementQueue(panel, rules = {}) {
   const specs = rules.modules ?? {};
@@ -4783,12 +4784,10 @@ function buildPlacementQueue(panel, rules = {}) {
     fromModuleLine(mod, group);
   }
 
-  // 1. Module-logic PSU — immediately left of the first controller
+  // Zone 1 — logic PSU left of first controller, then modules (topology order).
   fromAcc("psu_din_60w", "logic-psu");
   fromAcc("psu_din_100w", "logic-psu");
 
-  // 2. Controllers & HomeMaster modules (LED PS immediately left of each RGB/STR)
-  //    Network gear (HA server, Ethernet switch) sits next to the controller.
   const segments = panel.topology?.segments || [];
   let networkPlaced = false;
   function placeNetworkGear(group) {
@@ -4811,28 +4810,22 @@ function buildPlacementQueue(panel, rules = {}) {
       };
       placeModuleInstance(ctrlMod, group);
       if (i === 0) placeNetworkGear(group);
-      const slaveMods = (seg.slaves || []).map((slave) => {
+      for (const slave of seg.slaves || []) {
         const sid = typeof slave === "string" ? slave : slave.id;
-        return {
-          id: sid,
-          din_units:
-            (typeof slave === "object" && slave.din_units) ||
-            specs[sid]?.din_units,
-          sku: (typeof slave === "object" && slave.sku) || specs[sid]?.sku,
-          shop_url:
-            (typeof slave === "object" && slave.shop_url) ||
-            specs[sid]?.shop_url,
-          price: mods.get(sid)?.price || null,
-        };
-      });
-      // Strip modules first so later DIOs / small slaves can fill row
-      // remainders via lookahead (LED+STR pairs are ~13–15 M).
-      const isStrip = (m) => m.id === "STR-3221-R1" || m.id === "RGB-621-R1";
-      for (const sMod of slaveMods.filter(isStrip)) {
-        placeModuleInstance(sMod, group);
-      }
-      for (const sMod of slaveMods.filter((m) => !isStrip(m))) {
-        placeModuleInstance(sMod, group);
+        placeModuleInstance(
+          {
+            id: sid,
+            din_units:
+              (typeof slave === "object" && slave.din_units) ||
+              specs[sid]?.din_units,
+            sku: (typeof slave === "object" && slave.sku) || specs[sid]?.sku,
+            shop_url:
+              (typeof slave === "object" && slave.shop_url) ||
+              specs[sid]?.shop_url,
+            price: mods.get(sid)?.price || null,
+          },
+          group,
+        );
       }
     }
   } else {
@@ -4845,20 +4838,13 @@ function buildPlacementQueue(panel, rules = {}) {
       }
     }
     placeNetworkGear("segment-1");
-    const isStrip = (m) => m.id === "STR-3221-R1" || m.id === "RGB-621-R1";
-    for (const m of slaves.filter(isStrip)) {
-      for (let i = 0; i < (m.qty || 0); i++) {
-        placeModuleInstance(m, "segment-1");
-      }
-    }
-    for (const m of slaves.filter((x) => !isStrip(x))) {
+    for (const m of slaves) {
       for (let i = 0; i < (m.qty || 0); i++) {
         placeModuleInstance(m, "segment-1");
       }
     }
   }
 
-  // Any LED PS left unbound (should not happen) — still place with modules.
   for (const pool of Object.values(ledByModule)) {
     while (pool.length) {
       const a = pool.shift();
@@ -4874,11 +4860,8 @@ function buildPlacementQueue(panel, rules = {}) {
     }
   }
 
-  // 3. 24 V logic distribution (fuses + V+/0V terminals) after modules
-  fromAcc("fuse_24v_branch", "logic-dist");
-  fromAcc("terminal_24v", "logic-dist");
-
-  // 4. Protection — incomer and outgoing may share a rail
+  // Zone 2 — fuses then protection
+  fromAcc("fuse_24v_branch", "protection");
   fromAcc("mcb_1p_n", "protection");
   fromAcc("rcd_2p", "protection");
   fromAcc("rcbo_1p_n", "protection");
@@ -4887,7 +4870,8 @@ function buildPlacementQueue(panel, rules = {}) {
   fromAcc("mcb_3p", "protection");
   fromAcc("contactor_modular", "protection");
 
-  // 5. Field terminals and N/PE bars last (cables enter from below)
+  // Zone 3 — terminals & bars
+  fromAcc("terminal_24v", "field");
   fromAcc("terminal_block", "field");
   fromAcc("terminal_block_2t", "field");
   fromAcc("n_bar_12", "field");
@@ -4908,43 +4892,108 @@ function blankTile(units = 1) {
   };
 }
 
+const CONTROLLER_IDS = new Set(["MicroPLC", "MiniPLC"]);
+const LOGIC_PSU_IDS = new Set(["psu_din_60w", "psu_din_100w"]);
+const LED_STR = "psu_led_str";
+const LED_RGB = "psu_led_rgb";
+
 /**
- * Group placement queue into atomic chunks. A strip module and its LED PS
- * must stay on the same row — move both together when the pair does not fit.
- * Preferred order is [LED PS][module]; legacy [module][LED PS] still pairs.
+ * Layout zone for a tile. Rows never mix zones.
+ * 1 = modules + PSUs, 2 = protection/fuses, 3 = terminals/bars.
+ */
+function itemZone(item) {
+  const id = String(item?.id || "");
+  if (
+    id.startsWith("mcb_") ||
+    id.startsWith("rcd_") ||
+    id.startsWith("rcbo_") ||
+    id === "contactor_modular" ||
+    id === "fuse_24v_branch"
+  ) {
+    return 2;
+  }
+  if (
+    id.startsWith("terminal_") ||
+    id.startsWith("n_bar") ||
+    id.startsWith("pe_bar")
+  ) {
+    return 3;
+  }
+  const g = item?.group;
+  if (g === "protection" || g === "incomer") return 2;
+  if (g === "field") return 3;
+  return 1;
+}
+
+function isLedModulePair(a, b) {
+  return (
+    (a.id === LED_STR && b.id === "STR-3221-R1") ||
+    (a.id === LED_RGB && b.id === "RGB-621-R1") ||
+    (a.id === "STR-3221-R1" && b.id === LED_STR) ||
+    (a.id === "RGB-621-R1" && b.id === LED_RGB)
+  );
+}
+
+function isLogicControllerPair(a, b) {
+  return LOGIC_PSU_IDS.has(a.id) && CONTROLLER_IDS.has(b.id);
+}
+
+/**
+ * Atomic placement blocks. PSU sits left of its module; pairs never split.
+ * Widths come from the tiles (STR+LED ≈ 13 M, RGB+LED ≈ 7 M with current DIN).
  */
 function placementChunks(items) {
   const chunks = [];
   for (let i = 0; i < (items || []).length; i++) {
     const cur = items[i];
     const nxt = items[i + 1];
-    const ledLeft =
-      nxt &&
-      ((cur.id === "psu_led_rgb" && nxt.id === "RGB-621-R1") ||
-        (cur.id === "psu_led_str" && nxt.id === "STR-3221-R1"));
-    const ledRight =
-      nxt &&
-      ((cur.id === "RGB-621-R1" && nxt.id === "psu_led_rgb") ||
-        (cur.id === "STR-3221-R1" && nxt.id === "psu_led_str"));
-    if (ledLeft || ledRight) {
-      const u0 = Number(cur.units) || 0;
-      const u1 = Number(nxt.units) || 0;
-      chunks.push({ items: [cur, nxt], units: u0 + u1 });
+    if (nxt && (isLedModulePair(cur, nxt) || isLogicControllerPair(cur, nxt))) {
+      // Normalise LED/module order to [PSU][module] when legacy order appears.
+      let left = cur;
+      let right = nxt;
+      if (
+        (cur.id === "STR-3221-R1" && nxt.id === LED_STR) ||
+        (cur.id === "RGB-621-R1" && nxt.id === LED_RGB)
+      ) {
+        left = nxt;
+        right = cur;
+      }
+      const u0 = Number(left.units) || 0;
+      const u1 = Number(right.units) || 0;
+      chunks.push({
+        items: [left, right],
+        units: u0 + u1,
+        zone: itemZone(left),
+      });
       i += 1;
     } else {
-      chunks.push({ items: [cur], units: Number(cur.units) || 0 });
+      chunks.push({
+        items: [cur],
+        units: Number(cur.units) || 0,
+        zone: itemZone(cur),
+      });
     }
   }
   return chunks;
 }
 
+function fillRowBlanking(rowItems, used, rowWidth, eps) {
+  const remain = rowWidth - used;
+  if (remain <= eps) return rowItems;
+  let left = remain;
+  while (left > 1 + eps) {
+    rowItems.push(blankTile(1));
+    left -= 1;
+  }
+  if (left > eps) rowItems.push(blankTile(Math.round(left * 100) / 100));
+  return rowItems;
+}
+
 /**
- * Pack items into enclosure.cabinets × rows × row_width.
- * Fill the current row until nothing remaining fits, then start a new row.
- * When the head of the queue does not fit the remainder, pull forward the
- * first later chunk that does (segment / group changes never force a wrap).
- * Blanking only fills the remainder after a wrap or at the end.
- * Module + LED PS pairs never split across rows.
+ * Pack items into enclosure rows/sections.
+ * Three zones (modules → protection → terminals) never share a row.
+ * Inside a zone: First Fit over all open rows of that zone (not only the
+ * last). Atomic blocks stay intact. Block order is preserved (no width sort).
  */
 function packEnclosureLayout(items, enclosure) {
   const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
@@ -4952,18 +5001,12 @@ function packEnclosureLayout(items, enclosure) {
   const rowWidth = Math.max(1, Number(enclosure?.row_width) || 24);
   const eps = 1e-6;
 
-  const sections = Array.from({ length: cabinets }, (_, i) => ({
-    index: i + 1,
-    rows: [],
-  }));
-
-  let secIdx = 0;
-  let rowItems = [];
-  let used = 0;
-
   function rowLabel(list) {
     const real = list.filter((t) => t.id !== "blanking_plate");
     if (!real.length) return "Blanking";
+    const zone = itemZone(real[0]);
+    if (zone === 2) return "Protection";
+    if (zone === 3) return "Field terminals & bars";
     const groups = new Set(real.map((t) => t.group));
     const seg = [...groups].find((g) => String(g).startsWith("segment-"));
     if (seg) {
@@ -4975,9 +5018,7 @@ function packEnclosureLayout(items, enclosure) {
       );
       const head = modules[0]?.id || "controller";
       const extraMods = Math.max(0, modules.length - 1);
-      const ledNote = led.length
-        ? ` + ${led.length} LED PS`
-        : "";
+      const ledNote = led.length ? ` + ${led.length} LED PS` : "";
       const extraGroups = [...groups].filter(
         (g) => g !== seg && g !== "blank",
       );
@@ -4994,13 +5035,9 @@ function packEnclosureLayout(items, enclosure) {
               .map((g) =>
                 g === "logic-psu"
                   ? "logic PSU"
-                  : g === "logic-dist"
-                    ? "24 V distribution"
-                    : g === "protection"
-                      ? "protection"
-                      : g === "field"
-                        ? "terminals"
-                        : g,
+                  : g === "led-psu"
+                    ? "LED PS"
+                    : g,
               )
               .join(", ")}`
           : "";
@@ -5009,87 +5046,70 @@ function packEnclosureLayout(items, enclosure) {
     if (groups.has("logic-psu") || groups.has("power")) {
       return "Module logic PSU";
     }
-    if (groups.has("logic-dist")) return "24 V logic distribution";
     if (groups.has("led-psu")) return "LED PS (strip / actuator supply)";
-    if (groups.has("protection") || groups.has("incomer")) {
-      return "Protection";
-    }
-    if (groups.has("field")) return "Field terminals & bars";
     return real
       .map((t) => t.label || t.id)
       .slice(0, 3)
       .join(", ");
   }
 
-  function commitRow() {
-    if (!rowItems.length && used === 0) return;
-    ensureCapacity();
-    const remain = rowWidth - used;
-    if (remain > eps) {
-      let left = remain;
-      while (left > 1 + eps) {
-        rowItems.push(blankTile(1));
-        left -= 1;
+  const blocks = placementChunks(items).filter(
+    (c) => (Number(c.units) || 0) > 0,
+  );
+  const byZone = { 1: [], 2: [], 3: [] };
+  for (const b of blocks) {
+    const z = b.zone === 2 || b.zone === 3 ? b.zone : 1;
+    byZone[z].push(b);
+  }
+
+  /** @type {{ items: object[], used: number, zone: number }[]} */
+  const packedRows = [];
+
+  for (const zone of [1, 2, 3]) {
+    const zoneBlocks = byZone[zone];
+    if (!zoneBlocks.length) continue;
+    /** rows belonging only to this zone */
+    const zoneRows = [];
+
+    for (const block of zoneBlocks) {
+      const units = Number(block.units) || 0;
+      let target = zoneRows.find((r) => r.used + units <= rowWidth + eps);
+      if (!target) {
+        target = { items: [], used: 0, zone };
+        zoneRows.push(target);
       }
-      if (left > eps) rowItems.push(blankTile(Math.round(left * 100) / 100));
+      for (const item of block.items) {
+        target.items.push(item);
+        target.used += Number(item.units) || 0;
+      }
     }
-    const sec = sections[secIdx];
-    sec.rows.push({
-      items: rowItems,
-      label: rowLabel(rowItems),
-      used: rowWidth,
-    });
-    rowItems = [];
-    used = 0;
-    if (sec.rows.length >= rowsPer) {
-      secIdx += 1;
+
+    for (const r of zoneRows) {
+      fillRowBlanking(r.items, r.used, rowWidth, eps);
+      packedRows.push(r);
     }
   }
 
-  function ensureCapacity() {
+  // Map packed rows into coupled enclosure sections (rowsPer per section).
+  const sections = [];
+  let secIdx = 0;
+  function ensureSection() {
     while (secIdx >= sections.length) {
       sections.push({ index: sections.length + 1, rows: [] });
     }
   }
-
-  function placeChunk(chunk) {
-    const units = Number(chunk.units) || 0;
-    for (const item of chunk.items) {
-      rowItems.push(item);
-      used += Number(item.units) || 0;
-    }
-    return units;
+  for (const r of packedRows) {
+    ensureSection();
+    const sec = sections[secIdx];
+    sec.rows.push({
+      items: r.items,
+      label: rowLabel(r.items),
+      used: rowWidth,
+      zone: r.zone,
+    });
+    if (sec.rows.length >= rowsPer) secIdx += 1;
   }
 
-  const pending = placementChunks(items).filter(
-    (c) => (Number(c.units) || 0) > 0,
-  );
-
-  while (pending.length) {
-    ensureCapacity();
-    const remain = rowWidth - used;
-    let idx = pending.findIndex((c) => (Number(c.units) || 0) <= remain + eps);
-    if (idx < 0) {
-      // Nothing fits the remainder — open a new row (or place an oversized
-      // head alone on a fresh row).
-      if (rowItems.length) {
-        commitRow();
-        continue;
-      }
-      idx = 0;
-    }
-    const [chunk] = pending.splice(idx, 1);
-    const units = Number(chunk.units) || 0;
-    if (units > rowWidth + eps && rowItems.length) {
-      commitRow();
-    }
-    placeChunk(chunk);
-  }
-
-  if (rowItems.length) commitRow();
-
-  // Do not pad unused enclosure capacity with blank-only rows/sections.
-  // Free DIN belongs on the last occupied row only; rated size stays in summary.
   const usedSections = sections.filter((s) => s.rows.length > 0);
   const visualCabinets = Math.max(1, usedSections.length);
   const visualRows = Math.max(
@@ -5102,7 +5122,7 @@ function packEnclosureLayout(items, enclosure) {
     rows: visualRows,
     row_width: rowWidth,
     capacity: cabinets * rowsPer * rowWidth,
-    sections: usedSections.length ? usedSections : sections.slice(0, 1),
+    sections: usedSections.length ? usedSections : [{ index: 1, rows: [] }],
     summary: {
       occupied: enclosure?.din_occupied ?? enclosure?.occupied ?? null,
       free: enclosure?.din_free ?? enclosure?.free ?? null,
@@ -5411,6 +5431,7 @@ function layoutsForEstimate(estimate, rules) {
 
 HM.loadPanelManifest = loadPanelManifest;
 HM.buildPlacementQueue = buildPlacementQueue;
+HM.itemZone = itemZone;
 HM.placementChunks = placementChunks;
 HM.packEnclosureLayout = packEnclosureLayout;
 HM.buildPanelLayout = buildPanelLayout;
