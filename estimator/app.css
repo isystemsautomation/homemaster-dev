@@ -2770,6 +2770,51 @@
 
 #hm-system-builder .hm-complete__formula,
 #hm-system-builder .hm-complete__note {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--hm-muted, #666);
+  line-height: 1.4;
+}
+
+#hm-system-builder .hm-field {
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+#hm-system-builder .hm-field__h {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+#hm-system-builder .hm-field__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+#hm-system-builder .hm-field__list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+#hm-system-builder .hm-field__lab {
+  font-weight: 550;
+}
+
+#hm-system-builder .hm-field__note {
+  color: var(--hm-muted, #666);
+  font-size: 0.82rem;
+  text-align: right;
+  max-width: 22rem;
+}
   margin: 0.3rem 0 0;
   font-size: 0.88rem;
   color: var(--hm-muted);

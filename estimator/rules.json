@@ -40,6 +40,7 @@
     "terminal_markers": 0,
     "snubber_rc": 0,
     "internal_wiring": 0,
+    "cable_rs485": 0,
     "blanking_plate": 1,
     "din_enclosure": 0
   },
@@ -67,6 +68,7 @@
     "terminal_markers": "Terminal / circuit markers",
     "snubber_rc": "RC snubber / varistor (inductive load)",
     "internal_wiring": "Internal wiring (terminals → modules)",
+    "cable_rs485": "RS-485 cable (internal panel bus)",
     "blanking_plate": "DIN blanking plate",
     "din_enclosure": "DIN enclosure"
   },
@@ -1225,6 +1227,14 @@
         "confidence": "estimate",
         "qty_mode": "kit"
       },
+      "terminal_24v": {
+        "name_en": "24 V distribution terminal",
+        "price_eur": 0.6,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
       "blanking_plate": {
         "name_en": "DIN blanking plate",
         "price_eur": 2.0,
@@ -1306,22 +1316,22 @@
         "confidence": "confirmed"
       },
       "cable_rs485": {
-        "name_en": "RS-485 cable, per metre",
+        "name_en": "RS-485 cable, internal panel bus, per metre",
         "price_eur": 1.2,
         "vat": "included",
         "source": "estimate",
         "as_of": "2026-08-16",
         "confidence": "estimate",
-        "qty_mode": "per_metre"
+        "qty_mode": "calculated"
       },
       "internal_wiring": {
-        "name_en": "Internal wire 0.75 mm², per metre",
+        "name_en": "Internal wire 0.75 mm², terminals to modules, per metre",
         "price_eur": 0.35,
         "vat": "included",
         "source": "estimate",
         "as_of": "2026-08-16",
         "confidence": "estimate",
-        "qty_mode": "per_metre"
+        "qty_mode": "calculated"
       }
     },
     "installation_work": [

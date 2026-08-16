@@ -349,11 +349,16 @@ function estimatePanel(inputs, rules, prices = EMPTY, opts = {}) {
   );
   // Coupled section count is chosen inside computeEnclosure (not inputs.cabinets).
   const enclosure = computeEnclosure(topology.modules, companions, rules);
+  const moduleCount = (topology.modules || []).reduce(
+    (s, l) => s + Math.max(0, Number(l.qty) || 0),
+    0,
+  );
   const companionsFinal = finalizeEnclosureCompanions(
     companions,
     enclosure,
     rules,
     assumptions,
+    { moduleCount },
   );
   const channel_usage = computeChannelUsage(
     demand,
@@ -371,6 +376,10 @@ function estimatePanel(inputs, rules, prices = EMPTY, opts = {}) {
     assumptions,
   );
   priced.channel_usage = channel_usage;
+  priced.demand = demand;
+  priced.rooms = normalized.rooms || inputs.rooms || [];
+  priced.systems = normalized.systems || inputs.systems || {};
+  priced.shutters = normalized.shutters || 0;
   return priced;
 }
 
@@ -628,8 +637,18 @@ function aggregatePanelResults(panelResults, rules) {
   const assumptions = [];
   const provenance = [];
   const lines = [];
+  const demandMerged = {};
+  const roomsMerged = [];
+  let systemsMerged = {};
+  let shuttersMerged = 0;
 
   for (const p of panelResults) {
+    for (const [ch, n] of Object.entries(p.demand || {})) {
+      demandMerged[ch] = (demandMerged[ch] || 0) + (Number(n) || 0);
+    }
+    if (Array.isArray(p.rooms)) roomsMerged.push(...p.rooms);
+    if (p.systems && typeof p.systems === "object") systemsMerged = p.systems;
+    shuttersMerged += Math.max(0, Number(p.shutters) || 0);
     for (const m of p.modules || []) {
       if (!modMap[m.id]) modMap[m.id] = { ...m, qty: 0 };
       modMap[m.id].qty += m.qty || 0;
@@ -639,8 +658,31 @@ function aggregatePanelResults(panelResults, rules) {
         a.bind_module && a.bind_index != null
           ? `${a.id}::${p.id || p.name || ""}::${a.bind_module}#${a.bind_index}`
           : a.id || a.label;
-      if (!accMap[key]) accMap[key] = { ...a, qty: 0 };
+      if (!accMap[key]) {
+        accMap[key] = { ...a, qty: 0 };
+        if (a.meters != null) accMap[key].meters = 0;
+        if (a.price?.line_total != null) {
+          accMap[key].price = { ...a.price, line_total: 0, qty_priced: 0 };
+        }
+      }
       accMap[key].qty += a.qty || 0;
+      if (a.meters != null) {
+        accMap[key].meters =
+          Math.round(((accMap[key].meters || 0) + Number(a.meters)) * 100) /
+          100;
+      }
+      if (a.price?.line_total != null && accMap[key].price) {
+        accMap[key].price.line_total =
+          Math.round(
+            ((accMap[key].price.line_total || 0) + a.price.line_total) * 100,
+          ) / 100;
+        accMap[key].price.qty_priced =
+          Math.round(
+            ((accMap[key].price.qty_priced || 0) +
+              (a.price.qty_priced || 0)) *
+              100,
+          ) / 100;
+      }
     }
     for (const c of p.cart_lines || []) {
       if (!cartMap[c.sku]) cartMap[c.sku] = { ...c, qty: 0 };
@@ -802,6 +844,10 @@ function aggregatePanelResults(panelResults, rules) {
     assumptions,
     provenance,
     panel_count: panelResults.length,
+    demand: demandMerged,
+    rooms: roomsMerged,
+    systems: systemsMerged,
+    shutters: shuttersMerged,
   };
 }
 
@@ -2458,7 +2504,7 @@ function buildCompanions(
     unit_price: null,
     rating: null,
     meters: null,
-    note: "Cross-section per circuit; labelling per project. Meterage TBD.",
+    note: "Meterage filled after enclosure sizing (field circuits × length per circuit + 24 V bus).",
   });
 
   // Markers: field + 24 V terminals + protective devices.
@@ -2875,10 +2921,48 @@ function computeEnclosure(modulesList, companions, rules) {
 }
 
 /**
+ * Internal panel wiring meters (terminals → modules) + 24 V bus along rails.
+ * Circuit length: (0.3 + rows×0.25) m per field circuit.
+ * 24 V bus: rows × row_width × 0.0175 m × 2 (+/−).
+ * @param {{ fieldCircuits: number, rows: number, rowWidth: number }} opts
+ */
+function estimateInternalWiringMeters({ fieldCircuits, rows, rowWidth }) {
+  const circuits = Math.max(0, Number(fieldCircuits) || 0);
+  const r = Math.max(0, Number(rows) || 0);
+  const w = Math.max(0, Number(rowWidth) || 0);
+  const perCircuit = 0.3 + r * 0.25;
+  const circuitM = circuits * perCircuit;
+  const busM = r * w * 0.0175 * 2;
+  return round2(circuitM + busM);
+}
+
+/**
+ * Internal RS-485 trunk inside the panel.
+ * meters = modules×0.4 + rows×0.5
+ */
+function estimateRs485Meters({ moduleCount, rows }) {
+  const mods = Math.max(0, Number(moduleCount) || 0);
+  const r = Math.max(0, Number(rows) || 0);
+  return round2(mods * 0.4 + r * 0.5);
+}
+
+/**
  * Blanking plates fill unused DIN slots; enclosure is a quote line with
  * approx. outer dimensions. Neither feeds back into din_needed.
+ * Also fills calculated meterage for internal_wiring and cable_rs485.
+ * @param {object[]} companions
+ * @param {object} enclosure
+ * @param {object} rules
+ * @param {string[]} assumptions
+ * @param {{ moduleCount?: number }} [opts]
  */
-function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) {
+function finalizeEnclosureCompanions(
+  companions,
+  enclosure,
+  rules,
+  assumptions,
+  opts = {},
+) {
   const labels = rules.companion_labels ?? EMPTY;
   const dinMap = rules.companion_din_units ?? EMPTY;
   const out = [...(companions || [])];
@@ -2920,7 +3004,6 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
     (cabinets > 1 ? " Coupled enclosure sections." : " Final enclosure selection by the electrical design.");
   out.push({
     id: "din_enclosure",
-    // Single quote line; section count lives in enclosure.cabinets and the label.
     qty: 1,
     label:
       cabinets > 1
@@ -2949,6 +3032,54 @@ function finalizeEnclosureCompanions(companions, enclosure, rules, assumptions) 
     rating: null,
     note: `One rail per enclosure row (${enclosure.row_width} M). Base of the row — no DIN width.`,
   });
+
+  const fieldCircuits =
+    (out.find((c) => c.id === "terminal_block")?.qty || 0) +
+    (out.find((c) => c.id === "terminal_block_2t")?.qty || 0);
+  const moduleCount = Math.max(
+    0,
+    Number(opts.moduleCount) ||
+      out.find((c) => c.id === "fuse_24v_branch")?.qty ||
+      0,
+  );
+
+  const wiringM = estimateInternalWiringMeters({
+    fieldCircuits,
+    rows: Number(enclosure.rows) || 0,
+    rowWidth: Number(enclosure.row_width) || 0,
+  });
+  const wiring = out.find((c) => c.id === "internal_wiring");
+  if (wiring) {
+    wiring.meters = wiringM;
+    wiring.qty = 1;
+    wiring.note =
+      `${fieldCircuits} field circuit(s) × (0.3 + ${enclosure.rows}×0.25) m ` +
+      `+ 24 V bus along ${enclosure.rows}×${enclosure.row_width} M rails = ${wiringM} m.`;
+    assumptions.push(`Internal wiring (panel): ${wiringM} m estimated.`);
+  }
+
+  const rs485M = estimateRs485Meters({
+    moduleCount,
+    rows: Number(enclosure.rows) || 0,
+  });
+  if (rs485M > 0 && moduleCount > 0) {
+    const rs485Line = {
+      id: "cable_rs485",
+      qty: 1,
+      label: labels.cable_rs485 || "RS-485 cable (internal panel bus)",
+      requirement: true,
+      din_units: dinMap.cable_rs485 ?? 0,
+      sku: "",
+      unit_price: null,
+      rating: null,
+      meters: rs485M,
+      note: `Internal RS-485 trunk: ${moduleCount} modules × 0.4 + ${enclosure.rows} rows × 0.5 = ${rs485M} m.`,
+    };
+    const existing = out.find((c) => c.id === "cable_rs485");
+    if (existing) Object.assign(existing, rs485Line);
+    else out.push(rs485Line);
+    assumptions.push(`Internal RS-485 cable (panel): ${rs485M} m estimated.`);
+  }
 
   return out;
 }
@@ -3049,12 +3180,33 @@ const ENCLOSURE_CAPACITY_REF = {
  * Map a companion BOM id to a reference_prices item and billable qty.
  * @returns {{ refId: string, billQty: number }|null}
  */
+/**
+ * Map enclosure capacity (modules) to a priced reference row.
+ * Exact match first; otherwise the next larger standard size.
+ */
+function enclosureRefId(capacityEach, refItems) {
+  const exact = ENCLOSURE_CAPACITY_REF[capacityEach];
+  if (exact && refItems[exact]) return exact;
+  const sizes = Object.keys(ENCLOSURE_CAPACITY_REF)
+    .map(Number)
+    .sort((a, b) => a - b);
+  for (const s of sizes) {
+    const id = ENCLOSURE_CAPACITY_REF[s];
+    if (s >= capacityEach && refItems[id]) return id;
+  }
+  for (let i = sizes.length - 1; i >= 0; i--) {
+    const id = ENCLOSURE_CAPACITY_REF[sizes[i]];
+    if (refItems[id]) return id;
+  }
+  return null;
+}
+
 function companionRefLookup(accessory, enclosure, refItems) {
   if (!accessory?.id || !refItems) return null;
   if (accessory.id === "din_enclosure") {
     const each = Number(enclosure?.capacity_each ?? enclosure?.capacity) || 0;
-    const refId = ENCLOSURE_CAPACITY_REF[each];
-    if (!refId || !refItems[refId]) return null;
+    const refId = enclosureRefId(each, refItems);
+    if (!refId) return null;
     const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
     return { refId, billQty: cabinets };
   }
@@ -3082,7 +3234,7 @@ function attachCompanionReferencePrice(accessory, enclosure, ref) {
   let billQty = found.billQty;
   if (mode === "kit") {
     billQty = 1;
-  } else if (mode === "per_metre") {
+  } else if (mode === "per_metre" || mode === "calculated") {
     const meters = accessory.meters != null ? Number(accessory.meters) : NaN;
     if (!Number.isFinite(meters) || meters <= 0) {
       // Meterage TBD — keep the line, leave price empty for the installer.
@@ -3195,6 +3347,8 @@ function attachPrices(
 
 HM.estimate = estimate;
 HM.resolvePanels = resolvePanels;
+HM.estimateInternalWiringMeters = estimateInternalWiringMeters;
+HM.estimateRs485Meters = estimateRs485Meters;
 
 // ===== prices.js =====
 /**
@@ -3904,6 +4058,8 @@ const OTHER_MATERIAL_CATEGORIES = [
       "psu_led_str",
       "fuse_24v_branch",
       "terminal_24v",
+      "internal_wiring",
+      "cable_rs485",
     ],
     required: true,
   },
@@ -3931,8 +4087,6 @@ const OTHER_MATERIAL_CATEGORIES = [
       "n_bar_12",
       "pe_bar_12",
       "terminal_markers",
-      "internal_wiring",
-      "cable_rs485",
     ],
     required: true,
   },
@@ -3966,11 +4120,113 @@ function accessoryLineTotal(a) {
 }
 
 /**
+ * Field-side equipment (outside the panel) — quantities only, no prices.
+ * Built from rooms / systems / demand; omit zero counts.
+ * @param {{
+ *   rooms?: object[],
+ *   systems?: object,
+ *   demand?: object,
+ *   shutters?: number,
+ *   totals?: object,
+ * }} [src]
+ * @returns {{ id: string, label: string, qty: number|null, note: string }[]}
+ */
+function buildFieldSideItems(src = {}) {
+  const rooms = Array.isArray(src.rooms) ? src.rooms : [];
+  const systems = src.systems || {};
+  const demand = src.demand || {};
+  const totals = src.totals || {};
+  const sumRoom = (key) =>
+    rooms.reduce((s, r) => s + Math.max(0, Number(r?.[key]) || 0), 0);
+  const fromTotalsOrRooms = (key) => {
+    const t = Number(totals[key]);
+    if (Number.isFinite(t) && t > 0) return t;
+    return sumRoom(key);
+  };
+
+  /** @type {{ id: string, label: string, qty: number|null, note: string }[]} */
+  const items = [];
+  const push = (id, label, qty) => {
+    const n = Number(qty);
+    if (!Number.isFinite(n) || n <= 0) return;
+    items.push({
+      id,
+      label,
+      qty: Math.round(n * 100) / 100,
+      note: "quantity from your configuration, price and cable length quoted by your installer",
+    });
+  };
+
+  push("wall_switch", "wall switch gang", fromTotalsOrRooms("switches"));
+
+  const motionRooms =
+    fromTotalsOrRooms("motion_sensors") + fromTotalsOrRooms("presence_sensors");
+  push(
+    "motion_presence",
+    "motion / presence detector",
+    motionRooms > 0 ? motionRooms : Math.max(0, Number(demand.presence_in) || 0),
+  );
+
+  const leakRooms = fromTotalsOrRooms("leak_sensors");
+  const leakSys = Math.max(0, Number(systems?.water?.leak_zones) || 0);
+  const leakDemand = Math.max(0, Number(demand.leak_or_pulse) || 0);
+  push("leak_sensor", "leak sensor", leakRooms || leakSys || leakDemand);
+
+  const valves = Math.max(0, Number(systems?.water?.shutoff_valves) || 0);
+  push("shutoff_valve", "shut-off valve", valves);
+
+  const ufh =
+    fromTotalsOrRooms("ufh_loops") ||
+    Math.max(0, Number(systems?.heating?.collector_loops) || 0) ||
+    Math.max(0, Number(demand.out_24v_ch) || 0);
+  push("thermal_actuator", "thermal actuator", ufh);
+
+  const tempRooms = rooms.reduce((s, r) => {
+    const t = r?.temperature || r?.temp_sensor;
+    if (t && t !== "none" && t !== "None") return s + 1;
+    return s;
+  }, 0);
+  const tempSys =
+    Math.max(0, Number(systems?.heating?.pt100_sensors) || 0) +
+    Math.max(0, Number(systems?.heating?.ds18b20_sensors) || 0);
+  const tempDemand =
+    Math.max(0, Number(demand.onewire) || 0) +
+    Math.max(0, Number(demand.rtd_input) || 0);
+  push(
+    "temp_sensor",
+    "temperature sensor",
+    tempRooms || tempSys || tempDemand,
+  );
+
+  const led =
+    fromTotalsOrRooms("led_strips") ||
+    Math.max(0, Number(demand.pwm_led_ch) || 0);
+  push("led_strip", "LED strip", led);
+
+  const shutters =
+    fromTotalsOrRooms("shutters") ||
+    Math.max(0, Number(src.shutters) || 0) ||
+    Math.max(0, Number(demand.shutters) || 0);
+  push("blind_motor", "blind / shutter motor", shutters);
+
+  if (items.length > 0) {
+    items.unshift({
+      id: "field_cable",
+      label: "Cable from panel to loads and sensors",
+      qty: null,
+      note: "measured on site — quoted by your installer",
+    });
+  }
+  return items;
+}
+
+/**
  * Commercial view of an estimate: explicit section/pricing flags and separate totals.
  * @param {object} estimate
  * @param {Record<string, {amount: number, currency: string, available?: boolean, currencyAmbiguous?: boolean}>} prices
+ * @param {{ rooms?: object[], systems?: object, demand?: object, shutters?: number, totals?: object }} [fieldSrc]
  */
-function buildCommercialSummary(estimate, prices) {
+function buildCommercialSummary(estimate, prices, fieldSrc = {}) {
   const moduleRows = modulePurchaseRows(estimate, prices);
   const homemasterLines = moduleRows.map((r) => ({
     id: r.id,
@@ -3990,10 +4246,16 @@ function buildCommercialSummary(estimate, prices) {
     const line = accessoryLineTotal(a);
     const cat = CATEGORY_BY_ID[a.id];
     const priced = line != null;
+    const meters =
+      a.meters != null && Number.isFinite(Number(a.meters))
+        ? Number(a.meters)
+        : null;
     return {
       id: a.id,
       label: a.label || a.id,
-      qty: a.qty || 0,
+      qty: meters != null ? meters : a.qty || 0,
+      qtyUnit: meters != null ? "m" : null,
+      meters,
       amount: priced ? a.price.amount : null,
       lineTotal: line,
       currency: priced ? a.price.currency || "EUR" : null,
@@ -4016,6 +4278,14 @@ function buildCommercialSummary(estimate, prices) {
     pricing: "unpriced",
     checkoutEligible: false,
   }));
+
+  const fieldSideItems = buildFieldSideItems({
+    rooms: fieldSrc.rooms ?? estimate?.rooms,
+    systems: fieldSrc.systems ?? estimate?.systems,
+    demand: fieldSrc.demand ?? estimate?.demand,
+    shutters: fieldSrc.shutters ?? estimate?.shutters,
+    totals: fieldSrc.totals,
+  });
 
   const cart = cartTotal(estimate, prices);
   const availableLines = moduleRows.filter((r) => r.checkoutEligible);
@@ -4146,6 +4416,7 @@ function buildCommercialSummary(estimate, prices) {
     materialCategories: categories,
     moduleRows,
     installationLabels: installationLines.map((l) => l.label).filter(Boolean),
+    fieldSideItems,
   };
 }
 
@@ -4173,6 +4444,7 @@ HM.formatMoney = formatMoney;
 HM.systemTotal = systemTotal;
 HM.panelEquipmentTotal = panelEquipmentTotal;
 HM.cartTotal = cartTotal;
+HM.buildFieldSideItems = buildFieldSideItems;
 HM.buildCommercialSummary = buildCommercialSummary;
 HM.homemasterStockLabel = homemasterStockLabel;
 HM.OTHER_MATERIAL_CATEGORIES = OTHER_MATERIAL_CATEGORIES;
