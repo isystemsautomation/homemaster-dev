@@ -1508,6 +1508,10 @@ function scoreControllerCombo(ctrlId, modulesBag, rules, prices) {
   let money = 0;
   let din = 0;
   let priced = true;
+  const ctrlSpec = (rules.modules ?? EMPTY)[ctrlId];
+  const ctrlPrice = ctrlSpec?.sku ? prices?.[ctrlSpec.sku] : null;
+  // Prefer in-stock controllers when the shop marks one OutOfStock.
+  const available = !ctrlPrice || ctrlPrice.available !== false;
   const add = (id, qty) => {
     const spec = (rules.modules ?? EMPTY)[id];
     if (!spec) {
@@ -1527,11 +1531,12 @@ function scoreControllerCombo(ctrlId, modulesBag, rules, prices) {
     if ((rules.modules ?? EMPTY)[id]?.master) continue;
     add(id, qty);
   }
-  return { money, din, priced };
+  return { money, din, priced, available };
 }
 
 function comboBetter(a, b) {
   if (!b) return true;
+  if (a.available !== b.available) return a.available;
   if (a.priced && b.priced) {
     if (a.money !== b.money) return a.money < b.money;
     return a.din < b.din;
@@ -4227,6 +4232,81 @@ function togglesFromSystems(systems) {
 }
 
 /**
+ * Map unavailable shop modules → Simple preset fields to clear.
+ * Used only for Apartment / House / Villa examples — not for manual sliders.
+ *
+ * @param {(moduleId: string) => boolean} isAvailable
+ * @returns {{ preset: object, exclusions: string[], controllersOk: boolean }}
+ */
+function adaptPresetForAvailability(preset, isAvailable) {
+  const p = structuredClone(preset);
+  const exclusions = [];
+  const avail = typeof isAvailable === "function" ? isAvailable : () => true;
+  const note = (feature, sku) => {
+    exclusions.push(`${feature} excluded — ${sku} currently unavailable.`);
+  };
+
+  if (!avail("DIM-420-R1") && (Number(p.totals?.lights_dimmable) || 0) > 0) {
+    p.totals.lights_dimmable = 0;
+    note("Dimming", "DIM-420-R1");
+  }
+
+  if (!avail("STR-3221-R1")) {
+    // out_24v_ch + presence_in both allocate to STR-3221-R1.
+    if ((Number(p.totals?.ufh_loops) || 0) > 0) {
+      p.totals.ufh_loops = 0;
+      note("Underfloor heating", "STR-3221-R1");
+    }
+    if ((Number(p.totals?.motion_sensors) || 0) > 0) {
+      p.totals.motion_sensors = 0;
+      note("Motion sensors", "STR-3221-R1");
+    }
+    // Stair / accent lighting also needs STR (or RGB for PWM); strip for stock examples.
+    p.clearStairLighting = true;
+  }
+
+  if (!avail("RGB-621-R1") && (Number(p.totals?.led_strips) || 0) > 0) {
+    p.totals.led_strips = 0;
+    note("RGB strips", "RGB-621-R1");
+  }
+
+  if (!avail("WLD-521-R1") && (Number(p.totals?.leak_sensors) || 0) > 0) {
+    p.totals.leak_sensors = 0;
+    note("Leak detection", "WLD-521-R1");
+  }
+
+  if (!avail("ALM-173-R1") && p.toggles?.security) {
+    p.toggles.security = false;
+    note("Security zones", "ALM-173-R1");
+  }
+
+  if (!avail("ENM-223-R1") && p.toggles?.energy_metering) {
+    p.toggles.energy_metering = false;
+    note("Energy metering", "ENM-223-R1");
+  }
+
+  if (!avail("AIO-422-R1")) {
+    // Presets do not set analog/RTD; clear if a caller added them.
+    let cleared = false;
+    if ((Number(p.totals?.sensors_0_10v) || 0) > 0) {
+      p.totals.sensors_0_10v = 0;
+      cleared = true;
+    }
+    if ((Number(p.totals?.rtd_sensors) || 0) > 0) {
+      p.totals.rtd_sensors = 0;
+      cleared = true;
+    }
+    if (cleared) note("Analog / RTD sensors", "AIO-422-R1");
+  }
+
+  const miniOk = avail("MiniPLC");
+  const microOk = avail("MicroPLC");
+  const controllersOk = miniOk || microOk;
+
+  return { preset: p, exclusions, controllersOk, preferController: microOk && !miniOk ? "MicroPLC" : miniOk && !microOk ? "MiniPLC" : null };
+}
+
+/**
  * Preset room counts + totals for property type / examples.
  */
 function simplePreset(kind, roomTemplates) {
@@ -4420,6 +4500,7 @@ HM.distributeFieldToRooms = distributeFieldToRooms;
 HM.applySimpleDistribution = applySimpleDistribution;
 HM.applySimpleToggles = applySimpleToggles;
 HM.togglesFromSystems = togglesFromSystems;
+HM.adaptPresetForAvailability = adaptPresetForAvailability;
 HM.simplePreset = simplePreset;
 HM.simpleCustomerSummary = simpleCustomerSummary;
 HM.SIMPLE_ROOM_TYPES = SIMPLE_ROOM_TYPES;
@@ -6512,7 +6593,11 @@ function syncSimpleSlidersFromRooms() {
 }
 
 function applyPreset(kind) {
-  const p = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
+  const raw = simplePreset(kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment");
+  const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(
+    raw,
+    moduleIsAvailable,
+  );
   state.object.property_type = p.property_type;
   state.object.floor_area_m2 = p.floor_area_m2;
   state.object.floors = p.floors;
@@ -6520,8 +6605,42 @@ function applyPreset(kind) {
   state.simple.totals = p.totals;
   state.simple.toggles = p.toggles;
   state.simple.preset = kind === "villa" ? "villa" : kind === "house" ? "house" : "apartment";
+  state.simple.stockExclusions = exclusions;
+  state.simple.controllersOk = controllersOk;
   state.rooms = [];
   runSimpleSync();
+  if (p.clearStairLighting && state.systems?.lighting_scenes) {
+    state.systems.lighting_scenes.stair_steps = 0;
+    state.systems.lighting_scenes.accent_zones = 0;
+  }
+  if ((Number(p.totals?.ufh_loops) || 0) === 0 && state.systems?.heating) {
+    state.systems.heating.collector_loops = 0;
+  }
+}
+
+/** True when shop ld+json marks the module InStock (or we have no price yet). */
+function moduleIsAvailable(moduleId) {
+  const spec = rules?.modules?.[moduleId];
+  if (!spec?.sku) return true;
+  const p = priceMap[spec.sku];
+  if (!p) return true;
+  return p.available !== false;
+}
+
+/** Fetch shop pages for every module SKU so example presets can drop OOS features. */
+async function ensureStockCatalog() {
+  const specs = rules?.modules || {};
+  const urls = Object.values(specs)
+    .map((s) => s?.shop_url)
+    .filter(Boolean);
+  if (!urls.length) return;
+  const missing = urls.filter((u) => {
+    const spec = Object.values(specs).find((s) => s.shop_url === u);
+    return spec?.sku && !(priceMap[spec.sku] && Number.isFinite(priceMap[spec.sku].amount));
+  });
+  if (!missing.length) return;
+  const map = await fetchPrices(missing, { preferredCurrency: detectShopCurrency() });
+  priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
 }
 
 function saveState() {
@@ -6986,6 +7105,7 @@ function mountConfigurator(root) {
         <main class="hm-main" id="hm-main"></main>
         <aside class="hm-summary" id="hm-summary"></aside>
       </div>
+      <div class="hm-simple-dock" id="hm-simple-dock" hidden></div>
     </div>
   `);
   root.appendChild(shell);
@@ -6995,10 +7115,12 @@ function mountConfigurator(root) {
   const summary = shell.querySelector("#hm-summary");
   const layout = shell.querySelector("#hm-layout");
   const examplesEl = shell.querySelector("#hm-examples");
+  const simpleDock = shell.querySelector("#hm-simple-dock");
   const expertCb = shell.querySelector("#hm-expert");
   const expertWrap = shell.querySelector("#hm-expert-wrap");
   const modeSimpleBtn = shell.querySelector("#hm-mode-simple");
   const modeAdvancedBtn = shell.querySelector("#hm-mode-advanced");
+  const estimatorRoot = shell;
 
   function setUiMode(mode, { syncFromRooms = false } = {}) {
     const next = mode === "advanced" ? "advanced" : "simple";
@@ -7043,6 +7165,11 @@ function mountConfigurator(root) {
     expertWrap.hidden = simple;
     layout.classList.toggle("hm-layout--simple", simple);
     examplesEl.hidden = !simple;
+    estimatorRoot.classList.toggle("hm-estimator--simple", simple);
+    if (!simple && simpleDock) {
+      simpleDock.hidden = true;
+      simpleDock.innerHTML = "";
+    }
   }
 
   function renderExamples() {
@@ -7061,20 +7188,24 @@ function mountConfigurator(root) {
         ${cards
           .map(
             ([id, label, icon]) =>
-              `<button type="button" class="hm-example-card${
-                state.simple?.preset === id ? " is-selected" : ""
-              }" data-preset="${id}">
-                <span class="hm-example-card__ico">${hmIcon(icon, 22)}</span>
-                <span class="hm-example-card__text">
-                  <strong>${label}</strong>
-                  <span class="hm-example-price" data-preset-price="${id}">…</span>
-                </span>
-              </button>`,
+              `<div class="hm-example-wrap">
+                <button type="button" class="hm-example-card${
+                  state.simple?.preset === id ? " is-selected" : ""
+                }" data-preset="${id}">
+                  <span class="hm-example-card__ico">${hmIcon(icon, 22)}</span>
+                  <span class="hm-example-card__text">
+                    <strong>${label}</strong>
+                    <span class="hm-example-price" data-preset-price="${id}">…</span>
+                  </span>
+                </button>
+                <div class="hm-example-excl" data-preset-excl="${id}" hidden></div>
+              </div>`,
           )
           .join("")}
       </div>`;
     examplesEl.querySelectorAll("[data-preset]").forEach((btn) => {
-      btn.onclick = () => {
+      btn.onclick = async () => {
+        await ensureStockCatalog();
         applyPreset(btn.dataset.preset);
         saveState();
         render();
@@ -7086,6 +7217,7 @@ function mountConfigurator(root) {
 
   async function refreshExamplePrices() {
     if (state.ui_mode !== "simple") return;
+    await ensureStockCatalog();
     const saved = structuredClone({
       object: state.object,
       rooms: state.rooms,
@@ -7094,9 +7226,31 @@ function mountConfigurator(root) {
     });
     for (const kind of ["apartment", "house", "villa"]) {
       const elPrice = examplesEl.querySelector(`[data-preset-price="${kind}"]`);
+      const elExcl = examplesEl.querySelector(`[data-preset-excl="${kind}"]`);
       if (!elPrice) continue;
       try {
-        const p = simplePreset(kind);
+        const raw = simplePreset(kind);
+        const { preset: p, exclusions, controllersOk } = adaptPresetForAvailability(
+          raw,
+          moduleIsAvailable,
+        );
+        if (elExcl) {
+          if (exclusions.length || !controllersOk) {
+            const lines = [...exclusions];
+            if (!controllersOk) {
+              lines.push("Controllers unavailable — MiniPLC and MicroPLC are currently out of stock.");
+            }
+            elExcl.hidden = false;
+            elExcl.innerHTML = lines.map((t) => `<p>${escapeAttr(t)}</p>`).join("");
+          } else {
+            elExcl.hidden = true;
+            elExcl.innerHTML = "";
+          }
+        }
+        if (!controllersOk) {
+          elPrice.textContent = "unavailable";
+          continue;
+        }
         const { rooms } = applySimpleDistribution({
           counts: p.counts,
           totals: p.totals,
@@ -7106,8 +7260,12 @@ function mountConfigurator(root) {
           roomDefaultsFn: (t) => roomDefaults(t),
           panelId: firstPanelId(),
         });
-        const systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
+        let systems = applySimpleToggles(emptySystems(firstPanelId()), p.toggles);
         systems.heating.collector_loops = p.totals.ufh_loops || 0;
+        if (p.clearStairLighting && systems.lighting_scenes) {
+          systems.lighting_scenes.stair_steps = 0;
+          systems.lighting_scenes.accent_zones = 0;
+        }
         const inputs = {
           panels: resolvePanels({ panels: state.panels }),
           rooms,
@@ -7119,9 +7277,9 @@ function mountConfigurator(root) {
         };
         let result = estimate(inputs, rules, priceMap);
         const urls = (result.modules || []).map((m) => m.shop_url).filter(Boolean);
-        if (urls.length && Object.keys(priceMap).length === 0) {
+        if (urls.length) {
           const map = await fetchPrices(urls, { preferredCurrency: detectShopCurrency() });
-          priceMap = toEstimatePriceMap(map);
+          priceMap = { ...priceMap, ...toEstimatePriceMap(map) };
           result = estimate(inputs, rules, priceMap);
         }
         const tot = cartTotal(result, priceMap);
@@ -8424,12 +8582,9 @@ function mountConfigurator(root) {
         ? `<details class="hm-add-equip"><summary>Add equipment</summary><div class="hm-slider-stack">${equipHiddenHtml}</div></details>`
         : "";
 
-    // Result first in DOM (mobile / keyboard); CSS places it right on desktop.
+    // Settings before result in DOM (mobile order = keyboard order); CSS puts result right on desktop.
     main.innerHTML = `
       <div class="hm-simple">
-        <div class="hm-simple__result" id="hm-simple-result">
-          <p class="hm-muted">Calculating…</p>
-        </div>
         <div class="hm-simple__settings">
           <div class="hm-simple-sec hm-simple-sec--top">
             <label class="hm-simple__ptype">Property type
@@ -8470,6 +8625,9 @@ function mountConfigurator(root) {
             </div>
           </section>
           ${warn}
+        </div>
+        <div class="hm-simple__result" id="hm-simple-result">
+          <p class="hm-muted">Calculating…</p>
         </div>
       </div>`;
 
@@ -8661,17 +8819,38 @@ function mountConfigurator(root) {
     host.querySelector("#s-xlsx").onclick = () =>
       downloadXlsx(result).catch(() => downloadCsv(result));
     host.querySelector("#s-share").onclick = (ev) => copyShareLink(ev.currentTarget);
-    host.querySelector("#s-cart").onclick = async () => {
+    const addToCart = async () => {
       const status = host.querySelector("#s-cart-status");
-      status.textContent = "Adding…";
+      if (status) status.textContent = "Adding…";
       const { added, failed } = await addAllToCart(cartEligibleLines(result, priceMap));
       if (failed) {
-        status.innerHTML = `<p class="hm-warn">Added ${added.length}; failed on ${failed.line?.sku}</p>`;
+        if (status) {
+          status.innerHTML = `<p class="hm-warn">Added ${added.length}; failed on ${failed.line?.sku}</p>`;
+        }
         return;
       }
       const units = added.reduce((s, a) => s + (a.line?.qty || 0), 0);
-      status.innerHTML = `<p>Done: ${units} unit${units === 1 ? "" : "s"}. <a href="/shop/cart">Go to cart</a></p>`;
+      if (status) {
+        status.innerHTML = `<p>Done: ${units} unit${units === 1 ? "" : "s"}. <a href="/shop/cart">Go to cart</a></p>`;
+      }
     };
+    host.querySelector("#s-cart").onclick = addToCart;
+
+    // Mobile sticky price bar — desktop hides via CSS.
+    if (simpleDock) {
+      const dockPrice =
+        tot && tot.pricedQty > 0
+          ? `${tot.total} ${escapeAttr(tot.currency)}`
+          : "—";
+      simpleDock.hidden = false;
+      simpleDock.innerHTML = `
+        <button type="button" class="hm-simple-dock__price" id="s-dock-price">${dockPrice}</button>
+        <button type="button" class="hm-btn-pill hm-btn-pill--primary hm-simple-dock__cart" id="s-dock-cart">${hmIcon("cart", 16)} Add to cart</button>`;
+      simpleDock.querySelector("#s-dock-price").onclick = () => {
+        host.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      simpleDock.querySelector("#s-dock-cart").onclick = addToCart;
+    }
   }
 
   function render() {

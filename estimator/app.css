@@ -676,12 +676,76 @@
   #hm-system-builder .hm-simple {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "result"
-      "settings";
+      "settings"
+      "result";
   }
 
   #hm-system-builder .hm-simple__result {
     position: static;
+  }
+}
+
+#hm-system-builder .hm-example-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+#hm-system-builder .hm-example-excl {
+  padding: 0 0.15rem;
+}
+
+#hm-system-builder .hm-example-excl p {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-simple-dock {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  #hm-system-builder .hm-estimator--simple {
+    padding-bottom: 4.5rem;
+  }
+
+  #hm-system-builder .hm-estimator--simple .hm-simple-dock:not([hidden]) {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    height: 56px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.85rem;
+    background: var(--hm-card);
+    border-top: 1px solid var(--hm-line);
+    box-shadow: 0 -4px 18px rgba(28, 36, 48, 0.08);
+  }
+
+  #hm-system-builder .hm-simple-dock__price {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--hm-ink);
+    cursor: pointer;
+    text-align: left;
+    min-width: 0;
+  }
+
+  #hm-system-builder .hm-simple-dock__cart {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 }
 
