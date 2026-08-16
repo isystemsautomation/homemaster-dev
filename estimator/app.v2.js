@@ -4657,34 +4657,41 @@ const RULES_URL =
     (globalThis.HM_ESTIMATOR_RULES_URL || globalThis.HM_RULES_URL)) ||
   "https://config.home-master.eu/estimator/rules.json";
 
-const ROOM_FIELDS_MAIN = [
-  ["lights_onoff", "Light groups (on/off)", "number"],
-  ["lights_dimmable", "of which dimmable 230 V", "number", { parent: "lights_onoff" }],
-  ["led_strips", "RGB / RGBW / RGBCCT strips", "number"],
-  ["led_strip_channels", "Strip channels", "channels", { parent: "led_strips" }],
-  ["led_single", "Single-colour strips 12–24 V", "number"],
-  ["switches", "Wall switch gangs", "number"],
-  ["shutters", "Blinds / roller shutters", "number"],
+const ROOM_FIELDS_LIGHT = [
+  ["lights_onoff", "Light groups", "number", { icon: "light" }],
+  ["lights_dimmable", "Dimmable 230 V", "number", { parent: "lights_onoff", icon: "dim" }],
+  ["led_strips", "RGB strips", "number", { icon: "rgb" }],
+  ["led_strip_channels", "Strip channels", "channels", { parent: "led_strips", icon: "rgb" }],
+  ["led_single", "Single-colour strips", "number", { icon: "light" }],
+];
+
+const ROOM_FIELDS_OTHER = [
+  ["switches", "Wall switches", "number", { icon: "switch" }],
+  ["shutters", "Shutters", "number", { icon: "shutter" }],
   [
     "ufh_loops",
-    "Underfloor heating loops (collector)",
+    "UFH loops",
     "number",
     {
-      tip: "House-wide collector loops on Systems use the maximum of room totals and the Systems value — not the sum.",
+      icon: "heat",
+      tip: "Underfloor heating loops on the collector. House-wide collector on Systems uses the maximum of room totals and the Systems value — not the sum.",
     },
   ],
 ];
 
+/** @deprecated kept as alias for tests / callers */
+const ROOM_FIELDS_MAIN = [...ROOM_FIELDS_LIGHT, ...ROOM_FIELDS_OTHER];
+
 const ROOM_FIELDS_MORE = [
-  ["ufh_electric", "Electric underfloor heating", "number"],
-  ["lights_0_10v", "0–10 V ballast lights", "number"],
-  ["temp_sensor", "Temperature sensor", "temp"],
-  ["leak_sensors", "Leak sensors", "number"],
-  ["motion_sensors", "Motion detectors (powered)", "number"],
-  ["presence_sensors", "Presence sensors", "number"],
-  ["door_contacts", "Door / window contacts", "number"],
-  ["smart_sockets", "Switched sockets", "number"],
-  ["extract_fan", "Extract fan", "number"],
+  ["ufh_electric", "Electric UFH", "number", { icon: "heat" }],
+  ["lights_0_10v", "0–10 V lights", "number", { icon: "dim" }],
+  ["temp_sensor", "Temp sensor", "temp", { icon: "heat" }],
+  ["leak_sensors", "Leak sensors", "number", { icon: "leak" }],
+  ["motion_sensors", "Motion detectors", "number", { icon: "motion" }],
+  ["presence_sensors", "Presence sensors", "number", { icon: "motion" }],
+  ["door_contacts", "Door contacts", "number", { icon: "door" }],
+  ["smart_sockets", "Sockets", "number", { icon: "socket" }],
+  ["extract_fan", "Extract fan", "number", { icon: "vent" }],
 ];
 
 /** Parent field must be > 0 for the child to show. */
@@ -4719,6 +4726,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "heating",
     title: "Heating",
+    icon: "heat",
     fields: [
       ["boiler", "Boiler", "boiler"],
       ["collector_loops", "Collector loops (house total)", "number"],
@@ -4733,6 +4741,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "ventilation",
     title: "Ventilation & climate",
+    icon: "vent",
     fields: [
       ["ahu", "Supply AHU / air handling", "number"],
       ["recuperator", "Recuperator", "number"],
@@ -4745,6 +4754,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "water",
     title: "Water",
+    icon: "water",
     fields: [
       ["leak_zones", "Leak zones", "number"],
       ["shutoff_valves", "Shut-off valves (actuators)", "number"],
@@ -4758,6 +4768,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "electrical",
     title: "Electrical supply",
+    icon: "energy",
     fields: [
       ["energy_phases", "Energy metering phases", "number"],
       ["load_shed", "Load-shed contactors", "number"],
@@ -4769,6 +4780,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "security",
     title: "Security & access",
+    icon: "security",
     fields: [
       ["powered_sensors", "Powered alarm sensors", "powered_sensors"],
       ["dry_contacts", "Dry-contact zones", "number"],
@@ -4780,6 +4792,7 @@ const SYSTEM_SECTIONS = [
   {
     id: "lighting_scenes",
     title: "Lighting scenes",
+    icon: "light",
     fields: [
       ["stair_steps", "Staircase step lights", "number"],
       ["accent_zones", "Accent / cove lighting zones", "number"],
@@ -4815,6 +4828,10 @@ let state = {
   rooms_expanded: 0,
   /** Banner after panel delete migrates rooms. */
   panel_migrate_notice: "",
+  /** Systems step: which section ids are expanded. */
+  systems_expanded: null,
+  /** Systems step: show zero-value fields. */
+  systems_show_all: false,
   systems: emptySystems(),
   expertDemand: {},
   rulesVersion: null,
@@ -5025,6 +5042,87 @@ function roomTypeIcon(template) {
     terrace: "Patio",
   };
   return map[template] || "Room";
+}
+
+function roomTypeSvg(template) {
+  const map = {
+    living: "living",
+    bedroom: "bed",
+    kitchen: "kitchen",
+    bath: "bath",
+    hallway: "hall",
+    boiler_room: "utility",
+    garage: "garage",
+    office: "office",
+    nursery: "bed",
+    dressing: "living",
+    terrace: "house",
+  };
+  return map[template] || "rooms";
+}
+
+/** Approximate floor area from Simple room counts (m²). */
+function estimateFloorAreaFromCounts(counts, propertyType) {
+  const w = {
+    bedroom: 14,
+    bath: 5,
+    living: 24,
+    kitchen: 12,
+    hallway: 6,
+    office: 12,
+    garage: 18,
+    boiler_room: 5,
+  };
+  let sum = 0;
+  let n = 0;
+  for (const [k, v] of Object.entries(counts || {})) {
+    const q = Number(v) || 0;
+    sum += (w[k] || 10) * q;
+    n += q;
+  }
+  if (n === 0) {
+    return propertyType === "house" || propertyType === "townhouse" ? 120 : 60;
+  }
+  return Math.max(30, Math.round(sum / 5) * 5);
+}
+
+function sectionHasContent(sec, sys) {
+  const data = sys?.[sec.id] || {};
+  for (const [key, , kind] of sec.fields) {
+    if (kind === "boiler") {
+      if (data.boiler && data.boiler !== "none") return true;
+      continue;
+    }
+    if (kind === "powered_sensors") {
+      const rows = data.powered_sensors || [];
+      if (rows.some((r) => (Number(r.qty) || 0) > 0)) return true;
+      continue;
+    }
+    if ((Number(data[key]) || 0) > 0) return true;
+  }
+  return false;
+}
+
+function sectionSummaryText(sec, sys) {
+  const data = sys?.[sec.id] || {};
+  const bits = [];
+  for (const [key, label, kind] of sec.fields) {
+    if (kind === "boiler") {
+      if (data.boiler && data.boiler !== "none") {
+        bits.push(data.boiler === "opentherm" ? "OpenTherm" : "Relay boiler");
+      }
+      continue;
+    }
+    if (kind === "powered_sensors") {
+      const n = (data.powered_sensors || []).reduce((s, r) => s + (Number(r.qty) || 0), 0);
+      if (n > 0) bits.push(`${n} sensors`);
+      continue;
+    }
+    const v = Number(data[key]) || 0;
+    if (v > 0) bits.push(`${v} ${label.toLowerCase()}`);
+  }
+  if (!bits.length) return "not used";
+  return bits.slice(0, 3).join(", ") + (bits.length > 3 ? "…" : "");
 }
 
 /** Compact stroke icons for Simple mode (no emoji, no external assets). */
@@ -5447,10 +5545,7 @@ function channelUsageTable(usage) {
       const tip = r.note
         ? ` title="${escapeAttr(r.note)}"`
         : "";
-      const note = r.note
-        ? `<div class="hm-muted" style="font-size:0.85em;max-width:28rem">${escapeAttr(r.note)}</div>`
-        : "";
-      return `<tr${tip}><td>${escapeAttr(r.label)}${note}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`;
+      return `<tr${tip}><td>${escapeAttr(r.label)}</td><td>${r.needed}</td><td>${r.supplied}</td><td>${r.spare}</td></tr>`;
     })
     .join("");
   return `
@@ -5514,6 +5609,14 @@ function mountConfigurator(root) {
     const next = mode === "advanced" ? "advanced" : "simple";
     if (next === "simple" && state.ui_mode === "advanced") {
       syncSimpleSlidersFromRooms();
+    }
+    if (next === "advanced" && state.ui_mode === "simple") {
+      runSimpleSync();
+      state.object.floor_area_m2 = estimateFloorAreaFromCounts(
+        state.simple.counts,
+        state.object.property_type,
+      );
+      state.step = 0;
     }
     // Simple → Advanced: do not redistribute.
     state.ui_mode = next;
@@ -5667,24 +5770,31 @@ function mountConfigurator(root) {
   }
 
   function renderSummary(result) {
+    if (state.step === 3) {
+      summary.hidden = true;
+      summary.innerHTML = "";
+      layout.classList.add("hm-layout--result");
+      return;
+    }
+    summary.hidden = false;
+    layout.classList.remove("hm-layout--result");
     if (result.error) {
       summary.innerHTML = `<p class="hm-warn">${result.error}</p>`;
       return;
     }
-    const mods = (result.modules || [])
-      .map((m) => {
-        const p = priceMap[m.sku];
-        return `<li><strong>${m.qty}×</strong> ${m.id}<br><span class="hm-muted">${formatPrice(p)}</span></li>`;
-      })
-      .join("");
     const tot = cartTotal(result, priceMap);
-    let totalLine = "HomeMaster subtotal: —";
+    let priceHtml = `<p class="hm-simple-price">—</p>`;
     if (tot && typeof tot.total === "number") {
-      const amb = tot.currencyAmbiguous
-        ? ' <span class="hm-muted">(currency may not match shop session)</span>'
-        : "";
-      totalLine = `HomeMaster subtotal: ${tot.total} ${tot.currency} (incl. VAT)${amb}`;
+      priceHtml = `<p class="hm-simple-price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
     }
+    const ptype =
+      PROPERTY_TYPES.find(([v]) => v === state.object.property_type)?.[1] ||
+      state.object.property_type;
+    const namedRooms = (state.rooms || []).filter((r) => r.name?.trim()).length;
+    const sysBits = SYSTEM_SECTIONS.filter((sec) => sectionHasContent(sec, state.systems)).map(
+      (sec) => sec.title,
+    );
+    const area = Number(state.object.floor_area_m2) || 0;
     const priceNotes = priceIntegrityHtml(result, priceMap);
     const warns = (result.assumptions || [])
       .filter((a) => /ALM 12 V rail:.*exceeds/i.test(a))
@@ -5693,30 +5803,24 @@ function mountConfigurator(root) {
     const split = result.split_warning
       ? `<p class="hm-warn">${escapeAttr(result.split_warning)}</p>`
       : "";
-    const segs =
-      result.topology?.segment_count ?? result.topology?.segments?.length ?? 0;
-    const ctrlList = result.topology?.controllers;
-    const ctrlCount = Array.isArray(ctrlList)
-      ? ctrlList.length
-      : (result.modules || [])
-          .filter((m) => rules.modules?.[m.id]?.master)
-          .reduce((s, m) => s + (m.qty || 0), 0);
-    const ctrlDetail =
-      Array.isArray(ctrlList) && ctrlList.length
-        ? ` (${ctrlList.map((c) => `${c.id}→seg ${c.segment}`).join(", ")})`
-        : "";
     summary.innerHTML = `
-      <h2>Summary</h2>
-      ${channelUsageTable(result.channel_usage)}
-      <ul class="hm-modlist">${mods || "<li>—</li>"}</ul>
-      <p>Panels: ${result.panel_count ?? state.panels.length}</p>
-      <p>RS-485 segments: ${segs} · controllers: ${ctrlCount}${ctrlDetail}</p>
-      <p>24 V power: ${result.power?.total_w ?? "—"} W</p>
-      ${enclosureMessage(result.enclosure, { compact: true })}
+      <div class="hm-simple-result__head">
+        ${hmIcon("estimate", 20)}
+        <h2>Progress</h2>
+      </div>
+      ${priceHtml}
+      ${priceNotes}
+      <ul class="hm-simple-lines">
+        <li><span class="hm-simple-line__ico">${hmIcon("house", 18)}</span><span>${escapeAttr(ptype)}${area ? ` · ${area} m²` : ""}</span></li>
+        <li><span class="hm-simple-line__ico">${hmIcon("rooms", 18)}</span><span>${namedRooms} room${namedRooms === 1 ? "" : "s"}</span></li>
+        <li><span class="hm-simple-line__ico">${hmIcon("gear", 18)}</span><span>${
+          sysBits.length ? escapeAttr(sysBits.join(", ")) : "No whole-home systems yet"
+        }</span></li>
+        <li><span class="hm-simple-line__ico">${hmIcon("estimate", 18)}</span><span>${state.panels.length} panel${state.panels.length === 1 ? "" : "s"}</span></li>
+      </ul>
       ${split}
       ${warns}
-      ${priceNotes}
-      <p class="hm-total">${totalLine}</p>
+      <p class="hm-muted">Channel usage appears on the Result step.</p>
     `;
   }
 
@@ -5757,7 +5861,7 @@ function mountConfigurator(root) {
       <p class="hm-muted">Property type and floor area choose a room template and pre-fill the Rooms step. Stage goes to the quote only — it does not change the module list.</p>
 
       <h3>Panels</h3>
-      <p class="hm-muted">Each panel is calculated independently — its own controller, bus, PSU and enclosure.</p>
+      <p class="hm-muted">A panel is a DIN enclosure (distribution board) that holds the HomeMaster modules for part of the home. One panel is enough for most apartments and small houses. Add another when floors or outbuildings need a separate board — each panel gets its own controller, bus, PSU and enclosure.</p>
       <div id="panel-notice" class="hm-room-undo" ${state.panel_migrate_notice ? "" : "hidden"}>${
         state.panel_migrate_notice
           ? `<span>${escapeAttr(state.panel_migrate_notice)}</span>`
@@ -5968,32 +6072,40 @@ function mountConfigurator(root) {
     };
   }
 
-  function fieldControl(room, key, kind) {
+  function fieldControl(room, key, kind, inputId) {
+    const idAttr = inputId ? ` id="${escapeAttr(inputId)}"` : "";
     if (kind === "channels") {
       const v = room.led_strip_channels || 4;
-      return `<select data-k="${key}">${[3, 4, 5]
+      return `<select data-k="${key}"${idAttr}>${[3, 4, 5]
         .map((n) => `<option value="${n}" ${n === v ? "selected" : ""}>${n} channels</option>`)
         .join("")}</select>`;
     }
     if (kind === "temp") {
       const v = room.temp_sensor || "none";
-      return `<select data-k="${key}">${TEMP_OPTIONS.map(
+      return `<select data-k="${key}"${idAttr}>${TEMP_OPTIONS.map(
         ([val, lab]) => `<option value="${val}" ${val === v ? "selected" : ""}>${lab}</option>`,
       ).join("")}</select>`;
     }
-    return `<input data-k="${key}" type="number" min="0" value="${Number(room[key]) || 0}">`;
+    const n = Number(room[key]) || 0;
+    return `<span class="hm-stepper">
+      <button type="button" class="hm-stepper__btn" data-step="-1" data-k="${key}" aria-label="Decrease">−</button>
+      <input${idAttr} data-k="${key}" type="number" min="0" value="${n}" inputmode="numeric">
+      <button type="button" class="hm-stepper__btn" data-step="1" data-k="${key}" aria-label="Increase">+</button>
+    </span>`;
   }
 
-  function roomFieldHtml(room, field) {
+  function roomFieldHtml(room, field, roomIndex) {
     if (!roomFieldVisible(room, field)) return "";
     const [k, label, kind, opts] = field;
+    const inputId = `room-${roomIndex}-${k}`;
     const tip = opts?.tip
       ? `<button type="button" class="hm-field-tip" title="${escapeAttr(opts.tip)}" aria-label="${escapeAttr(opts.tip)}">?</button>`
       : "";
-    return `<div class="hm-room-field">
-      <div class="hm-room-field__label"><span>${escapeAttr(label)}</span>${tip}</div>
-      ${fieldControl(room, k, kind)}
-    </div>`;
+    const icon = opts?.icon ? hmIcon(opts.icon, 16) : "";
+    return `<label class="hm-room-field" for="${escapeAttr(inputId)}">
+      <span class="hm-room-field__label">${icon}<span class="hm-room-field__text">${escapeAttr(label)}</span>${tip}</span>
+      ${fieldControl(room, k, kind, inputId)}
+    </label>`;
   }
 
   function renderRooms() {
@@ -6074,7 +6186,10 @@ function mountConfigurator(root) {
           if (!expanded) {
             return `
             <button type="button" class="hm-room-collapsed" data-expand="${i}">
-              <span class="hm-room-icon" aria-hidden="true">${roomTypeIcon(template)}</span>
+              <span class="hm-room-type" aria-hidden="true">
+                <span class="hm-room-type__ico">${hmIcon(roomTypeSvg(template), 18)}</span>
+                <span class="hm-room-icon">${roomTypeIcon(template)}</span>
+              </span>
               <span class="hm-room-collapsed__text">
                 <strong>${escapeAttr(title)}</strong>
                 <span class="hm-muted"> · ${escapeAttr(roomPanelName)}${summaryText ? ` · ${escapeAttr(summaryText)}` : ""}</span>
@@ -6088,12 +6203,16 @@ function mountConfigurator(root) {
                 `<option value="${t}" ${t === template ? "selected" : ""}>${roomTypeLabel(t)}</option>`,
             )
             .join("");
-          const mainFields = ROOM_FIELDS_MAIN.map((f) => roomFieldHtml(r, f)).join("");
-          const moreFields = ROOM_FIELDS_MORE.map((f) => roomFieldHtml(r, f)).join("");
+          const lightFields = ROOM_FIELDS_LIGHT.map((f) => roomFieldHtml(r, f, i)).join("");
+          const otherFields = ROOM_FIELDS_OTHER.map((f) => roomFieldHtml(r, f, i)).join("");
+          const moreFields = ROOM_FIELDS_MORE.map((f) => roomFieldHtml(r, f, i)).join("");
           return `
           <article class="hm-room-card hm-room-card--open" data-i="${i}">
             <header class="hm-room-card__toolbar">
               <button type="button" class="hm-room-collapse" data-collapse="${i}" aria-label="Collapse room">▴</button>
+              <span class="hm-room-type" aria-hidden="true">
+                <span class="hm-room-type__ico">${hmIcon(roomTypeSvg(template), 18)}</span>
+              </span>
               <h3 class="hm-room-card__title">${escapeAttr(title)}</h3>
               <button type="button" class="hm-room-delete" data-rm="${i}">
                 <svg class="hm-room-delete__icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
@@ -6103,20 +6222,27 @@ function mountConfigurator(root) {
               </button>
             </header>
             <div class="hm-room-card__identity hm-room-card__identity--3">
-              <div class="hm-room-field">
-                <div class="hm-room-field__label"><span>Name</span></div>
-                <input data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name">
-              </div>
-              <div class="hm-room-field">
-                <div class="hm-room-field__label"><span>Type</span></div>
-                <select data-k="template">${typeOpts}</select>
-              </div>
-              <div class="hm-room-field">
-                <div class="hm-room-field__label"><span>Panel</span></div>
-                ${panelSelectHtml(roomPanelId, 'data-k="panel_id"')}
-              </div>
+              <label class="hm-room-field" for="room-${i}-name">
+                <span class="hm-room-field__label"><span class="hm-room-field__text">Name</span></span>
+                <input id="room-${i}-name" data-k="name" value="${escapeAttr(r.name || "")}" placeholder="Room name">
+              </label>
+              <label class="hm-room-field" for="room-${i}-template">
+                <span class="hm-room-field__label"><span class="hm-room-field__text">Type</span></span>
+                <select id="room-${i}-template" data-k="template">${typeOpts}</select>
+              </label>
+              <label class="hm-room-field" for="room-${i}-panel_id">
+                <span class="hm-room-field__label"><span class="hm-room-field__text">Panel</span></span>
+                ${panelSelectHtml(roomPanelId, `id="room-${i}-panel_id" data-k="panel_id"`)}
+              </label>
             </div>
-            <div class="hm-room-card__grid">${mainFields}</div>
+            <div class="hm-room-group">
+              <h4 class="hm-room-group__title">${hmIcon("light", 16)} Lighting</h4>
+              <div class="hm-room-card__grid">${lightFields}</div>
+            </div>
+            <div class="hm-room-group">
+              <h4 class="hm-room-group__title">${hmIcon("gear", 16)} Other</h4>
+              <div class="hm-room-card__grid">${otherFields}</div>
+            </div>
             <details class="hm-room-more"><summary>More</summary>
               <div class="hm-room-card__grid">${moreFields}</div>
             </details>
@@ -6141,7 +6267,7 @@ function mountConfigurator(root) {
 
       list.querySelectorAll(".hm-room-card").forEach((card) => {
         const i = Number(card.dataset.i);
-        card.querySelectorAll("[data-k]").forEach((inp) => {
+        card.querySelectorAll("input[data-k], select[data-k]").forEach((inp) => {
           const apply = (opts = {}) => {
             state.rooms_user_edited = true;
             const key = inp.dataset.k;
@@ -6196,6 +6322,18 @@ function mountConfigurator(root) {
           inp.onchange = () => apply({ commit: true });
           if (inp.tagName !== "SELECT") inp.oninput = () => apply({ commit: false });
         });
+        card.querySelectorAll(".hm-stepper__btn").forEach((btn) => {
+          btn.onclick = (ev) => {
+            ev.preventDefault();
+            const key = btn.dataset.k;
+            const input = card.querySelector(`input[data-k="${key}"]`);
+            if (!input) return;
+            const delta = Number(btn.dataset.step) || 0;
+            const next = Math.max(0, (Number(input.value) || 0) + delta);
+            input.value = String(next);
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          };
+        });
         const rm = card.querySelector("[data-rm]");
         if (rm) {
           rm.onclick = () => {
@@ -6247,16 +6385,75 @@ function mountConfigurator(root) {
     };
   }
 
-  function sysFieldControl(sectionId, key, kind, value) {
+  function sysFieldControl(sectionId, key, kind, value, inputId) {
+    const idAttr = inputId ? ` id="${escapeAttr(inputId)}"` : "";
     if (kind === "boiler") {
-      return `<select data-sys="${sectionId}.${key}">
+      return `<select data-sys="${sectionId}.${key}"${idAttr}>
         <option value="none" ${value === "none" ? "selected" : ""}>None</option>
         <option value="opentherm" ${value === "opentherm" ? "selected" : ""}>OpenTherm</option>
         <option value="relay" ${value === "relay" ? "selected" : ""}>Relay</option>
       </select>`;
     }
     if (kind === "powered_sensors") return ""; // custom block
-    return `<input data-sys="${sectionId}.${key}" type="number" min="0" value="${Number(value) || 0}">`;
+    const n = Number(value) || 0;
+    return `<span class="hm-stepper">
+      <button type="button" class="hm-stepper__btn" data-step="-1" data-sys="${sectionId}.${key}" aria-label="Decrease">−</button>
+      <input${idAttr} data-sys="${sectionId}.${key}" type="number" min="0" value="${n}" inputmode="numeric">
+      <button type="button" class="hm-stepper__btn" data-step="1" data-sys="${sectionId}.${key}" aria-label="Increase">+</button>
+    </span>`;
+  }
+
+  function sysFieldIcon(sectionId, key) {
+    const map = {
+      boiler: "boiler",
+      collector_loops: "heat",
+      heating_pumps: "heat",
+      fan_coils: "vent",
+      heat_pump: "heat",
+      fireplace: "heat",
+      pt100_sensors: "heat",
+      ds18b20_sensors: "heat",
+      ahu: "vent",
+      recuperator: "vent",
+      extract_fans: "vent",
+      dampers_0_10v: "vent",
+      sensors_0_10v: "vent",
+      sensors_4_20ma: "vent",
+      leak_zones: "leak",
+      shutoff_valves: "water",
+      water_meters: "water",
+      irrigation: "water",
+      water_pumps: "water",
+      dhw_recirc: "water",
+      gas_valve: "water",
+      energy_phases: "energy",
+      load_shed: "energy",
+      ev_chargers: "energy",
+      pv_inverters: "energy",
+      fault_contacts: "energy",
+      powered_sensors: "security",
+      dry_contacts: "security",
+      gates: "gate",
+      locks: "security",
+      panic_buttons: "security",
+      stair_steps: "light",
+      accent_zones: "light",
+      garden_lights: "light",
+    };
+    return map[key] || "gear";
+  }
+
+  function shortSysLabel(label) {
+    return label
+      .replace(" (house total)", "")
+      .replace(" / air handling", "")
+      .replace(" (actuators)", "")
+      .replace(" (pulse)", "")
+      .replace(" / inverter status contacts", "")
+      .replace(" / garage doors", "")
+      .replace(" / alarm buttons", "")
+      .replace(" / cove lighting zones", "")
+      .replace(" / outdoor lighting", "");
   }
 
   function renderPoweredSensors(container) {
@@ -6311,36 +6508,91 @@ function mountConfigurator(root) {
 
   function renderEngineering() {
     const sys = state.systems;
+    const multiPanel = state.panels.length > 1;
+    const showAll = !!state.systems_show_all;
+
+    if (!Array.isArray(state.systems_expanded)) {
+      const nonEmpty = SYSTEM_SECTIONS.filter((sec) => sectionHasContent(sec, sys)).map(
+        (s) => s.id,
+      );
+      state.systems_expanded = nonEmpty.length ? nonEmpty.slice(0, 1) : [SYSTEM_SECTIONS[0].id];
+    }
+
+    const globalPanel = sys[SYSTEM_SECTIONS[0].id]?.panel_id || firstPanelId();
+
+    const panelBar = multiPanel
+      ? `<div class="hm-sys-panel-bar">
+          <label class="hm-room-field" for="sys-global-panel">
+            <span class="hm-room-field__label">${hmIcon("estimate", 16)}<span class="hm-room-field__text">Panel for systems</span></span>
+            ${panelSelectHtml(globalPanel, 'id="sys-global-panel" data-sys-global-panel')}
+          </label>
+          <p class="hm-muted">Whole-home equipment is assigned to this panel. Rooms keep their own panel choice on the Rooms step.</p>
+        </div>`
+      : "";
+
     const sectionsHtml = SYSTEM_SECTIONS.map((sec) => {
-      const secPanel = sys[sec.id]?.panel_id || firstPanelId();
+      const open = state.systems_expanded.includes(sec.id);
+      const summary = sectionSummaryText(sec, sys);
+      const used = sectionHasContent(sec, sys);
+      if (!open) {
+        return `<button type="button" class="hm-sys-collapsed" data-sys-expand="${sec.id}">
+          <span class="hm-sys-collapsed__ico">${hmIcon(sec.icon || "gear", 18)}</span>
+          <span class="hm-sys-collapsed__text">
+            <strong>${escapeAttr(sec.title)}</strong>
+            <span class="hm-muted">${escapeAttr(summary)}</span>
+          </span>
+          <span class="hm-room-chevron" aria-hidden="true">▾</span>
+        </button>`;
+      }
       const fields = sec.fields
         .map(([key, label, kind]) => {
+          const revealEmpty = showAll || !used;
           if (kind === "powered_sensors") {
-            return `<div class="hm-sys-field"><span>${label}</span><div data-powered-host></div></div>`;
+            const rows = sys.security.powered_sensors || [];
+            const n = rows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+            if (!revealEmpty && n === 0) return "";
+            return `<div class="hm-sys-field">
+              <span class="hm-room-field__label">${hmIcon("security", 16)}<span class="hm-room-field__text">${escapeAttr(shortSysLabel(label))}</span></span>
+              <div data-powered-host></div>
+            </div>`;
+          }
+          const val = sys[sec.id]?.[key];
+          if (kind === "boiler") {
+            if (!revealEmpty && (!val || val === "none")) return "";
+          } else if (!revealEmpty && !(Number(val) > 0)) {
+            return "";
           }
           const tip =
             sec.id === "heating" && key === "collector_loops"
               ? `<button type="button" class="hm-field-tip" title="Compared with the sum of per-room underfloor loops; the engine uses the maximum, not the sum." aria-label="Help">?</button>`
               : "";
-          return `<div class="hm-room-field">
-            <div class="hm-room-field__label"><span>${escapeAttr(label)}</span>${tip}</div>
-            ${sysFieldControl(sec.id, key, kind, sys[sec.id]?.[key])}
-          </div>`;
+          const inputId = `sys-${sec.id}-${key}`;
+          return `<label class="hm-room-field" for="${escapeAttr(inputId)}">
+            <span class="hm-room-field__label">${hmIcon(sysFieldIcon(sec.id, key), 16)}<span class="hm-room-field__text">${escapeAttr(shortSysLabel(label))}</span>${tip}</span>
+            ${sysFieldControl(sec.id, key, kind, val, inputId)}
+          </label>`;
         })
         .join("");
-      return `<details class="hm-sys-section" open>
-        <summary>${sec.title}</summary>
-        <div class="hm-room-field hm-sys-panel-pick">
-          <div class="hm-room-field__label"><span>Panel</span></div>
-          ${panelSelectHtml(secPanel, `data-sys-panel="${sec.id}"`)}
-        </div>
-        <div class="hm-sys-grid">${fields}</div>
-      </details>`;
+      const emptyNote =
+        !fields && !showAll
+          ? `<p class="hm-muted">No values set — turn on “Show all fields” to edit.</p>`
+          : "";
+      return `<article class="hm-sys-section hm-sys-section--open" data-sys-sec="${sec.id}">
+        <header class="hm-sys-section__head">
+          <button type="button" class="hm-room-collapse" data-sys-collapse="${sec.id}" aria-label="Collapse">▴</button>
+          <span class="hm-sys-collapsed__ico">${hmIcon(sec.icon || "gear", 18)}</span>
+          <h3 class="hm-sys-section__title">${escapeAttr(sec.title)}</h3>
+          <span class="hm-muted">${used ? escapeAttr(summary) : "not used"}</span>
+        </header>
+        <div class="hm-sys-grid">${fields}${emptyNote}</div>
+      </article>`;
     }).join("");
 
     main.innerHTML = `
       <h2>Systems</h2>
-      <p class="hm-muted">Describe equipment — the engine converts it to channel demand. Each section is assigned to a panel. You never enter channel counts here.</p>
+      <p class="hm-muted">Describe equipment — the engine converts it to channel demand. Expand one section at a time.</p>
+      ${panelBar}
+      <label class="hm-check hm-sys-showall"><input type="checkbox" id="sys-show-all" ${showAll ? "checked" : ""}> Show all fields</label>
       ${sectionsHtml}
       <div class="hm-actions">
         <button type="button" id="hm-back">Back</button>
@@ -6351,16 +6603,41 @@ function mountConfigurator(root) {
     const poweredHost = main.querySelector("[data-powered-host]");
     if (poweredHost) renderPoweredSensors(poweredHost);
 
-    main.querySelectorAll("[data-sys-panel]").forEach((sel) => {
-      sel.onchange = () => {
-        const sec = sel.dataset.sysPanel;
-        state.systems[sec].panel_id = sel.value;
+    main.querySelector("#sys-show-all").onchange = (e) => {
+      state.systems_show_all = e.target.checked;
+      saveState();
+      renderEngineering();
+      bump();
+    };
+
+    const globalSel = main.querySelector("[data-sys-global-panel]");
+    if (globalSel) {
+      globalSel.onchange = () => {
+        for (const sec of SYSTEM_SECTIONS) {
+          state.systems[sec.id].panel_id = globalSel.value;
+        }
         saveState();
         bump();
       };
+    }
+
+    main.querySelectorAll("[data-sys-expand]").forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.dataset.sysExpand;
+        state.systems_expanded = [id];
+        saveState();
+        renderEngineering();
+      };
+    });
+    main.querySelectorAll("[data-sys-collapse]").forEach((btn) => {
+      btn.onclick = () => {
+        state.systems_expanded = [];
+        saveState();
+        renderEngineering();
+      };
     });
 
-    main.querySelectorAll("[data-sys]").forEach((inp) => {
+    main.querySelectorAll("input[data-sys], select[data-sys]").forEach((inp) => {
       const apply = () => {
         const [sec, key] = inp.dataset.sys.split(".");
         if (key === "boiler") {
@@ -6373,6 +6650,18 @@ function mountConfigurator(root) {
       };
       inp.onchange = apply;
       inp.oninput = apply;
+    });
+
+    main.querySelectorAll(".hm-stepper__btn[data-sys]").forEach((btn) => {
+      btn.onclick = (ev) => {
+        ev.preventDefault();
+        const key = btn.dataset.sys;
+        const input = main.querySelector(`input[data-sys="${key}"]`);
+        if (!input) return;
+        const delta = Number(btn.dataset.step) || 0;
+        input.value = String(Math.max(0, (Number(input.value) || 0) + delta));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      };
     });
 
     main.querySelector("#hm-back").onclick = () => {
@@ -6788,7 +7077,7 @@ function mountConfigurator(root) {
       <ul class="hm-simple-lines">${list || "<li class='hm-muted'>Adjust the sliders to build your system.</li>"}</ul>
       ${warn}
       <div class="hm-actions">
-        <button type="button" id="s-fullspec">Show full specification</button>
+        <button type="button" id="s-fullspec">Configure in detail</button>
         <button type="button" id="s-cart">Add to cart</button>
       </div>
       <div id="s-cart-status"></div>`;
