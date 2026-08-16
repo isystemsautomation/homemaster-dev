@@ -107,6 +107,37 @@ function estimateCore(inputs, rules, prices = EMPTY) {
     panels: panelResults,
     split_warning,
     not_included: listNotIncluded(rules),
+    installation: listInstallationWork(rules),
+    reference_prices_meta: referencePricesMeta(rules),
+  };
+}
+
+function listInstallationWork(rules) {
+  const fromRef = rules?.reference_prices?.installation_work;
+  if (Array.isArray(fromRef) && fromRef.length) {
+    return fromRef.map((row) => ({
+      id: String(row.id || ""),
+      label: String(row.name_en || row.id || "Work"),
+      qty: 1,
+      unit_price: null,
+      kind: "installation",
+    }));
+  }
+  return [
+    { id: "panel_assembly", label: "Panel assembly and internal wiring", qty: 1, unit_price: null, kind: "installation" },
+    { id: "field_install", label: "Field installation and cable laying", qty: 1, unit_price: null, kind: "installation" },
+    { id: "commissioning", label: "Commissioning and handover", qty: 1, unit_price: null, kind: "installation" },
+  ];
+}
+
+function referencePricesMeta(rules) {
+  const ref = rules?.reference_prices;
+  if (!ref || typeof ref !== "object") return null;
+  return {
+    as_of: ref.as_of || null,
+    currency: ref.currency || "EUR",
+    vat: ref.vat || "included",
+    disclaimer_en: ref.disclaimer_en || null,
   };
 }
 
@@ -2125,9 +2156,8 @@ function round1(n) {
 // ── Companions (panel hardware without SKU) ─────────────────────────
 
 /**
- * Build companion BOM lines that contribute DIN width but never prices.
- * Per-circuit MCB from used switched channels; field terminals from
- * field_wires_per_channel (terminal-maps); incomer stays separate.
+ * Build companion BOM lines that contribute DIN width.
+ * Indicative retail prices come from rules.reference_prices (not shop).
  */
 function buildCompanions(
   allocated,
@@ -3006,6 +3036,82 @@ function round2(n) {
 
 // ── Stage 7: price ──────────────────────────────────────────────────
 
+const ENCLOSURE_CAPACITY_REF = {
+  24: "enclosure_24",
+  48: "enclosure_48",
+  72: "enclosure_72",
+  96: "enclosure_96",
+  120: "enclosure_120",
+  144: "enclosure_144",
+};
+
+/**
+ * Map a companion BOM id to a reference_prices item and billable qty.
+ * @returns {{ refId: string, billQty: number }|null}
+ */
+function companionRefLookup(accessory, enclosure, refItems) {
+  if (!accessory?.id || !refItems) return null;
+  if (accessory.id === "din_enclosure") {
+    const each = Number(enclosure?.capacity_each ?? enclosure?.capacity) || 0;
+    const refId = ENCLOSURE_CAPACITY_REF[each];
+    if (!refId || !refItems[refId]) return null;
+    const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
+    return { refId, billQty: cabinets };
+  }
+  if (!refItems[accessory.id]) return null;
+  return { refId: accessory.id, billQty: Number(accessory.qty) || 0 };
+}
+
+/**
+ * @param {object} accessory
+ * @param {object|null} enclosure
+ * @param {object|null} ref
+ */
+function attachCompanionReferencePrice(accessory, enclosure, ref) {
+  const items = ref?.items || EMPTY;
+  const found = companionRefLookup(accessory, enclosure, items);
+  if (!found) {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const row = items[found.refId];
+  const unit = Number(row.price_eur);
+  if (!Number.isFinite(unit)) {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const mode = row.qty_mode || "per_unit";
+  let billQty = found.billQty;
+  if (mode === "kit") {
+    billQty = 1;
+  } else if (mode === "per_metre") {
+    const meters = accessory.meters != null ? Number(accessory.meters) : NaN;
+    if (!Number.isFinite(meters) || meters <= 0) {
+      // Meterage TBD — keep the line, leave price empty for the installer.
+      return { ...accessory, price: null, unit_price: null };
+    }
+    billQty = meters;
+  }
+  if (!(billQty > 0) && mode === "per_unit") {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const lineTotal = round2(unit * billQty);
+  const price = {
+    amount: unit,
+    currency: ref.currency || "EUR",
+    line_total: lineTotal,
+    qty_priced: billQty,
+    confidence: row.confidence || "estimate",
+    indicative: true,
+    as_of: row.as_of || ref.as_of || null,
+    ref_id: found.refId,
+    vat: row.vat || ref.vat || "included",
+  };
+  return {
+    ...accessory,
+    price,
+    unit_price: unit,
+  };
+}
+
 function attachPrices(
   topologyResult,
   companions,
@@ -3016,16 +3122,16 @@ function attachPrices(
   assumptions,
 ) {
   const moduleSpecs = rules.modules ?? EMPTY;
+  const ref = rules.reference_prices || null;
   const modules = topologyResult.modules.map((m) => ({
     ...m,
     din_units: moduleSpecs[m.id]?.din_units ?? null,
     price: prices[m.sku] ?? null,
   }));
 
-  const accessories = (companions || []).map((a) => ({
-    ...a,
-    price: null,
-  }));
+  const accessories = (companions || []).map((a) =>
+    attachCompanionReferencePrice(a, enclosure, ref),
+  );
 
   const cart_lines = modules
     .filter((m) => m.sku?.startsWith("HM-"))
@@ -3054,8 +3160,11 @@ function attachPrices(
       label: a.label ?? a.id,
       qty: a.qty,
       din_units: a.din_units,
-      unit_price: null,
-      currency: null,
+      unit_price: a.price?.amount ?? null,
+      line_total: a.price?.line_total ?? null,
+      currency: a.price?.currency ?? null,
+      confidence: a.price?.confidence ?? null,
+      indicative: !!a.price?.indicative,
       requirement: true,
     })),
     ...power.requirements
@@ -3657,6 +3766,56 @@ function systemTotal(estimate, prices) {
   };
 }
 
+function allAccessories(estimate) {
+  const fromPanels = (estimate?.panels || []).flatMap((p) => p.accessories || []);
+  if (fromPanels.length) return fromPanels;
+  return estimate?.accessories || [];
+}
+
+/**
+ * Indicative retail total for panel companions (protection, terminals, PSU, enclosure…).
+ * Never mixed into systemTotal / cartTotal — those are shop HomeMaster prices only.
+ *
+ * @param {object} estimate
+ * @returns {{total: number, currency: string, lineCount: number, estimateLineCount: number, confirmedLineCount: number, as_of: string|null, disclaimer: string|null, indicative: true} | null}
+ */
+function panelEquipmentTotal(estimate) {
+  let total = 0;
+  let currency = null;
+  let lineCount = 0;
+  let estimateLineCount = 0;
+  let confirmedLineCount = 0;
+  let asOf = null;
+  for (const a of allAccessories(estimate)) {
+    const p = a?.price;
+    if (!p || !p.indicative) continue;
+    const line = Number.isFinite(p.line_total)
+      ? p.line_total
+      : Number.isFinite(p.amount)
+        ? p.amount * (Number(p.qty_priced ?? a.qty) || 0)
+        : NaN;
+    if (!Number.isFinite(line) || line <= 0) continue;
+    total += line;
+    currency = p.currency || currency || "EUR";
+    lineCount += 1;
+    if (p.confidence === "confirmed") confirmedLineCount += 1;
+    else estimateLineCount += 1;
+    if (p.as_of) asOf = p.as_of;
+  }
+  if (lineCount === 0) return null;
+  const meta = estimate?.reference_prices_meta || null;
+  return {
+    total: Math.round(total * 100) / 100,
+    currency: currency || meta?.currency || "EUR",
+    lineCount,
+    estimateLineCount,
+    confirmedLineCount,
+    as_of: asOf || meta?.as_of || null,
+    disclaimer: meta?.disclaimer_en || null,
+    indicative: true,
+  };
+}
+
 /**
  * Sum HomeMaster lines that have a numeric price and are available.
  * Missing / out-of-stock prices do not null the whole subtotal;
@@ -3713,6 +3872,7 @@ HM.modulePurchaseRows = modulePurchaseRows;
 HM.stockAvailability = stockAvailability;
 HM.cartEligibleLines = cartEligibleLines;
 HM.systemTotal = systemTotal;
+HM.panelEquipmentTotal = panelEquipmentTotal;
 HM.cartTotal = cartTotal;
 
 // ===== simple.js =====

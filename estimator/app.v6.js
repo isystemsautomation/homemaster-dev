@@ -107,6 +107,37 @@ function estimateCore(inputs, rules, prices = EMPTY) {
     panels: panelResults,
     split_warning,
     not_included: listNotIncluded(rules),
+    installation: listInstallationWork(rules),
+    reference_prices_meta: referencePricesMeta(rules),
+  };
+}
+
+function listInstallationWork(rules) {
+  const fromRef = rules?.reference_prices?.installation_work;
+  if (Array.isArray(fromRef) && fromRef.length) {
+    return fromRef.map((row) => ({
+      id: String(row.id || ""),
+      label: String(row.name_en || row.id || "Work"),
+      qty: 1,
+      unit_price: null,
+      kind: "installation",
+    }));
+  }
+  return [
+    { id: "panel_assembly", label: "Panel assembly and internal wiring", qty: 1, unit_price: null, kind: "installation" },
+    { id: "field_install", label: "Field installation and cable laying", qty: 1, unit_price: null, kind: "installation" },
+    { id: "commissioning", label: "Commissioning and handover", qty: 1, unit_price: null, kind: "installation" },
+  ];
+}
+
+function referencePricesMeta(rules) {
+  const ref = rules?.reference_prices;
+  if (!ref || typeof ref !== "object") return null;
+  return {
+    as_of: ref.as_of || null,
+    currency: ref.currency || "EUR",
+    vat: ref.vat || "included",
+    disclaimer_en: ref.disclaimer_en || null,
   };
 }
 
@@ -2125,9 +2156,8 @@ function round1(n) {
 // ── Companions (panel hardware without SKU) ─────────────────────────
 
 /**
- * Build companion BOM lines that contribute DIN width but never prices.
- * Per-circuit MCB from used switched channels; field terminals from
- * field_wires_per_channel (terminal-maps); incomer stays separate.
+ * Build companion BOM lines that contribute DIN width.
+ * Indicative retail prices come from rules.reference_prices (not shop).
  */
 function buildCompanions(
   allocated,
@@ -3006,6 +3036,82 @@ function round2(n) {
 
 // ── Stage 7: price ──────────────────────────────────────────────────
 
+const ENCLOSURE_CAPACITY_REF = {
+  24: "enclosure_24",
+  48: "enclosure_48",
+  72: "enclosure_72",
+  96: "enclosure_96",
+  120: "enclosure_120",
+  144: "enclosure_144",
+};
+
+/**
+ * Map a companion BOM id to a reference_prices item and billable qty.
+ * @returns {{ refId: string, billQty: number }|null}
+ */
+function companionRefLookup(accessory, enclosure, refItems) {
+  if (!accessory?.id || !refItems) return null;
+  if (accessory.id === "din_enclosure") {
+    const each = Number(enclosure?.capacity_each ?? enclosure?.capacity) || 0;
+    const refId = ENCLOSURE_CAPACITY_REF[each];
+    if (!refId || !refItems[refId]) return null;
+    const cabinets = Math.max(1, Number(enclosure?.cabinets) || 1);
+    return { refId, billQty: cabinets };
+  }
+  if (!refItems[accessory.id]) return null;
+  return { refId: accessory.id, billQty: Number(accessory.qty) || 0 };
+}
+
+/**
+ * @param {object} accessory
+ * @param {object|null} enclosure
+ * @param {object|null} ref
+ */
+function attachCompanionReferencePrice(accessory, enclosure, ref) {
+  const items = ref?.items || EMPTY;
+  const found = companionRefLookup(accessory, enclosure, items);
+  if (!found) {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const row = items[found.refId];
+  const unit = Number(row.price_eur);
+  if (!Number.isFinite(unit)) {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const mode = row.qty_mode || "per_unit";
+  let billQty = found.billQty;
+  if (mode === "kit") {
+    billQty = 1;
+  } else if (mode === "per_metre") {
+    const meters = accessory.meters != null ? Number(accessory.meters) : NaN;
+    if (!Number.isFinite(meters) || meters <= 0) {
+      // Meterage TBD — keep the line, leave price empty for the installer.
+      return { ...accessory, price: null, unit_price: null };
+    }
+    billQty = meters;
+  }
+  if (!(billQty > 0) && mode === "per_unit") {
+    return { ...accessory, price: null, unit_price: null };
+  }
+  const lineTotal = round2(unit * billQty);
+  const price = {
+    amount: unit,
+    currency: ref.currency || "EUR",
+    line_total: lineTotal,
+    qty_priced: billQty,
+    confidence: row.confidence || "estimate",
+    indicative: true,
+    as_of: row.as_of || ref.as_of || null,
+    ref_id: found.refId,
+    vat: row.vat || ref.vat || "included",
+  };
+  return {
+    ...accessory,
+    price,
+    unit_price: unit,
+  };
+}
+
 function attachPrices(
   topologyResult,
   companions,
@@ -3016,16 +3122,16 @@ function attachPrices(
   assumptions,
 ) {
   const moduleSpecs = rules.modules ?? EMPTY;
+  const ref = rules.reference_prices || null;
   const modules = topologyResult.modules.map((m) => ({
     ...m,
     din_units: moduleSpecs[m.id]?.din_units ?? null,
     price: prices[m.sku] ?? null,
   }));
 
-  const accessories = (companions || []).map((a) => ({
-    ...a,
-    price: null,
-  }));
+  const accessories = (companions || []).map((a) =>
+    attachCompanionReferencePrice(a, enclosure, ref),
+  );
 
   const cart_lines = modules
     .filter((m) => m.sku?.startsWith("HM-"))
@@ -3054,8 +3160,11 @@ function attachPrices(
       label: a.label ?? a.id,
       qty: a.qty,
       din_units: a.din_units,
-      unit_price: null,
-      currency: null,
+      unit_price: a.price?.amount ?? null,
+      line_total: a.price?.line_total ?? null,
+      currency: a.price?.currency ?? null,
+      confidence: a.price?.confidence ?? null,
+      indicative: !!a.price?.indicative,
       requirement: true,
     })),
     ...power.requirements
@@ -3657,6 +3766,56 @@ function systemTotal(estimate, prices) {
   };
 }
 
+function allAccessories(estimate) {
+  const fromPanels = (estimate?.panels || []).flatMap((p) => p.accessories || []);
+  if (fromPanels.length) return fromPanels;
+  return estimate?.accessories || [];
+}
+
+/**
+ * Indicative retail total for panel companions (protection, terminals, PSU, enclosure…).
+ * Never mixed into systemTotal / cartTotal — those are shop HomeMaster prices only.
+ *
+ * @param {object} estimate
+ * @returns {{total: number, currency: string, lineCount: number, estimateLineCount: number, confirmedLineCount: number, as_of: string|null, disclaimer: string|null, indicative: true} | null}
+ */
+function panelEquipmentTotal(estimate) {
+  let total = 0;
+  let currency = null;
+  let lineCount = 0;
+  let estimateLineCount = 0;
+  let confirmedLineCount = 0;
+  let asOf = null;
+  for (const a of allAccessories(estimate)) {
+    const p = a?.price;
+    if (!p || !p.indicative) continue;
+    const line = Number.isFinite(p.line_total)
+      ? p.line_total
+      : Number.isFinite(p.amount)
+        ? p.amount * (Number(p.qty_priced ?? a.qty) || 0)
+        : NaN;
+    if (!Number.isFinite(line) || line <= 0) continue;
+    total += line;
+    currency = p.currency || currency || "EUR";
+    lineCount += 1;
+    if (p.confidence === "confirmed") confirmedLineCount += 1;
+    else estimateLineCount += 1;
+    if (p.as_of) asOf = p.as_of;
+  }
+  if (lineCount === 0) return null;
+  const meta = estimate?.reference_prices_meta || null;
+  return {
+    total: Math.round(total * 100) / 100,
+    currency: currency || meta?.currency || "EUR",
+    lineCount,
+    estimateLineCount,
+    confirmedLineCount,
+    as_of: asOf || meta?.as_of || null,
+    disclaimer: meta?.disclaimer_en || null,
+    indicative: true,
+  };
+}
+
 /**
  * Sum HomeMaster lines that have a numeric price and are available.
  * Missing / out-of-stock prices do not null the whole subtotal;
@@ -3713,6 +3872,7 @@ HM.modulePurchaseRows = modulePurchaseRows;
 HM.stockAvailability = stockAvailability;
 HM.cartEligibleLines = cartEligibleLines;
 HM.systemTotal = systemTotal;
+HM.panelEquipmentTotal = panelEquipmentTotal;
 HM.cartTotal = cartTotal;
 
 // ===== xlsx.js =====
@@ -3763,8 +3923,11 @@ function estimateExportSections(estimate) {
           : estimate.accessories || [];
       const accLines = accSrc.map((a) => ({
         label: a.label || a.id || "Accessory",
-        qty: a.qty ?? 1,
-        unit_price: "",
+        qty: a.price?.qty_priced ?? a.qty ?? 1,
+        unit_price: a.price?.amount ?? "",
+        available: undefined,
+        confidence: a.price?.confidence,
+        indicative: !!a.price?.indicative,
       }));
       const title = panel.location
         ? `${panel.name} (${panel.location})`
@@ -3812,8 +3975,10 @@ function estimateExportSections(estimate) {
     }));
     const accLines = (estimate.accessories || []).map((a) => ({
       label: a.label || a.id || "Accessory",
-      qty: a.qty ?? 1,
-      unit_price: "",
+      qty: a.price?.qty_priced ?? a.qty ?? 1,
+      unit_price: a.price?.amount ?? "",
+      confidence: a.price?.confidence,
+      indicative: !!a.price?.indicative,
     }));
     sections.push({ title: "HomeMaster", lines: [...hmLines, ...accLines] });
   }
@@ -3842,9 +4007,9 @@ async function buildEstimateXlsx(estimate, opts = {}) {
 
   rows.push(["HomeMaster estimate"]);
   rows.push([`Currency: ${currency}`]);
-  rows.push(["Prices include VAT, same as the shopfront"]);
+  rows.push(["HomeMaster module prices include VAT, same as the shopfront"]);
   rows.push([
-    "HomeMaster module prices only. Protection, terminals, power supplies and enclosure are listed without shop prices — send this file to an installer for a quote.",
+    "Panel equipment prices are indicative EU retail — your installer will use their own.",
   ]);
   rows.push([
     "Panel layout drawings are shown on the Result screen only — SheetJS CE cannot embed rail images in .xlsx.",
@@ -3863,8 +4028,11 @@ async function buildEstimateXlsx(estimate, opts = {}) {
       const qty = line.qty ?? 1;
       const price = line.unit_price;
       const priceCell = price != null && price !== "" ? Number(price) : "";
-      const avail =
+      let avail =
         line.available === false ? "out of stock" : line.available === true ? "in stock" : "";
+      if (line.indicative) {
+        avail = line.confidence === "confirmed" ? "indicative" : "indicative · estimate";
+      }
       rows.push([
         "",
         line.label || line.sku || line.requirement || "",
@@ -3895,15 +4063,37 @@ async function buildEstimateXlsx(estimate, opts = {}) {
   }
 
   rows.push([
-    "Grand total (HomeMaster)",
+    "Grand total (HomeMaster modules only)",
     "",
     "",
     "",
     projectSub != null ? { f: `E${projectSub}` } : 0,
   ]);
   r += 1;
+  rows.push([
+    "Panel equipment (indicative, not added to HomeMaster total)",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  r += 1;
+  rows.push(["Installation", "quoted by your installer", "", "", "", ""]);
+  r += 1;
   rows.push([]);
   r += 1;
+
+  const labour = estimate.installation || [];
+  if (labour.length) {
+    rows.push(["Installation work — price left blank for the installer"]);
+    r += 1;
+    for (const line of labour) {
+      rows.push(["", String(line.label || line.name_en || line.id || "Work"), 1, "", "", ""]);
+      r += 1;
+    }
+    rows.push([]);
+    r += 1;
+  }
 
   const notInc = estimate.not_included || [];
   if (notInc.length) {
@@ -7396,7 +7586,7 @@ function resultNotesBarHtml(notes) {
 }
 
 /**
- * Shared Result hero — price | metric tiles | optional action stack (Advanced).
+ * Shared Result hero — price totals | metric tiles | optional action stack (Advanced).
  * @param {{ priceHtml: string, stats: Array<{icon:string,value:string|number,label:string,tone?:string}>, actionsHtml?: string }} opts
  */
 function resultHeroHtml({ priceHtml, stats, actionsHtml = "" }) {
@@ -7410,14 +7600,73 @@ function resultHeroHtml({ priceHtml, stats, actionsHtml = "" }) {
     ? `<div class="hm-result-hero__actions">${actionsHtml}</div>`
     : "";
   return `<div class="hm-card hm-result-hero${actionsHtml ? "" : " hm-result-hero--simple"}">
-          <div>
+          <div class="hm-result-hero__totals">
             ${priceHtml}
-            <p class="hm-result-hero__sub">incl. VAT · HomeMaster modules only</p>
-            <p class="hm-result-hero__sub hm-result-hero__sub--detail">Panel, protection, terminals and power supplies are listed in the specification but not priced.</p>
           </div>
           <div class="hm-result-stats">${statsHtml}</div>
           ${actions}
         </div>`;
+}
+
+/**
+ * Three separate totals — never summed into one figure.
+ * @param {{ sysTot: object|null, panelTot: object|null, meta?: object|null }} opts
+ */
+function equipmentTotalsHtml({ sysTot, panelTot, meta = null }) {
+  const hm =
+    sysTot && sysTot.pricedQty > 0
+      ? `<div class="hm-totals__row">
+          <span class="hm-totals__label">HomeMaster modules</span>
+          <span class="hm-totals__value">${sysTot.total} <span>${escapeAttr(sysTot.currency)}</span></span>
+          <span class="hm-totals__tag">exact · from the shop</span>
+        </div>`
+      : `<div class="hm-totals__row">
+          <span class="hm-totals__label">HomeMaster modules</span>
+          <span class="hm-totals__value">—</span>
+          <span class="hm-totals__tag">exact · from the shop</span>
+        </div>`;
+
+  const panel =
+    panelTot && panelTot.lineCount > 0
+      ? `<div class="hm-totals__row hm-totals__row--indicative">
+          <span class="hm-totals__label">Panel equipment</span>
+          <span class="hm-totals__value">~ ${panelTot.total} <span>${escapeAttr(panelTot.currency)}</span></span>
+          <span class="hm-totals__tag">indicative retail</span>
+        </div>`
+      : `<div class="hm-totals__row hm-totals__row--indicative">
+          <span class="hm-totals__label">Panel equipment</span>
+          <span class="hm-totals__value">—</span>
+          <span class="hm-totals__tag">indicative retail</span>
+        </div>`;
+
+  const asOf = panelTot?.as_of || meta?.as_of || "2026-08-16";
+  const disclaimer =
+    panelTot?.disclaimer ||
+    meta?.disclaimer_en ||
+    `Indicative retail prices, EU, as of ${asOf} — your installer will use their own.`;
+
+  return `
+    <div class="hm-totals">
+      ${hm}
+      ${panel}
+      <div class="hm-totals__row">
+        <span class="hm-totals__label">Installation</span>
+        <span class="hm-totals__value hm-totals__value--quote">quoted by your installer</span>
+      </div>
+      <p class="hm-totals__disclaimer">${escapeAttr(disclaimer)}</p>
+      <p class="hm-totals__install-note">Installation typically adds 40–80 % to the equipment total, depending on the country and whether it's new build or retrofit.</p>
+    </div>`;
+}
+
+function formatCompanionPrice(a) {
+  const p = a?.price;
+  if (!p || !Number.isFinite(p.line_total ?? p.amount)) {
+    return `<span class="hm-muted">—</span>`;
+  }
+  const cur = escapeAttr(p.currency || "EUR");
+  const total = Number.isFinite(p.line_total) ? p.line_total : p.amount;
+  const conf = p.confidence === "confirmed" ? "" : ` <span class="hm-price-est" title="Indicative estimate">est.</span>`;
+  return `<span class="hm-bom__indicative">~ ${total} ${cur}${conf}</span>`;
 }
 
 function bindNotesToggle(root) {
@@ -7520,6 +7769,22 @@ function notIncludedBlock(items) {
   return `<div class="hm-card hm-not-included">
     <h3>Not included — to be specified by the electrical design</h3>
     <ul class="hm-not-included__list">${body}</ul>
+  </div>`;
+}
+
+function installationBlock(items) {
+  const list = (items || []).filter((row) => row && (row.label || row.name_en));
+  if (!list.length) return "";
+  const body = list
+    .map(
+      (row) =>
+        `<li><span>${escapeAttr(row.label || row.name_en)}</span><span class="hm-muted">—</span></li>`,
+    )
+    .join("");
+  return `<div class="hm-card hm-installation">
+    <h3>Installation</h3>
+    <p class="hm-muted">Quoted by your installer — leave these for their quote.</p>
+    <ul class="hm-installation__list">${body}</ul>
   </div>`;
 }
 
@@ -8704,6 +8969,7 @@ function mountConfigurator(root) {
       return `<tr data-hl="companion:${escapeAttr(a.id)}">
         <td><div class="hm-bom__item">${hmIcon(companionRowIcon(a.id), 18)}<span><strong>${a.qty}×</strong> ${escapeAttr(a.label || a.id)}<br><span class="hm-muted">${escapeAttr(companionNote(a.id, a.label))}</span></span></div></td>
         <td class="hm-bom__num">${din}</td>
+        <td class="hm-bom__price">${formatCompanionPrice(a)}</td>
       </tr>`;
     };
     const primaryRows = primaryAcc.map(accRow).join("");
@@ -8787,7 +9053,7 @@ function mountConfigurator(root) {
             <span class="hm-muted">${accCount} items · ${Math.round(accDin * 100) / 100} M of DIN width</span>
           </div>
           <table class="hm-bom hm-bom--acc">
-            <thead><tr><th>Item</th><th class="hm-bom__num">Width</th></tr></thead>
+            <thead><tr><th>Item</th><th class="hm-bom__num">Width</th><th class="hm-bom__price">Indicative</th></tr></thead>
             <tbody>
               ${primaryRows}
               ${consumableRows
@@ -8795,7 +9061,7 @@ function mountConfigurator(root) {
                 .replace(/<tr>/g, '<tr class="hm-acc-consumable" hidden>')}
               ${
                 consumableAcc.length
-                  ? `<tr><td colspan="2"><button type="button" class="hm-linkish" data-acc-more data-n="${consumableN || consumableAcc.length}">Show all ${consumableN || consumableAcc.length} items</button></td></tr>`
+                  ? `<tr><td colspan="3"><button type="button" class="hm-linkish" data-acc-more data-n="${consumableN || consumableAcc.length}">Show all ${consumableN || consumableAcc.length} items</button></td></tr>`
                   : ""
               }
             </tbody>
@@ -8826,6 +9092,8 @@ function mountConfigurator(root) {
     }
 
     const tot = cartTotal(result, priceMap);
+    const sysTot = systemTotal(result, priceMap);
+    const panelTot = panelEquipmentTotal(result);
     const notes = collectResultNotes(result, priceMap);
     const modQty = (result.panels || []).reduce(
       (s, p) => s + (p.modules || []).reduce((a, m) => a + (m.qty || 0), 0),
@@ -8841,10 +9109,11 @@ function mountConfigurator(root) {
       0,
     ) ?? 1;
 
-    let priceHtml = `<p class="hm-result-hero__price">—</p>`;
-    if (tot && tot.pricedQty > 0) {
-      priceHtml = `<p class="hm-result-hero__price">${tot.total} <span>${escapeAttr(tot.currency)}</span></p>`;
-    }
+    const priceHtml = equipmentTotalsHtml({
+      sysTot,
+      panelTot,
+      meta: result.reference_prices_meta,
+    });
 
     const notesBar = resultNotesBarHtml(notes);
 
@@ -8878,6 +9147,7 @@ function mountConfigurator(root) {
         ${notesBar}
         ${panelBlocks || `<div class="hm-card"><p>No panels.</p></div>`}
         ${channelUsageTable(result.channel_usage)}
+        ${installationBlock(result.installation)}
         ${notIncludedBlock(result.not_included)}
         <div id="hm-cart-status"></div>
       </div>
@@ -9151,6 +9421,7 @@ function mountConfigurator(root) {
     result = liveResult();
     const cartTot = cartTotal(result, priceMap);
     const sysTot = systemTotal(result, priceMap);
+    const panelTot = panelEquipmentTotal(result);
     const rows = modulePurchaseRows(result, priceMap);
     const modQty = rows.reduce((s, r) => s + (r.qty || 0), 0);
     const roomN =
@@ -9168,10 +9439,11 @@ function mountConfigurator(root) {
           `<li><span class="hm-simple-line__ico">${hmIcon(l.kind, 18)}</span><span>${escapeAttr(l.text)}</span></li>`,
       )
       .join("");
-    let priceHtml = `<p class="hm-result-hero__price">—</p>`;
-    if (sysTot && sysTot.pricedQty > 0) {
-      priceHtml = `<p class="hm-result-hero__price">${sysTot.total} <span>${escapeAttr(sysTot.currency)}</span></p>`;
-    }
+    const priceHtml = equipmentTotalsHtml({
+      sysTot,
+      panelTot,
+      meta: result.reference_prices_meta,
+    });
     const stats = [
       { icon: "cube", value: modQty, label: "Modules" },
       { icon: "rooms", value: roomN, label: "Rooms" },
@@ -9203,9 +9475,10 @@ function mountConfigurator(root) {
         <h3 class="hm-simple-buy__h">What it covers</h3>
         <ul class="hm-simple-lines">${coverList || "<li class='hm-muted'>Adjust the controls to build your system.</li>"}</ul>
         <h3 class="hm-simple-buy__h">Modules you buy</h3>
-        <p class="hm-simple-buy__note">These go to the cart. The full panel needs more equipment — see the downloaded specification.</p>
+        <p class="hm-simple-buy__note">These go to the cart. Panel equipment is priced indicatively above and in the downloaded specification.</p>
         ${modulesYouBuyHtml(rows)}
       </div>
+      ${installationBlock(result.installation)}
       <div class="hm-card hm-simple-actions">
         <div class="hm-simple-actions__primary">
           <button type="button" class="hm-btn-pill hm-btn-pill--primary" id="s-cart">${hmIcon("cart", 16)} Add to cart</button>

@@ -1062,5 +1062,270 @@
       ]
     }
   },
-  "generated_at": "2026-08-16"
+  "generated_at": "2026-08-16",
+  "reference_prices": {
+    "as_of": "2026-08-16",
+    "currency": "EUR",
+    "vat": "included",
+    "disclaimer_en": "Indicative retail prices, EU, as of 2026-08-16 — your installer will use their own.",
+    "items": {
+      "mcb_1p": {
+        "name_en": "MCB 1P, C16",
+        "price_eur": 6.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "mcb_1p_n": {
+        "name_en": "MCB 1P+N, C16",
+        "price_eur": 13.0,
+        "vat": "included",
+        "source": "leroymerlin.ro, Legrand DX3 (64.86 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "mcb_3p": {
+        "name_en": "MCB 3P, C16",
+        "price_eur": 18.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "rcd_2p": {
+        "name_en": "RCD 2P, 25A/30mA",
+        "price_eur": 28.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "rcd_4p": {
+        "name_en": "RCD 4P, 25A/30mA",
+        "price_eur": 21.0,
+        "vat": "included",
+        "source": "leroymerlin.ro, Schneider Easy9 Pro 4P C25 (105 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "rcbo_1p_n": {
+        "name_en": "RCBO 1P+N, C16/30mA",
+        "price_eur": 35.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "fuse_24v_branch": {
+        "name_en": "24 V branch fuse holder",
+        "price_eur": 5.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "contactor_modular": {
+        "name_en": "Modular contactor 25A 2NO",
+        "price_eur": 22.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "snubber_rc": {
+        "name_en": "RC snubber / varistor",
+        "price_eur": 4.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "psu_din_60w": {
+        "name_en": "DIN PSU 24V 60W",
+        "price_eur": 23.0,
+        "vat": "included",
+        "source": "a2t.ro, Mean Well MDR-60-24 (118.99 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "psu_din_100w": {
+        "name_en": "DIN PSU 24V 100W",
+        "price_eur": 40.0,
+        "vat": "included",
+        "source": "seku.ro, Mean Well MDR-100-24 (203.57 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "psu_led_rgb": {
+        "name_en": "DIN LED PSU 12/24V 100W",
+        "price_eur": 40.0,
+        "vat": "included",
+        "source": "seku.ro, Mean Well MDR-100-24 (203.57 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "psu_led_str": {
+        "name_en": "DIN LED PSU 12/24V 100W",
+        "price_eur": 40.0,
+        "vat": "included",
+        "source": "seku.ro, Mean Well MDR-100-24 (203.57 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "terminal_block": {
+        "name_en": "Feed-through terminal 2.5 mm²",
+        "price_eur": 0.6,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "terminal_block_2t": {
+        "name_en": "Double-deck terminal",
+        "price_eur": 1.4,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "n_bar_12": {
+        "name_en": "N bar 12-way",
+        "price_eur": 6.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "pe_bar_12": {
+        "name_en": "PE bar 12-way",
+        "price_eur": 6.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "terminal_markers": {
+        "name_en": "Terminal / circuit markers, kit",
+        "price_eur": 8.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate",
+        "qty_mode": "kit"
+      },
+      "blanking_plate": {
+        "name_en": "DIN blanking plate",
+        "price_eur": 2.0,
+        "vat": "included",
+        "source": "electrika.com, Hager VG01C (£1.83)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "enclosure_24": {
+        "name_en": "Enclosure 24 modules, plastic",
+        "price_eur": 20.0,
+        "vat": "included",
+        "source": "electricon.ro, ETI ECT24PT (99.81 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "enclosure_48": {
+        "name_en": "Enclosure 48 modules, metal",
+        "price_eur": 150.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "enclosure_72": {
+        "name_en": "Enclosure 72 modules, metal",
+        "price_eur": 221.0,
+        "vat": "included",
+        "source": "electricon.ro, Hager FW324F (1124.42 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "enclosure_96": {
+        "name_en": "Enclosure 96 modules, metal",
+        "price_eur": 332.0,
+        "vat": "included",
+        "source": "ethercom.ro, Legrand XL³ S 160 (1685.51 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "enclosure_120": {
+        "name_en": "Enclosure 120 modules, metal",
+        "price_eur": 420.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "enclosure_144": {
+        "name_en": "Enclosure 144 modules, metal",
+        "price_eur": 500.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "din_rail": {
+        "name_en": "DIN rail, 1 m",
+        "price_eur": 4.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "eth_switch_din": {
+        "name_en": "DIN Ethernet switch, 5-port",
+        "price_eur": 140.0,
+        "vat": "included",
+        "source": "estimate — Phoenix Contact FL SWITCH SFNB 5TX class",
+        "as_of": "2026-08-16",
+        "confidence": "estimate"
+      },
+      "ha_server_din": {
+        "name_en": "Home Assistant mini-PC (DIN)",
+        "price_eur": 250.0,
+        "vat": "included",
+        "source": "emag.ro, Intel N100 16GB/512GB (1199.99 RON)",
+        "as_of": "2026-08-16",
+        "confidence": "confirmed"
+      },
+      "cable_rs485": {
+        "name_en": "RS-485 cable, per metre",
+        "price_eur": 1.2,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate",
+        "qty_mode": "per_metre"
+      },
+      "internal_wiring": {
+        "name_en": "Internal wire 0.75 mm², per metre",
+        "price_eur": 0.35,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-16",
+        "confidence": "estimate",
+        "qty_mode": "per_metre"
+      }
+    },
+    "installation_work": [
+      {
+        "id": "panel_assembly",
+        "name_en": "Panel assembly and internal wiring"
+      },
+      {
+        "id": "field_install",
+        "name_en": "Field installation and cable laying"
+      },
+      {
+        "id": "commissioning",
+        "name_en": "Commissioning and handover"
+      }
+    ]
+  }
 }

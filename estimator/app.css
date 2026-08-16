@@ -1659,6 +1659,98 @@
   color: var(--hm-muted);
 }
 
+#hm-system-builder .hm-result-hero__totals {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+#hm-system-builder .hm-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+#hm-system-builder .hm-totals__row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) auto;
+  gap: 0.15rem 0.75rem;
+  align-items: baseline;
+}
+
+#hm-system-builder .hm-totals__label {
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-totals__value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+#hm-system-builder .hm-totals__value span {
+  font-size: 0.55em;
+  font-weight: 600;
+  color: var(--hm-muted);
+}
+
+#hm-system-builder .hm-totals__value--quote {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--hm-muted);
+  white-space: normal;
+  text-align: right;
+}
+
+#hm-system-builder .hm-totals__tag {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--hm-muted);
+  margin-top: -0.15rem;
+}
+
+#hm-system-builder .hm-totals__row--indicative .hm-totals__value {
+  color: var(--hm-ink);
+}
+
+#hm-system-builder .hm-totals__disclaimer,
+#hm-system-builder .hm-totals__install-note {
+  margin: 0.35rem 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--hm-muted);
+  max-width: 32rem;
+}
+
+#hm-system-builder .hm-bom__indicative {
+  white-space: nowrap;
+}
+
+#hm-system-builder .hm-price-est {
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hm-warn);
+}
+
+#hm-system-builder .hm-installation__list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+#hm-system-builder .hm-installation__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--hm-line);
+  font-size: 0.95rem;
+}
+
 #hm-system-builder .hm-result-hero__sub {
   margin: 0.35rem 0 0;
   font-size: 13px;
