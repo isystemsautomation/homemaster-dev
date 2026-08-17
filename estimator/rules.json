@@ -28,6 +28,7 @@
     "psu_din_100w": 6,
     "psu_led_rgb": 4,
     "psu_led_str": 4,
+    "psu_sensor_12v": 2,
     "terminal_block": 0.35,
     "terminal_block_2t": 0.35,
     "terminal_24v": 0.35,
@@ -56,6 +57,7 @@
     "psu_din_100w": "DIN PSU 100 W (module logic)",
     "psu_led_rgb": "LED PS (RGB strip supply)",
     "psu_led_str": "LED PS (STR / actuator supply)",
+    "psu_sensor_12v": "External 12 V sensor PSU (ALM overflow)",
     "terminal_block": "Field terminal (1-tier)",
     "terminal_block_2t": "Field terminal (2-tier, two circuits)",
     "terminal_24v": "24 V distribution terminal",
@@ -1075,7 +1077,7 @@
       ]
     }
   },
-  "generated_at": "2026-08-16",
+  "generated_at": "2026-08-17",
   "reference_prices": {
     "as_of": "2026-08-16",
     "currency": "EUR",
@@ -1185,6 +1187,14 @@
         "source": "seku.ro, Mean Well MDR-100-24 (203.57 RON)",
         "as_of": "2026-08-16",
         "confidence": "confirmed"
+      },
+      "psu_sensor_12v": {
+        "name_en": "External 12 V sensor PSU (ALM rail overflow)",
+        "price_eur": 35.0,
+        "vat": "included",
+        "source": "estimate",
+        "as_of": "2026-08-17",
+        "confidence": "estimate"
       },
       "terminal_block": {
         "name_en": "Feed-through terminal 2.5 mm²",
