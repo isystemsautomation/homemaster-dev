@@ -10,6 +10,7 @@ Shop operators and integrators who resell genuine HomeMaster hardware and need r
 
 ## Contents
 
+- [`HomeMaster_Catalogue.pdf`](./HomeMaster_Catalogue.pdf) — full product catalogue: one A4 page per module with purpose, specifications and what makes it different, plus partner terms and compliance summary. Send this to a distributor who asks for a technical catalogue.
 - `index.csv` — product codes, GTIN, MPN and canonical shop URLs
 - `<MODULE>/description-short.md` — card listing text (40–60 words)
 - `<MODULE>/description-long.md` — extended product description (250–350 words)
@@ -31,6 +32,7 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 - **Made for ESPHome** may be stated only for MiniPLC and OpenTherm Gateway.
 - Rewriting descriptions in your own words is recommended so your listing does not compete directly with home-master.eu in search results.
 - CE marking statements refer to the EU Declaration of Conformity supplied in `doc/`.
+- The catalogue PDF may be forwarded to customers as it is, but not edited or rebranded.
 
 ## Image map
 
@@ -150,4 +152,3 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 
 ### WLD-521-R1
 - images/06-dimensions
-
