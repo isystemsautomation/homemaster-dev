@@ -15,7 +15,7 @@ esp32:
     version: recommended
 
 logger:
-  baud_rate: 115200
+  baud_rate: 0
 
 api:
   encryption:
@@ -363,6 +363,7 @@ sensor:
   cs_pin: GPIO1
   reference_resistance: 400 Ω
   rtd_nominal_resistance: 100 Ω
+  rtd_wires: 2
   update_interval: 60s
 - platform: max31865
   id: rtd_2
@@ -370,6 +371,7 @@ sensor:
   cs_pin: GPIO3
   reference_resistance: 4000 Ω
   rtd_nominal_resistance: 1000 Ω
+  rtd_wires: 2
   update_interval: 60s
 
 text_sensor:

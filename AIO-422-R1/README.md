@@ -7,7 +7,7 @@
 
 ![MODULE photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/photo1.png)
 
-**Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
+**Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§10 Maintenance](#10-maintenance--troubleshooting) · [FAQ](#faq) · [§11 Downloads](#11-downloads--resources)
 
 ---
 
@@ -287,6 +287,12 @@ Open **[AIO-422-R1 WebConfig v0.2.0](https://config.home-master.eu/AIO-422-R1/Fi
 
 > Firefox: experimental only. Safari and stable Firefox are not supported.
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 ### Connection, status & tools
 
 ![AIO-422-R1 WebConfig — connection, Modbus address/baud, tools and serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig1.png)
@@ -432,6 +438,12 @@ Buttons 1–4, LEDs 1–4, Link OK, Config dirty, RTD1/2 fault, ADS/DAC/RTD chip
 | AI3/AI4 swapped vs labels | Update to v0.2.0; remove compensatory HA renames |
 | Link OK off while polling | Master must address **this** slave; timeout 5 s |
 | AO stuck at 0/4095 | Write path is HREG 200/201; state feedback is IREG 10/11 |
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

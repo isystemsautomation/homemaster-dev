@@ -5,7 +5,8 @@ Firmware release history. OTA binaries and `manifest.json` live in this folder.
 ### v1.2.0 — current
 
 - Project version bumped to **1.2.0**.
-- Removed the Wi-Fi fallback access point (`wifi.ap`) and `captive_portal:` from `miniplc.yaml` for RED Art. 3(3)(d) / EN 18031-1 (no unauthenticated open AP after first boot). Ethernet (`config-eth.yaml`) is unchanged aside from the version bump.
+- Removed the Wi-Fi fallback access point (`wifi.ap`) and `captive_portal:` from `miniplc.yaml` for RED Art. 3(3)(d) / EN 18031-1 (no unauthenticated open AP after first boot).
+- **Documentation / example configs:** `config-eth.yaml` RTD example now sets `logger: baud_rate: 0` (was 115200 while MAX31865 sensors were enabled — CS lines conflict). Both RTD sensors use `rtd_wires: 2` to match factory DIP defaults. Commented RTD block in `miniplc.yaml` updated likewise.
 
 ### v1.1.0
 

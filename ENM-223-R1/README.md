@@ -7,7 +7,7 @@
 
 ![MODULE photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/photo1.png)
 
-**Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
+**Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§10 Maintenance](#10-maintenance--troubleshooting) · [FAQ](#faq) · [§11 Downloads](#11-downloads--resources)
 
 ---
 
@@ -594,6 +594,12 @@ Open **https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.h
 
 > Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 Field names and dropdown options below match `Firmware/v0.2.0/ConfigToolPage.html`.
 
 ### Status & Tools
@@ -1057,6 +1063,12 @@ Recommission alarms, relay modes, bus address, and phase mapping in WebConfig af
 | Button unresponsive    | Test DI 4–7; buttons only toggle relays in Modbus mode |
 | CRC Errors             | Confirm baud, address, and wiring (A/B swap)  |
 | Negative P/Q reading   | Expected for export; flip CT or adjust **phase mapping** in WebConfig |
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

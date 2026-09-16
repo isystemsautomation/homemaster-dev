@@ -392,6 +392,12 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | **During Operation** | Disconnect USB-C when running in the field; avoid ground loops with PLC systems. |
 | **ESD** | Port is ESD-protected, but avoid static discharge when plugging in cables. |
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 ---
 
 > ⚠️ **Summary:**  
@@ -824,6 +830,12 @@ If flashing fails or the module is unresponsive:
 | **Which module is this?** | Use **Identify** in WebConfig — the first output group pulses for 5 s. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

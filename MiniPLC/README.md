@@ -69,6 +69,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Firmware Updates](#firmware-updates)
 - [Device Behaviour Reference](#device-behaviour-reference)
 - [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
 - [Entity Reference](#entity-reference)
 - [Default Firmware Configuration](#default-firmware-configuration)
 - [Support & Community](#support--community)
@@ -545,12 +546,12 @@ Switches **1 and 4–5 and 8** select wiring mode. Switches **2–3 and 6–7** 
 
 1. Power OFF the MiniPLC.
 2. Set all 8 DIP positions per the logic table above.
-3. Update ESPHome YAML: change `rtd_nominal_resistance` (100 or 1000) and `wires` (2, 3, or 4).
+3. Update ESPHome YAML: change `rtd_nominal_resistance` (100 or 1000) and `rtd_wires` (2, 3, or 4).
 4. Power ON and verify temperature readings.
 
 **Fixed by hardware:** MAX31865 IC, SPI pins, CS pins, reference resistor network, terminal order.
 
-**Configurable in YAML:** sensor type (`rtd_nominal_resistance: 100` or `1000`), wiring mode (`wires: 2/3/4`), update interval, filters, alarm thresholds.
+**Configurable in YAML:** sensor type (`rtd_nominal_resistance: 100` or `1000`), wiring mode (`rtd_wires: 2/3/4`), update interval, filters, alarm thresholds.
 
 ## Enabling RTD Sensors in YAML
 
@@ -589,7 +590,7 @@ To enable RTD sensors, after taking control of the device:
        cs_pin: GPIO1
        reference_resistance: 400 Ω
        rtd_nominal_resistance: 100 Ω
-       wires: 2
+       rtd_wires: 2
        update_interval: 60s
      - platform: max31865
        id: rtd_2
@@ -597,11 +598,15 @@ To enable RTD sensors, after taking control of the device:
        cs_pin: GPIO3
        reference_resistance: 4000 Ω
        rtd_nominal_resistance: 1000 Ω
-       wires: 2
+       rtd_wires: 2
        update_interval: 60s
 ```
 
-4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `wires` (`2`, `3`, or `4`) to match the DIP-switch settings — see [RTD DIP Switch Configuration](#rtd-dip-switch-configuration).
+4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `rtd_wires` (`2`, `3`, or `4`) to match the DIP-switch settings — see [RTD DIP Switch Configuration](#rtd-dip-switch-configuration).
+
+5. **Unplug the USB cable during RTD operation.** The CP2102N USB-serial bridge shares GPIO1/GPIO3 (UART0 TX/RX) with the RTD chip-select lines and can hold CS1/CS2 while a cable is connected.
+
+> If the log shows `SPI bus read all 0 or all 1 (0xFFFF)` together with FORCE-/REFIN-/High Threshold faults and `nan °C`, the serial logger, Improv Serial, or a connected USB cable is holding the CS line — not a sensor fault.
 
 ## Enabling 1-Wire Sensors in YAML
 
@@ -723,6 +728,12 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 
 **Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 ## Optional Ethernet (LAN8720)
 
 The MiniPLC has an on-board LAN8720 PHY (RMII, fixed pins) but Ethernet is **not enabled in the factory firmware** — Wi-Fi is used by default.
@@ -830,13 +841,37 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | Digital input not responding | DI LED on front panel ON when input active? Wiring uses potential-free contact to GND (not 0V power return)? | Wire the contact between the DI terminal and its GND return; do not apply external voltage. Verify the input is not inverted in YAML and debounce is not too high. |
 | Relay does not switch | `RELAY #n` switch entity present in HA? | Toggle from HA. Check external fuse / breaker on the load circuit. Note: load needs its own power supply — relays are dry contact. |
 | Analog input reads 0 V | Sensor 0 V tied to AI GND? Sensor powered? | Tie sensor reference to AI GND. Check that sensor output is actually in 0–10 V range (some sensors output 4–20 mA — those need a separate 250 Ω resistor or a 4–20 mA-capable module). |
-| RTD reads `NaN` or constant -242 °C | DIP switches set correctly for sensor type and wiring mode? YAML `rtd_nominal_resistance` and `wires` match? | Cross-check the DIP-switch table above against the sensor wiring. PT100 vs PT1000 mismatch is the most common cause. |
+| RTD `0xFFFF` / `nan °C` | `logger: baud_rate: 0`? `improv_serial:` removed? USB unplugged during operation? | If the log shows FORCE-/REFIN-/High Threshold faults with `0xFFFF`, the serial logger, Improv Serial, or USB cable is holding CS on GPIO1/GPIO3 — see [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml). Then cross-check DIP pattern vs `rtd_wires`, `rtd_nominal_resistance`, and `reference_resistance` (PT100 → 400 Ω, PT1000 → 4000 Ω). |
+| RTD reads but value is wrong | DIP pattern matches `rtd_wires`? Correct `reference_resistance` for sensor type? | PT100 vs PT1000 mismatch and wrong Rref are the most common causes. Cross-check the DIP-switch table against YAML. |
+| USB drops or upload fails while on 24 V | Laptop on charger while device has external 24 V? | See [USB connection and grounding](#usb-serial-driver--port-access) and [FAQ](#faq). Run the laptop on battery when the MiniPLC is externally powered. |
 | 1-Wire sensor shows unknown / no value | Sensor wired correctly (+5 V / DATA / Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | OLED display blank | I²C bus working? | Look at ESPHome logs for I²C scan output at boot. Verify 0x3C appears. |
 | Modbus slave not responding | Address correct on slave WebConfig? Same baud / parity? A/B not swapped? | Check ESPHome logs for `[modbus]` timeouts. Confirm A→A and B→B (not crossed). Confirm COM is tied between all nodes. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/manifest.json`. If `http_request` / `update` blocks removed from YAML, use ESPHome OTA instead. |
 | Wi-Fi credentials changed, device unreachable | — | Re-provision Wi-Fi via USB-C Serial Improv at <https://improv-wifi.com>. The serial path always works regardless of Wi-Fi state. |
 | Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use <https://web.esphome.io> (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. |
+
+## FAQ
+
+### Why is RTD disabled in the factory firmware?
+
+RTD1/RTD2 chip-select is on **GPIO1** and **GPIO3** — the ESP32 UART0 TX/RX pins used by the USB serial logger and Improv Serial. Enabling MAX31865 without disabling those services leaves CS held and the sensor reads `0xFFFF`. Factory firmware keeps RTD off so USB provisioning and logging work out of the box.
+
+### Can I use RTD and USB serial logs at the same time?
+
+No. Set `logger: baud_rate: 0`, remove `improv_serial:`, and unplug USB during RTD operation. Use the ESPHome API or Wi-Fi logs instead.
+
+### How do I flash after enabling RTD?
+
+Over **OTA** (Wi-Fi or Ethernet) only — USB serial flashing conflicts with the CS lines. To reopen Wi-Fi provisioning after RTD is enabled, **power-cycle** and use **BLE Improv** within the 15-minute provisioning window.
+
+### Which terminals for a 2-wire PT100?
+
+**2** = RTDIN+, **3** = RTDIN−. In 2-wire mode the DIP switches bridge FORCE internally — do not wire FORCE separately.
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V (and RS-485 COM shares the same reference). If the MiniPLC runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ## Entity Reference
 
