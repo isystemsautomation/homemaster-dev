@@ -504,6 +504,12 @@ Open **[ALM-173-R1 WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Fi
 
 > **Firefox:** experimental only (Nightly with Web Serial enabled). **Safari** and stable Firefox are not supported.
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 See [§3 Alarm Logic](#3-alarm-logic--how-it-works) for zone types, local arming, and bell cut-off behaviour.
 
 ### Status & Tools
@@ -958,6 +964,10 @@ Dry-contact and relay-output detectors only. Analogue sensors (**0–10 V**, **4
 ### Do I need special software to set it up?
 
 No. Configuration uses the browser-based WebConfig over USB-C in a Chromium-based browser. No app or login is required. Settings persist in on-device flash (LittleFS).
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

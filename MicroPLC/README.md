@@ -35,6 +35,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - [LED Behaviour](#led-behaviour)
 - [Programming](#programming)
 - [USB Serial Driver & Port Access](#usb-serial-driver--port-access)
+- [FAQ](#faq)
 - [Firmware Updates](#firmware-updates)
 - [Bus System Configuration](#bus-system-configuration)
 - [Specifications](#specifications)
@@ -139,6 +140,12 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 - **Linux** — Support is **in-kernel** (`cp210x`). Add your user to the **`dialout`** group (`sudo usermod -aG dialout $USER`), then log out and back in. The port appears as `/dev/ttyUSB0` or similar.
 
 **Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
+
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
 
 
 ## Firmware Updates
@@ -335,6 +342,12 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 ## MicroPLC Functional Block Diagram
 
 ![MicroPLC Block Diagram](./Images/diagram.png)
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V (and RS-485 COM shares the same reference). If the MicroPLC runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ## License
 

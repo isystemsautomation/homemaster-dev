@@ -366,19 +366,25 @@ sensor:
 
   # Optional MAX31865 RTD inputs (PT100 / PT1000) over SPI.
   # Requires `spi:` block above to be enabled with miso/mosi/clk pins.
+  # Also requires `logger: baud_rate: 0` and removal of `improv_serial:` — CS
+  # lines GPIO1/GPIO3 are shared with UART0 / the CP2102N USB bridge.
   # - platform: max31865
   #   id: rtd_1
   #   name: "RTD Temperature 1"
-  #   cs_pin: GPIO1
+  #   cs_pin: GPIO3
   #   reference_resistance: 400 Ω
   #   rtd_nominal_resistance: 100 Ω
+  #   mains_filter: 50 Hz
+  #   rtd_wires: 2
   #   update_interval: 60s
   # - platform: max31865
   #   id: rtd_2
   #   name: "RTD Temperature 2"
-  #   cs_pin: GPIO3
-  #   reference_resistance: 4000 Ω
-  #   rtd_nominal_resistance: 1000 Ω
+  #   cs_pin: GPIO1
+  #   reference_resistance: 400 Ω
+  #   rtd_nominal_resistance: 100 Ω
+  #   mains_filter: 50 Hz
+  #   rtd_wires: 2
   #   update_interval: 60s
 
 text_sensor:

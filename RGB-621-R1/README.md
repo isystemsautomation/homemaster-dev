@@ -23,6 +23,7 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 - [7. ESPHome Integration Guide](#7-esphome-integration-guide)
 - [8. Firmware & Programming](#8-firmware--programming)
 - [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
+- [FAQ](#faq)
 - [10. Open Source & Licensing](#10-open-source--licensing)
 - [11. Downloads](#11-downloads)
 - [12. Support](#12-support)
@@ -396,6 +397,12 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | Supply | 5 V DC from host computer (logic domain) |
 | Isolation | Shares logic ground (`GND`); not isolated from RS-485 logic |
 | Notes | USB-C is for WebConfig setup and firmware update. It may be connected at any time, including while the module is powered from its 24 V supply. Not a field power or data bus. |
+
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
 
 ---
 
@@ -929,6 +936,12 @@ For modifying or rebuilding the firmware.
   Wire the contact between **I1/I2** and the **GND** terminal of the **DI 24Vdc** block (not **0V** of the power input, not the LED **COM**, not the **RS-485 COM**). Use a potential-free contact — do not apply external voltage. In WebConfig check the input is **Enabled**, **Inverted** is off, and **Debounce** (default 25 ms) is not set too high.
 - **USB not detected:**  
   Use a data-capable USB-C cable; close any app holding the port; re-enter [BOOT mode](#81-updating-firmware-regular-users).
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

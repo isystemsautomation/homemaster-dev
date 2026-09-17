@@ -64,6 +64,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Firmware Updates](#firmware-updates)
 - [Device Behaviour Reference](#device-behaviour-reference)
 - [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
 - [Entity Reference](#entity-reference)
 - [Default Firmware Configuration](#default-firmware-configuration)
 - [Support & Community](#support--community)
@@ -433,6 +434,12 @@ The USB Type-C port uses a **Silicon Labs CP2102N** USB-to-UART bridge for seria
 
 **Bluetooth (BLE Improv):** no driver is needed. **Web Bluetooth** works in Chrome/Edge on most platforms; on **desktop Linux** it is **off by default** (use USB Serial or enable the browser flag); **Firefox** and **iOS** do not support Web Bluetooth — use USB Serial or Chrome/Edge on Android for BLE provisioning.
 
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
+
 ## Home Assistant Integration
 
 After Wi-Fi provisioning, the device appears automatically in:
@@ -523,6 +530,12 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 > (`restore_mode: RESTORE_DEFAULT_ON`). The relay restores to OFF —
 > NC contact closes and the load is powered.
 > Verify this is safe for your installation before deploying.
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the gateway runs on external 24 V (or mains via L/N) and the laptop is on its charger, a ground loop can close through the USB cable (PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ## Entity Reference
 

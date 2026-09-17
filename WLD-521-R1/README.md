@@ -49,6 +49,7 @@ The module connects over **RS-485 (Modbus RTU)** to a **MicroPLC or MiniPLC**, e
 * [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
 * [8. Programming & Customization](#8-programming--customization)
 * [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
+* [FAQ](#faq)
 * [10. Open Source & Licensing](#10-open-source--licensing)
 * [11. Downloads](#11-downloads)
 * [12. Support](#12-support)
@@ -258,6 +259,12 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 |---------------------|---------|
 | **RS‑485 A/B/COM (Bottom left)** | Use twisted pair for A/B. COM is signal ground. Protect against surges. Not suitable for long unshielded runs or outdoor wiring. |
 | **USB‑C (Front panel)**   | For **setup only** using Web Serial in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). ESD protected. Not for field use or runtime connection. Disconnect after configuration. |
+
+> **USB connection and grounding.** The USB port is not galvanically isolated — USB ground is connected to the device's 0 V.
+> - Device powered from external 24 V → run the laptop **on battery** (charger unplugged).
+> - Device not externally powered (supplied from USB only) → the laptop may stay on its charger.
+>
+> A laptop on its charger combined with an externally powered device forms a ground loop through the USB cable and can cause USB dropouts, failed firmware uploads or WebConfig errors.
 
 ---
 
@@ -1319,6 +1326,14 @@ Pin mapping follows the RP2350 schematic / GPIO layout.
 | Flow stays 0 | DI not set to *Water counter*, wrong PPL, no pulses |
 | 1‑Wire not found | Wiring to +5V/D/GND, long bus, or pull‑up issue |
 | WebConfig not connecting | Use a Chromium-based browser (not Safari/stable Firefox); close other serial apps; try new cable/port |
+
+<a id="faq"></a>
+
+## FAQ
+
+### USB keeps disconnecting / upload fails while the module is on 24 V
+
+The USB port is not galvanically isolated — USB ground is connected to the device's 0 V. If the module runs on external 24 V and the laptop is on its charger, a ground loop can close through the USB cable (24 V PSU/PE ↔ charger earth or Y-capacitor leakage), causing USB dropouts, failed uploads or WebConfig errors. Run the laptop **on battery** (charger unplugged) while the device is externally powered. If the device is supplied from USB only, the laptop may stay on its charger.
 
 ---
 

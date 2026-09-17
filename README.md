@@ -323,6 +323,7 @@ packages:
 - Mount on 35 mm DIN rails in protective enclosures
 - Separate low‑voltage and high‑voltage wiring
 - Avoid moisture, chemicals, and extreme temperatures
+- **USB and laptop grounding:** USB ports are not galvanically isolated — USB ground is tied to device 0 V. When a module or controller runs on external 24 V (or mains), run the laptop **on battery** during USB WebConfig or firmware upload; a charger combined with an externally powered device can form a ground loop and cause USB dropouts or failed uploads.
 
 ### Device‑specific warnings
 - Connect PE/N properly for metering modules
