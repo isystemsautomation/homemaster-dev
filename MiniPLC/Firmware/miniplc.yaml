@@ -371,17 +371,19 @@ sensor:
   # - platform: max31865
   #   id: rtd_1
   #   name: "RTD Temperature 1"
-  #   cs_pin: GPIO1
+  #   cs_pin: GPIO3
   #   reference_resistance: 400 Ω
   #   rtd_nominal_resistance: 100 Ω
+  #   mains_filter: 50 Hz
   #   rtd_wires: 2
   #   update_interval: 60s
   # - platform: max31865
   #   id: rtd_2
   #   name: "RTD Temperature 2"
-  #   cs_pin: GPIO3
-  #   reference_resistance: 4000 Ω
-  #   rtd_nominal_resistance: 1000 Ω
+  #   cs_pin: GPIO1
+  #   reference_resistance: 400 Ω
+  #   rtd_nominal_resistance: 100 Ω
+  #   mains_filter: 50 Hz
   #   rtd_wires: 2
   #   update_interval: 60s
 
