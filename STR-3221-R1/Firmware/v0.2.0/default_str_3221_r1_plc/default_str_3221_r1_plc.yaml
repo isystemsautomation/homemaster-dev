@@ -14,7 +14,8 @@
 ##             str_address: 3
 ##
 ## Input Registers (FC=04, read) — contiguous 0..31 (one merged poll per cycle):
-##   0 DI_MASK · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS (bit0=tlcReady, bit1=linkOk, bit3=cfgDirty)
+##   0 DI_MASK · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS
+##      (bit0=tlcReady, bit1=linkOk, bit2=busFailsafe, bit3=cfgDirty, bit4=localOverride)
 ##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN · 9 reserved
 ##  10..25 OUT readback (O1/O2 per reg, low=odd high=even) · 26..31 reserved
 ##
@@ -115,6 +116,20 @@ binary_sensor:
     register_type: read
     address: 3
     bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Bus failsafe"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Local override"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0010
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} TLC chip 1 OK"
@@ -716,3 +731,19 @@ light:
     output: ${str_id}_out_o32
     gamma_correct: 0.0
     default_transition_length: 0s
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_save_pwm
+    register_type: coil
+    address: 330
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_release_override
+    register_type: coil
+    address: 331
+    internal: true
+    assumed_state: true

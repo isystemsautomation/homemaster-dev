@@ -7,7 +7,8 @@
  *   0  IREG_DI_MASK       bit0..2 IO1..IO3 (logical, after enable + invert)
  *   1  IREG_BTN_MASK      bit0..3 BUTTON1..4 pressed
  *   2  IREG_LED_MASK      bit0..1 status LED1..2 physical state
- *   3  IREG_STATUS_FLAGS  bit0=tlcReady, bit1=linkOk, bit3=cfgDirty (bit2 reserved)
+ *   3  IREG_STATUS_FLAGS  bit0=tlcReady, bit1=linkOk, bit2=busFailsafe,
+ *                         bit3=cfgDirty, bit4=localOverride
  *   4  IREG_TLC_MASK      bit0..3 TLC59208F chip OK U9..U12
  *   5  IREG_I2C_ERRORS    failed TLC transaction count (saturating)
  *   6  IREG_RESET_REASON  RP2350 reset cause (0=unknown/POR, 1=watchdog)
@@ -20,6 +21,8 @@
  * Command coils (FC=05/15, auto-clear pulse):
  *   300..302  pulse ENABLE  IO1..IO3
  *   320..322  pulse DISABLE IO1..IO3
+ *   330       pulse SAVE output levels to flash (rate-limited 10 s)
+ *   331       pulse RELEASE local override
  *
  * Holding registers (FC=03/06/16) — config / write surface; not polled:
  *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
@@ -64,7 +67,9 @@
 #include "hardware/watchdog.h"
 
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
-struct PersistConfig;
+struct PersistConfigV3;
+struct PersistConfigV4;
+typedef PersistConfigV4 PersistConfig;
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -128,13 +133,27 @@ static uint16_t iregCache[32];
 static const uint16_t IREG_BLOCK_COUNT = 32;
 
 // ================== Config & runtime ==================
-struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; };
+struct InCfgV3 { bool enabled; bool inverted; uint8_t action; uint8_t target; };
+struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t level; };
 struct LedCfg { uint8_t mode; uint8_t source; };
 struct BtnCfg { uint8_t action; };
+
+enum : uint8_t { FS_HOLD = 0, FS_OFF = 1, FS_LEVEL = 2 };
 
 InCfg  diCfg[NUM_DI];
 LedCfg ledCfg[NUM_LED];
 BtnCfg btnCfg[NUM_BTN];
+
+uint16_t g_busTimeoutS = 0;
+uint16_t g_overrideTimeoutS = 0;
+uint8_t  g_failsafeAction[NUM_PWM];
+uint8_t  g_failsafeLevel[NUM_PWM];
+bool     g_localOverride = false;
+uint32_t g_overrideSinceMs = 0;
+bool     g_linkFrameSeen = false;
+bool     g_busFailsafeActive = false;
+bool     g_inputToggleState[NUM_DI] = {false, false, false};
+uint32_t g_lastPwmSaveMs = 0;
 
 bool buttonState[NUM_BTN] = {false, false, false, false};
 bool buttonPrev[NUM_BTN]  = {false, false, false, false};
@@ -167,7 +186,20 @@ uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 
 // ================== Persistence (LittleFS) ==================
-struct PersistConfig {
+struct PersistConfigV3 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  InCfgV3  diCfg[NUM_DI];
+  LedCfg   ledCfg[NUM_LED];
+  BtnCfg   btnCfg[NUM_BTN];
+  uint16_t pwmLevel[NUM_PWM];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct PersistConfigV4 {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -177,11 +209,16 @@ struct PersistConfig {
   uint16_t pwmLevel[NUM_PWM];
   uint8_t  mb_address;
   uint32_t mb_baud;
+  uint16_t busTimeoutS;
+  uint16_t overrideTimeoutS;
+  uint8_t  failsafeAction[NUM_PWM];
+  uint8_t  failsafeLevel[NUM_PWM];
   uint32_t crc32;
 } __attribute__((packed));
 
-static const uint32_t CFG_MAGIC   = 0x53545231UL; // '1RTS'
-static const uint16_t CFG_VERSION = 0x0003;
+static const uint32_t CFG_MAGIC      = 0x53545231UL; // '1RTS'
+static const uint16_t CFG_VERSION_V3 = 0x0003;
+static const uint16_t CFG_VERSION    = 0x0004;
 
 // MCU board: CD4069 inverts button signals — pressed reads HIGH (same as ENM/WLD/DIM).
 static constexpr bool BUTTON_PRESSED_LOW = false;
@@ -208,6 +245,8 @@ enum : uint16_t {
 
   CMD_DI_EN_BASE  = 300,
   CMD_DI_DIS_BASE = 320,
+  COIL_SAVE_PWM   = 330,
+  COIL_RELEASE_OVERRIDE = 331,
   HR_PWM_BASE = 400,
   HR_MB_ADDR  = 480,
   HR_MB_BAUD  = 481
@@ -569,17 +608,261 @@ static void applyAllPwmLevels() {
   }
 }
 
+static inline bool outputsModbusLocked() {
+  return g_localOverride || g_busFailsafeActive;
+}
+
+static void drivePwmOutputs() {
+  applyAllPwmLevels();
+}
+
+static void setAllPwmLocal(uint16_t val) {
+  if (val > 255) val = 255;
+  for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = val;
+  drivePwmOutputs();
+}
+
+static void applyRampLevelsLocal() {
+  for (int i = 0; i < NUM_PWM; i++) {
+    pwmLevel[i] = (NUM_PWM > 1) ? (uint16_t)((i * 255) / (NUM_PWM - 1)) : 255;
+  }
+  drivePwmOutputs();
+}
+
+static void restoreOutputsFromHoldingRegs() {
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
+    uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
+    if (v > 255) v = 255;
+    pwmLevel[i] = v;
+  }
+  drivePwmOutputs();
+}
+
+static void enterLocalOverride() {
+  if (g_busFailsafeActive) return;
+  if (!g_localOverride) g_overrideSinceMs = millis();
+  g_localOverride = true;
+}
+
+static void releaseLocalOverride() {
+  if (!g_localOverride) return;
+  g_localOverride = false;
+  for (int i = 0; i < NUM_DI; i++) g_inputToggleState[i] = false;
+  if (!g_busFailsafeActive) {
+    restoreOutputsFromHoldingRegs();
+    wsLog("Local override released — outputs match holding registers");
+  }
+}
+
+static void applyFailsafeOnce() {
+  for (int i = 0; i < NUM_PWM; i++) {
+    switch (g_failsafeAction[i]) {
+      case FS_OFF:   pwmLevel[i] = 0; break;
+      case FS_LEVEL: pwmLevel[i] = g_failsafeLevel[i]; break;
+      default: break; // HOLD — leave channel unchanged
+    }
+  }
+  drivePwmOutputs();
+}
+
+static void processBusFailsafe(uint32_t now) {
+  bool linkLost = false;
+  if (g_linkFrameSeen && g_busTimeoutS > 0) {
+    linkLost = ((uint32_t)(now - g_lastLinkSeenMs) >= (uint32_t)g_busTimeoutS * 1000UL);
+  }
+
+  if (!g_busFailsafeActive && linkLost) {
+    g_busFailsafeActive = true;
+    g_localOverride = false;
+    applyFailsafeOnce();
+    wsLog(String("Bus failsafe active (no poll for ") + g_busTimeoutS + " s)");
+  } else if (g_busFailsafeActive && !linkLost) {
+    g_busFailsafeActive = false;
+    restoreOutputsFromHoldingRegs();
+    wsLog("Bus link restored — outputs match holding registers");
+  }
+}
+
+static bool anyPulseInputActive() {
+  for (int i = 0; i < NUM_DI; i++) {
+    if (!diCfg[i].enabled || diCfg[i].target != 0 || diCfg[i].action != 2) continue;
+    if (diState[i]) return true;
+  }
+  return false;
+}
+
+static void processInputActions() {
+  if (g_busFailsafeActive) return;
+
+  for (int i = 0; i < NUM_DI; i++) {
+    if (!diCfg[i].enabled || diCfg[i].target != 0) continue;
+
+    if (diCfg[i].action == 1) {
+      if (diState[i] && !diPrev[i]) {
+        g_inputToggleState[i] = !g_inputToggleState[i];
+        if (g_inputToggleState[i]) setAllPwmLocal(diCfg[i].level);
+        else setAllPwmLocal(0);
+        enterLocalOverride();
+      }
+    } else if (diCfg[i].action == 2) {
+      if (diState[i] != diPrev[i]) {
+        if (diState[i]) {
+          setAllPwmLocal(diCfg[i].level);
+          enterLocalOverride();
+        } else if (!anyPulseInputActive()) {
+          releaseLocalOverride();
+        }
+      }
+    }
+  }
+}
+
+static void processButtonActions() {
+  const bool comboBoot  = buttonState[0] && buttonState[1];
+  const bool comboReset = buttonState[2] && buttonState[3];
+  if (comboReset) return;
+
+  for (int i = 0; i < NUM_BTN; i++) {
+    if (!buttonState[i] || buttonPrev[i]) continue; // rising edge; loop is fast enough (~ms)
+    if (i <= 1 && comboBoot) continue;
+    if (i >= 2 && comboReset) continue;
+
+    switch (btnCfg[i].action) {
+      case 1:
+        if (!g_busFailsafeActive) { setAllPwmLocal(255); enterLocalOverride(); }
+        break;
+      case 2:
+        if (!g_busFailsafeActive) { setAllPwmLocal(0); enterLocalOverride(); }
+        break;
+      case 3:
+        if (!g_busFailsafeActive) { applyRampLevelsLocal(); enterLocalOverride(); }
+        break;
+      case 4:
+        releaseLocalOverride();
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+static void processOverrideTimeout(uint32_t now) {
+  if (!g_localOverride || g_overrideTimeoutS == 0 || g_busFailsafeActive) return;
+  if ((uint32_t)(now - g_overrideSinceMs) >= (uint32_t)g_overrideTimeoutS * 1000UL) {
+    wsLog("Local override timed out");
+    releaseLocalOverride();
+  }
+}
+
+static bool saveConfigFS(); // defined below — used by savePwmLevelsToFlash
+
+static void savePwmLevelsToFlash() {
+  const uint32_t now = millis();
+  if ((uint32_t)(now - g_lastPwmSaveMs) < 10000UL) {
+    wsLog("PWM save rate-limited (10 s)");
+    return;
+  }
+  if (saveConfigFS()) {
+    g_lastPwmSaveMs = now;
+    wsLog("Output levels saved to flash");
+  } else {
+    wsLog("ERROR: Output level save failed");
+  }
+}
+
 // ================== Defaults / persist ==================
+static void applyFailsafeDefaults() {
+  g_busTimeoutS = 0;
+  g_overrideTimeoutS = 0;
+  for (int i = 0; i < NUM_PWM; i++) {
+    g_failsafeAction[i] = FS_HOLD;
+    g_failsafeLevel[i] = 0;
+  }
+}
+
 void setDefaults() {
-  for (int i = 0; i < NUM_DI; i++) diCfg[i] = {true, false, 0, 4};
+  for (int i = 0; i < NUM_DI; i++) diCfg[i] = {true, false, 0, 4, 255};
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = {0, 0};
-  for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = {0};
+  btnCfg[0].action = 1; // SW1 = All ON (README promise)
+  btnCfg[1].action = 2; // SW2 = All OFF
+  btnCfg[2].action = 0;
+  btnCfg[3].action = 0;
   for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = 0;
   g_mb_address = 3;
   g_mb_baud    = 19200;
+  applyFailsafeDefaults();
 }
 
-void captureToPersist(PersistConfig &pc) {
+static bool verifyPersistCrcV3(const PersistConfigV3 &pc) {
+  PersistConfigV3 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  return crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV3)) == crc;
+}
+
+static bool verifyPersistCrcV4(const PersistConfigV4 &pc) {
+  PersistConfigV4 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  return crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV4)) == crc;
+}
+
+static void fillV4Defaults(PersistConfigV4 &pc) {
+  pc.busTimeoutS = 0;
+  pc.overrideTimeoutS = 0;
+  for (int i = 0; i < NUM_PWM; i++) {
+    pc.failsafeAction[i] = FS_HOLD;
+    pc.failsafeLevel[i] = 0;
+  }
+}
+
+static bool applyFromPersistV4(const PersistConfigV4 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV4)) return false;
+  if (!verifyPersistCrcV4(pc)) return false;
+  if (pc.version != CFG_VERSION) return false;
+
+  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
+  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+  memcpy(pwmLevel, pc.pwmLevel, sizeof(pwmLevel));
+  g_mb_address = pc.mb_address;
+  g_mb_baud = pc.mb_baud;
+  g_busTimeoutS = pc.busTimeoutS;
+  g_overrideTimeoutS = pc.overrideTimeoutS;
+  for (int i = 0; i < NUM_PWM; i++) {
+    const uint8_t act = pc.failsafeAction[i];
+    g_failsafeAction[i] = (act <= FS_LEVEL) ? act : FS_HOLD;
+    g_failsafeLevel[i] = pc.failsafeLevel[i];
+  }
+  return true;
+}
+
+static bool migrateV3ToV4(const PersistConfigV3 &pc3, PersistConfigV4 &pc4) {
+  if (pc3.magic != CFG_MAGIC || pc3.size != sizeof(PersistConfigV3)) return false;
+  if (!verifyPersistCrcV3(pc3)) return false;
+  if (pc3.version != CFG_VERSION_V3) return false;
+
+  memset(&pc4, 0, sizeof(pc4));
+  pc4.magic = CFG_MAGIC;
+  pc4.version = CFG_VERSION;
+  pc4.size = sizeof(PersistConfigV4);
+  for (int i = 0; i < NUM_DI; i++) {
+    pc4.diCfg[i].enabled = pc3.diCfg[i].enabled;
+    pc4.diCfg[i].inverted = pc3.diCfg[i].inverted;
+    pc4.diCfg[i].action = pc3.diCfg[i].action;
+    pc4.diCfg[i].target = pc3.diCfg[i].target;
+    pc4.diCfg[i].level = 255;
+  }
+  memcpy(pc4.ledCfg, pc3.ledCfg, sizeof(pc4.ledCfg));
+  memcpy(pc4.btnCfg, pc3.btnCfg, sizeof(pc4.btnCfg));
+  memcpy(pc4.pwmLevel, pc3.pwmLevel, sizeof(pc4.pwmLevel));
+  pc4.mb_address = pc3.mb_address;
+  pc4.mb_baud = pc3.mb_baud;
+  fillV4Defaults(pc4);
+  return true;
+}
+
+void captureToPersist(PersistConfigV4 &pc) {
   pc.magic = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size = sizeof(PersistConfig);
@@ -589,29 +872,16 @@ void captureToPersist(PersistConfig &pc) {
   memcpy(pc.pwmLevel, pwmLevel, sizeof(pwmLevel));
   pc.mb_address = g_mb_address;
   pc.mb_baud = g_mb_baud;
+  pc.busTimeoutS = g_busTimeoutS;
+  pc.overrideTimeoutS = g_overrideTimeoutS;
+  memcpy(pc.failsafeAction, g_failsafeAction, sizeof(g_failsafeAction));
+  memcpy(pc.failsafeLevel, g_failsafeLevel, sizeof(g_failsafeLevel));
   pc.crc32 = 0;
-  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
+  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV4));
 }
 
-bool applyFromPersist(const PersistConfig &pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfig)) return false;
-  PersistConfig tmp = pc;
-  uint32_t crc = tmp.crc32;
-  tmp.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfig)) != crc) return false;
-  if (pc.version != CFG_VERSION) return false;
-
-  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
-  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
-  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
-  memcpy(pwmLevel, pc.pwmLevel, sizeof(pwmLevel));
-  g_mb_address = pc.mb_address;
-  g_mb_baud = pc.mb_baud;
-  return true;
-}
-
-bool saveConfigFS() {
-  PersistConfig pc{};
+static bool saveConfigFS() {
+  PersistConfigV4 pc{};
   captureToPersist(pc);
   File f = LittleFS.open(CFG_PATH, "w");
   if (!f) { wsLog("save: open failed"); return false; }
@@ -621,12 +891,12 @@ bool saveConfigFS() {
   if (n != sizeof(pc)) { wsLog(String("save: short write ") + n); return false; }
   File r = LittleFS.open(CFG_PATH, "r");
   if (!r) { wsLog("save: reopen failed"); return false; }
-  if ((size_t)r.size() != sizeof(PersistConfig)) { wsLog("save: size mismatch after write"); r.close(); return false; }
-  PersistConfig back{};
+  if ((size_t)r.size() != sizeof(PersistConfigV4)) { wsLog("save: size mismatch after write"); r.close(); return false; }
+  PersistConfigV4 back{};
   size_t nr = r.read((uint8_t*)&back, sizeof(back));
   r.close();
   if (nr != sizeof(back)) { wsLog("save: short readback"); return false; }
-  PersistConfig verify = back;
+  PersistConfigV4 verify = back;
   uint32_t crc = verify.crc32;
   verify.crc32 = 0;
   if (crc32_update(0, (const uint8_t*)&verify, sizeof(verify)) != crc) { wsLog("save: CRC verify failed"); return false; }
@@ -636,17 +906,36 @@ bool saveConfigFS() {
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r");
   if (!f) { wsLog("load: open failed"); return false; }
-  if (f.size() != sizeof(PersistConfig)) {
-    wsLog(String("load: size ") + f.size() + " != " + sizeof(PersistConfig));
+  const size_t fsz = f.size();
+
+  if (fsz == sizeof(PersistConfigV4)) {
+    PersistConfigV4 pc4{};
+    const size_t n = f.read((uint8_t*)&pc4, sizeof(pc4));
     f.close();
-    return false;
+    if (n != sizeof(pc4)) { wsLog("load: short read"); return false; }
+    if (!applyFromPersistV4(pc4)) { wsLog("load: v4 magic/version/crc mismatch"); return false; }
+    return true;
   }
-  PersistConfig pc{};
-  size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+
+  if (fsz == sizeof(PersistConfigV3)) {
+    PersistConfigV3 pc3{};
+    const size_t n = f.read((uint8_t*)&pc3, sizeof(pc3));
+    f.close();
+    if (n != sizeof(pc3)) { wsLog("load: short read"); return false; }
+    PersistConfigV4 pc4{};
+    if (!migrateV3ToV4(pc3, pc4)) { wsLog("load: v3 migrate failed"); return false; }
+    if (!applyFromPersistV4(pc4)) { wsLog("load: v4 apply after migrate failed"); return false; }
+    wsLog("Config migrated 0x0003 -> 0x0004");
+    if (!saveConfigFS()) {
+      wsLog("ERROR: migrate re-save failed");
+      return false;
+    }
+    return true;
+  }
+
   f.close();
-  if (n != sizeof(pc)) { wsLog("load: short read"); return false; }
-  if (!applyFromPersist(pc)) { wsLog("load: magic/version/crc mismatch"); return false; }
-  return true;
+  wsLog(String("load: unknown size ") + fsz);
+  return false;
 }
 
 // ================== Fw decls ==================
@@ -733,10 +1022,10 @@ void handleValues(JSONVar values) {
     JSONVar arr = values["pwm"];
     for (int i = 0; i < NUM_PWM && i < arr.length(); i++) {
       uint16_t v = (uint16_t)constrain((int)arr[i], 0, 255);
-      pwmLevel[i] = v;
       mb.Hreg(HR_PWM_BASE + i, v);
+      if (!outputsModbusLocked()) pwmLevel[i] = v;
     }
-    applyAllPwmLevels();
+    if (!outputsModbusLocked()) drivePwmOutputs();
   }
 
   wsLog("Modbus configuration updated");
@@ -769,6 +1058,9 @@ void handleCommand(JSONVar obj) {
     }
   } else if (act == "factory") {
     setDefaults();
+    g_localOverride = false;
+    g_busFailsafeActive = false;
+    for (int i = 0; i < NUM_DI; i++) g_inputToggleState[i] = false;
     for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
     applyAllPwmLevels();
     if (saveConfigFS()) {
@@ -788,11 +1080,8 @@ void handleCommand(JSONVar obj) {
     i2cScanLog();
     if (!tlcInitAll(true)) wsLog("TLC init still failed after I2C scan");
   } else if (act == "off") {
-    for (int i = 0; i < NUM_PWM; i++) {
-      pwmLevel[i] = 0;
-      mb.Hreg(HR_PWM_BASE + i, 0);
-    }
-    applyAllPwmLevels();
+    for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, 0);
+    if (!outputsModbusLocked()) setAllPwmLocal(0);
     wsLog("All output channels set to 0");
   } else {
     wsLog(String("Unknown command: ") + actC);
@@ -829,15 +1118,38 @@ void handleUnifiedConfig(JSONVar obj) {
     }
     wsLog("Input Control Target list updated");
     changed = true;
+  } else if (type == "in.level" || type == "inputLevel") {
+    for (int i = 0; i < NUM_DI && i < list.length(); i++)
+      diCfg[i].level = (uint8_t)constrain((int)list[i], 0, 255);
+    wsLog("Input Level list updated");
+    changed = true;
   } else if (type == "btn" || type == "buttons") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) {
       if (list[i].hasOwnProperty("action")) {
-        btnCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 0);
+        btnCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 4);
       } else {
-        btnCfg[i].action = (uint8_t)constrain((int)list[i], 0, 0);
+        btnCfg[i].action = (uint8_t)constrain((int)list[i], 0, 4);
       }
     }
     wsLog("Buttons Configuration updated");
+    changed = true;
+  } else if (type == "bus.timeout") {
+    g_busTimeoutS = (uint16_t)constrain((int)list, 0, 65535);
+    wsLog("Bus failsafe timeout updated");
+    changed = true;
+  } else if (type == "override.timeout") {
+    g_overrideTimeoutS = (uint16_t)constrain((int)list, 0, 65535);
+    wsLog("Override timeout updated");
+    changed = true;
+  } else if (type == "bus.failsafe") {
+    JSONVar actions = list["actions"];
+    JSONVar levels = list["levels"];
+    for (int i = 0; i < NUM_PWM && i < actions.length() && i < levels.length(); i++) {
+      const uint8_t act = (uint8_t)constrain((int)actions[i], 0, 2);
+      g_failsafeAction[i] = act;
+      g_failsafeLevel[i] = (uint8_t)constrain((int)levels[i], 0, 255);
+    }
+    wsLog("Bus failsafe per-channel config updated");
     changed = true;
   } else if (type == "led" || type == "leds") {
     for (int i = 0; i < NUM_LED && i < list.length(); i++) {
@@ -884,6 +1196,14 @@ void processModbusCommandPulses() {
       if (diCfg[i].enabled) { diCfg[i].enabled = false; markCfgDirty(); }
     }
   }
+  if (mb.Coil(COIL_SAVE_PWM)) {
+    mb.setCoil(COIL_SAVE_PWM, false);
+    savePwmLevelsToFlash();
+  }
+  if (mb.Coil(COIL_RELEASE_OVERRIDE)) {
+    mb.setCoil(COIL_RELEASE_OVERRIDE, false);
+    releaseLocalOverride();
+  }
 }
 
 inline void markCfgDirty() {
@@ -905,7 +1225,10 @@ static void updateLinkOkDetector(uint32_t now) {
   if (Serial2.available() < 1) return;
   const int addr = Serial2.peek();
   if (addr < 0) return;
-  if (addr == 0 || addr == (int)g_mb_address) g_lastLinkSeenMs = now;
+  if (addr == 0 || addr == (int)g_mb_address) {
+    g_lastLinkSeenMs = now;
+    g_linkFrameSeen = true;
+  }
 }
 
 static inline bool linkOkNow(uint32_t now) {
@@ -983,6 +1306,10 @@ static void buildModbusMap() {
     mb.addCoil(CMD_DI_DIS_BASE + i);
     mb.setCoil(CMD_DI_DIS_BASE + i, false);
   }
+  mb.addCoil(COIL_SAVE_PWM);
+  mb.setCoil(COIL_SAVE_PWM, false);
+  mb.addCoil(COIL_RELEASE_OVERRIDE);
+  mb.setCoil(COIL_RELEASE_OVERRIDE, false);
   for (uint16_t i = 0; i < NUM_PWM; i++) {
     mb.addHreg(HR_PWM_BASE + i);
     mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
@@ -1002,6 +1329,8 @@ void sendWebStatus() {
   st["addr"]  = g_mb_address;
   st["baud"]  = g_mb_baud;
   st["linkOk"] = linkOkNow(millis()) ? 1 : 0;
+  st["busFailsafe"] = g_busFailsafeActive ? 1 : 0;
+  st["localOverride"] = g_localOverride ? 1 : 0;
   WebSerial.send("status", st);
 }
 
@@ -1061,6 +1390,7 @@ void setup() {
 
   buildModbusMap();
   g_lastLinkSeenMs = millis();
+  g_linkFrameSeen = false;
   updateInputRegisters(g_lastLinkSeenMs);
 
   wsLog("Boot OK");
@@ -1110,7 +1440,7 @@ void loop() {
       pwmChanged = true;
     }
   }
-  if (pwmChanged) {
+  if (pwmChanged && !outputsModbusLocked()) {
     applyPwmFromHoldingRegs();  // brightness not auto-persisted
   }
 
@@ -1146,6 +1476,11 @@ void loop() {
     diPrev[m] = diState[m];
     diState[m] = logical;
   }
+
+  processBusFailsafe(now);
+  processInputActions();
+  processButtonActions();
+  processOverrideTimeout(now);
 
   bool diUiChanged = false;
   for (int i = 0; i < NUM_DI; i++) {

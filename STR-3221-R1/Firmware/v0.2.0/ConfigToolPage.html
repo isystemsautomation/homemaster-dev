@@ -31,6 +31,8 @@
       <div class="pillrow">
         <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
         <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
+        <div class="pill"><span class="dot warn" id="fsDot"></span>Failsafe: <span id="fsText">—</span></div>
+        <div class="pill"><span class="dot warn" id="ovDot"></span>Override: <span id="ovText">—</span></div>
         <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
         <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
         <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
@@ -102,6 +104,39 @@
     </div>
   </section>
 
+  <div class="sectiontitle"><h3>Bus failsafe</h3></div>
+  <section class="card">
+    <div class="cardbody">
+      <p class="hint">Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
+      <div class="row">
+        <div>
+          <label for="bus-timeout-s">Bus timeout (s)</label>
+          <input id="bus-timeout-s" type="number" min="0" max="65535" value="0">
+        </div>
+        <div>
+          <label for="override-timeout-s">Override timeout (s, 0=never)</label>
+          <input id="override-timeout-s" type="number" min="0" max="65535" value="0">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <div>
+          <label for="fs-all-act">Set all — action</label>
+          <select id="fs-all-act">
+            <option value="0">Hold</option>
+            <option value="1">OFF</option>
+            <option value="2">Level</option>
+          </select>
+        </div>
+        <div>
+          <label for="fs-all-lvl">Set all — level</label>
+          <input id="fs-all-lvl" type="number" min="0" max="255" value="0">
+        </div>
+        <div><button type="button" class="btn" id="fs-all-apply">Apply to all channels</button></div>
+      </div>
+      <div id="fs-groups" style="margin-top:16px"></div>
+    </div>
+  </section>
+
   <div class="sectiontitle"><h3>Digital Inputs (3)</h3></div>
   <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-inputs"></div></div></section>
 
@@ -125,8 +160,14 @@
     ];
     const pwmSliders = [];
     const pwmVals = [];
+    const fsActions = new Array(NUM_PWM).fill(0);
+    const fsLevels = new Array(NUM_PWM).fill(0);
     let pwmSyncLock = false;
     let pwmSendTimer = null;
+    let fsSendTimer = null;
+
+    const fsActOptsHtml = [{v:0,l:'Hold'},{v:1,l:'OFF'},{v:2,l:'Level'}]
+      .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
 
     function clamp255(v){ return Math.max(0, Math.min(255, Number(v)||0)); }
 
@@ -220,6 +261,10 @@
           <div class="split">
             <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
             <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
+          </div>
+          <div style="margin-top:10px">
+            <label for="level-in${i}">On level (0–255)</label>
+            <input id="level-in${i}" type="number" min="0" max="255" value="255">
           </div>`;
         c.appendChild(d);
       }
@@ -228,8 +273,10 @@
     (function buildButtons(){
       const c = $('io-buttons');
       if (!c) return;
-      const btnActOpts = [{v:0,l:'None'}]
-        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const btnActOpts = [
+        {v:0,l:'None'},{v:1,l:'All ON'},{v:2,l:'All OFF'},
+        {v:3,l:'Ramp test'},{v:4,l:'Clear override'},
+      ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       for (let i = 1; i <= NUM_BTN; i++){
         const d = document.createElement('div');
         d.className = 'iocard tint-button';
@@ -269,11 +316,33 @@
       webconfigVersion: '0.2.0',
       readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/STR-3221-R1/README.md',
       channels: { in: NUM_DI, relay: 0, btn: NUM_BTN, led: NUM_LED },
-      onCfg: (ext) => applyPwmFromDevice(ext && ext.pwm),
+      onCfg: (ext, cfg) => {
+        applyPwmFromDevice(ext && ext.pwm);
+        loadFailsafeFromCfg(cfg);
+        const inArr = HMWebConfig.toArray(cfg?.in);
+        for (let i = 0; i < NUM_DI; i++){
+          const el = $('level-in' + (i + 1));
+          if (el && inArr[i] && inArr[i].level != null) el.value = String(inArr[i].level);
+        }
+      },
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
     HMWebConfig.conn.on('ext', ext => { if (ext && ext.pwm) applyPwmFromDevice(ext.pwm); });
+    HMWebConfig.conn.on('status', st => {
+      const fsDot = $('fsDot'), fsText = $('fsText');
+      const ovDot = $('ovDot'), ovText = $('ovText');
+      if (st.busFailsafe != null && fsDot && fsText){
+        const on = !!st.busFailsafe;
+        fsDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        fsText.textContent = on ? 'Active' : 'Idle';
+      }
+      if (st.localOverride != null && ovDot && ovText){
+        const on = !!st.localOverride;
+        ovDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        ovText.textContent = on ? 'Active' : 'Idle';
+      }
+    });
 
     $('modbus-address')?.addEventListener('input', () =>
       HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
@@ -284,11 +353,13 @@
     function sendInputInvert(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
     function sendInputAction(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
     function sendInputTarget(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); HMWebConfig.sendConfig('in.target', l); }
+    function sendInputLevel(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); HMWebConfig.sendConfig('in.level', l); }
     for (let i=1;i<=NUM_DI;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
       $('action-in'+i)?.addEventListener('change', sendInputAction);
       $('target-in'+i)?.addEventListener('change', sendInputTarget);
+      $('level-in'+i)?.addEventListener('change', sendInputLevel);
     }
 
     function sendBtnCfg(){
