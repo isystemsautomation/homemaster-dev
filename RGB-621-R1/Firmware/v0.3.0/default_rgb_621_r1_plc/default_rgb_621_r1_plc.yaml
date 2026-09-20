@@ -11,7 +11,10 @@
 ##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
 ##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
 ##   - Light default_transition_length: 0s — HA sends one final value per channel; module slew (fadeMs) handles smooth fade locally.
-##   - STATE@26-28 light readback: publish-only (remote_values), never light.turn_on — no HR write-back.
+##   - STATE@26-28 readback: applied only when the module state differs from
+##     what HA last sent (local button / scene). An echo of HA's own command
+##     never overwrites the light entity — five bytes cannot be decomposed
+##     back into brightness × colour unambiguously.
 ##   - Relay 1: template switch (optimistic false) — state from STATE@28 bit3; command via write-only coil @0.
 ##
 ## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
@@ -50,6 +53,26 @@ globals:
   - id: ${rgb_id}_fb_publishing
     type: bool
     initial_value: 'false'
+  - id: ${rgb_id}_sent_r
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ${rgb_id}_sent_g
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ${rgb_id}_sent_b
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ${rgb_id}_sent_ww
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ${rgb_id}_sent_cw
+    type: int
+    restore_value: no
+    initial_value: '-1'
 
 modbus_controller:
   - id: ${rgb_id}
@@ -300,30 +323,42 @@ sensor:
             id(${rgb_id}_st_rly1).publish_state(rly);
             id(${rgb_id}_relay1).publish_state(rly);
             id(${rgb_id}_st_any_on).publish_state(any_on);
-            // bit4 = FADING: модуль ещё не доехал до цели. Пропускаем —
-            // промежуточная точка не должна становиться состоянием сущности.
+            // bit4 FADING: модуль ещё едет к цели, промежуточная точка не
+            // должна становиться состоянием сущности.
             if ((flags & 0x10) != 0) return;
             if ((millis() - id(${rgb_id}_ha_cmd_at)) < 4000) return;
+            // Если модуль вернул то же, что мы сами отправили, состояние
+            // лампы трогать нельзя: HA знает разложение на яркость и цвет,
+            // а из пяти байт оно однозначно не восстанавливается.
+            const int sr = id(${rgb_id}_sent_r);
+            if (sr >= 0) {
+              const int TOL = 3;   // trim + 8<->12 бит дают расхождение в пару единиц
+              const bool same =
+                  abs((int)r_api  - sr)                        <= TOL &&
+                  abs((int)g_api  - id(${rgb_id}_sent_g))      <= TOL &&
+                  abs((int)b_api  - id(${rgb_id}_sent_b))      <= TOL &&
+                  abs((int)ww_api - id(${rgb_id}_sent_ww))     <= TOL &&
+                  abs((int)cw_api - id(${rgb_id}_sent_cw))     <= TOL;
+              if (same) return;
+            }
+            // Сюда попадаем только при изменении из внешнего источника —
+            // локальная кнопка модуля или сцена. HA нового состояния не знает,
+            // поэтому приблизительное восстановление лучше, чем никакого.
             auto *lt = id(${rgb_id}_light);
             auto nv = lt->remote_values;
             if (!any_on) {
               nv.set_state(0.0f);
             } else {
-              // Модуль отдаёт ПРОИЗВЕДЕНИЕ цвета на яркость — по одному числу
-              // на канал. Обратное преобразование: мастер-яркость берём как
-              // максимум по всем каналам, компоненты нормируем на неё.
               const float rf = r_api  / 255.0f;
               const float gf = g_api  / 255.0f;
               const float bf = b_api  / 255.0f;
               const float wf = ww_api / 255.0f;
               const float cf = cw_api / 255.0f;
               const float cmax = std::max(rf, std::max(gf, bf));
-              const float wmax = std::max(wf, cf);
-              const float br   = std::max(cmax, wmax);
+              const float br   = std::max(cmax, std::max(wf, cf));
               nv.set_state(1.0f);
               nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
               nv.set_brightness(br);
-              nv.set_color_brightness(br > 0.0f ? (cmax / br) : 0.0f);
               nv.set_red  (cmax > 0.0f ? (rf / cmax) : 0.0f);
               nv.set_green(cmax > 0.0f ? (gf / cmax) : 0.0f);
               nv.set_blue (cmax > 0.0f ? (bf / cmax) : 0.0f);
@@ -335,6 +370,9 @@ sensor:
             lt->current_values = nv;
             lt->publish_state();
             id(${rgb_id}_fb_publishing) = false;
+            // После внешнего изменения снимок устарел — сбрасываем, иначе
+            // следующий опрос сравнит с чужими цифрами.
+            id(${rgb_id}_sent_r) = -1;
 
   # Identity IR @200..204 (FC04) — diagnostic only, rare poll
   - platform: modbus_controller
@@ -358,7 +396,18 @@ light:
     name: "${rgb_prefix} Light"
     default_transition_length: 0s
     on_state:
-      - lambda: 'if (!id(${rgb_id}_fb_publishing)) id(${rgb_id}_ha_cmd_at) = millis();'
+      - lambda: |-
+          if (id(${rgb_id}_fb_publishing)) return;
+          id(${rgb_id}_ha_cmd_at) = millis();
+          // Снимаем ровно то, что уйдёт в HR 400-404: тот же расчёт,
+          // которым платформа rgbww кормит свои output.
+          float r, g, b, cw, ww;
+          id(${rgb_id}_light).current_values_as_rgbww(&r, &g, &b, &cw, &ww);
+          id(${rgb_id}_sent_r)  = (int) lroundf(r  * 255.0f);
+          id(${rgb_id}_sent_g)  = (int) lroundf(g  * 255.0f);
+          id(${rgb_id}_sent_b)  = (int) lroundf(b  * 255.0f);
+          id(${rgb_id}_sent_ww) = (int) lroundf(ww * 255.0f);
+          id(${rgb_id}_sent_cw) = (int) lroundf(cw * 255.0f);
     red: ${rgb_id}_out_r
     green: ${rgb_id}_out_g
     blue: ${rgb_id}_out_b
