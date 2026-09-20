@@ -1,0 +1,368 @@
+##
+## RGB-621-R1 — ESPHome Modbus package (v0.3.0 beta)
+##
+## Beta for firmware v0.3.0 — not for production; v0.2.0 remains the stable release.
+## STATE@26-28 reports TARGET levels (pwmTarget), not mid-fade values. Flags bit4
+## (FADING) is set while any channel is still slewing; readback skips entity updates
+## until the transition completes.
+##
+## Bus-load notes (shared RS-485 with DIO/ENM):
+##   - DI/relay/LED/linkOk: one FC04 poll @0 count=5 (IREG 0..4), not sparse FC02.
+##   - Applied PWM + relay flags: one FC04 poll @26 count=3 (IREG STATE 26..28).
+##   - PWM HR 400–404: write-only (skip_updates); HA feedback from STATE block only.
+##   - Light default_transition_length: 0s — HA sends one final value per channel; module slew (fadeMs) handles smooth fade locally.
+##   - STATE@26-28 light readback: publish-only (remote_values), never light.turn_on — no HR write-back.
+##   - Relay 1: template switch (optimistic false) — state from STATE@28 bit3; command via write-only coil @0.
+##
+## Include per module with unique vars (rgb_id, rgb_address, rgb_prefix):
+##   packages:
+##     rgb1:
+##       url: github://isystemsautomation/homemaster-dev/RGB-621-R1/Firmware/v0.3.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+##       vars:
+##         rgb_id: rgb1
+##         rgb_address: "3"
+##         rgb_prefix: "RGB Living"
+##
+## Modbus map (default_rgb_621_r1.ino v0.3.0, MAP_VERSION=3):
+##   Input Registers (FC04) 0..4 + 6..20 + 26..28:
+##     0 DI_MASK · 1 RLY_MASK · 2 BTN_MASK (bit0=SW2) · 3 LED_MASK · 4 STATUS_FLAGS
+##     6..20 event counters (3 sources DI1/DI2/SW2 × single/double/triple/reserved/hold)
+##     26..28 STATE: packed TARGET PWM (API 0..255) + flags (anyOn, rgb/cct group, relay1, fading)
+##   Holding 500..579: local input engine config (see README §6.3)
+##   Coils: 0 Relay1 · 5..7 service · 200/210 legacy pulse · 300..321 DI en/dis
+##   Requires MAP_VERSION=3 firmware. Each module needs a UNIQUE Modbus address.
+##   If slave is offline/wrong map, offline_skip_updates avoids blocking DIO/ENM on the bus.
+
+substitutions:
+  rgb_id: rgb
+  rgb_address: "3"
+  rgb_prefix: "RGB"
+  rgb_update_interval: 5s
+  rgb_command_throttle: 50ms
+  rgb_pwm_skip_updates: "65535"
+  rgb_offline_skip_updates: "10"
+  rgb_max_cmd_retries: "2"
+
+globals:
+  - id: ${rgb_id}_ha_cmd_at
+    type: uint32_t
+    initial_value: '0'
+  - id: ${rgb_id}_fb_publishing
+    type: bool
+    initial_value: 'false'
+
+modbus_controller:
+  - id: ${rgb_id}
+    address: ${rgb_address}
+    modbus_id: modbus_bus
+    update_interval: ${rgb_update_interval}
+    command_throttle: ${rgb_command_throttle}
+    offline_skip_updates: ${rgb_offline_skip_updates}
+    max_cmd_retries: ${rgb_max_cmd_retries}
+
+# ===================== Input Registers (FC04) @0..4 — one merged poll =====================
+binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI1"
+    register_type: read
+    address: 0
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} DI2"
+    register_type: read
+    address: 0
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Btn1"
+    register_type: read
+    address: 2
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED1"
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} LED2"
+    register_type: read
+    address: 3
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Btn2"
+    register_type: read
+    address: 2
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Link OK"
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Config dirty"
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+  # STATE flags (from FC04 @28 low byte) — holders updated via publish_state only (no lambda)
+  - platform: template
+    id: ${rgb_id}_st_any_on
+    internal: true
+  - platform: template
+    id: ${rgb_id}_st_rly1
+    internal: true
+
+# ===================== Coils (FC05/15) — write-only, no FC01 read-back =====================
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_relay1_coil
+    register_type: coil
+    address: 0
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_identify
+    register_type: coil
+    address: 5
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_save_cfg
+    register_type: coil
+    address: 6
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_cmd_reboot
+    register_type: coil
+    address: 7
+    internal: true
+    assumed_state: true
+
+  # Public relay switch — state from STATE@28 publish_state; command via write-only coil @0
+  - platform: template
+    name: "${rgb_prefix} Relay 1"
+    id: ${rgb_id}_relay1
+    optimistic: false
+    assumed_state: false
+    turn_on_action:
+      - switch.turn_on: ${rgb_id}_relay1_coil
+    turn_off_action:
+      - switch.turn_off: ${rgb_id}_relay1_coil
+
+button:
+  - platform: template
+    name: "${rgb_prefix} Identify"
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_identify
+  - platform: template
+    name: "${rgb_prefix} Save config"
+    internal: true
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_save_cfg
+  - platform: template
+    name: "${rgb_prefix} Reboot"
+    internal: true
+    on_press:
+      - switch.turn_on: ${rgb_id}_cmd_reboot
+
+#############################################################
+# PWM outputs — write-only (skip_updates); STATE IREG feedback
+#############################################################
+output:
+  - platform: modbus_controller
+    id: ${rgb_id}_out_r
+    modbus_controller_id: ${rgb_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
+
+  - platform: modbus_controller
+    id: ${rgb_id}_out_g
+    modbus_controller_id: ${rgb_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
+
+  - platform: modbus_controller
+    id: ${rgb_id}_out_b
+    modbus_controller_id: ${rgb_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
+
+  - platform: modbus_controller
+    id: ${rgb_id}_out_ww
+    modbus_controller_id: ${rgb_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
+
+  - platform: modbus_controller
+    id: ${rgb_id}_out_cw
+    modbus_controller_id: ${rgb_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${rgb_pwm_skip_updates}
+
+#############################################################
+# Applied channel levels (from STATE IREG 26..28)
+#############################################################
+sensor:
+  - platform: template
+    id: ${rgb_id}_act_r
+    internal: true
+  - platform: template
+    id: ${rgb_id}_act_g
+    internal: true
+  - platform: template
+    id: ${rgb_id}_act_b
+    internal: true
+  - platform: template
+    id: ${rgb_id}_act_ww
+    internal: true
+  - platform: template
+    id: ${rgb_id}_act_cw
+    internal: true
+
+  # STATE block — one FC04 read @26 count=3 (force_new_range on first reg only)
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_rg
+    internal: true
+    register_type: read
+    address: 26
+    force_new_range: true
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            id(${rgb_id}_act_r).publish_state((v >> 8) & 0xFF);
+            id(${rgb_id}_act_g).publish_state(v & 0xFF);
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_bw
+    internal: true
+    register_type: read
+    address: 27
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            id(${rgb_id}_act_b).publish_state((v >> 8) & 0xFF);
+            id(${rgb_id}_act_ww).publish_state(v & 0xFF);
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    id: ${rgb_id}_st_cw_flags
+    internal: true
+    register_type: read
+    address: 28
+    on_value:
+      then:
+        - lambda: |-
+            uint16_t v = (uint16_t) x;
+            const uint16_t rg = (uint16_t) id(${rgb_id}_st_rg).state;
+            const uint16_t bw = (uint16_t) id(${rgb_id}_st_bw).state;
+            const uint8_t r_api = (rg >> 8) & 0xFF;
+            const uint8_t g_api = rg & 0xFF;
+            const uint8_t b_api = (bw >> 8) & 0xFF;
+            const uint8_t ww_api = bw & 0xFF;
+            const uint8_t cw_api = (v >> 8) & 0xFF;
+            id(${rgb_id}_act_r).publish_state(r_api);
+            id(${rgb_id}_act_g).publish_state(g_api);
+            id(${rgb_id}_act_b).publish_state(b_api);
+            id(${rgb_id}_act_ww).publish_state(ww_api);
+            id(${rgb_id}_act_cw).publish_state(cw_api);
+            uint8_t flags = v & 0xFF;
+            const bool any_on = (flags & 0x01) != 0;
+            const bool rly = (flags & 0x08) != 0;
+            id(${rgb_id}_st_rly1).publish_state(rly);
+            id(${rgb_id}_relay1).publish_state(rly);
+            id(${rgb_id}_st_any_on).publish_state(any_on);
+            // bit4 = FADING: модуль ещё не доехал до цели. Пропускаем —
+            // промежуточная точка не должна становиться состоянием сущности.
+            if ((flags & 0x10) != 0) return;
+            if ((millis() - id(${rgb_id}_ha_cmd_at)) < 4000) return;
+            auto *lt = id(${rgb_id}_light);
+            auto nv = lt->remote_values;
+            if (!any_on) {
+              nv.set_state(0.0f);
+            } else {
+              // Модуль отдаёт ПРОИЗВЕДЕНИЕ цвета на яркость — по одному числу
+              // на канал. Обратное преобразование: мастер-яркость берём как
+              // максимум по всем каналам, компоненты нормируем на неё.
+              const float rf = r_api  / 255.0f;
+              const float gf = g_api  / 255.0f;
+              const float bf = b_api  / 255.0f;
+              const float wf = ww_api / 255.0f;
+              const float cf = cw_api / 255.0f;
+              const float cmax = std::max(rf, std::max(gf, bf));
+              const float wmax = std::max(wf, cf);
+              const float br   = std::max(cmax, wmax);
+              nv.set_state(1.0f);
+              nv.set_color_mode(esphome::light::ColorMode::RGB_COLD_WARM_WHITE);
+              nv.set_brightness(br);
+              nv.set_color_brightness(br > 0.0f ? (cmax / br) : 0.0f);
+              nv.set_red  (cmax > 0.0f ? (rf / cmax) : 0.0f);
+              nv.set_green(cmax > 0.0f ? (gf / cmax) : 0.0f);
+              nv.set_blue (cmax > 0.0f ? (bf / cmax) : 0.0f);
+              nv.set_warm_white(br > 0.0f ? (wf / br) : 0.0f);
+              nv.set_cold_white(br > 0.0f ? (cf / br) : 0.0f);
+            }
+            id(${rgb_id}_fb_publishing) = true;
+            lt->remote_values = nv;
+            lt->current_values = nv;
+            lt->publish_state();
+            id(${rgb_id}_fb_publishing) = false;
+
+  # Identity IR @200..204 (FC04) — diagnostic only, rare poll
+  - platform: modbus_controller
+    modbus_controller_id: ${rgb_id}
+    name: "${rgb_prefix} Map version"
+    id: ${rgb_id}_map_version
+    internal: true
+    entity_category: diagnostic
+    register_type: read
+    address: 204
+    accuracy_decimals: 0
+    skip_updates: 60
+
+#############################################################
+# RGBWW LIGHT — writes HR 400–404; HA display synced publish-only from STATE readback
+# default_transition_length 0s: skip ESPHome bus streaming; module fadeMs (WebConfig) slews 12-bit locally.
+#############################################################
+light:
+  - platform: rgbww
+    id: ${rgb_id}_light
+    name: "${rgb_prefix} Light"
+    default_transition_length: 0s
+    on_state:
+      - lambda: 'if (!id(${rgb_id}_fb_publishing)) id(${rgb_id}_ha_cmd_at) = millis();'
+    red: ${rgb_id}_out_r
+    green: ${rgb_id}_out_g
+    blue: ${rgb_id}_out_b
+    warm_white: ${rgb_id}_out_ww
+    cold_white: ${rgb_id}_out_cw
+    warm_white_color_temperature: 2700 K
+    cold_white_color_temperature: 6500 K

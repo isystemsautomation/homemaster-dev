@@ -1,0 +1,183 @@
+#pragma once
+// RGB-621-R1 12-bit PWM output: gamma LUT + non-blocking slew engine.
+
+#include <Arduino.h>
+#include <math.h>
+#include "hardware/pwm.h"
+
+#ifndef RGB_NUM_PWM
+#define RGB_NUM_PWM 5
+#endif
+#ifndef NUM_PWM
+#define NUM_PWM RGB_NUM_PWM
+#endif
+
+static const uint16_t PWM_HI = 4095;
+static const uint8_t  PWM_API_MAX = 255;
+
+// Fixed group channel sets (RGB-621-R1 hardware — not configurable)
+static const uint8_t HM_GRP_RGB_CH_FIRST = 0;
+static const uint8_t HM_GRP_RGB_CH_COUNT = 3;  // R, G, B
+static const uint8_t HM_GRP_CCT_CH_FIRST = 3;
+static const uint8_t HM_GRP_CCT_CH_COUNT = 2;  // WW, CW
+
+struct DimCfg {
+  uint16_t dimFullRangeMs; // hold-to-dim: full 0..100% traverse while held (800..8000)
+};
+
+extern DimCfg dimCfg;
+
+struct OutputQualityCfg {
+  bool gammaEnable;
+  uint8_t gammaTenths; // 22 = gamma 2.2
+};
+
+struct PwmChCfg {
+  uint8_t minTrim;
+  uint8_t maxTrim;
+  uint16_t fadeMs;
+  uint8_t powerOn;
+};
+
+extern PwmChCfg pwmChCfg[NUM_PWM];
+extern const uint8_t PWM_PINS[NUM_PWM];
+extern uint16_t pwmTarget[NUM_PWM];
+extern uint16_t pwmCurrent[NUM_PWM];
+extern uint16_t pwmLastNonZero[NUM_PWM];
+extern uint32_t slewLastMs[NUM_PWM];
+extern uint16_t pwmHoldTraverseMs[NUM_PWM]; // >0: use instead of fadeMs (hold-to-dim)
+extern uint16_t g_gammaLut[PWM_HI + 1];
+extern OutputQualityCfg outQuality;
+extern volatile uint32_t lastOutChangeMs;
+
+// Округление, а не усечение: иначе api -> hi -> api теряет 1 МЗР на 240 из 256
+// значений, и повторные проходы монотонно гасят канал.
+inline uint16_t pwmApiToHi(uint16_t api) {
+  return (uint16_t)(((uint32_t)constrain((int)api, 0, 255) * PWM_HI + 127u) / 255u);
+}
+inline uint8_t pwmHiToApi(uint16_t hi) {
+  return (uint8_t)(((uint32_t)constrain((int)hi, 0, PWM_HI) * 255u + (PWM_HI / 2u)) / PWM_HI);
+}
+
+inline uint16_t pwmTrimMinHi(uint8_t ch) {
+  return pwmApiToHi(ch < NUM_PWM ? pwmChCfg[ch].minTrim : 1);
+}
+inline uint16_t pwmTrimMaxHi(uint8_t ch) {
+  return pwmApiToHi(ch < NUM_PWM ? pwmChCfg[ch].maxTrim : 255);
+}
+
+inline void pwmBuildGammaLut() {
+  const float g = outQuality.gammaEnable ? (outQuality.gammaTenths / 10.0f) : 1.0f;
+  for (uint16_t i = 0; i <= PWM_HI; i++) {
+    const float norm = (float)i / (float)PWM_HI;
+    const float corrected = powf(norm, g);
+    g_gammaLut[i] = (uint16_t)(corrected * (float)PWM_HI + 0.5f);
+  }
+}
+
+inline uint16_t pwmApplyTrim(uint8_t ch, uint16_t perceived) {
+  if (perceived == 0) return 0;
+  const uint16_t tMin = pwmTrimMinHi(ch);
+  const uint16_t tMax = pwmTrimMaxHi(ch);
+  return (uint16_t)constrain((int)perceived, (int)tMin, (int)tMax);
+}
+
+inline void pwmWriteHardware(uint8_t ch, uint16_t perceived) {
+  if (ch >= NUM_PWM) return;
+  const uint16_t trimmed = pwmApplyTrim(ch, perceived);
+  const uint16_t out = outQuality.gammaEnable ? g_gammaLut[trimmed] : trimmed;
+  analogWrite(PWM_PINS[ch], out);
+}
+
+inline void pwmSetTargetHi(uint8_t ch, uint16_t perceivedHi) {
+  if (ch >= NUM_PWM) return;
+  perceivedHi = (uint16_t)constrain((int)perceivedHi, 0, (int)PWM_HI);
+  if (perceivedHi > 0) {
+    perceivedHi = pwmApplyTrim(ch, perceivedHi);
+    pwmLastNonZero[ch] = perceivedHi;
+  }
+  if (pwmTarget[ch] != perceivedHi) {
+    pwmTarget[ch] = perceivedHi;
+    slewLastMs[ch] = millis();
+  }
+  lastOutChangeMs = millis();
+}
+
+inline void pwmSetTargetApi(uint8_t ch, uint16_t api) {
+  pwmSetTargetHi(ch, pwmApiToHi(api));
+}
+
+inline void pwmSnapCurrentToTarget(uint8_t ch) {
+  pwmCurrent[ch] = pwmTarget[ch];
+  pwmWriteHardware(ch, pwmCurrent[ch]);
+  slewLastMs[ch] = millis();
+}
+
+inline void pwmServiceSlew(uint32_t now) {
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (pwmCurrent[ch] == pwmTarget[ch]) { slewLastMs[ch] = now; continue; }
+    const uint16_t fadeMs = (pwmHoldTraverseMs[ch] > 0) ? pwmHoldTraverseMs[ch] : pwmChCfg[ch].fadeMs;
+    if (fadeMs == 0) {
+      pwmCurrent[ch] = pwmTarget[ch];
+      pwmWriteHardware(ch, pwmCurrent[ch]);
+      slewLastMs[ch] = now;
+      continue;
+    }
+    const int32_t err = (int32_t)pwmTarget[ch] - (int32_t)pwmCurrent[ch];
+    uint32_t elapsed = now - slewLastMs[ch];
+    if (elapsed == 0) continue;
+    slewLastMs[ch] = now;
+    int32_t maxStep = (int32_t)((int64_t)PWM_HI * (int64_t)elapsed / (int64_t)fadeMs);
+    if (maxStep < 1) maxStep = 1;
+    const int32_t absErr = err > 0 ? err : -err;
+    if (absErr <= maxStep) {
+      pwmCurrent[ch] = pwmTarget[ch];
+    } else {
+      pwmCurrent[ch] = (uint16_t)((int32_t)pwmCurrent[ch] + (err > 0 ? maxStep : -maxStep));
+    }
+    pwmWriteHardware(ch, pwmCurrent[ch]);
+  }
+}
+
+// Разводит PWM-слайсы по фазе, чтобы каналы не переключались синфазно.
+//
+// GPIO делят слайсы парами: слайс = (GPIO >> 1) & 7.
+//   WW=GP8  и R =GP9  -> слайс 4  (общий счётчик, фазу разделить нельзя)
+//   B =GP10 и CW=GP11 -> слайс 5
+//   G =GP12           -> слайс 6
+// Отсюда три фазы, не пять. Каналы внутри слайса остаются синфазными —
+// это свойство железа, не недоработка.
+//
+// Вызывать ОДИН РАЗ из setup(), после analogWriteResolution(12) и первого
+// pwmWriteHardware/analogWrite на каждый слайс (applyPowerOnOutputs).
+inline void pwmAlignSlicePhases() {
+  uint8_t slices[NUM_PWM];
+  uint8_t nSlices = 0;
+
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    const uint8_t s = pwm_gpio_to_slice_num(PWM_PINS[ch]);
+    bool seen = false;
+    for (uint8_t i = 0; i < nSlices; i++) {
+      if (slices[i] == s) { seen = true; break; }
+    }
+    if (!seen) slices[nSlices++] = s;
+  }
+  if (nSlices < 2) return;
+
+  uint32_t mask = 0;
+  for (uint8_t i = 0; i < nSlices; i++) mask |= (1u << slices[i]);
+
+  // Останавливаем только свои слайсы, чужие не трогаем.
+  const uint32_t en = pwm_hw->en;
+  pwm_hw->en = en & ~mask;
+
+  for (uint8_t i = 0; i < nSlices; i++) {
+    // TOP читаем из железа, а не считаем от разрешения: значение ставит
+    // ядро arduino-pico, и оно не обязано быть равно 4095.
+    const uint32_t period = (uint32_t)pwm_hw->slice[slices[i]].top + 1u;
+    pwm_set_counter(slices[i], (uint16_t)((period * i) / nSlices));
+  }
+
+  // Один запуск — слайсы стартуют в locked step и сохраняют сдвиг.
+  pwm_hw->en = en | mask;
+}

@@ -30,6 +30,8 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 
 > **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
 
+> **Beta:** [WebConfig v0.3.0 (beta)](https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html) — testing only; v0.2.0 remains the stable release.
+
 ## Quick Start
 
 New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC** / **MiniPLC** — see [§7 ESPHome Integration](#7-esphome-integration-guide) for the ready-to-copy YAML. Give each module a **unique Modbus address** (default **3**).
@@ -38,7 +40,8 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | **Current release.** Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
+| **v0.3.0 (beta)** | `RGB-621-R1/Firmware/v0.3.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-09 | **Beta — not for production.** Fixes HA state feedback: STATE@26–28 now reports target levels instead of mid-fade values, adds flags bit4 FADING, corrects light-state reconstruction in the ESPHome package, rounds the 8-bit↔12-bit conversion. |
+| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | **Current stable release.** Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
 | **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-01 | Deprecated (legacy) — superseded by v0.2.0. Kept for existing installs; no longer maintained. |
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
@@ -523,6 +526,8 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 
 Configure over USB-C in a browser with **Web Serial API** support: open [https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html), click **Connect**, pick the module's port. Changes apply live and save to flash.
 
+> **Beta:** [WebConfig v0.3.0 (beta)](https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html) — testing only; v0.2.0 remains the stable release.
+
 ### 1) Connection, light levels & presets
 
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig1.png" width="720">
@@ -970,6 +975,7 @@ See LICENSE files in each directory for full terms.
 
 - **Official Support:** https://www.home-master.eu/support  
 - **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html  
+- **WebConfig v0.3.0 (beta):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html — testing only  
 - **YouTube:** https://youtube.com/@HomeMaster  
 - **Hackster:** https://hackster.io/homemaster  
 - **Reddit:** https://reddit.com/r/HomeMaster  
