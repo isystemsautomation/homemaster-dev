@@ -3,32 +3,119 @@
  *
  * Modbus RTU map (register numbers = Modbus address in this library)
  * -------------------------------------------------------------------
- * Input registers (FC=04) — contiguous runtime block 0..31 (one merged poll):
- *   0  IREG_DI_MASK       bit0..2 IO1..IO3 (logical, after enable + invert)
+ * Input registers (FC=04) — contiguous runtime block 0..31 (one merged poll).
+ * The whole block is fixed here: steps 2f (stair sequencer) and 2g (underfloor
+ * heating) FILL registers 26..31, they do not move anything.
+ *   0  IREG_DI_MASK       bit0 DI, bit1 IN1, bit2 IN2 (logical, after enable + invert)
  *   1  IREG_BTN_MASK      bit0..3 BUTTON1..4 pressed
  *   2  IREG_LED_MASK      bit0..1 status LED1..2 physical state
  *   3  IREG_STATUS_FLAGS  bit0=tlcReady, bit1=linkOk, bit2=busFailsafe,
- *                         bit3=cfgDirty, bit4=localOverride
+ *                         bit3=cfgDirty, bit4=localOverride, bit5=panic,
+ *                         bit6=seqRunning (2f), bit7=heatDemand (2g)
  *   4  IREG_TLC_MASK      bit0..3 TLC59208F chip OK U9..U12
  *   5  IREG_I2C_ERRORS    failed TLC transaction count (saturating)
  *   6  IREG_RESET_REASON  0=unknown/POR, 1=watchdog stall, 2=commanded reboot
  *   7  IREG_LINK_AGE_S    seconds since last frame to this slave (saturating)
  *   8  IREG_UPTIME_MIN    minutes since boot (saturating)
- *   9  reserved (0)
- *  10..25 IREG_OUT_BASE   O1..O32 level readback — low byte odd, high byte even
- *  26..31 reserved (0) — sequencer / heating (later steps)
+ *   9  IREG_ACTIVE_SCENE  0=none, 1..8=last recalled scene; cleared by any
+ *                         level change that did not come from a scene
+ *  10..25 IREG_OUT_BASE   O1..O32 level readback — low byte even channel,
+ *                         high byte odd channel. Reports the COMMANDED level
+ *                         (what HR 400..431 / a scene / failsafe / panic asked
+ *                         for), not the driver duty after curve and master —
+ *                         so a write to HR 400 reads back unchanged.
+ *  26  IREG_SEQ_STATE     lo: 0 idle 1 up 2 down 3 hold 4 fade-out;
+ *                         hi: direction 0/1/2                     — 2f, 0 here
+ *  27  IREG_SEQ_STEP      current step, 0 = none                  — 2f, 0 here
+ *  28  IREG_HEAT_FLAGS    bit0 heat demand, bit1 summer mode, bit2 enable input
+ *                         closed, bit3 anti-freeze active, bit4 valve exercise
+ *                         running                                 — 2g, 0 here
+ *  29  IREG_ZONES_OPEN    number of open zones                    — 2g, 0 here
+ *  30  IREG_ZONE_MASK_LO  open-zone mask, channels 1..16          — 2g, 0 here
+ *  31  IREG_ZONE_MASK_HI  open-zone mask, channels 17..32         — 2g, 0 here
  *
  * Command coils (FC=05/15, auto-clear pulse):
  *   300..302  pulse ENABLE  IO1..IO3
  *   320..322  pulse DISABLE IO1..IO3
  *   330       pulse SAVE output levels to flash (rate-limited 10 s)
  *   331       pulse RELEASE local override
+ *   332       pulse ENTER panic — every channel to panicLevel and HELD there
+ *   333       pulse ALL OFF — one shot, not latched
+ *   334       pulse CLEAR panic
+ *   340..342  reserved for 2f (stair run up / down / abort) — NOT declared here
+ *   345       reserved for 2g (exercise valves now)          — NOT declared here
  *
  * Holding registers (FC=03/06/16) — config / write surface; not polled:
- *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
+ *   400..431  O1..O32 level 0..255; on a channel with profile=heat, duty 0..100
+ *   432       master level 0..255 (multiplier on every channel, default 255)
+ *   433..435  reserved for 2f (sequencer inhibit, night / day level) — not declared
+ *   436       scene recall: write 1..8 applies that scene, reads back 0
+ *   437       reserved for 2g (summer mode) — not declared
  *   480       Modbus slave address (R/W)
  *   481       Modbus baud rate (R/W, whitelist 9600..115200; stored raw,
  *             115200 not representable in uint16 → reads as 0, set via WebConfig)
+ *
+ * The bus failsafe timeout is deliberately NOT on Modbus: it is configuration,
+ * and configuration lives in WebConfig. The bus carries state and runtime
+ * commands only.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * THE OUTPUT PIPELINE — one order, one place: resolveChannelDriverValue()
+ * ───────────────────────────────────────────────────────────────────────────
+ *   source value (Modbus HR / scene / local input or button / auto-off)
+ *     → profile      led | heat | raw | indicator
+ *     → min/max      rescaled into [minLevel..maxLevel], not clipped at the ends
+ *     → curve        linear | gamma 2.2 | CIE 1931, per channel
+ *     → master level multiplier over everything, applied last
+ *     → ramp         time interpolation towards the resolved value (rampMs)
+ *     → block I2C    four auto-increment writes, eight channels each
+ *
+ * Panic and bus failsafe cut in BEFORE the profile: they replace the source
+ * value, never the result, so a channel in panic is still shaped by its own
+ * curve, its own min/max and the master level.
+ * Priority, highest first: panic → bus failsafe → local override → Modbus.
+ * profile=raw skips min/max and the curve only; the master level still applies
+ * to it, otherwise a master dim would silently miss raw channels.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * CONFIG CONTRACT FOR STEPS 2f AND 2g — declared now so CFG_VERSION never
+ * moves again for them. Both blocks exist in PersistConfigV5, are migrated,
+ * are zero by default, and are NOT read by any code in this step.
+ * ───────────────────────────────────────────────────────────────────────────
+ * StairCfg (2f — stair sequencer), all zero = disabled:
+ *   uint8_t  stepCount            number of steps in use, 0..32 (0 = off)
+ *   uint8_t  stepChannel[32]      step N → output channel index 0..31
+ *   uint8_t  mode                 0 off · 1 one-shot · 2 hold-while-present
+ *   uint16_t stepDelayMs          delay between consecutive steps
+ *   uint16_t holdS                hold time at full before fade-out
+ *   uint16_t fadeOutMs            fade-out phase length
+ *   uint8_t  overlapPct           overlap between steps, 0..100 %
+ *   uint8_t  retrigger            re-trigger while running: 0 ignore · 1 restart · 2 extend hold
+ *   uint8_t  oppose               opposite end triggers: 0 ignore · 1 reverse · 2 hold both
+ *   uint8_t  nightLevel           level used in the night window
+ *   uint8_t  dayLevel             level used in the day window
+ *   uint8_t  standbyFirst         standby backlight level, first step
+ *   uint8_t  standbyLast          standby backlight level, last step
+ *   uint8_t  nightLightLevel      standby level while the night window is active
+ *   uint16_t stepFadeMs           per-step fade
+ *   uint16_t debounceMs           sensor debounce
+ *   uint16_t minRepeatMs          minimum interval between two runs
+ * HeatCfg (2g — underfloor heating), all zero = disabled:
+ *   uint16_t slowPwmPeriodS       slow-PWM cycle length
+ *   uint8_t  phaseSpreadPct       phase spread between zones, 0..100 %
+ *   uint8_t  maxOpenZones         limit on simultaneously open zones, 0 = no limit
+ *   uint8_t  diRole               discrete input role: 0 none · 1 enable · 2 inhibit · 3 demand echo
+ *   uint16_t firstOpenDelayS      first-open delay before pump / boiler demand
+ *   uint16_t overrunS             pump overrun after the last zone closes
+ *   uint16_t exerciseIntervalH    valve exercise interval, hours
+ *   uint16_t exerciseDurationS    valve exercise duration
+ *   uint16_t antifreezeHours      anti-freeze threshold, hours without demand
+ *   uint8_t  summerMode           1 = heating inhibited
+ *   uint8_t  _rsv                 alignment
+ * Per channel, ChCfg.flags bit0 is the NC/NO inversion 2g fills in.
+ *
+ * Packed sizes (static_assert in this file): ChCfg 10, StairCfg 54, HeatCfg 17,
+ * PersistConfigV5 868. CFG_VERSION 0x0005 is the last bump for 2f/2g.
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
@@ -51,6 +138,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <math.h>
 #include <ModbusSerial.h>
 #include "hm_common.h"
 #define HM_MODEL_ID   8
@@ -69,7 +157,8 @@
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
 struct PersistConfigV3;
 struct PersistConfigV4;
-typedef PersistConfigV4 PersistConfig;
+struct PersistConfigV5;
+typedef PersistConfigV5 PersistConfig;
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -97,10 +186,12 @@ static const bool    DI_ACTIVE_HIGH[3] = { true, false, false };
 static const uint8_t LED_PINS[2] = {PIN_LED1, PIN_LED2};
 static const uint8_t BTN_PINS[4] = {PIN_BTN1, PIN_BTN2, PIN_BTN3, PIN_BTN4};
 
-static const uint8_t NUM_DI   = 3;
-static const uint8_t NUM_LED  = 2;
-static const uint8_t NUM_BTN  = 4;
-static const uint8_t NUM_PWM  = 32;
+static const uint8_t NUM_DI     = 3;
+static const uint8_t NUM_LED    = 2;
+static const uint8_t NUM_BTN    = 4;
+static const uint8_t NUM_PWM    = 32;
+static const uint8_t NUM_GROUPS = 8;
+static const uint8_t NUM_SCENES = 8;
 
 // ================== TLC59208F ==================
 static const uint8_t TLC_ADDR_DEFAULT[4] = {0x40, 0x42, 0x44, 0x46};
@@ -134,15 +225,87 @@ static const uint16_t IREG_BLOCK_COUNT = 32;
 
 // ================== Config & runtime ==================
 struct InCfgV3 { bool enabled; bool inverted; uint8_t action; uint8_t target; };
-struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t level; };
+struct InCfgV4 { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t level; };
+// param carries the scene number for action = IN_ACT_SCENE; 0 otherwise.
+struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t level; uint8_t param; };
 struct LedCfg { uint8_t mode; uint8_t source; };
-struct BtnCfg { uint8_t action; };
+struct BtnCfgV4 { uint8_t action; };
+struct BtnCfg { uint8_t action; uint8_t param; };
 
 enum : uint8_t { FS_HOLD = 0, FS_OFF = 1, FS_LEVEL = 2 };
+
+// Channel profile — decides how the value in HR 400..431 is read.
+enum : uint8_t { CH_PROF_LED = 0, CH_PROF_HEAT = 1, CH_PROF_RAW = 2, CH_PROF_IND = 3 };
+// Dimming curve applied after min/max.
+enum : uint8_t { CH_CURVE_LINEAR = 0, CH_CURVE_GAMMA = 1, CH_CURVE_CIE = 2, CH_CURVE_COUNT = 3 };
+
+// Input actions (diCfg.action). 0..2 are v0.1.0/2d behaviour and must not move.
+enum : uint8_t { IN_ACT_NONE = 0, IN_ACT_TOGGLE = 1, IN_ACT_PULSE = 2, IN_ACT_SCENE = 3, IN_ACT_MAX = 3 };
+// Button actions (btnCfg.action). 0..4 are 2d behaviour and must not move.
+enum : uint8_t {
+  BTN_ACT_NONE = 0, BTN_ACT_ALL_ON = 1, BTN_ACT_ALL_OFF = 2, BTN_ACT_RAMP = 3,
+  BTN_ACT_CLEAR_OVERRIDE = 4, BTN_ACT_SCENE = 5, BTN_ACT_PANIC = 6,
+  BTN_ACT_CLEAR_PANIC = 7, BTN_ACT_MAX = 7
+};
+
+struct ChCfg {
+  uint8_t  profile;   // CH_PROF_*
+  uint8_t  curve;     // CH_CURVE_*
+  uint8_t  minLevel;  // bottom of the output window
+  uint8_t  maxLevel;  // top of the output window
+  uint16_t rampMs;    // 0 = step immediately
+  uint16_t autoOffS;  // 0 = no auto-off
+  uint8_t  flags;     // bit0 NC/NO inversion — filled in by 2g
+  uint8_t  _rsv;
+} __attribute__((packed));
+
+// ---- Declared now, used by step 2f. Zero = disabled. See the header contract.
+struct StairCfg {
+  uint8_t  stepCount;
+  uint8_t  stepChannel[NUM_PWM];
+  uint8_t  mode;
+  uint16_t stepDelayMs;
+  uint16_t holdS;
+  uint16_t fadeOutMs;
+  uint8_t  overlapPct;
+  uint8_t  retrigger;
+  uint8_t  oppose;
+  uint8_t  nightLevel;
+  uint8_t  dayLevel;
+  uint8_t  standbyFirst;
+  uint8_t  standbyLast;
+  uint8_t  nightLightLevel;
+  uint16_t stepFadeMs;
+  uint16_t debounceMs;
+  uint16_t minRepeatMs;
+} __attribute__((packed));
+
+// ---- Declared now, used by step 2g. Zero = disabled. See the header contract.
+struct HeatCfg {
+  uint16_t slowPwmPeriodS;
+  uint8_t  phaseSpreadPct;
+  uint8_t  maxOpenZones;
+  uint8_t  diRole;
+  uint16_t firstOpenDelayS;
+  uint16_t overrunS;
+  uint16_t exerciseIntervalH;
+  uint16_t exerciseDurationS;
+  uint16_t antifreezeHours;
+  uint8_t  summerMode;
+  uint8_t  _rsv;
+} __attribute__((packed));
 
 InCfg  diCfg[NUM_DI];
 LedCfg ledCfg[NUM_LED];
 BtnCfg btnCfg[NUM_BTN];
+ChCfg  chCfg[NUM_PWM];
+uint32_t groupMask[NUM_GROUPS];          // bit N = channel N belongs to the group
+uint8_t  sceneLevel[NUM_SCENES][NUM_PWM];
+uint8_t  sceneUsed[NUM_SCENES];
+uint8_t  g_masterLevel = 255;
+uint8_t  g_panicLevel  = 255;
+StairCfg g_stairCfg;
+HeatCfg  g_heatCfg;
 
 uint16_t g_busTimeoutS = 0;
 uint16_t g_overrideTimeoutS = 0;
@@ -154,6 +317,20 @@ bool     g_linkFrameSeen = false;
 bool     g_busFailsafeActive = false;
 bool     g_inputToggleState[NUM_DI] = {false, false, false};
 uint32_t g_lastPwmSaveMs = 0;
+
+// ---- Output engine state ----
+// chRequest   the COMMANDED level per channel — the source value of the pipeline
+// chDriver    the resolved driver value after profile/min-max/curve/master
+// pwmLevel    what the TLC is actually holding; the ramp walks it towards chDriver
+uint8_t  chRequest[NUM_PWM];
+uint8_t  chDriver[NUM_PWM];
+uint32_t chAutoOffAtMs[NUM_PWM];
+uint32_t chRampLastMs[NUM_PWM];
+bool     g_panicActive = false;
+uint8_t  g_activeScene = 0;              // 0 = none, else 1..8
+static uint8_t g_curveLut[CH_CURVE_COUNT][256];
+static const uint32_t RAMP_SERVICE_MS = 10;   // 100 Hz is smooth on an 8-bit PWM
+static uint32_t g_lastRampServiceMs = 0;
 
 bool buttonState[NUM_BTN] = {false, false, false, false};
 bool buttonPrev[NUM_BTN]  = {false, false, false, false};
@@ -192,7 +369,7 @@ struct PersistConfigV3 {
   uint16_t size;
   InCfgV3  diCfg[NUM_DI];
   LedCfg   ledCfg[NUM_LED];
-  BtnCfg   btnCfg[NUM_BTN];
+  BtnCfgV4 btnCfg[NUM_BTN];
   uint16_t pwmLevel[NUM_PWM];
   uint8_t  mb_address;
   uint32_t mb_baud;
@@ -200,6 +377,23 @@ struct PersistConfigV3 {
 } __attribute__((packed));
 
 struct PersistConfigV4 {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  InCfgV4  diCfg[NUM_DI];
+  LedCfg   ledCfg[NUM_LED];
+  BtnCfgV4 btnCfg[NUM_BTN];
+  uint16_t pwmLevel[NUM_PWM];
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+  uint16_t busTimeoutS;
+  uint16_t overrideTimeoutS;
+  uint8_t  failsafeAction[NUM_PWM];
+  uint8_t  failsafeLevel[NUM_PWM];
+  uint32_t crc32;
+} __attribute__((packed));
+
+struct PersistConfigV5 {
   uint32_t magic;
   uint16_t version;
   uint16_t size;
@@ -213,12 +407,26 @@ struct PersistConfigV4 {
   uint16_t overrideTimeoutS;
   uint8_t  failsafeAction[NUM_PWM];
   uint8_t  failsafeLevel[NUM_PWM];
+  ChCfg    chCfg[NUM_PWM];
+  uint32_t groupMask[NUM_GROUPS];
+  uint8_t  sceneLevel[NUM_SCENES][NUM_PWM];
+  uint8_t  sceneUsed[NUM_SCENES];
+  uint8_t  masterLevel;
+  uint8_t  panicLevel;
+  StairCfg stair;                 // 2f — carried, never read in this step
+  HeatCfg  heat;                  // 2g — carried, never read in this step
   uint32_t crc32;
 } __attribute__((packed));
 
+static_assert(sizeof(ChCfg) == 10, "ChCfg is 10 bytes packed");
+static_assert(sizeof(StairCfg) == 54, "StairCfg is 54 bytes — 2f contract");
+static_assert(sizeof(HeatCfg) == 17, "HeatCfg is 17 bytes — 2g contract");
+static_assert(sizeof(PersistConfigV5) == 868, "PersistConfigV5 is 868 bytes packed");
+
 static const uint32_t CFG_MAGIC      = 0x53545231UL; // '1RTS'
 static const uint16_t CFG_VERSION_V3 = 0x0003;
-static const uint16_t CFG_VERSION    = 0x0004;
+static const uint16_t CFG_VERSION_V4 = 0x0004;
+static const uint16_t CFG_VERSION    = 0x0005;
 
 // MCU board: CD4069 inverts button signals — pressed reads HIGH (same as ENM/WLD/DIM).
 static constexpr bool BUTTON_PRESSED_LOW = false;
@@ -239,17 +447,52 @@ enum : uint16_t {
   IREG_RESET_REASON  = 6,
   IREG_LINK_AGE_S    = 7,
   IREG_UPTIME_MIN    = 8,
-  IREG_RESERVED_9    = 9,
+  IREG_ACTIVE_SCENE  = 9,
   IREG_OUT_BASE      = 10,
-  IREG_RESERVED_26   = 26,
+  // 26..31 are declared and published as zero here; 2f and 2g fill them.
+  IREG_SEQ_STATE     = 26,
+  IREG_SEQ_STEP      = 27,
+  IREG_HEAT_FLAGS    = 28,
+  IREG_ZONES_OPEN    = 29,
+  IREG_ZONE_MASK_LO  = 30,
+  IREG_ZONE_MASK_HI  = 31,
 
   CMD_DI_EN_BASE  = 300,
   CMD_DI_DIS_BASE = 320,
   COIL_SAVE_PWM   = 330,
   COIL_RELEASE_OVERRIDE = 331,
+  COIL_PANIC_ON   = 332,
+  COIL_ALL_OFF    = 333,
+  COIL_PANIC_OFF  = 334,
+  // 340..342 (stair run/abort) and 345 (exercise valves) stay free for 2f/2g.
   HR_PWM_BASE = 400,
+  HR_MASTER   = 432,
+  HR_SCENE    = 436,
   HR_MB_ADDR  = 480,
   HR_MB_BAUD  = 481
+};
+
+// WebConfig transfer sections — the config is delivered one named, chunked and
+// acknowledged section at a time (see the WEBCONFIG block further down).
+enum : uint8_t {
+  SEC_BASE = 0, SEC_INPUTS, SEC_BUTTONS, SEC_LEDS,
+  SEC_FAILSAFE, SEC_CHANNELS, SEC_GROUPS, SEC_SCENES, SEC_COUNT
+};
+static const char* const CFG_SEC_NAME[SEC_COUNT] = {
+  "base", "inputs", "buttons", "leds", "failsafe", "channels", "groups", "scenes"
+};
+static const uint8_t CFG_SEC_PARTS[SEC_COUNT] = { 1, 1, 1, 1, 4, 8, 1, 4 };
+
+// STATUS_FLAGS bits — 6 and 7 are declared for 2f/2g and read 0 in this step.
+enum : uint16_t {
+  ST_TLC_READY  = 1u << 0,
+  ST_LINK_OK    = 1u << 1,
+  ST_BUS_FS     = 1u << 2,
+  ST_CFG_DIRTY  = 1u << 3,
+  ST_OVERRIDE   = 1u << 4,
+  ST_PANIC      = 1u << 5,
+  ST_SEQ_RUN    = 1u << 6,
+  ST_HEAT_DEM   = 1u << 7
 };
 
 // ================== Utils ==================
@@ -581,15 +824,9 @@ static void applyPwmChannel(uint8_t idx, uint16_t val) {
   tlcWritePwm(chipIdx, idx % 8, v);
 }
 
-static void applyPwmFromHoldingRegs() {
-  for (uint8_t i = 0; i < NUM_PWM; i++) {
-    uint16_t val = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
-    if (val > 255) val = 255;
-    pwmLevel[i] = val;
-  }
-  applyAllPwmLevels();
-}
-
+// The single flush path to the drivers. Per chip: two or more changed channels
+// go out as ONE auto-increment block write (tlcFlushChip), so a ramp moving all
+// 32 channels costs four I2C transactions per service tick, not thirty-two.
 static void applyAllPwmLevels() {
   for (uint8_t chipIdx = 0; chipIdx < 4; chipIdx++) {
     if (!tlcReady || !tlcChipOk[chipIdx]) continue;
@@ -609,34 +846,288 @@ static void applyAllPwmLevels() {
 }
 
 static inline bool outputsModbusLocked() {
-  return g_localOverride || g_busFailsafeActive;
+  return g_panicActive || g_localOverride || g_busFailsafeActive;
 }
 
-static void drivePwmOutputs() {
-  applyAllPwmLevels();
+// ============================================================================
+//  OUTPUT PIPELINE — the one and only application order (see the file header)
+//
+//    source → profile → min/max → curve → master → ramp → block I2C write
+//
+//  Nothing else in this file may shape a channel value. Panic and bus failsafe
+//  replace the SOURCE (stage 0) and then travel the same road as any other
+//  command, so a channel keeps its own curve, window and the master level.
+// ============================================================================
+
+// Curve tables: 3 × 256 bytes, built once at boot. The gamma table is the
+// RGB-621-R1 v0.2.0 formula (hm_pwm_output.h pwmBuildGammaLut, gamma 2.2)
+// rebuilt at 8-bit width; CIE is the standard L* → luminance transfer.
+static void buildCurveLuts() {
+  for (uint16_t i = 0; i < 256; i++) {
+    const float norm = (float)i / 255.0f;
+    g_curveLut[CH_CURVE_LINEAR][i] = (uint8_t)i;
+    g_curveLut[CH_CURVE_GAMMA][i]  = (uint8_t)(powf(norm, 2.2f) * 255.0f + 0.5f);
+    const float L = norm * 100.0f;
+    const float Y = (L <= 8.0f) ? (L / 903.3f)
+                                : powf((L + 16.0f) / 116.0f, 3.0f);
+    g_curveLut[CH_CURVE_CIE][i] = (uint8_t)(Y * 255.0f + 0.5f);
+  }
+}
+
+// Stage 0 — who owns the channel value right now.
+// Panic outranks everything; failsafe and local override work by having already
+// written chRequest and by locking Modbus out (outputsModbusLocked).
+static inline uint8_t chEffectiveSource(uint8_t ch) {
+  return g_panicActive ? g_panicLevel : chRequest[ch];
+}
+
+// Stage 2 — rescale into the channel window. 0 stays off; 1..255 spans
+// [minLevel..maxLevel]. This is a rescale, not a clip: the top of the command
+// range reaches maxLevel and the bottom reaches minLevel.
+static inline uint8_t chApplyMinMax(uint8_t ch, uint8_t v) {
+  if (v == 0) return 0;
+  const uint8_t lo = chCfg[ch].minLevel;
+  uint8_t hi = chCfg[ch].maxLevel;
+  if (hi < lo) hi = lo;
+  if (lo == 0 && hi == 255) return v;
+  return (uint8_t)((uint32_t)lo + (((uint32_t)v * (uint32_t)(hi - lo) + 127u) / 255u));
+}
+
+// Stage 4 — master level, applied last, to every profile including raw.
+static inline uint8_t chApplyMaster(uint8_t v) {
+  if (g_masterLevel >= 255) return v;
+  return (uint8_t)(((uint32_t)v * (uint32_t)g_masterLevel + 127u) / 255u);
+}
+
+static uint8_t resolveChannelDriverValue(uint8_t ch) {
+  uint8_t v = chEffectiveSource(ch);                    // stage 0 — source
+
+  const uint8_t prof = chCfg[ch].profile;               // stage 1 — profile
+  if (prof == CH_PROF_HEAT) {
+    v = (v >= 100) ? 255 : (uint8_t)(((uint32_t)v * 255u + 50u) / 100u);
+  } else if (prof == CH_PROF_IND) {
+    v = (v > 0) ? 255 : 0;
+  } else if (prof == CH_PROF_RAW) {
+    return chApplyMaster(v);                            // raw skips 2 and 3 only
+  }
+
+  v = chApplyMinMax(ch, v);                             // stage 2 — min/max
+  const uint8_t curve = (chCfg[ch].curve < CH_CURVE_COUNT) ? chCfg[ch].curve : CH_CURVE_LINEAR;
+  v = g_curveLut[curve][v];                             // stage 3 — curve
+  return chApplyMaster(v);                              // stage 4 — master
+}
+
+static void recomputeChannelDriver(uint8_t ch) {
+  if (ch >= NUM_PWM) return;
+  chDriver[ch] = resolveChannelDriverValue(ch);
+}
+
+static void recomputeAllDrivers() {
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) chDriver[ch] = resolveChannelDriverValue(ch);
+}
+
+// Stage 5 — ramp. Walks pwmLevel towards chDriver without blocking the loop.
+// Step size is proportional to elapsed time so a full 0..255 traverse takes
+// rampMs; the algorithm is RGB-621-R1 v0.2.0 pwmServiceSlew() retargeted from
+// per-channel analogWrite onto the shared block-write flush below.
+static void serviceRamp(uint32_t now) {
+  bool changed = false;
+
+  // rampMs = 0 lands at once: a plain level write keeps the latency it had
+  // before ramps existed.
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (chCfg[ch].rampMs != 0) continue;
+    chRampLastMs[ch] = now;
+    if (pwmLevel[ch] == chDriver[ch]) continue;
+    pwmLevel[ch] = chDriver[ch];
+    changed = true;
+  }
+
+  // Ramping channels step at most every RAMP_SERVICE_MS, so a fast ramp cannot
+  // turn the shared flush below into a continuous I2C load.
+  if ((uint32_t)(now - g_lastRampServiceMs) >= RAMP_SERVICE_MS) {
+    g_lastRampServiceMs = now;
+    for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+      const uint16_t rampMs = chCfg[ch].rampMs;
+      if (rampMs == 0) continue;
+      const uint16_t target = chDriver[ch];
+      if (pwmLevel[ch] == target) { chRampLastMs[ch] = now; continue; }
+
+      const uint32_t elapsed = now - chRampLastMs[ch];
+      const int32_t maxStep = (int32_t)((255UL * elapsed) / rampMs);
+      if (maxStep < 1) continue;   // too little time yet — keep accumulating it
+      chRampLastMs[ch] = now;
+
+      const int32_t err = (int32_t)target - (int32_t)pwmLevel[ch];
+      const int32_t absErr = (err > 0) ? err : -err;
+      pwmLevel[ch] = (absErr <= maxStep)
+        ? target
+        : (uint16_t)((int32_t)pwmLevel[ch] + ((err > 0) ? maxStep : -maxStep));
+      changed = true;
+    }
+  }
+
+  if (changed) applyAllPwmLevels();   // stage 6 — four block writes at most
+}
+
+// ============================================================================
+//  COMMAND LAYER — everything that can set a channel goes through here
+// ============================================================================
+
+// Internal write to the holding register: keeps the master's view in sync
+// without the main-loop scan mistaking it for a fresh command from the bus.
+static uint16_t g_prevHrPwm[NUM_PWM];
+static bool     g_prevHrPwmInit = false;
+
+static void hrPwmSet(uint8_t ch, uint8_t v) {
+  if (ch >= NUM_PWM) return;
+  mb.Hreg(HR_PWM_BASE + ch, v);
+  g_prevHrPwm[ch] = v;
+}
+
+// One channel, no group propagation, no scene bookkeeping.
+static void setChannelRequestOne(uint8_t ch, uint8_t val) {
+  if (ch >= NUM_PWM) return;
+  chRequest[ch] = val;
+  // Auto-off: a fresh command on this channel restarts its timer; off clears it.
+  chAutoOffAtMs[ch] = (val > 0 && chCfg[ch].autoOffS > 0)
+    ? (millis() + (uint32_t)chCfg[ch].autoOffS * 1000UL)
+    : 0;
+  recomputeChannelDriver(ch);
+}
+
+// GROUPS — conflict rule.
+// A write to channel C is mirrored ONCE to every channel sharing at least one
+// group with C. Mirrored channels do not propagate further, so overlapping
+// groups cannot loop and a channel in two groups is written exactly once.
+// Every member takes the same commanded level: there is no priority between
+// groups, and when two masters write different levels to two members in the
+// same cycle the last write wins.
+static uint32_t groupPeersOf(uint8_t ch) {
+  const uint32_t bit = 1UL << ch;
+  uint32_t peers = 0;
+  for (uint8_t g = 0; g < NUM_GROUPS; g++) {
+    if (groupMask[g] & bit) peers |= groupMask[g];
+  }
+  return peers & ~bit;
+}
+
+enum : uint8_t { SRC_MODBUS = 0, SRC_SCENE = 1, SRC_LOCAL = 2 };
+
+static void setChannelRequest(uint8_t ch, uint8_t val, uint8_t src) {
+  if (ch >= NUM_PWM) return;
+  if (src != SRC_SCENE) g_activeScene = 0;   // any level change outside a scene
+  setChannelRequestOne(ch, val);
+  hrPwmSet(ch, val);
+  const uint32_t peers = groupPeersOf(ch);
+  if (!peers) return;
+  for (uint8_t p = 0; p < NUM_PWM; p++) {
+    if (!(peers & (1UL << p))) continue;
+    setChannelRequestOne(p, val);
+    hrPwmSet(p, val);
+  }
 }
 
 static void setAllPwmLocal(uint16_t val) {
   if (val > 255) val = 255;
-  for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = val;
-  drivePwmOutputs();
+  g_activeScene = 0;
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
+    setChannelRequestOne(i, (uint8_t)val);
+    hrPwmSet(i, (uint8_t)val);
+  }
 }
 
 static void applyRampLevelsLocal() {
-  for (int i = 0; i < NUM_PWM; i++) {
-    pwmLevel[i] = (NUM_PWM > 1) ? (uint16_t)((i * 255) / (NUM_PWM - 1)) : 255;
+  g_activeScene = 0;
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
+    const uint8_t v = (NUM_PWM > 1) ? (uint8_t)((i * 255) / (NUM_PWM - 1)) : 255;
+    setChannelRequestOne(i, v);
+    hrPwmSet(i, v);
   }
-  drivePwmOutputs();
 }
 
 static void restoreOutputsFromHoldingRegs() {
+  g_activeScene = 0;
   for (uint8_t i = 0; i < NUM_PWM; i++) {
     uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
     if (v > 255) v = 255;
-    pwmLevel[i] = v;
+    setChannelRequestOne(i, (uint8_t)v);
+    g_prevHrPwm[i] = v;
   }
-  drivePwmOutputs();
 }
+
+static void serviceAutoOff(uint32_t now) {
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (chAutoOffAtMs[ch] == 0) continue;
+    if ((int32_t)(now - chAutoOffAtMs[ch]) < 0) continue;
+    setChannelRequestOne(ch, 0);     // clears chAutoOffAtMs[ch] on the way
+    hrPwmSet(ch, 0);
+    g_activeScene = 0;
+    wsLog(String("Channel O") + (ch + 1) + " auto-off");
+  }
+}
+
+// ---- Scenes ----
+// A scene names all 32 channels, so recalling one does not propagate through
+// groups: every member is already written by the scene itself.
+static void sceneRecall(uint8_t n) {
+  if (n < 1 || n > NUM_SCENES) return;
+  const uint8_t idx = (uint8_t)(n - 1);
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    setChannelRequestOne(ch, sceneLevel[idx][ch]);
+    hrPwmSet(ch, sceneLevel[idx][ch]);
+  }
+  g_activeScene = n;
+  wsLog(String("Scene ") + n + " recalled");
+}
+
+static void sceneSaveCurrent(uint8_t n) {
+  if (n < 1 || n > NUM_SCENES) return;
+  const uint8_t idx = (uint8_t)(n - 1);
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) sceneLevel[idx][ch] = chRequest[ch];
+  sceneUsed[idx] = 1;
+  g_activeScene = n;
+  wsLog(String("Scene ") + n + " saved from current levels");
+}
+
+static void sceneClear(uint8_t n) {
+  if (n < 1 || n > NUM_SCENES) return;
+  const uint8_t idx = (uint8_t)(n - 1);
+  memset(sceneLevel[idx], 0, NUM_PWM);
+  sceneUsed[idx] = 0;
+  if (g_activeScene == n) g_activeScene = 0;
+  wsLog(String("Scene ") + n + " cleared");
+}
+
+// ---- Panic ----
+// Coil 332 latches every channel at panicLevel and holds it there: writes to
+// HR 400..431 are accepted into chRequest but cannot reach the drivers until
+// coil 334. Panic outranks local override and bus failsafe.
+static void panicEnter() {
+  if (g_panicActive) return;
+  g_panicActive = true;
+  g_localOverride = false;
+  for (uint8_t i = 0; i < NUM_DI; i++) g_inputToggleState[i] = false;
+  recomputeAllDrivers();
+  wsLog(String("PANIC: all channels held at ") + g_panicLevel);
+}
+
+static void panicExit() {
+  if (!g_panicActive) return;
+  g_panicActive = false;
+  restoreOutputsFromHoldingRegs();
+  wsLog("Panic cleared — outputs match holding registers");
+}
+
+static void allOutputsOffPulse() {
+  g_activeScene = 0;
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    setChannelRequestOne(ch, 0);
+    hrPwmSet(ch, 0);
+  }
+  wsLog("All outputs off (coil 333)");
+}
+
 
 static void enterLocalOverride() {
   if (g_busFailsafeActive) return;
@@ -669,18 +1160,21 @@ static uint16_t detectBootResetReason() {
   return 2;
 }
 
+// Failsafe replaces the SOURCE value, not the result: the channel still goes
+// through its own profile, window, curve and the master level.
 static void applyFailsafeOnce() {
-  for (int i = 0; i < NUM_PWM; i++) {
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
     switch (g_failsafeAction[i]) {
-      case FS_OFF:   pwmLevel[i] = 0; break;
-      case FS_LEVEL: pwmLevel[i] = g_failsafeLevel[i]; break;
+      case FS_OFF:   setChannelRequestOne(i, 0); break;
+      case FS_LEVEL: setChannelRequestOne(i, g_failsafeLevel[i]); break;
       default: break; // HOLD — leave channel unchanged
     }
   }
-  drivePwmOutputs();
+  g_activeScene = 0;
 }
 
 static void processBusFailsafe(uint32_t now) {
+  if (g_panicActive) return;   // panic outranks failsafe — neither arm nor clear
   bool linkLost = false;
   if (g_linkFrameSeen && g_busTimeoutS > 0) {
     linkLost = ((uint32_t)(now - g_lastLinkSeenMs) >= (uint32_t)g_busTimeoutS * 1000UL);
@@ -707,10 +1201,21 @@ static bool anyPulseInputActive() {
 }
 
 static void processInputActions() {
-  if (g_busFailsafeActive) return;
+  if (g_busFailsafeActive || g_panicActive) return;
 
   for (int i = 0; i < NUM_DI; i++) {
-    if (!diCfg[i].enabled || diCfg[i].target != 0) continue;
+    if (!diCfg[i].enabled) continue;
+
+    if (diCfg[i].action == IN_ACT_SCENE) {
+      // A scene names every channel, so it needs no control target.
+      if (diState[i] && !diPrev[i]) {
+        sceneRecall(diCfg[i].param);
+        enterLocalOverride();
+      }
+      continue;
+    }
+
+    if (diCfg[i].target != 0) continue;
 
     if (diCfg[i].action == 1) {
       if (diState[i] && !diPrev[i]) {
@@ -743,17 +1248,26 @@ static void processButtonActions() {
     if (i >= 2 && comboReset) continue;
 
     switch (btnCfg[i].action) {
-      case 1:
-        if (!g_busFailsafeActive) { setAllPwmLocal(255); enterLocalOverride(); }
+      case BTN_ACT_ALL_ON:
+        if (!g_busFailsafeActive && !g_panicActive) { setAllPwmLocal(255); enterLocalOverride(); }
         break;
-      case 2:
-        if (!g_busFailsafeActive) { setAllPwmLocal(0); enterLocalOverride(); }
+      case BTN_ACT_ALL_OFF:
+        if (!g_busFailsafeActive && !g_panicActive) { setAllPwmLocal(0); enterLocalOverride(); }
         break;
-      case 3:
-        if (!g_busFailsafeActive) { applyRampLevelsLocal(); enterLocalOverride(); }
+      case BTN_ACT_RAMP:
+        if (!g_busFailsafeActive && !g_panicActive) { applyRampLevelsLocal(); enterLocalOverride(); }
         break;
-      case 4:
+      case BTN_ACT_CLEAR_OVERRIDE:
         releaseLocalOverride();
+        break;
+      case BTN_ACT_SCENE:
+        if (!g_busFailsafeActive && !g_panicActive) { sceneRecall(btnCfg[i].param); enterLocalOverride(); }
+        break;
+      case BTN_ACT_PANIC:
+        panicEnter();
+        break;
+      case BTN_ACT_CLEAR_PANIC:
+        panicExit();
         break;
       default:
         break;
@@ -795,16 +1309,49 @@ static void applyFailsafeDefaults() {
   }
 }
 
+// Channels, groups, scenes and the two globals — factory state.
+// Every new field is inert by default: profile led, linear curve, full window,
+// no ramp, no auto-off, no groups, no scenes, master and panic wide open.
+static void applyChannelDefaults() {
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
+    chCfg[i].profile  = CH_PROF_LED;
+    chCfg[i].curve    = CH_CURVE_LINEAR;
+    chCfg[i].minLevel = 0;
+    chCfg[i].maxLevel = 255;
+    chCfg[i].rampMs   = 0;
+    chCfg[i].autoOffS = 0;
+    chCfg[i].flags    = 0;
+    chCfg[i]._rsv     = 0;
+  }
+  for (uint8_t g = 0; g < NUM_GROUPS; g++) groupMask[g] = 0;
+  for (uint8_t s = 0; s < NUM_SCENES; s++) {
+    memset(sceneLevel[s], 0, NUM_PWM);
+    sceneUsed[s] = 0;
+  }
+  g_masterLevel = 255;
+  g_panicLevel  = 255;
+  memset(&g_stairCfg, 0, sizeof(g_stairCfg));   // 2f — inert until that step
+  memset(&g_heatCfg,  0, sizeof(g_heatCfg));    // 2g — inert until that step
+}
+
 void setDefaults() {
-  for (int i = 0; i < NUM_DI; i++) diCfg[i] = {true, false, 0, 4, 255};
+  for (int i = 0; i < NUM_DI; i++) diCfg[i] = {true, false, 0, 4, 255, 0};
   for (int i = 0; i < NUM_LED; i++) ledCfg[i] = {0, 0};
-  btnCfg[0].action = 1; // SW1 = All ON (README promise)
-  btnCfg[1].action = 2; // SW2 = All OFF
-  btnCfg[2].action = 0;
-  btnCfg[3].action = 0;
-  for (int i = 0; i < NUM_PWM; i++) pwmLevel[i] = 0;
+  btnCfg[0] = {BTN_ACT_ALL_ON, 0};   // SW1 = All ON (README promise)
+  btnCfg[1] = {BTN_ACT_ALL_OFF, 0};  // SW2 = All OFF
+  btnCfg[2] = {BTN_ACT_NONE, 0};
+  btnCfg[3] = {BTN_ACT_NONE, 0};
+  for (int i = 0; i < NUM_PWM; i++) {
+    pwmLevel[i] = 0;
+    chRequest[i] = 0;
+    chDriver[i] = 0;
+    chAutoOffAtMs[i] = 0;
+  }
   g_mb_address = 3;
   g_mb_baud    = 19200;
+  g_panicActive = false;
+  g_activeScene = 0;
+  applyChannelDefaults();
   applyFailsafeDefaults();
 }
 
@@ -822,6 +1369,13 @@ static bool verifyPersistCrcV4(const PersistConfigV4 &pc) {
   return crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV4)) == crc;
 }
 
+static bool verifyPersistCrcV5(const PersistConfigV5 &pc) {
+  PersistConfigV5 tmp = pc;
+  const uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  return crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfigV5)) == crc;
+}
+
 static void fillV4Defaults(PersistConfigV4 &pc) {
   pc.busTimeoutS = 0;
   pc.overrideTimeoutS = 0;
@@ -831,15 +1385,41 @@ static void fillV4Defaults(PersistConfigV4 &pc) {
   }
 }
 
-static bool applyFromPersistV4(const PersistConfigV4 &pc) {
-  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV4)) return false;
-  if (!verifyPersistCrcV4(pc)) return false;
+// Everything 0x0005 added, at its factory value. Used by the 0x0004 migrator.
+static void fillV5Defaults(PersistConfigV5 &pc) {
+  for (int i = 0; i < NUM_PWM; i++) {
+    pc.chCfg[i].profile  = CH_PROF_LED;
+    pc.chCfg[i].curve    = CH_CURVE_LINEAR;
+    pc.chCfg[i].minLevel = 0;
+    pc.chCfg[i].maxLevel = 255;
+    pc.chCfg[i].rampMs   = 0;
+    pc.chCfg[i].autoOffS = 0;
+    pc.chCfg[i].flags    = 0;
+    pc.chCfg[i]._rsv     = 0;
+  }
+  for (int g = 0; g < NUM_GROUPS; g++) pc.groupMask[g] = 0;
+  for (int s = 0; s < NUM_SCENES; s++) {
+    memset(pc.sceneLevel[s], 0, NUM_PWM);
+    pc.sceneUsed[s] = 0;
+  }
+  pc.masterLevel = 255;
+  pc.panicLevel  = 255;
+  memset(&pc.stair, 0, sizeof(pc.stair));
+  memset(&pc.heat,  0, sizeof(pc.heat));
+}
+
+static bool applyFromPersistV5(const PersistConfigV5 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV5)) return false;
+  if (!verifyPersistCrcV5(pc)) return false;
   if (pc.version != CFG_VERSION) return false;
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
   memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
-  memcpy(pwmLevel, pc.pwmLevel, sizeof(pwmLevel));
+  for (int i = 0; i < NUM_PWM; i++) {
+    chRequest[i] = (uint8_t)((pc.pwmLevel[i] > 255) ? 255 : pc.pwmLevel[i]);
+    chAutoOffAtMs[i] = 0;
+  }
   g_mb_address = pc.mb_address;
   g_mb_baud = pc.mb_baud;
   g_busTimeoutS = pc.busTimeoutS;
@@ -849,6 +1429,18 @@ static bool applyFromPersistV4(const PersistConfigV4 &pc) {
     g_failsafeAction[i] = (act <= FS_LEVEL) ? act : FS_HOLD;
     g_failsafeLevel[i] = pc.failsafeLevel[i];
   }
+  memcpy(chCfg, pc.chCfg, sizeof(chCfg));
+  for (int i = 0; i < NUM_PWM; i++) {
+    if (chCfg[i].profile > CH_PROF_IND) chCfg[i].profile = CH_PROF_LED;
+    if (chCfg[i].curve >= CH_CURVE_COUNT) chCfg[i].curve = CH_CURVE_LINEAR;
+  }
+  memcpy(groupMask, pc.groupMask, sizeof(groupMask));
+  memcpy(sceneLevel, pc.sceneLevel, sizeof(sceneLevel));
+  memcpy(sceneUsed, pc.sceneUsed, sizeof(sceneUsed));
+  g_masterLevel = pc.masterLevel;
+  g_panicLevel  = pc.panicLevel;
+  memcpy(&g_stairCfg, &pc.stair, sizeof(g_stairCfg));
+  memcpy(&g_heatCfg,  &pc.heat,  sizeof(g_heatCfg));
   return true;
 }
 
@@ -859,7 +1451,7 @@ static bool migrateV3ToV4(const PersistConfigV3 &pc3, PersistConfigV4 &pc4) {
 
   memset(&pc4, 0, sizeof(pc4));
   pc4.magic = CFG_MAGIC;
-  pc4.version = CFG_VERSION;
+  pc4.version = CFG_VERSION_V4;
   pc4.size = sizeof(PersistConfigV4);
   for (int i = 0; i < NUM_DI; i++) {
     pc4.diCfg[i].enabled = pc3.diCfg[i].enabled;
@@ -874,29 +1466,84 @@ static bool migrateV3ToV4(const PersistConfigV3 &pc3, PersistConfigV4 &pc4) {
   pc4.mb_address = pc3.mb_address;
   pc4.mb_baud = pc3.mb_baud;
   fillV4Defaults(pc4);
+  // The freshly built record must carry a valid CRC: the next stage verifies it
+  // exactly like one read from flash. Without this the whole migration chain
+  // fails its own check and a v0.1.0 device silently comes up on defaults.
+  pc4.crc32 = 0;
+  pc4.crc32 = crc32_update(0, (const uint8_t*)&pc4, sizeof(PersistConfigV4));
   return true;
 }
 
-void captureToPersist(PersistConfigV4 &pc) {
+// 0x0004 → 0x0005. Everything configured in steps 2a..2d survives: Modbus
+// address and baud, the three inputs (enabled / inverted / action / target /
+// on-level), the four buttons, both status LEDs, the bus and override timeouts,
+// the per-channel failsafe action and level arrays, and the stored levels.
+// Only the fields 0x0005 introduces are set, and they are set to factory.
+static bool migrateV4ToV5(const PersistConfigV4 &pc4, PersistConfigV5 &pc5) {
+  if (pc4.magic != CFG_MAGIC || pc4.size != sizeof(PersistConfigV4)) return false;
+  if (!verifyPersistCrcV4(pc4)) return false;
+  if (pc4.version != CFG_VERSION_V4) return false;
+
+  memset(&pc5, 0, sizeof(pc5));
+  pc5.magic = CFG_MAGIC;
+  pc5.version = CFG_VERSION;
+  pc5.size = sizeof(PersistConfigV5);
+  for (int i = 0; i < NUM_DI; i++) {
+    pc5.diCfg[i].enabled  = pc4.diCfg[i].enabled;
+    pc5.diCfg[i].inverted = pc4.diCfg[i].inverted;
+    pc5.diCfg[i].action   = pc4.diCfg[i].action;
+    pc5.diCfg[i].target   = pc4.diCfg[i].target;
+    pc5.diCfg[i].level    = pc4.diCfg[i].level;
+    pc5.diCfg[i].param    = 0;
+  }
+  memcpy(pc5.ledCfg, pc4.ledCfg, sizeof(pc5.ledCfg));
+  for (int i = 0; i < NUM_BTN; i++) {
+    pc5.btnCfg[i].action = pc4.btnCfg[i].action;
+    pc5.btnCfg[i].param  = 0;
+  }
+  memcpy(pc5.pwmLevel, pc4.pwmLevel, sizeof(pc5.pwmLevel));
+  pc5.mb_address = pc4.mb_address;
+  pc5.mb_baud = pc4.mb_baud;
+  pc5.busTimeoutS = pc4.busTimeoutS;
+  pc5.overrideTimeoutS = pc4.overrideTimeoutS;
+  memcpy(pc5.failsafeAction, pc4.failsafeAction, sizeof(pc5.failsafeAction));
+  memcpy(pc5.failsafeLevel, pc4.failsafeLevel, sizeof(pc5.failsafeLevel));
+  fillV5Defaults(pc5);
+  pc5.crc32 = 0;
+  pc5.crc32 = crc32_update(0, (const uint8_t*)&pc5, sizeof(PersistConfigV5));
+  return true;
+}
+
+void captureToPersist(PersistConfigV5 &pc) {
   pc.magic = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size = sizeof(PersistConfig);
   memcpy(pc.diCfg, diCfg, sizeof(diCfg));
   memcpy(pc.ledCfg, ledCfg, sizeof(ledCfg));
   memcpy(pc.btnCfg, btnCfg, sizeof(btnCfg));
-  memcpy(pc.pwmLevel, pwmLevel, sizeof(pwmLevel));
+  // The stored levels are the COMMANDED ones, not the driver duty: restoring
+  // them re-enters the pipeline on boot instead of freezing a curved value.
+  for (int i = 0; i < NUM_PWM; i++) pc.pwmLevel[i] = chRequest[i];
   pc.mb_address = g_mb_address;
   pc.mb_baud = g_mb_baud;
   pc.busTimeoutS = g_busTimeoutS;
   pc.overrideTimeoutS = g_overrideTimeoutS;
   memcpy(pc.failsafeAction, g_failsafeAction, sizeof(g_failsafeAction));
   memcpy(pc.failsafeLevel, g_failsafeLevel, sizeof(g_failsafeLevel));
+  memcpy(pc.chCfg, chCfg, sizeof(chCfg));
+  memcpy(pc.groupMask, groupMask, sizeof(groupMask));
+  memcpy(pc.sceneLevel, sceneLevel, sizeof(sceneLevel));
+  memcpy(pc.sceneUsed, sceneUsed, sizeof(sceneUsed));
+  pc.masterLevel = g_masterLevel;
+  pc.panicLevel  = g_panicLevel;
+  memcpy(&pc.stair, &g_stairCfg, sizeof(pc.stair));
+  memcpy(&pc.heat,  &g_heatCfg,  sizeof(pc.heat));
   pc.crc32 = 0;
-  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV4));
+  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV5));
 }
 
 static bool saveConfigFS() {
-  PersistConfigV4 pc{};
+  PersistConfigV5 pc{};
   captureToPersist(pc);
   File f = LittleFS.open(CFG_PATH, "w");
   if (!f) { wsLog("save: open failed"); return false; }
@@ -906,12 +1553,12 @@ static bool saveConfigFS() {
   if (n != sizeof(pc)) { wsLog(String("save: short write ") + n); return false; }
   File r = LittleFS.open(CFG_PATH, "r");
   if (!r) { wsLog("save: reopen failed"); return false; }
-  if ((size_t)r.size() != sizeof(PersistConfigV4)) { wsLog("save: size mismatch after write"); r.close(); return false; }
-  PersistConfigV4 back{};
+  if ((size_t)r.size() != sizeof(PersistConfigV5)) { wsLog("save: size mismatch after write"); r.close(); return false; }
+  PersistConfigV5 back{};
   size_t nr = r.read((uint8_t*)&back, sizeof(back));
   r.close();
   if (nr != sizeof(back)) { wsLog("save: short readback"); return false; }
-  PersistConfigV4 verify = back;
+  PersistConfigV5 verify = back;
   uint32_t crc = verify.crc32;
   verify.crc32 = 0;
   if (crc32_update(0, (const uint8_t*)&verify, sizeof(verify)) != crc) { wsLog("save: CRC verify failed"); return false; }
@@ -923,12 +1570,25 @@ bool loadConfigFS() {
   if (!f) { wsLog("load: open failed"); return false; }
   const size_t fsz = f.size();
 
+  if (fsz == sizeof(PersistConfigV5)) {
+    PersistConfigV5 pc5{};
+    const size_t n = f.read((uint8_t*)&pc5, sizeof(pc5));
+    f.close();
+    if (n != sizeof(pc5)) { wsLog("load: short read"); return false; }
+    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 magic/version/crc mismatch"); return false; }
+    return true;
+  }
+
   if (fsz == sizeof(PersistConfigV4)) {
     PersistConfigV4 pc4{};
     const size_t n = f.read((uint8_t*)&pc4, sizeof(pc4));
     f.close();
     if (n != sizeof(pc4)) { wsLog("load: short read"); return false; }
-    if (!applyFromPersistV4(pc4)) { wsLog("load: v4 magic/version/crc mismatch"); return false; }
+    PersistConfigV5 pc5{};
+    if (!migrateV4ToV5(pc4, pc5)) { wsLog("load: v4 migrate failed"); return false; }
+    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 apply after migrate failed"); return false; }
+    wsLog("Config migrated 0x0004 -> 0x0005");
+    if (!saveConfigFS()) { wsLog("ERROR: migrate re-save failed"); return false; }
     return true;
   }
 
@@ -939,8 +1599,10 @@ bool loadConfigFS() {
     if (n != sizeof(pc3)) { wsLog("load: short read"); return false; }
     PersistConfigV4 pc4{};
     if (!migrateV3ToV4(pc3, pc4)) { wsLog("load: v3 migrate failed"); return false; }
-    if (!applyFromPersistV4(pc4)) { wsLog("load: v4 apply after migrate failed"); return false; }
-    wsLog("Config migrated 0x0003 -> 0x0004");
+    PersistConfigV5 pc5{};
+    if (!migrateV4ToV5(pc4, pc5)) { wsLog("load: v3->v4->v5 migrate failed"); return false; }
+    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 apply after migrate failed"); return false; }
+    wsLog("Config migrated 0x0003 -> 0x0004 -> 0x0005");
     if (!saveConfigFS()) {
       wsLog("ERROR: migrate re-save failed");
       return false;
@@ -964,6 +1626,11 @@ void processModbusCommandPulses();
 void sendWebStatus();
 void sendWebCfg();
 void sendWebBootstrap();
+void sendWebLevels();
+void sendCfgSection(uint8_t sec);
+void cfgTransferStart();
+void handleCfgAck(const char* sec, int part);
+void serviceCfgTransfer(uint32_t now);
 bool ledSourceActive(uint8_t source);
 void markCfgDirty();
 
@@ -1036,12 +1703,13 @@ void handleValues(JSONVar values) {
   if (values.hasOwnProperty("pwm")) {
     releaseLocalOverrideForWebConfig();
     JSONVar arr = values["pwm"];
+    // The page names every channel, so this does not propagate through groups.
+    g_activeScene = 0;
     for (int i = 0; i < NUM_PWM && i < arr.length(); i++) {
-      uint16_t v = (uint16_t)constrain((int)arr[i], 0, 255);
-      mb.Hreg(HR_PWM_BASE + i, v);
-      pwmLevel[i] = v;
+      const uint8_t v = (uint8_t)constrain((int)arr[i], 0, 255);
+      setChannelRequestOne((uint8_t)i, v);
+      hrPwmSet((uint8_t)i, v);
     }
-    drivePwmOutputs();
   }
 
   wsLog("Modbus configuration updated");
@@ -1064,8 +1732,9 @@ void handleCommand(JSONVar obj) {
     else wsLog("ERROR: Save failed");
   } else if (act == "load") {
     if (loadConfigFS()) {
-      for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
-      applyAllPwmLevels();
+      for (int i = 0; i < NUM_PWM; i++) hrPwmSet((uint8_t)i, chRequest[i]);
+      mb.Hreg(HR_MASTER, g_masterLevel);
+      recomputeAllDrivers();
       wsLog("Configuration loaded");
       sendWebBootstrap();
       applyModbusSettings(g_mb_address, g_mb_baud);
@@ -1077,8 +1746,10 @@ void handleCommand(JSONVar obj) {
     g_localOverride = false;
     g_busFailsafeActive = false;
     for (int i = 0; i < NUM_DI; i++) g_inputToggleState[i] = false;
-    for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
-    applyAllPwmLevels();
+    for (int i = 0; i < NUM_PWM; i++) hrPwmSet((uint8_t)i, chRequest[i]);
+    mb.Hreg(HR_MASTER, g_masterLevel);
+    mb.Hreg(HR_SCENE, 0);
+    recomputeAllDrivers();
     if (saveConfigFS()) {
       wsLog("Factory defaults restored & saved");
       sendWebBootstrap();
@@ -1086,6 +1757,35 @@ void handleCommand(JSONVar obj) {
     } else {
       wsLog("ERROR: Save after factory reset failed");
     }
+  } else if (act == "cfgack") {
+    handleCfgAck((const char*)obj["sec"], (int)obj["part"]);
+  } else if (act.startsWith("scene.")) {
+    // scene.save.N / scene.recall.N / scene.clear.N — N travels in the action
+    // string so the shared WebConfig compatibility gate still sees a write.
+    const int dot = act.lastIndexOf('.');
+    const uint8_t n = (uint8_t)act.substring(dot + 1).toInt();
+    if (n < 1 || n > NUM_SCENES) {
+      wsLog(String("scene: bad number in ") + actC);
+    } else if (act.startsWith("scene.save")) {
+      sceneSaveCurrent(n);
+      markCfgDirty();
+      sendCfgSection(SEC_SCENES);
+    } else if (act.startsWith("scene.recall")) {
+      releaseLocalOverrideForWebConfig();
+      sceneRecall(n);
+      sendWebLevels();
+    } else if (act.startsWith("scene.clear")) {
+      sceneClear(n);
+      markCfgDirty();
+      sendCfgSection(SEC_SCENES);
+    }
+  } else if (act == "panic") {
+    panicEnter();
+    sendWebStatus();
+  } else if (act == "panic.clear") {
+    panicExit();
+    sendWebStatus();
+    sendWebLevels();
   } else if (act == "hello" || act == "getconfig") {
     sendWebBootstrap();
   } else if (act == "identify") {
@@ -1097,7 +1797,6 @@ void handleCommand(JSONVar obj) {
     if (!tlcInitAll(true)) wsLog("TLC init still failed after I2C scan");
   } else if (act == "off") {
     releaseLocalOverrideForWebConfig();
-    for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, 0);
     setAllPwmLocal(0);
     wsLog("All output channels set to 0");
   } else {
@@ -1125,7 +1824,7 @@ void handleUnifiedConfig(JSONVar obj) {
     changed = true;
   } else if (type == "in.action" || type == "inputAction") {
     for (int i = 0; i < NUM_DI && i < list.length(); i++)
-      diCfg[i].action = (uint8_t)constrain((int)list[i], 0, 2);
+      diCfg[i].action = (uint8_t)constrain((int)list[i], 0, IN_ACT_MAX);
     wsLog("Input Action list updated");
     changed = true;
   } else if (type == "in.target" || type == "inputTarget") {
@@ -1140,12 +1839,19 @@ void handleUnifiedConfig(JSONVar obj) {
       diCfg[i].level = (uint8_t)constrain((int)list[i], 0, 255);
     wsLog("Input Level list updated");
     changed = true;
+  } else if (type == "in.param") {
+    for (int i = 0; i < NUM_DI && i < list.length(); i++)
+      diCfg[i].param = (uint8_t)constrain((int)list[i], 0, NUM_SCENES);
+    wsLog("Input scene binding updated");
+    changed = true;
   } else if (type == "btn" || type == "buttons") {
     for (int i = 0; i < NUM_BTN && i < list.length(); i++) {
       if (list[i].hasOwnProperty("action")) {
-        btnCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 4);
+        btnCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, BTN_ACT_MAX);
+        if (list[i].hasOwnProperty("param"))
+          btnCfg[i].param = (uint8_t)constrain((int)list[i]["param"], 0, NUM_SCENES);
       } else {
-        btnCfg[i].action = (uint8_t)constrain((int)list[i], 0, 4);
+        btnCfg[i].action = (uint8_t)constrain((int)list[i], 0, BTN_ACT_MAX);
       }
     }
     wsLog("Buttons Configuration updated");
@@ -1159,14 +1865,64 @@ void handleUnifiedConfig(JSONVar obj) {
     wsLog("Override timeout updated");
     changed = true;
   } else if (type == "bus.failsafe") {
-    JSONVar actions = list["actions"];
-    JSONVar levels = list["levels"];
-    for (int i = 0; i < NUM_PWM && i < actions.length() && i < levels.length(); i++) {
-      const uint8_t act = (uint8_t)constrain((int)actions[i], 0, 2);
-      g_failsafeAction[i] = act;
-      g_failsafeLevel[i] = (uint8_t)constrain((int)levels[i], 0, 255);
+    // Chunked by offset: 64 numbers in one message overran SimpleWebSerial's
+    // 256-byte line buffer and the whole write was silently dropped.
+    const int off = (int)list["o"];
+    JSONVar actions = list["a"];
+    JSONVar levels = list["l"];
+    for (int k = 0; k < actions.length() && k < levels.length(); k++) {
+      const int i = off + k;
+      if (i < 0 || i >= NUM_PWM) continue;
+      g_failsafeAction[i] = (uint8_t)constrain((int)actions[k], 0, 2);
+      g_failsafeLevel[i] = (uint8_t)constrain((int)levels[k], 0, 255);
     }
-    wsLog("Bus failsafe per-channel config updated");
+    wsLog(String("Bus failsafe channels ") + (off + 1) + ".." + (off + actions.length()) + " updated");
+    changed = true;
+  } else if (type == "ch.set") {
+    const int i = (int)list["i"];
+    if (i < 0 || i >= NUM_PWM) {
+      wsLog(String("ch.set: channel out of range ") + i);
+    } else {
+      chCfg[i].profile  = (uint8_t)constrain((int)list["p"], 0, CH_PROF_IND);
+      chCfg[i].curve    = (uint8_t)constrain((int)list["c"], 0, CH_CURVE_COUNT - 1);
+      chCfg[i].minLevel = (uint8_t)constrain((int)list["mn"], 0, 255);
+      chCfg[i].maxLevel = (uint8_t)constrain((int)list["mx"], 0, 255);
+      chCfg[i].rampMs   = (uint16_t)constrain((int)list["r"], 0, 60000);
+      chCfg[i].autoOffS = (uint16_t)constrain((int)list["ao"], 0, 65535);
+      if (list.hasOwnProperty("f")) chCfg[i].flags = (uint8_t)constrain((int)list["f"], 0, 255);
+      recomputeChannelDriver((uint8_t)i);
+      wsLog(String("Channel O") + (i + 1) + " profile updated");
+      changed = true;
+    }
+  } else if (type == "ch.all") {
+    for (int i = 0; i < NUM_PWM; i++) {
+      if (list.hasOwnProperty("p"))  chCfg[i].profile  = (uint8_t)constrain((int)list["p"], 0, CH_PROF_IND);
+      if (list.hasOwnProperty("c"))  chCfg[i].curve    = (uint8_t)constrain((int)list["c"], 0, CH_CURVE_COUNT - 1);
+      if (list.hasOwnProperty("mn")) chCfg[i].minLevel = (uint8_t)constrain((int)list["mn"], 0, 255);
+      if (list.hasOwnProperty("mx")) chCfg[i].maxLevel = (uint8_t)constrain((int)list["mx"], 0, 255);
+      if (list.hasOwnProperty("r"))  chCfg[i].rampMs   = (uint16_t)constrain((int)list["r"], 0, 60000);
+      if (list.hasOwnProperty("ao")) chCfg[i].autoOffS = (uint16_t)constrain((int)list["ao"], 0, 65535);
+    }
+    recomputeAllDrivers();
+    wsLog("Channel profiles applied to all 32 channels");
+    changed = true;
+  } else if (type == "grp.set") {
+    const int g = (int)list["i"];
+    if (g < 0 || g >= NUM_GROUPS) {
+      wsLog(String("grp.set: group out of range ") + g);
+    } else {
+      groupMask[g] = (uint32_t)(double)list["m"];
+      wsLog(String("Group ") + (g + 1) + " membership updated");
+      changed = true;
+    }
+  } else if (type == "global") {
+    if (list.hasOwnProperty("master")) {
+      g_masterLevel = (uint8_t)constrain((int)list["master"], 0, 255);
+      mb.Hreg(HR_MASTER, g_masterLevel);
+    }
+    if (list.hasOwnProperty("panic")) g_panicLevel = (uint8_t)constrain((int)list["panic"], 0, 255);
+    recomputeAllDrivers();
+    wsLog(String("Master level ") + g_masterLevel + ", panic level " + g_panicLevel);
     changed = true;
   } else if (type == "led" || type == "leds") {
     for (int i = 0; i < NUM_LED && i < list.length(); i++) {
@@ -1178,21 +1934,34 @@ void handleUnifiedConfig(JSONVar obj) {
     changed = true;
   } else if (type == "ext.pwm") {
     releaseLocalOverrideForWebConfig();
+    g_activeScene = 0;
     for (int i = 0; i < NUM_PWM && i < list.length(); i++) {
-      uint16_t v = (uint16_t)constrain((int)list[i], 0, 255);
-      pwmLevel[i] = v;
-      mb.Hreg(HR_PWM_BASE + i, v);
+      const uint8_t v = (uint8_t)constrain((int)list[i], 0, 255);
+      setChannelRequestOne((uint8_t)i, v);
+      hrPwmSet((uint8_t)i, v);
     }
-    applyAllPwmLevels();
     wsLog("Output levels updated");
-    sendWebCfg();  // brightness not auto-persisted
+    sendWebLevels();  // brightness not auto-persisted
   } else {
     wsLog(String("Unknown Config type: ") + t);
   }
 
   if (changed) {
     markCfgDirty();
-    sendWebCfg();
+    // Echo back only the small sections. The bulk ones (failsafe, channels,
+    // groups, scenes) are not re-sent on every keystroke: the page already
+    // holds what it just wrote, and re-running their chunk sequence would
+    // flood the link on each edit.
+    if (type.startsWith("in.") || type == "inputEnable" || type == "inputInvert" ||
+        type == "inputAction" || type == "inputTarget" || type == "inputLevel") {
+      sendCfgSection(SEC_INPUTS);
+    } else if (type == "btn" || type == "buttons") {
+      sendCfgSection(SEC_BUTTONS);
+    } else if (type == "led" || type == "leds") {
+      sendCfgSection(SEC_LEDS);
+    } else if (type == "global") {
+      sendCfgSection(SEC_BASE);
+    }
   }
 }
 
@@ -1221,6 +1990,38 @@ void processModbusCommandPulses() {
   if (mb.Coil(COIL_RELEASE_OVERRIDE)) {
     mb.setCoil(COIL_RELEASE_OVERRIDE, false);
     releaseLocalOverride();
+  }
+  if (mb.Coil(COIL_PANIC_ON)) {
+    mb.setCoil(COIL_PANIC_ON, false);
+    panicEnter();
+  }
+  if (mb.Coil(COIL_ALL_OFF)) {
+    mb.setCoil(COIL_ALL_OFF, false);
+    allOutputsOffPulse();
+  }
+  if (mb.Coil(COIL_PANIC_OFF)) {
+    mb.setCoil(COIL_PANIC_OFF, false);
+    panicExit();
+  }
+}
+
+// HR 432 master level and HR 436 scene recall. Both are runtime commands, not
+// configuration: 436 is self-clearing and reads back 0, 432 is persisted
+// because it is a setting a customer expects to survive a power cut.
+static void processModbusHoldingWrites() {
+  const uint16_t master = (uint16_t)mb.Hreg(HR_MASTER);
+  const uint8_t m = (uint8_t)((master > 255) ? 255 : master);
+  if (m != g_masterLevel) {
+    g_masterLevel = m;
+    mb.Hreg(HR_MASTER, m);
+    recomputeAllDrivers();
+    markCfgDirty();
+  }
+
+  const uint16_t scene = (uint16_t)mb.Hreg(HR_SCENE);
+  if (scene != 0) {
+    mb.Hreg(HR_SCENE, 0);
+    if (scene <= NUM_SCENES && !outputsModbusLocked()) sceneRecall((uint8_t)scene);
   }
 }
 
@@ -1279,11 +2080,13 @@ static void updateInputRegisters(uint32_t now) {
   }
 
   uint16_t status = 0;
-  if (tlcReady)              status |= (1u << 0);
-  if (linkOkNow(now))        status |= (1u << 1);
-  if (g_busFailsafeActive)   status |= (1u << 2);
-  if (cfgDirty)              status |= (1u << 3);
-  if (g_localOverride)       status |= (1u << 4);
+  if (tlcReady)              status |= ST_TLC_READY;
+  if (linkOkNow(now))        status |= ST_LINK_OK;
+  if (g_busFailsafeActive)   status |= ST_BUS_FS;
+  if (cfgDirty)              status |= ST_CFG_DIRTY;
+  if (g_localOverride)       status |= ST_OVERRIDE;
+  if (g_panicActive)         status |= ST_PANIC;
+  // ST_SEQ_RUN (2f) and ST_HEAT_DEM (2g) stay clear until those steps land.
 
   const uint32_t linkAgeMs = now - g_lastLinkSeenMs;
   uint16_t linkAgeS = (linkAgeMs >= 65535000UL) ? 65535 : (uint16_t)(linkAgeMs / 1000UL);
@@ -1299,19 +2102,25 @@ static void updateInputRegisters(uint32_t now) {
   setIregIfChanged(IREG_RESET_REASON, g_bootResetReason);
   setIregIfChanged(IREG_LINK_AGE_S, linkAgeS);
   setIregIfChanged(IREG_UPTIME_MIN, upMin);
-  setIregIfChanged(IREG_RESERVED_9, 0);
+  setIregIfChanged(IREG_ACTIVE_SCENE, g_activeScene);
 
+  // Readback is the COMMANDED level, so a write to HR 400..431 reads back
+  // unchanged; the driver duty after curve and master is not a bus value.
   for (uint16_t reg = IREG_OUT_BASE; reg < IREG_OUT_BASE + 16; reg++) {
     const uint8_t base = (uint8_t)((reg - IREG_OUT_BASE) * 2);
-    const uint8_t lo = (uint8_t)constrain((int)pwmLevel[base], 0, 255);
-    const uint8_t hi = (base + 1 < NUM_PWM)
-      ? (uint8_t)constrain((int)pwmLevel[base + 1], 0, 255) : 0;
+    const uint8_t lo = chEffectiveSource(base);
+    const uint8_t hi = (base + 1 < NUM_PWM) ? chEffectiveSource(base + 1) : 0;
     setIregIfChanged(reg, (uint16_t)((hi << 8) | lo));
   }
 
-  for (uint16_t reg = IREG_RESERVED_26; reg < IREG_BLOCK_COUNT; reg++) {
-    setIregIfChanged(reg, 0);
-  }
+  // 26..31 are declared and published now so the block never changes shape.
+  // Step 2f fills SEQ_STATE / SEQ_STEP, step 2g the four heating registers.
+  setIregIfChanged(IREG_SEQ_STATE, 0);
+  setIregIfChanged(IREG_SEQ_STEP, 0);
+  setIregIfChanged(IREG_HEAT_FLAGS, 0);
+  setIregIfChanged(IREG_ZONES_OPEN, 0);
+  setIregIfChanged(IREG_ZONE_MASK_LO, 0);
+  setIregIfChanged(IREG_ZONE_MASK_HI, 0);
 }
 
 static void buildModbusMap() {
@@ -1330,10 +2139,23 @@ static void buildModbusMap() {
   mb.setCoil(COIL_SAVE_PWM, false);
   mb.addCoil(COIL_RELEASE_OVERRIDE);
   mb.setCoil(COIL_RELEASE_OVERRIDE, false);
+  mb.addCoil(COIL_PANIC_ON);
+  mb.setCoil(COIL_PANIC_ON, false);
+  mb.addCoil(COIL_ALL_OFF);
+  mb.setCoil(COIL_ALL_OFF, false);
+  mb.addCoil(COIL_PANIC_OFF);
+  mb.setCoil(COIL_PANIC_OFF, false);
+  // 340..342 and 345 are deliberately left unregistered — they belong to 2f/2g.
   for (uint16_t i = 0; i < NUM_PWM; i++) {
     mb.addHreg(HR_PWM_BASE + i);
-    mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
+    mb.Hreg(HR_PWM_BASE + i, chRequest[i]);
+    g_prevHrPwm[i] = chRequest[i];
   }
+  g_prevHrPwmInit = true;
+  mb.addHreg(HR_MASTER);
+  mb.Hreg(HR_MASTER, g_masterLevel);
+  mb.addHreg(HR_SCENE);
+  mb.Hreg(HR_SCENE, 0);
   mb.addHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD);
@@ -1351,36 +2173,227 @@ void sendWebStatus() {
   st["linkOk"] = linkOkNow(millis()) ? 1 : 0;
   st["busFailsafe"] = g_busFailsafeActive ? 1 : 0;
   st["localOverride"] = g_localOverride ? 1 : 0;
+  st["panic"] = g_panicActive ? 1 : 0;
+  st["scene"] = (int)g_activeScene;
   WebSerial.send("status", st);
 }
 
-void sendWebCfg() {
+// ============================================================================
+//  WEBCONFIG — the config is delivered in named, acknowledged sections
+//
+//  Why, precisely: the USB CDC FIFOs are 256 bytes each way (tusb_config.h
+//  CFG_TUD_CDC_TX/RX_BUFSIZE) and SimpleWebSerial's inbound line buffer is
+//  256 bytes too (BufferSize). A single-shot config dump is written straight
+//  into the TX FIFO by Serial.println() and blocks the main loop until the
+//  host drains it — long enough, with a page that is busy or gone, to miss
+//  the 4 s watchdog. Sections keep every write inside one FIFO and let the
+//  page tell us it is safe to send the next one.
+//
+//  Each chunk carries {sec, part, parts}; the page replies with
+//  command {action:"cfgack", sec, part}. A card hydrates only when its own
+//  section has arrived, so the page can never echo defaults back at us.
+// ============================================================================
+static const uint8_t CFG_FS_PER_PART = NUM_PWM / 4;      // 8 channels
+static const uint8_t CFG_CH_PER_PART = NUM_PWM / 8;      // 4 channels
+static const uint8_t CFG_SCN_PER_PART = NUM_SCENES / 4;  // 2 scenes
+
+static uint8_t  g_cfgSec = SEC_COUNT;   // SEC_COUNT = transfer idle
+static uint8_t  g_cfgPart = 0;
+static bool     g_cfgPendingSend = false;
+static uint32_t g_cfgSentMs = 0;
+static uint8_t  g_cfgRetry = 0;
+static const uint32_t CFG_ACK_MS = 1200;
+static const uint8_t  CFG_MAX_RETRY = 3;
+static const size_t   CFG_TX_BUDGET = 200;   // keep a chunk inside one FIFO
+
+static void cfgChunkAppendHexByte(String& s, uint8_t v) {
+  static const char* hex = "0123456789ABCDEF";
+  s += hex[v >> 4];
+  s += hex[v & 0x0F];
+}
+
+static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
   JSONVar cfg;
-  for (int i = 0; i < NUM_DI; i++) {
-    cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
-    cfg["in"][i]["invert"]  = diCfg[i].inverted ? 1 : 0;
-    cfg["in"][i]["action"]  = diCfg[i].action;
-    cfg["in"][i]["target"]  = diCfg[i].target;
-    cfg["in"][i]["level"]   = (int)diCfg[i].level;
+  cfg["sec"]   = CFG_SEC_NAME[sec];
+  cfg["part"]  = (int)part;
+  cfg["parts"] = (int)CFG_SEC_PARTS[sec];
+
+  switch (sec) {
+    case SEC_BASE:
+      cfg["addr"]   = g_mb_address;
+      cfg["baud"]   = g_mb_baud;
+      cfg["master"] = (int)g_masterLevel;
+      cfg["panic"]  = (int)g_panicLevel;
+      break;
+
+    case SEC_INPUTS:
+      for (int i = 0; i < NUM_DI; i++) {
+        cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
+        cfg["in"][i]["invert"]  = diCfg[i].inverted ? 1 : 0;
+        cfg["in"][i]["action"]  = diCfg[i].action;
+        cfg["in"][i]["target"]  = diCfg[i].target;
+        cfg["in"][i]["level"]   = (int)diCfg[i].level;
+        cfg["in"][i]["param"]   = (int)diCfg[i].param;
+      }
+      break;
+
+    case SEC_BUTTONS:
+      for (int i = 0; i < NUM_BTN; i++) {
+        cfg["btn"][i]["action"] = btnCfg[i].action;
+        cfg["btn"][i]["param"]  = (int)btnCfg[i].param;
+      }
+      break;
+
+    case SEC_LEDS:
+      for (int i = 0; i < NUM_LED; i++) {
+        cfg["led"][i]["mode"]   = ledCfg[i].mode;
+        cfg["led"][i]["source"] = ledCfg[i].source;
+      }
+      break;
+
+    case SEC_FAILSAFE: {
+      const uint8_t base = (uint8_t)(part * CFG_FS_PER_PART);
+      cfg["o"] = (int)base;
+      if (part == 0) {
+        cfg["timeout"]   = (int)g_busTimeoutS;
+        cfg["ovTimeout"] = (int)g_overrideTimeoutS;
+      }
+      for (uint8_t k = 0; k < CFG_FS_PER_PART; k++) {
+        cfg["a"][k] = (int)g_failsafeAction[base + k];
+        cfg["l"][k] = (int)g_failsafeLevel[base + k];
+      }
+      break;
+    }
+
+    case SEC_CHANNELS: {
+      const uint8_t base = (uint8_t)(part * CFG_CH_PER_PART);
+      cfg["o"] = (int)base;
+      for (uint8_t k = 0; k < CFG_CH_PER_PART; k++) {
+        const ChCfg& c = chCfg[base + k];
+        cfg["p"][k]  = (int)c.profile;
+        cfg["c"][k]  = (int)c.curve;
+        cfg["mn"][k] = (int)c.minLevel;
+        cfg["mx"][k] = (int)c.maxLevel;
+        cfg["r"][k]  = (int)c.rampMs;
+        cfg["ao"][k] = (int)c.autoOffS;
+        cfg["f"][k]  = (int)c.flags;
+      }
+      break;
+    }
+
+    case SEC_GROUPS:
+      // Hex, not a number: a 32-bit mask round-trips exactly through a string,
+      // where a JSON double is at the mercy of how it gets printed.
+      for (uint8_t g = 0; g < NUM_GROUPS; g++) {
+        String hex;
+        hex.reserve(8);
+        for (int8_t b = 3; b >= 0; b--) cfgChunkAppendHexByte(hex, (uint8_t)(groupMask[g] >> (b * 8)));
+        cfg["grp"][g] = hex;
+      }
+      break;
+
+    case SEC_SCENES: {
+      const uint8_t base = (uint8_t)(part * CFG_SCN_PER_PART);
+      cfg["o"] = (int)base;
+      for (uint8_t k = 0; k < CFG_SCN_PER_PART; k++) {
+        String hex;
+        hex.reserve(NUM_PWM * 2);
+        for (uint8_t ch = 0; ch < NUM_PWM; ch++) cfgChunkAppendHexByte(hex, sceneLevel[base + k][ch]);
+        cfg["scn"][k]  = hex;
+        cfg["used"][k] = (int)sceneUsed[base + k];
+      }
+      break;
+    }
+
+    default: break;
   }
-  for (int i = 0; i < NUM_BTN; i++) cfg["btn"][i]["action"] = btnCfg[i].action;
-  for (int i = 0; i < NUM_LED; i++) {
-    cfg["led"][i]["mode"]   = ledCfg[i].mode;
-    cfg["led"][i]["source"] = ledCfg[i].source;
-  }
-  cfg["bus"]["timeout"] = (int)g_busTimeoutS;
-  cfg["override"]["timeout"] = (int)g_overrideTimeoutS;
-  for (int i = 0; i < NUM_PWM; i++) {
-    cfg["bus"]["failsafe"]["actions"][i] = (int)g_failsafeAction[i];
-    cfg["bus"]["failsafe"]["levels"][i]  = (int)g_failsafeLevel[i];
-  }
-  for (int i = 0; i < NUM_PWM; i++) cfg["ext"]["pwm"][i] = (int)pwmLevel[i];
+
   WebSerial.send("cfg", cfg);
+}
+
+static void cfgTransferStepTo(uint8_t sec, uint8_t part) {
+  g_cfgSec = sec;
+  g_cfgPart = part;
+  g_cfgPendingSend = true;
+  g_cfgRetry = 0;
+}
+
+static void cfgTransferNext() {
+  if (g_cfgSec >= SEC_COUNT) return;
+  uint8_t sec = g_cfgSec;
+  uint8_t part = (uint8_t)(g_cfgPart + 1);
+  while (sec < SEC_COUNT && part >= CFG_SEC_PARTS[sec]) {
+    sec++;
+    part = 0;
+  }
+  if (sec >= SEC_COUNT) {
+    g_cfgSec = SEC_COUNT;
+    g_cfgPendingSend = false;
+    return;
+  }
+  cfgTransferStepTo(sec, part);
+}
+
+void cfgTransferStart() {
+  cfgTransferStepTo(SEC_BASE, 0);
+}
+
+// One section on its own — used after a change so the page re-hydrates just
+// the card that moved instead of taking the whole config again.
+void sendCfgSection(uint8_t sec) {
+  if (sec >= SEC_COUNT) return;
+  if (g_cfgSec < SEC_COUNT) return;   // a full transfer is already running
+  cfgTransferStepTo(sec, 0);
+}
+
+void handleCfgAck(const char* sec, int part) {
+  if (g_cfgSec >= SEC_COUNT || g_cfgPendingSend) return;
+  if (!sec || strcmp(sec, CFG_SEC_NAME[g_cfgSec]) != 0) return;
+  if (part != (int)g_cfgPart) return;
+  cfgTransferNext();
+}
+
+void serviceCfgTransfer(uint32_t now) {
+  if (g_cfgSec >= SEC_COUNT) return;
+
+  if (g_cfgPendingSend) {
+    if (!hmUsbCanSend(CFG_TX_BUDGET)) return;   // no room yet — never block here
+    sendCfgChunkNow(g_cfgSec, g_cfgPart);
+    g_cfgPendingSend = false;
+    g_cfgSentMs = now;
+    return;
+  }
+
+  if ((uint32_t)(now - g_cfgSentMs) < CFG_ACK_MS) return;
+  if (g_cfgRetry < CFG_MAX_RETRY) {
+    g_cfgRetry++;
+    g_cfgPendingSend = true;
+    return;
+  }
+  // The page is not acknowledging. Move on rather than wedge the sequence;
+  // its card simply stays un-hydrated and therefore read-only.
+  wsLog(String("cfg: no ack for section ") + CFG_SEC_NAME[g_cfgSec]);
+  cfgTransferNext();
+}
+
+// Current output levels — small enough to go as one message, and already sent
+// periodically by the main loop, so it is not part of the section sequence.
+void sendWebLevels() {
+  if (!hmUsbCanSend(CFG_TX_BUDGET)) return;
+  JSONVar ext;
+  for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)chRequest[i];
+  ext["tlc_ready"] = tlcReady ? 1 : 0;
+  for (int i = 0; i < 4; i++) ext["tlc_chip"][i] = tlcChipOk[i] ? 1 : 0;
+  WebSerial.send("ext", ext);
+}
+
+void sendWebCfg() {
+  cfgTransferStart();
 }
 
 void sendWebBootstrap() {
   sendWebStatus();
-  sendWebCfg();
+  cfgTransferStart();
 }
 
 // ================== Setup ==================
@@ -1402,8 +2415,16 @@ void setup() {
     delay(5);
   }
 
+  buildCurveLuts();          // stage 3 tables — needed before any level resolves
   setDefaults();
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
+
+  // Restored levels re-enter the pipeline; boot does not ramp, it lands.
+  recomputeAllDrivers();
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
+    pwmLevel[i] = chDriver[i];
+    chRampLastMs[i] = millis();
+  }
 
   g_bootMs = millis();
   g_bootResetReason = detectBootResetReason();
@@ -1453,23 +2474,24 @@ void loop() {
   mb.task();
   processModbusCommandPulses();
 
-  static uint16_t prevPwm[NUM_PWM];
-  static bool prevInit = false;
-  if (!prevInit) {
-    for (int i = 0; i < NUM_PWM; i++) prevPwm[i] = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
-    prevInit = true;
+  if (!g_prevHrPwmInit) {
+    for (int i = 0; i < NUM_PWM; i++) g_prevHrPwm[i] = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
+    g_prevHrPwmInit = true;
   }
-  bool pwmChanged = false;
-  for (int i = 0; i < NUM_PWM; i++) {
+  // A changed holding register is a command from the bus: it enters the
+  // pipeline through setChannelRequest, which is also where groups propagate.
+  // While panic / failsafe / local override hold the outputs the register is
+  // accepted but not applied; releasing them replays it from the registers.
+  const bool outputsHeld = outputsModbusLocked();
+  for (uint8_t i = 0; i < NUM_PWM; i++) {
     uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
-    if (v != prevPwm[i]) {
-      prevPwm[i] = v;
-      pwmChanged = true;
-    }
+    if (v == g_prevHrPwm[i]) continue;
+    if (v > 255) { v = 255; mb.Hreg(HR_PWM_BASE + i, v); }
+    g_prevHrPwm[i] = v;
+    if (outputsHeld) continue;
+    setChannelRequest(i, (uint8_t)v, SRC_MODBUS);  // brightness not auto-persisted
   }
-  if (pwmChanged && !outputsModbusLocked()) {
-    applyPwmFromHoldingRegs();  // brightness not auto-persisted
-  }
+  processModbusHoldingWrites();
 
   if (now - lastBlinkToggle >= blinkPeriodMs) {
     lastBlinkToggle = now;
@@ -1508,6 +2530,9 @@ void loop() {
   processInputActions();
   processButtonActions();
   processOverrideTimeout(now);
+  serviceAutoOff(now);
+  serviceRamp(now);              // stages 5 and 6 of the pipeline
+  serviceCfgTransfer(now);
 
   bool diUiChanged = false;
   for (int i = 0; i < NUM_DI; i++) {
@@ -1565,12 +2590,6 @@ void loop() {
     io["led"] = ledArr;
     WebSerial.send("io", io);
 
-    if (hmUsbCanSend()) {
-      JSONVar ext;
-      for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmLevel[i];
-      ext["tlc_ready"] = tlcReady ? 1 : 0;
-      for (int i = 0; i < 4; i++) ext["tlc_chip"][i] = tlcChipOk[i] ? 1 : 0;
-      WebSerial.send("ext", ext);
-    }
+    sendWebLevels();
   }
 }

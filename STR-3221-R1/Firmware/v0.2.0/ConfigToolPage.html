@@ -13,6 +13,14 @@
     .pwm-ch label{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
     .pwm-ch .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
     .ch-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .prof-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+    .prof-cell select,.prof-cell input{width:100%}
+    .prof-cell select{margin-bottom:4px}
+    .prof-cell label{font-size:11px}
+    .grp-boxes{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:8px}
+    .grp-boxes .check{font-size:11px}
+    @media(max-width:980px){.prof-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grp-boxes{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media(max-width:560px){.prof-grid{grid-template-columns:1fr}.grp-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:980px){.pwm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
     @media(max-width:560px){.pwm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
@@ -33,6 +41,8 @@
         <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
         <div class="pill"><span class="dot warn" id="fsDot"></span>Failsafe: <span id="fsText">—</span></div>
         <div class="pill"><span class="dot warn" id="ovDot"></span>Override: <span id="ovText">—</span></div>
+        <div class="pill"><span class="dot warn" id="pkDot"></span>Panic: <span id="pkText">—</span></div>
+        <div class="pill">Scene: <span id="scText">—</span></div>
         <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
         <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
         <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
@@ -104,6 +114,64 @@
     </div>
   </section>
 
+  <div class="sectiontitle">
+    <h3>Master &amp; panic</h3>
+    <p class="hint">Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row">
+        <div>
+          <label for="master-level">Master level (0–255)</label>
+          <input id="master-level" type="number" min="0" max="255" value="255">
+        </div>
+        <div>
+          <label for="panic-level">Panic level (0–255)</label>
+          <input id="panic-level" type="number" min="0" max="255" value="255">
+        </div>
+      </div>
+      <div class="ch-actions">
+        <button id="btn-panic" type="button" class="btn danger">Panic — hold all channels</button>
+        <button id="btn-panic-clear" type="button" class="btn">Clear panic</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
+    <h3>Channel profiles</h3>
+    <p class="hint">Per channel: how the holding-register value is read, the dimming curve, the output window and the ramp. Order of application is profile → min/max → curve → master level → ramp.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="align-items:flex-end">
+        <div><label for="ch-all-prof">Set all — profile</label><select id="ch-all-prof"></select></div>
+        <div><label for="ch-all-curve">Set all — curve</label><select id="ch-all-curve"></select></div>
+        <div><label for="ch-all-min">Min</label><input id="ch-all-min" type="number" min="0" max="255" value="0"></div>
+        <div><label for="ch-all-max">Max</label><input id="ch-all-max" type="number" min="0" max="255" value="255"></div>
+        <div><label for="ch-all-ramp">Ramp (ms)</label><input id="ch-all-ramp" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="ch-all-aoff">Auto-off (s)</label><input id="ch-all-aoff" type="number" min="0" max="65535" value="0"></div>
+        <div><button type="button" class="btn" id="ch-all-apply">Apply to all channels</button></div>
+      </div>
+      <div id="ch-groups" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
+    <h3>Groups</h3>
+    <p class="hint">Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="grp-list"></div></div>
+  </section>
+
+  <div class="sectiontitle">
+    <h3>Scenes</h3>
+    <p class="hint">Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="scn-list"></div></div>
+  </section>
+
   <div class="sectiontitle"><h3>Bus failsafe</h3></div>
   <section class="card">
     <div class="cardbody">
@@ -152,6 +220,8 @@
   (function(){
     const $ = id => document.getElementById(id);
     const NUM_DI = 3, NUM_BTN = 4, NUM_LED = 2, NUM_PWM = 32;
+    const NUM_GROUPS = 8, NUM_SCENES = 8;
+    const FS_PER_PART = 8;   // matches CFG_FS_PER_PART in the firmware
     const PWM_GROUPS = [
       { title: 'O1–O8 (U9, 0x40)', start: 1 },
       { title: 'O9–O16 (U10, 0x42)', start: 9 },
@@ -162,13 +232,30 @@
     const pwmVals = [];
     const fsActions = new Array(NUM_PWM).fill(0);
     const fsLevels = new Array(NUM_PWM).fill(0);
+    const grpMasks = new Array(NUM_GROUPS).fill(0);
     let pwmSyncLock = false;
     let pwmSendTimer = null;
     let fsSendTimer = null;
-    const cfgHydrated = { in: false, btn: false, led: false, failsafe: false };
+
+    // A card is hydrated only once its own config section has arrived. Until
+    // then its senders refuse to fire, so the page can never write the values
+    // it happens to be showing back into the module.
+    const cfgHydrated = {
+      base: false, inputs: false, buttons: false, leds: false,
+      failsafe: false, channels: false, groups: false, scenes: false,
+    };
 
     const fsActOptsHtml = [{v:0,l:'Hold'},{v:1,l:'OFF'},{v:2,l:'Level'}]
       .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+    const PROFILE_OPTS = [
+      {v:0,l:'LED (curve + window)'},
+      {v:1,l:'Heat (duty 0–100)'},
+      {v:2,l:'Raw (straight to driver)'},
+      {v:3,l:'Indicator (off / max)'},
+    ];
+    const CURVE_OPTS = [{v:0,l:'Linear'},{v:1,l:'Gamma 2.2'},{v:2,l:'CIE 1931'}];
+    const profOptsHtml = PROFILE_OPTS.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+    const curveOptsHtml = CURVE_OPTS.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
 
     function clamp255(v){ return Math.max(0, Math.min(255, Number(v)||0)); }
 
@@ -204,35 +291,48 @@
       pwmSendTimer = setTimeout(sendPwmLevels, 40);
     }
 
-    function loadFailsafeFromCfg(cfg){
-      if (!cfg) return;
-      const bus = cfg.bus || {};
-      const ov = cfg.override || {};
-      if (bus.timeout != null && $('bus-timeout-s')) $('bus-timeout-s').value = String(bus.timeout);
-      if (ov.timeout != null && $('override-timeout-s')) $('override-timeout-s').value = String(ov.timeout);
-      const fs = bus.failsafe || {};
-      const actions = HMWebConfig.toArray(fs.actions);
-      const levels = HMWebConfig.toArray(fs.levels);
-      if (bus.timeout == null && ov.timeout == null && actions.length < 1 && levels.length < 1) return;
-      for (let i = 0; i < NUM_PWM; i++){
-        if (actions.length > 0) fsActions[i] = parseInt(actions[i] ?? 0, 10);
-        if (levels.length > 0) fsLevels[i] = clamp255(levels[i] ?? 0);
+    // Writes leave the page one at a time, spaced apart. The module's serial
+    // line buffer is 256 bytes and it parses one line per main-loop pass, so a
+    // burst of chunks sent back to back would overrun the USB receive FIFO.
+    let txChain = Promise.resolve();
+    function sendConfigQueued(t, list){
+      txChain = txChain
+        .then(() => HMWebConfig.sendConfig(t, list))
+        .then(() => new Promise(resolve => setTimeout(resolve, 40)));
+      return txChain;
+    }
+
+    function loadFailsafeSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      if (cfg.timeout != null && $('bus-timeout-s') && $('bus-timeout-s') !== document.activeElement) {
+        $('bus-timeout-s').value = String(cfg.timeout);
+      }
+      if (cfg.ovTimeout != null && $('override-timeout-s') && $('override-timeout-s') !== document.activeElement) {
+        $('override-timeout-s').value = String(cfg.ovTimeout);
+      }
+      const actions = HMWebConfig.toArray(cfg.a);
+      const levels = HMWebConfig.toArray(cfg.l);
+      for (let k = 0; k < actions.length; k++){
+        const i = base + k;
+        if (i >= NUM_PWM) break;
+        fsActions[i] = parseInt(actions[k] ?? 0, 10);
+        fsLevels[i] = clamp255(levels[k] ?? 0);
         const actEl = $('fs-act-o' + (i + 1));
         const lvlEl = $('fs-lvl-o' + (i + 1));
         if (actEl && actEl !== document.activeElement) actEl.value = String(fsActions[i]);
         if (lvlEl && lvlEl !== document.activeElement) lvlEl.value = String(fsLevels[i]);
       }
-      cfgHydrated.failsafe = true;
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.failsafe = true;
     }
 
     function sendBusTimeout(){
       if (!cfgHydrated.failsafe) return;
-      HMWebConfig.sendConfig('bus.timeout', parseInt($('bus-timeout-s')?.value || '0', 10));
+      sendConfigQueued('bus.timeout', parseInt($('bus-timeout-s')?.value || '0', 10));
     }
 
     function sendOverrideTimeout(){
       if (!cfgHydrated.failsafe) return;
-      HMWebConfig.sendConfig('override.timeout', parseInt($('override-timeout-s')?.value || '0', 10));
+      sendConfigQueued('override.timeout', parseInt($('override-timeout-s')?.value || '0', 10));
     }
 
     function sendFailsafeChannels(){
@@ -241,7 +341,13 @@
         fsActions[i] = parseInt($('fs-act-o' + (i + 1))?.value || '0', 10);
         fsLevels[i] = clamp255($('fs-lvl-o' + (i + 1))?.value);
       }
-      HMWebConfig.sendConfig('bus.failsafe', { actions: fsActions.slice(), levels: fsLevels.slice() });
+      for (let off = 0; off < NUM_PWM; off += FS_PER_PART){
+        sendConfigQueued('bus.failsafe', {
+          o: off,
+          a: fsActions.slice(off, off + FS_PER_PART),
+          l: fsLevels.slice(off, off + FS_PER_PART),
+        });
+      }
     }
 
     function debouncedSendFailsafe(){
@@ -331,8 +437,10 @@
       const c = $('io-inputs');
       if (!c) return;
       const ioNames = ['IO1', 'IO2', 'IO3'];
-      const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}]
+      const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'},{v:3,l:'Recall scene'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const sceneOpts = ['<option value="0">—</option>']
+        .concat(Array.from({length: NUM_SCENES}, (_, k) => `<option value="${k+1}">Scene ${k+1}</option>`)).join('');
       const targetOpts = [{v:4,l:'None'},{v:0,l:'All (reserved)'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       for (let i = 1; i <= NUM_DI; i++){
@@ -348,9 +456,15 @@
             <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
             <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
           </div>
-          <div style="margin-top:10px">
-            <label for="level-in${i}">On level (0–255)</label>
-            <input id="level-in${i}" type="number" min="0" max="255" value="255">
+          <div class="split" style="margin-top:10px">
+            <div>
+              <label for="level-in${i}">On level (0–255)</label>
+              <input id="level-in${i}" type="number" min="0" max="255" value="255">
+            </div>
+            <div>
+              <label for="param-in${i}">Scene (for Recall scene)</label>
+              <select id="param-in${i}">${sceneOpts}</select>
+            </div>
           </div>`;
         c.appendChild(d);
       }
@@ -362,13 +476,19 @@
       const btnActOpts = [
         {v:0,l:'None'},{v:1,l:'All ON'},{v:2,l:'All OFF'},
         {v:3,l:'Ramp test'},{v:4,l:'Clear override'},
+        {v:5,l:'Recall scene'},{v:6,l:'Panic'},{v:7,l:'Clear panic'},
       ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const btnSceneOpts = ['<option value="0">—</option>']
+        .concat(Array.from({length: NUM_SCENES}, (_, k) => `<option value="${k+1}">Scene ${k+1}</option>`)).join('');
       for (let i = 1; i <= NUM_BTN; i++){
         const d = document.createElement('div');
         d.className = 'iocard tint-button';
         d.innerHTML = `
           <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
-          <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>`;
+          <div class="split">
+            <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>
+            <div><label for="param-btn${i}">Scene (for Recall scene)</label><select id="param-btn${i}">${btnSceneOpts}</select></div>
+          </div>`;
         c.appendChild(d);
       }
     })();
@@ -395,6 +515,249 @@
       }
     })();
 
+    function setIfIdle(id, v){
+      const el = $(id);
+      if (el && el !== document.activeElement) el.value = String(v);
+    }
+
+    (function buildChannelProfiles(){
+      const allProf = $('ch-all-prof'), allCurve = $('ch-all-curve');
+      if (allProf) allProf.innerHTML = profOptsHtml;
+      if (allCurve) allCurve.innerHTML = curveOptsHtml;
+      const root = $('ch-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="prof-grid" id="ch-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.prof-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch prof-cell';
+          cell.innerHTML = `
+            <label><span>O${ch}</span></label>
+            <select id="ch-prof-o${ch}">${profOptsHtml}</select>
+            <select id="ch-curve-o${ch}">${curveOptsHtml}</select>
+            <div class="split">
+              <div><label for="ch-min-o${ch}">Min</label><input id="ch-min-o${ch}" type="number" min="0" max="255" value="0"></div>
+              <div><label for="ch-max-o${ch}">Max</label><input id="ch-max-o${ch}" type="number" min="0" max="255" value="255"></div>
+            </div>
+            <div class="split">
+              <div><label for="ch-ramp-o${ch}">Ramp ms</label><input id="ch-ramp-o${ch}" type="number" min="0" max="60000" value="0"></div>
+              <div><label for="ch-aoff-o${ch}">Auto-off s</label><input id="ch-aoff-o${ch}" type="number" min="0" max="65535" value="0"></div>
+            </div>`;
+          grid.appendChild(cell);
+          cell.querySelectorAll('select,input').forEach(el =>
+            el.addEventListener('change', () => sendChannelCfg(ch - 1)));
+        }
+      });
+      $('ch-all-apply')?.addEventListener('click', () => {
+        if (!cfgHydrated.channels) return;
+        const all = {
+          p: parseInt($('ch-all-prof')?.value || '0', 10),
+          c: parseInt($('ch-all-curve')?.value || '0', 10),
+          mn: clamp255($('ch-all-min')?.value),
+          mx: clamp255($('ch-all-max')?.value),
+          r: clampInt($('ch-all-ramp')?.value, 0, 60000),
+          ao: clampInt($('ch-all-aoff')?.value, 0, 65535),
+        };
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          setIfIdle('ch-prof-o' + ch, all.p);
+          setIfIdle('ch-curve-o' + ch, all.c);
+          setIfIdle('ch-min-o' + ch, all.mn);
+          setIfIdle('ch-max-o' + ch, all.mx);
+          setIfIdle('ch-ramp-o' + ch, all.r);
+          setIfIdle('ch-aoff-o' + ch, all.ao);
+        }
+        sendConfigQueued('ch.all', all);
+      });
+    })();
+
+    (function buildGroupsCard(){
+      const root = $('grp-list');
+      if (!root) return;
+      for (let g = 0; g < NUM_GROUPS; g++){
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        let boxes = '';
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          boxes += `<label class="check"><input type="checkbox" id="grp${g}-ch${ch}"> O${ch}</label>`;
+        }
+        wrap.innerHTML = `<h4>Group ${g + 1}</h4><div class="grp-boxes">${boxes}</div>`;
+        root.appendChild(wrap);
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          $(`grp${g}-ch${ch}`)?.addEventListener('change', () => sendGroup(g));
+        }
+      }
+    })();
+
+    (function buildScenesCard(){
+      const root = $('scn-list');
+      if (!root) return;
+      for (let s = 1; s <= NUM_SCENES; s++){
+        const d = document.createElement('div');
+        d.className = 'pwm-group';
+        d.innerHTML = `
+          <h4>Scene ${s} — <span class="val" id="scn-state-${s}">empty</span></h4>
+          <div class="ch-actions">
+            <button type="button" class="btn" id="scn-save-${s}">Save current levels</button>
+            <button type="button" class="btn" id="scn-recall-${s}">Recall</button>
+            <button type="button" class="btn" id="scn-clear-${s}">Clear</button>
+          </div>`;
+        root.appendChild(d);
+        // The scene number travels inside the action string so the write still
+        // passes through the shared compatibility gate.
+        $(`scn-save-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.save.' + s);
+        });
+        $(`scn-recall-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.recall.' + s);
+        });
+        $(`scn-clear-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.clear.' + s);
+        });
+      }
+    })();
+
+    function clampInt(v, lo, hi){
+      const n = parseInt(v || '0', 10);
+      return Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
+    }
+
+    function sendChannelCfg(idx){
+      if (!cfgHydrated.channels) return;
+      const ch = idx + 1;
+      sendConfigQueued('ch.set', {
+        i: idx,
+        p: parseInt($('ch-prof-o' + ch)?.value || '0', 10),
+        c: parseInt($('ch-curve-o' + ch)?.value || '0', 10),
+        mn: clamp255($('ch-min-o' + ch)?.value),
+        mx: clamp255($('ch-max-o' + ch)?.value),
+        r: clampInt($('ch-ramp-o' + ch)?.value, 0, 60000),
+        ao: clampInt($('ch-aoff-o' + ch)?.value, 0, 65535),
+      });
+    }
+
+    function sendGroup(g){
+      if (!cfgHydrated.groups) return;
+      let mask = 0;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        // 2**31 stays positive here; a bitwise shift would wrap to negative.
+        if ($(`grp${g}-ch${ch}`)?.checked) mask += Math.pow(2, ch - 1);
+      }
+      grpMasks[g] = mask;
+      sendConfigQueued('grp.set', { i: g, m: mask });
+    }
+
+    function sendGlobal(){
+      if (!cfgHydrated.base) return;
+      sendConfigQueued('global', {
+        master: clamp255($('master-level')?.value),
+        panic: clamp255($('panic-level')?.value),
+      });
+    }
+
+    function loadBaseSection(cfg){
+      if (cfg.master != null) setIfIdle('master-level', clamp255(cfg.master));
+      if (cfg.panic != null) setIfIdle('panic-level', clamp255(cfg.panic));
+      cfgHydrated.base = true;
+    }
+
+    function loadInputsSection(cfg){
+      const inArr = HMWebConfig.toArray(cfg.in);
+      for (let i = 0; i < NUM_DI; i++){
+        const o = inArr[i];
+        if (!o) continue;
+        if (o.level != null) setIfIdle('level-in' + (i + 1), o.level);
+        if (o.param != null) setIfIdle('param-in' + (i + 1), o.param);
+      }
+      cfgHydrated.inputs = true;
+    }
+
+    function loadButtonsSection(cfg){
+      const arr = HMWebConfig.toArray(cfg.btn);
+      for (let i = 0; i < NUM_BTN; i++){
+        const o = arr[i];
+        if (o && o.param != null) setIfIdle('param-btn' + (i + 1), o.param);
+      }
+      cfgHydrated.buttons = true;
+    }
+
+    function loadChannelsSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      const p = HMWebConfig.toArray(cfg.p), c = HMWebConfig.toArray(cfg.c);
+      const mn = HMWebConfig.toArray(cfg.mn), mx = HMWebConfig.toArray(cfg.mx);
+      const r = HMWebConfig.toArray(cfg.r), ao = HMWebConfig.toArray(cfg.ao);
+      for (let k = 0; k < p.length; k++){
+        const ch = base + k + 1;
+        if (ch > NUM_PWM) break;
+        setIfIdle('ch-prof-o' + ch, p[k] ?? 0);
+        setIfIdle('ch-curve-o' + ch, c[k] ?? 0);
+        setIfIdle('ch-min-o' + ch, mn[k] ?? 0);
+        setIfIdle('ch-max-o' + ch, mx[k] ?? 255);
+        setIfIdle('ch-ramp-o' + ch, r[k] ?? 0);
+        setIfIdle('ch-aoff-o' + ch, ao[k] ?? 0);
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.channels = true;
+    }
+
+    function parseGroupMask(v){
+      if (typeof v === 'number' && Number.isFinite(v)) return v >>> 0;
+      const s = String(v || '0').trim();
+      if (/^0x/i.test(s) || /^[0-9A-Fa-f]{8}$/.test(s)) return (parseInt(s, 16) >>> 0);
+      const n = Number(s);
+      return Number.isFinite(n) ? (n >>> 0) : 0;
+    }
+
+    function loadGroupsSection(cfg){
+      const arr = HMWebConfig.toArray(cfg.grp);
+      for (let g = 0; g < NUM_GROUPS; g++){
+        const mask = parseGroupMask(arr[g]);
+        grpMasks[g] = mask;
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          const el = $(`grp${g}-ch${ch}`);
+          if (el && el !== document.activeElement) {
+            el.checked = Math.floor(mask / Math.pow(2, ch - 1)) % 2 === 1;
+          }
+        }
+      }
+      cfgHydrated.groups = true;
+    }
+
+    function loadScenesSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      const used = HMWebConfig.toArray(cfg.used);
+      const hexes = HMWebConfig.toArray(cfg.scn);
+      for (let k = 0; k < hexes.length; k++){
+        const s = base + k + 1;
+        if (s > NUM_SCENES) break;
+        const el = $('scn-state-' + s);
+        if (!el) continue;
+        if (!used[k]) { el.textContent = 'empty'; continue; }
+        const hex = String(hexes[k] || '');
+        let on = 0;
+        for (let ch = 0; ch < NUM_PWM; ch++){
+          if (parseInt(hex.substr(ch * 2, 2), 16) > 0) on++;
+        }
+        el.textContent = `${on} of ${NUM_PWM} channels on`;
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.scenes = true;
+    }
+
+    // Acknowledge a config section. This is not a write, so it deliberately
+    // bypasses the shared compatibility gate: gating it would stall the
+    // sequence exactly when the identity check is still in flight.
+    function ackSection(cfg){
+      const conn = HMWebConfig.conn;
+      if (!conn || !cfg || !cfg.sec) return;
+      conn.send('command', {
+        action: 'cfgack',
+        sec: String(cfg.sec),
+        part: parseInt(cfg.part ?? 0, 10),
+      }).catch(() => {});
+    }
+
     HMWebConfig.register({
       model: 8,
       modelName: 'STR-3221-R1',
@@ -404,15 +767,20 @@
       channels: { in: NUM_DI, relay: 0, btn: NUM_BTN, led: NUM_LED },
       onCfg: (ext, cfg) => {
         applyPwmFromDevice(ext && ext.pwm);
-        if (HMWebConfig.toArray(cfg?.in).length)  cfgHydrated.in  = true;
-        if (HMWebConfig.toArray(cfg?.btn).length) cfgHydrated.btn = true;
-        if (HMWebConfig.toArray(cfg?.led).length) cfgHydrated.led = true;
-        loadFailsafeFromCfg(cfg);
-        const inArr = HMWebConfig.toArray(cfg?.in);
-        for (let i = 0; i < NUM_DI; i++){
-          const el = $('level-in' + (i + 1));
-          if (el && inArr[i] && inArr[i].level != null) el.value = String(inArr[i].level);
+        const sec = cfg && cfg.sec;
+        if (!sec) return;
+        switch (String(sec)){
+          case 'base':     loadBaseSection(cfg); break;
+          case 'inputs':   loadInputsSection(cfg); break;
+          case 'buttons':  loadButtonsSection(cfg); break;
+          case 'leds':     cfgHydrated.leds = true; break;
+          case 'failsafe': loadFailsafeSection(cfg); break;
+          case 'channels': loadChannelsSection(cfg); break;
+          case 'groups':   loadGroupsSection(cfg); break;
+          case 'scenes':   loadScenesSection(cfg); break;
+          default: break;
         }
+        ackSection(cfg);
       },
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
@@ -431,42 +799,63 @@
         ovDot.className = 'dot ' + (on ? 'warn' : 'ok');
         ovText.textContent = on ? 'Active' : 'Idle';
       }
+      const pkDot = $('pkDot'), pkText = $('pkText');
+      if (st.panic != null && pkDot && pkText){
+        const on = !!st.panic;
+        pkDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        pkText.textContent = on ? 'HELD' : 'Idle';
+      }
+      const scEl = $('scText');
+      if (st.scene != null && scEl) scEl.textContent = st.scene ? ('Scene ' + st.scene) : '—';
     });
+
+    $('master-level')?.addEventListener('change', sendGlobal);
+    $('panic-level')?.addEventListener('change', sendGlobal);
+    $('btn-panic')?.addEventListener('click', () => HMWebConfig.sendCommand('panic'));
+    $('btn-panic-clear')?.addEventListener('click', () => HMWebConfig.sendCommand('panic.clear'));
 
     $('modbus-address')?.addEventListener('input', () =>
       HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
     $('modbus-baud')?.addEventListener('input', () =>
       HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
 
-    function sendInputEnable(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
-    function sendInputInvert(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
-    function sendInputAction(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
-    function sendInputTarget(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); HMWebConfig.sendConfig('in.target', l); }
-    function sendInputLevel(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); HMWebConfig.sendConfig('in.level', l); }
+    function sendInputEnable(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); sendConfigQueued('in.enabled', l); }
+    function sendInputInvert(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); sendConfigQueued('in.invert', l); }
+    function sendInputAction(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); sendConfigQueued('in.action', l); }
+    function sendInputTarget(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); sendConfigQueued('in.target', l); }
+    function sendInputLevel(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); sendConfigQueued('in.level', l); }
+    function sendInputParam(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('param-in'+i).value||'0',10)); sendConfigQueued('in.param', l); }
     for (let i=1;i<=NUM_DI;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
       $('action-in'+i)?.addEventListener('change', sendInputAction);
       $('target-in'+i)?.addEventListener('change', sendInputTarget);
       $('level-in'+i)?.addEventListener('change', sendInputLevel);
+      $('param-in'+i)?.addEventListener('change', sendInputParam);
     }
 
     function sendBtnCfg(){
-      if (!cfgHydrated.btn) return;
+      if (!cfgHydrated.buttons) return;
       const l=[];
-      for (let i=1;i<=NUM_BTN;i++) l.push({ action: parseInt($('action-btn'+i).value||'0',10) });
-      HMWebConfig.sendConfig('btn', l);
+      for (let i=1;i<=NUM_BTN;i++) l.push({
+        action: parseInt($('action-btn'+i).value||'0',10),
+        param: parseInt($('param-btn'+i)?.value||'0',10),
+      });
+      sendConfigQueued('btn', l);
     }
-    for (let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+    for (let i=1;i<=NUM_BTN;i++){
+      $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+      $('param-btn'+i)?.addEventListener('change', sendBtnCfg);
+    }
 
     function sendLedCfg(){
-      if (!cfgHydrated.led) return;
+      if (!cfgHydrated.leds) return;
       const l=[];
       for (let i=1;i<=NUM_LED;i++) l.push({
         mode: parseInt($('mode-led'+i)?.value||'0',10),
         source: parseInt($('source-led'+i)?.value||'0',10),
       });
-      HMWebConfig.sendConfig('led', l);
+      sendConfigQueued('led', l);
     }
     for (let i=1;i<=NUM_LED;i++){
       $('mode-led'+i)?.addEventListener('change', sendLedCfg);

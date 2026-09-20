@@ -15,12 +15,18 @@
 ##
 ## Input Registers (FC=04, read) — contiguous 0..31 (one merged poll per cycle):
 ##   0 DI_MASK · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS
-##      (bit0=tlcReady, bit1=linkOk, bit2=busFailsafe, bit3=cfgDirty, bit4=localOverride)
-##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN · 9 reserved
-##  10..25 OUT readback (O1/O2 per reg, low=odd high=even) · 26..31 reserved
+##      (bit0=tlcReady, bit1=linkOk, bit2=busFailsafe, bit3=cfgDirty,
+##       bit4=localOverride, bit5=panic, bit6=seqRunning 2f, bit7=heatDemand 2g)
+##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN
+##   9 ACTIVE_SCENE (0=none, 1..8=last recalled)
+##  10..25 OUT readback (2 channels per reg, low=even high=odd)
+##  26 SEQ_STATE · 27 SEQ_STEP · 28 HEAT_FLAGS · 29 ZONES_OPEN
+##  30 ZONE_MASK_LO · 31 ZONE_MASK_HI   — declared, published 0 until 2f/2g
 ##
-## Holding (FC=03/06/16): 400..431 O1..O32 brightness — write surface, not polled.
-## Coils 300..302 / 320..322: DI enable/disable pulses (not in this package).
+## Holding (FC=03/06/16): 400..431 O1..O32 · 432 master 0..255 · 436 scene recall
+##   (write 1..8, reads back 0). 433..435 / 437 reserved for 2f/2g — not declared.
+## Coils: 330 save levels · 331 release override · 332 panic · 333 all-off · 334 clear panic.
+##   340..342 / 345 reserved for 2f/2g — not declared.
 ## IR 200..204: firmware identity (not polled).
 ##
 ## Output readback @ IR 10..25 is registered and polled (internal sensors below);
@@ -133,6 +139,12 @@ binary_sensor:
     bitmask: 0x0010
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
+    name: "${str_prefix} Panic"
+    register_type: read
+    address: 3
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
     name: "${str_prefix} TLC chip 1 OK"
     entity_category: diagnostic
     register_type: read
@@ -196,8 +208,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     id: ${str_id}_ir9_block
-    name: "${str_prefix} IR9 block"
-    internal: true
+    name: "${str_prefix} Active scene"
     register_type: read
     address: 9
     accuracy_decimals: 0
@@ -749,6 +760,48 @@ switch:
     address: 331
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_panic
+    register_type: coil
+    address: 332
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_all_off
+    register_type: coil
+    address: 333
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_panic_clear
+    register_type: coil
+    address: 334
+    internal: true
+    assumed_state: true
+
+number:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Master level"
+    address: 432
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    entity_category: config
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Recall scene"
+    address: 436
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 8
+    step: 1
 
 button:
   - platform: template
@@ -761,3 +814,15 @@ button:
     entity_category: config
     on_press:
       - switch.turn_on: ${str_id}_coil_release_override
+  - platform: template
+    name: "${str_prefix} Panic"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_panic
+  - platform: template
+    name: "${str_prefix} Clear panic"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_panic_clear
+  - platform: template
+    name: "${str_prefix} All off"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_all_off

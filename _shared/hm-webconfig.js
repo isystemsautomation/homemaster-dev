@@ -465,39 +465,51 @@
     markDataReceived();
     HMWebConfig._suppressCfgSend = true;
     try {
-      const nIn = HMWebConfig.channels.in || 0;
-      const inArr = toArray(cfg.in);
-      for (let i = 0; i < nIn; i++) {
-        const o = inArr[i] || {};
-        setCheck(`enable-in${i + 1}`, o.enabled);
-        setCheck(`invert-in${i + 1}`, o.invert);
-        setSelect(`action-in${i + 1}`, o.action);
-        setSelect(`target-in${i + 1}`, o.target);
+      // A sectioned cfg dump (STR v0.2.0) delivers one named card per
+      // message. Only hydrate a family when that key is present — otherwise
+      // a later `channels` or `scenes` chunk would write empty defaults
+      // over inputs / buttons / LEDs that already arrived.
+      if (cfg.in != null) {
+        const nIn = HMWebConfig.channels.in || 0;
+        const inArr = toArray(cfg.in);
+        for (let i = 0; i < nIn; i++) {
+          const o = inArr[i] || {};
+          setCheck(`enable-in${i + 1}`, o.enabled);
+          setCheck(`invert-in${i + 1}`, o.invert);
+          setSelect(`action-in${i + 1}`, o.action);
+          setSelect(`target-in${i + 1}`, o.target);
+        }
       }
 
-      const nRly = HMWebConfig.channels.relay || 0;
-      const rlyArr = toArray(cfg.relay);
-      for (let i = 0; i < nRly; i++) {
-        const o = rlyArr[i] || {};
-        setCheck(`enable-relay${i + 1}`, o.enabled);
-        setCheck(`invert-relay${i + 1}`, o.invert);
-        if (o.powerOn != null) setSelect(`powerOn-relay${i + 1}`, o.powerOn);
+      if (cfg.relay != null) {
+        const nRly = HMWebConfig.channels.relay || 0;
+        const rlyArr = toArray(cfg.relay);
+        for (let i = 0; i < nRly; i++) {
+          const o = rlyArr[i] || {};
+          setCheck(`enable-relay${i + 1}`, o.enabled);
+          setCheck(`invert-relay${i + 1}`, o.invert);
+          if (o.powerOn != null) setSelect(`powerOn-relay${i + 1}`, o.powerOn);
+        }
       }
 
-      const nBtn = HMWebConfig.channels.btn || 0;
-      const btnArr = toArray(cfg.btn);
-      for (let i = 0; i < nBtn; i++) {
-        const o = btnArr[i];
-        const act = (o && typeof o === 'object') ? o.action : o;
-        setSelect(`action-btn${i + 1}`, act);
+      if (cfg.btn != null) {
+        const nBtn = HMWebConfig.channels.btn || 0;
+        const btnArr = toArray(cfg.btn);
+        for (let i = 0; i < nBtn; i++) {
+          const o = btnArr[i];
+          const act = (o && typeof o === 'object') ? o.action : o;
+          setSelect(`action-btn${i + 1}`, act);
+        }
       }
 
-      const nLed = HMWebConfig.channels.led || 0;
-      const ledArr = toArray(cfg.led);
-      for (let i = 0; i < nLed; i++) {
-        const o = ledArr[i] || {};
-        setSelect(`mode-led${i + 1}`, o.mode);
-        setSelect(`source-led${i + 1}`, o.source);
+      if (cfg.led != null) {
+        const nLed = HMWebConfig.channels.led || 0;
+        const ledArr = toArray(cfg.led);
+        for (let i = 0; i < nLed; i++) {
+          const o = ledArr[i] || {};
+          setSelect(`mode-led${i + 1}`, o.mode);
+          setSelect(`source-led${i + 1}`, o.source);
+        }
       }
 
       if (typeof HMWebConfig.onCfg === 'function') {
