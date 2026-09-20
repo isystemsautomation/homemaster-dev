@@ -1096,8 +1096,9 @@ void handleCommand(JSONVar obj) {
     i2cScanLog();
     if (!tlcInitAll(true)) wsLog("TLC init still failed after I2C scan");
   } else if (act == "off") {
+    releaseLocalOverrideForWebConfig();
     for (int i = 0; i < NUM_PWM; i++) mb.Hreg(HR_PWM_BASE + i, 0);
-    if (!outputsModbusLocked()) setAllPwmLocal(0);
+    setAllPwmLocal(0);
     wsLog("All output channels set to 0");
   } else {
     wsLog(String("Unknown command: ") + actC);

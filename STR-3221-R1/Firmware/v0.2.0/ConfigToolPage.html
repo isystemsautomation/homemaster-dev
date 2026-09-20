@@ -404,6 +404,9 @@
       channels: { in: NUM_DI, relay: 0, btn: NUM_BTN, led: NUM_LED },
       onCfg: (ext, cfg) => {
         applyPwmFromDevice(ext && ext.pwm);
+        if (HMWebConfig.toArray(cfg?.in).length)  cfgHydrated.in  = true;
+        if (HMWebConfig.toArray(cfg?.btn).length) cfgHydrated.btn = true;
+        if (HMWebConfig.toArray(cfg?.led).length) cfgHydrated.led = true;
         loadFailsafeFromCfg(cfg);
         const inArr = HMWebConfig.toArray(cfg?.in);
         for (let i = 0; i < NUM_DI; i++){
