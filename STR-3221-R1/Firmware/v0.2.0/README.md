@@ -1,6 +1,6 @@
 # STR-3221-R1 Firmware v0.2.0 (beta)
 
-First public release: 32-channel stair LED controller firmware set.
+Beta of the 32-channel stair LED controller firmware set. The first public release was v0.1.0.
 
 | Path | Purpose |
 |------|---------|

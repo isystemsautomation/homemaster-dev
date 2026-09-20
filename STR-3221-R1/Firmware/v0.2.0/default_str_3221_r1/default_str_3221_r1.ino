@@ -61,7 +61,7 @@ struct PersistConfig;
 #define TX2 4
 #define RX2 5
 const int TxenPin = -1;
-int SlaveId = 1;
+int SlaveId = 3;   // constructor seed only — setup() overrides from g_mb_address (canon default 3)
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (STR MCU board) ==================
@@ -402,13 +402,14 @@ static bool tlcFlushChip(uint8_t chipIdx) {
   if (chipIdx >= 4 || !tlcChipOk[chipIdx]) return false;
   const uint8_t addr = tlcAddrActive[chipIdx];
   tlcWire->beginTransmission(addr);
-  tlcWire->write(0xA2);  // AI=101, start at PWM0 — eight bytes auto-increment
+  uint8_t wrote = 0;
+  wrote += (uint8_t)tlcWire->write(0xA2);  // AI=101, start at PWM0 — eight bytes auto-increment
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
     const uint8_t v = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
-    tlcWire->write(v);
+    wrote += (uint8_t)tlcWire->write(v);
   }
-  if (tlcWire->endTransmission() != 0) return false;
+  if (wrote != 9 || tlcWire->endTransmission() != 0) return false;
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
     tlcApplied[idx] = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
@@ -757,8 +758,8 @@ void handleCommand(JSONVar obj) {
     for (int i = 0; i < NUM_PWM; i++) {
       pwmLevel[i] = 0;
       mb.Hreg(HR_PWM_BASE + i, 0);
-      applyPwmChannel(i, 0);
     }
+    applyAllPwmLevels();
     wsLog("All output channels set to 0");
   } else {
     wsLog(String("Unknown command: ") + actC);
@@ -818,8 +819,8 @@ void handleUnifiedConfig(JSONVar obj) {
       uint16_t v = (uint16_t)constrain((int)list[i], 0, 255);
       pwmLevel[i] = v;
       mb.Hreg(HR_PWM_BASE + i, v);
-      applyPwmChannel(i, v);
     }
+    applyAllPwmLevels();
     wsLog("Output levels updated");
     sendWebCfg();  // brightness not auto-persisted
   } else {

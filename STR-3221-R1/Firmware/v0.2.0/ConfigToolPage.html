@@ -228,7 +228,7 @@
     (function buildButtons(){
       const c = $('io-buttons');
       if (!c) return;
-      const btnActOpts = [{v:0,l:'None (v0.1.0)'}]
+      const btnActOpts = [{v:0,l:'None'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       for (let i = 1; i <= NUM_BTN; i++){
         const d = document.createElement('div');
