@@ -13,13 +13,17 @@
 ##             str_id: str_1
 ##             str_address: 3
 ##
-## Modbus map (see default_str_3221_r1.ino):
-##   DI  1..3    IO1..IO3
-##   DI  20..23  BUTTON1..4
-##   DI  90..91  LED1..2
-##   HR  400..431 O1..O32 brightness 0..255
-##   HR  480/481 Modbus address / baud
-##   IR  200..204 firmware identity
+## Input Registers (FC=04, read) — contiguous 0..31 (one merged poll per cycle):
+##   0 DI_MASK · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS (bit0=tlcReady, bit1=linkOk, bit3=cfgDirty)
+##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN · 9 reserved
+##  10..25 OUT readback (O1/O2 per reg, low=odd high=even) · 26..31 reserved
+##
+## Holding (FC=03/06/16): 400..431 O1..O32 brightness — write surface, not polled.
+## Coils 300..302 / 320..322: DI enable/disable pulses (not in this package).
+## IR 200..204: firmware identity (not polled).
+##
+## Output readback @ IR 10..25 is registered in firmware but not exposed here —
+## lights stay on HR 400..431 writes until step 2b state echo is designed.
 
 substitutions:
   str_id: str
@@ -39,48 +43,323 @@ binary_sensor:
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} IO1"
-    address: 1
-    register_type: discrete_input
+    register_type: read
+    address: 0
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} IO2"
-    address: 2
-    register_type: discrete_input
+    register_type: read
+    address: 0
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} IO3"
-    address: 3
-    register_type: discrete_input
+    register_type: read
+    address: 0
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Button1"
-    address: 20
-    register_type: discrete_input
+    register_type: read
+    address: 1
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Button2"
-    address: 21
-    register_type: discrete_input
+    register_type: read
+    address: 1
+    bitmask: 0x0002
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Button3"
-    address: 22
-    register_type: discrete_input
+    register_type: read
+    address: 1
+    bitmask: 0x0004
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Button4"
-    address: 23
-    register_type: discrete_input
+    register_type: read
+    address: 1
+    bitmask: 0x0008
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Status LED1"
-    address: 90
-    register_type: discrete_input
+    register_type: read
+    address: 2
+    bitmask: 0x0001
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Status LED2"
-    address: 91
-    register_type: discrete_input
+    register_type: read
+    address: 2
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC ready"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Link OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Config dirty"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 1 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 2 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 3 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 4 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} I2C error count"
+    entity_category: diagnostic
+    register_type: read
+    address: 5
+    accuracy_decimals: 0
+    unit_of_measurement: "errors"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Reset reason"
+    entity_category: diagnostic
+    register_type: read
+    address: 6
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Link age"
+    entity_category: diagnostic
+    register_type: read
+    address: 7
+    accuracy_decimals: 0
+    unit_of_measurement: "s"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Uptime"
+    entity_category: diagnostic
+    register_type: read
+    address: 8
+    accuracy_decimals: 0
+    unit_of_measurement: "min"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir9_block
+    name: "${str_prefix} IR9 block"
+    internal: true
+    register_type: read
+    address: 9
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir10_block
+    name: "${str_prefix} IR10 block"
+    internal: true
+    register_type: read
+    address: 10
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir11_block
+    name: "${str_prefix} IR11 block"
+    internal: true
+    register_type: read
+    address: 11
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir12_block
+    name: "${str_prefix} IR12 block"
+    internal: true
+    register_type: read
+    address: 12
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir13_block
+    name: "${str_prefix} IR13 block"
+    internal: true
+    register_type: read
+    address: 13
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir14_block
+    name: "${str_prefix} IR14 block"
+    internal: true
+    register_type: read
+    address: 14
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir15_block
+    name: "${str_prefix} IR15 block"
+    internal: true
+    register_type: read
+    address: 15
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir16_block
+    name: "${str_prefix} IR16 block"
+    internal: true
+    register_type: read
+    address: 16
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir17_block
+    name: "${str_prefix} IR17 block"
+    internal: true
+    register_type: read
+    address: 17
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir18_block
+    name: "${str_prefix} IR18 block"
+    internal: true
+    register_type: read
+    address: 18
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir19_block
+    name: "${str_prefix} IR19 block"
+    internal: true
+    register_type: read
+    address: 19
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir20_block
+    name: "${str_prefix} IR20 block"
+    internal: true
+    register_type: read
+    address: 20
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir21_block
+    name: "${str_prefix} IR21 block"
+    internal: true
+    register_type: read
+    address: 21
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir22_block
+    name: "${str_prefix} IR22 block"
+    internal: true
+    register_type: read
+    address: 22
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir23_block
+    name: "${str_prefix} IR23 block"
+    internal: true
+    register_type: read
+    address: 23
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir24_block
+    name: "${str_prefix} IR24 block"
+    internal: true
+    register_type: read
+    address: 24
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir25_block
+    name: "${str_prefix} IR25 block"
+    internal: true
+    register_type: read
+    address: 25
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir26_block
+    name: "${str_prefix} IR26 block"
+    internal: true
+    register_type: read
+    address: 26
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir27_block
+    name: "${str_prefix} IR27 block"
+    internal: true
+    register_type: read
+    address: 27
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir28_block
+    name: "${str_prefix} IR28 block"
+    internal: true
+    register_type: read
+    address: 28
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir29_block
+    name: "${str_prefix} IR29 block"
+    internal: true
+    register_type: read
+    address: 29
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir30_block
+    name: "${str_prefix} IR30 block"
+    internal: true
+    register_type: read
+    address: 30
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir31_block
+    name: "${str_prefix} IR31 block"
+    internal: true
+    register_type: read
+    address: 31
+    accuracy_decimals: 0
 
 output:
   - platform: modbus_controller

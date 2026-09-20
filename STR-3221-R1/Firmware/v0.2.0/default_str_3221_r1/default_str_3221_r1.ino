@@ -3,20 +3,29 @@
  *
  * Modbus RTU map (register numbers = Modbus address in this library)
  * -------------------------------------------------------------------
- * Discrete inputs (FC=02):
- *   1..3     IO1..IO3 logical state (after enable + invert)
- *   20..23   BUTTON1..BUTTON4 pressed (1=pressed)
- *   90..91   LED1..LED2 logical state
+ * Input registers (FC=04) — contiguous runtime block 0..31 (one merged poll):
+ *   0  IREG_DI_MASK       bit0..2 IO1..IO3 (logical, after enable + invert)
+ *   1  IREG_BTN_MASK      bit0..3 BUTTON1..4 pressed
+ *   2  IREG_LED_MASK      bit0..1 status LED1..2 physical state
+ *   3  IREG_STATUS_FLAGS  bit0=tlcReady, bit1=linkOk, bit3=cfgDirty (bit2 reserved)
+ *   4  IREG_TLC_MASK      bit0..3 TLC59208F chip OK U9..U12
+ *   5  IREG_I2C_ERRORS    failed TLC transaction count (saturating)
+ *   6  IREG_RESET_REASON  RP2350 reset cause (0=unknown/POR, 1=watchdog)
+ *   7  IREG_LINK_AGE_S    seconds since last frame to this slave (saturating)
+ *   8  IREG_UPTIME_MIN    minutes since boot (saturating)
+ *   9  reserved (0)
+ *  10..25 IREG_OUT_BASE   O1..O32 level readback — low byte odd, high byte even
+ *  26..31 reserved (0) — sequencer / heating (later steps)
  *
  * Command coils (FC=05/15, auto-clear pulse):
  *   300..302  pulse ENABLE  IO1..IO3
  *   320..322  pulse DISABLE IO1..IO3
  *
- * Holding registers (FC=03/06/16):
+ * Holding registers (FC=03/06/16) — config / write surface; not polled:
  *   400..431  O1..O32 brightness 0..255 (TLC59208F PWM)
  *   480       Modbus slave address (R/W)
- *   481       Modbus baud rate (R/W, whitelist 9600..115200; хранится сырым значением,
- *             115200 не представим в uint16 -> читается как 0, ставится только через WebConfig)
+ *   481       Modbus baud rate (R/W, whitelist 9600..115200; stored raw,
+ *             115200 not representable in uint16 → reads as 0, set via WebConfig)
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
@@ -112,6 +121,11 @@ static bool    tlcChipOk[4] = {false, false, false, false};
 static bool    tlcReady = false;
 static uint32_t tlcNextRetryMs = 0;
 static const uint32_t TLC_RETRY_MS = 5000;
+static uint16_t g_i2cErrorCount = 0;
+static uint16_t g_bootResetReason = 0;
+static uint32_t g_bootMs = 0;
+static uint16_t iregCache[32];
+static const uint16_t IREG_BLOCK_COUNT = 32;
 
 // ================== Config & runtime ==================
 struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; };
@@ -177,11 +191,21 @@ volatile bool   cfgDirty        = false;
 uint32_t        lastCfgTouchMs  = 0;
 const uint32_t  CFG_AUTOSAVE_MS = 1500;
 
-// ================== Modbus addresses ==================
+// ================== Modbus map ==================
 enum : uint16_t {
-  ISTS_DI_BASE  = 1,
-  ISTS_BTN_BASE = 20,
-  ISTS_LED_BASE = 90,
+  IREG_DI_MASK       = 0,
+  IREG_BTN_MASK      = 1,
+  IREG_LED_MASK      = 2,
+  IREG_STATUS_FLAGS  = 3,
+  IREG_TLC_MASK      = 4,
+  IREG_I2C_ERRORS    = 5,
+  IREG_RESET_REASON  = 6,
+  IREG_LINK_AGE_S    = 7,
+  IREG_UPTIME_MIN    = 8,
+  IREG_RESERVED_9    = 9,
+  IREG_OUT_BASE      = 10,
+  IREG_RESERVED_26   = 26,
+
   CMD_DI_EN_BASE  = 300,
   CMD_DI_DIS_BASE = 320,
   HR_PWM_BASE = 400,
@@ -244,11 +268,17 @@ static void tlcSoftwareReset() {
   delay(2);
 }
 
+static void tlcNoteI2cFailure() {
+  if (g_i2cErrorCount < 65535) g_i2cErrorCount++;
+}
+
 static bool tlcWriteReg(uint8_t addr, uint8_t reg, uint8_t val) {
   tlcWire->beginTransmission(addr);
   tlcWire->write(reg);
   tlcWire->write(val);
-  return tlcWire->endTransmission() == 0;
+  const bool ok = (tlcWire->endTransmission() == 0);
+  if (!ok) tlcNoteI2cFailure();
+  return ok;
 }
 
 static bool tlcReadReg(uint8_t addr, uint8_t reg, uint8_t* val) {
@@ -409,7 +439,10 @@ static bool tlcFlushChip(uint8_t chipIdx) {
     const uint8_t v = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
     wrote += (uint8_t)tlcWire->write(v);
   }
-  if (wrote != 9 || tlcWire->endTransmission() != 0) return false;
+  if (wrote != 9 || tlcWire->endTransmission() != 0) {
+    tlcNoteI2cFailure();
+    return false;
+  }
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
     tlcApplied[idx] = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
@@ -879,6 +912,88 @@ static inline bool linkOkNow(uint32_t now) {
   return ((uint32_t)(now - g_lastLinkSeenMs) < (uint32_t)g_linkTimeoutMs);
 }
 
+static inline void setIregIfChanged(uint16_t addr, uint16_t val) {
+  if (addr >= IREG_BLOCK_COUNT) return;
+  if (iregCache[addr] == val) return;
+  iregCache[addr] = val;
+  mb.setIreg(addr, val);
+}
+
+static void updateInputRegisters(uint32_t now) {
+  uint16_t diMask = 0, btnMask = 0, ledMask = 0, tlcMask = 0;
+
+  for (int i = 0; i < NUM_DI; i++) {
+    const bool logical = diCfg[i].enabled ? diLiveState(i) : false;
+    if (logical) diMask |= (uint16_t)(1u << i);
+  }
+  for (int i = 0; i < NUM_BTN; i++) {
+    if (buttonState[i]) btnMask |= (uint16_t)(1u << i);
+  }
+  for (int i = 0; i < NUM_LED; i++) {
+    const bool on = (digitalRead(LED_PINS[i]) == HIGH);
+    if (on) ledMask |= (uint16_t)(1u << i);
+  }
+  for (int i = 0; i < 4; i++) {
+    if (tlcChipOk[i]) tlcMask |= (uint16_t)(1u << i);
+  }
+
+  uint16_t status = 0;
+  if (tlcReady) status |= (1u << 0);
+  if (linkOkNow(now)) status |= (1u << 1);
+  if (cfgDirty) status |= (1u << 3);
+
+  const uint32_t linkAgeMs = now - g_lastLinkSeenMs;
+  uint16_t linkAgeS = (linkAgeMs >= 65535000UL) ? 65535 : (uint16_t)(linkAgeMs / 1000UL);
+  const uint32_t upMs = now - g_bootMs;
+  uint16_t upMin = (upMs >= 3932100000UL) ? 65535 : (uint16_t)(upMs / 60000UL);
+
+  setIregIfChanged(IREG_DI_MASK, diMask);
+  setIregIfChanged(IREG_BTN_MASK, btnMask);
+  setIregIfChanged(IREG_LED_MASK, ledMask);
+  setIregIfChanged(IREG_STATUS_FLAGS, status);
+  setIregIfChanged(IREG_TLC_MASK, tlcMask);
+  setIregIfChanged(IREG_I2C_ERRORS, g_i2cErrorCount);
+  setIregIfChanged(IREG_RESET_REASON, g_bootResetReason);
+  setIregIfChanged(IREG_LINK_AGE_S, linkAgeS);
+  setIregIfChanged(IREG_UPTIME_MIN, upMin);
+  setIregIfChanged(IREG_RESERVED_9, 0);
+
+  for (uint16_t reg = IREG_OUT_BASE; reg < IREG_OUT_BASE + 16; reg++) {
+    const uint8_t base = (uint8_t)((reg - IREG_OUT_BASE) * 2);
+    const uint8_t lo = (uint8_t)constrain((int)pwmLevel[base], 0, 255);
+    const uint8_t hi = (base + 1 < NUM_PWM)
+      ? (uint8_t)constrain((int)pwmLevel[base + 1], 0, 255) : 0;
+    setIregIfChanged(reg, (uint16_t)((hi << 8) | lo));
+  }
+
+  for (uint16_t reg = IREG_RESERVED_26; reg < IREG_BLOCK_COUNT; reg++) {
+    setIregIfChanged(reg, 0);
+  }
+}
+
+static void buildModbusMap() {
+  for (uint16_t i = 0; i < IREG_BLOCK_COUNT; i++) {
+    mb.addIreg(i);
+    mb.setIreg(i, 0);
+    iregCache[i] = 0xFFFF;
+  }
+  for (uint16_t i = 0; i < NUM_DI; i++) {
+    mb.addCoil(CMD_DI_EN_BASE + i);
+    mb.setCoil(CMD_DI_EN_BASE + i, false);
+    mb.addCoil(CMD_DI_DIS_BASE + i);
+    mb.setCoil(CMD_DI_DIS_BASE + i, false);
+  }
+  for (uint16_t i = 0; i < NUM_PWM; i++) {
+    mb.addHreg(HR_PWM_BASE + i);
+    mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
+  }
+  mb.addHreg(HR_MB_ADDR);
+  mb.Hreg(HR_MB_ADDR, g_mb_address);
+  mb.addHreg(HR_MB_BAUD);
+  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
+  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+}
+
 void sendWebStatus() {
   JSONVar st;
   st["model"] = HM_MODEL_ID;
@@ -934,6 +1049,9 @@ void setup() {
   setDefaults();
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
 
+  g_bootMs = millis();
+  g_bootResetReason = watchdog_caused_reboot() ? 1 : 0;
+
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);
   Serial2.begin(g_mb_baud);
@@ -941,26 +1059,9 @@ void setup() {
   setSlaveIdIfAvailable(mb, g_mb_address);
   mb.setAdditionalServerData("STR3221-32CH");
 
-  for (uint16_t i = 0; i < NUM_DI; i++) mb.addIsts(ISTS_DI_BASE + i);
-  for (uint16_t i = 0; i < NUM_BTN; i++) mb.addIsts(ISTS_BTN_BASE + i);
-  for (uint16_t i = 0; i < NUM_LED; i++) mb.addIsts(ISTS_LED_BASE + i);
-  for (uint16_t i = 0; i < NUM_DI; i++) {
-    mb.addCoil(CMD_DI_EN_BASE + i);
-    mb.setCoil(CMD_DI_EN_BASE + i, false);
-    mb.addCoil(CMD_DI_DIS_BASE + i);
-    mb.setCoil(CMD_DI_DIS_BASE + i, false);
-  }
-  for (uint16_t i = 0; i < NUM_PWM; i++) {
-    mb.addHreg(HR_PWM_BASE + i);
-    mb.Hreg(HR_PWM_BASE + i, pwmLevel[i]);
-  }
-  mb.addHreg(HR_MB_ADDR);
-  mb.Hreg(HR_MB_ADDR, g_mb_address);
-  mb.addHreg(HR_MB_BAUD);
-  mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
-
-  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+  buildModbusMap();
   g_lastLinkSeenMs = millis();
+  updateInputRegisters(g_lastLinkSeenMs);
 
   wsLog("Boot OK");
   sendWebBootstrap();
@@ -1030,7 +1131,6 @@ void loop() {
       : (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i] = buttonState[i];
     buttonState[i] = pressed;
-    mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
   static int8_t prevIoIn[NUM_DI];
@@ -1045,7 +1145,6 @@ void loop() {
     const bool logical = diCfg[m].enabled ? val : false;
     diPrev[m] = diState[m];
     diState[m] = logical;
-    mb.setIsts(ISTS_DI_BASE + m, logical);
   }
 
   bool diUiChanged = false;
@@ -1082,8 +1181,9 @@ void loop() {
     }
     ledStates[i] = phys ? 1 : 0;
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
-    mb.setIsts(ISTS_LED_BASE + i, phys);
   }
+
+  updateInputRegisters(now);
 
   if (diUiChanged || (millis() - lastSend >= sendInterval)) {
     lastSend = millis();
