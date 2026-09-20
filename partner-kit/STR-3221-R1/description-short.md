@@ -1,1 +1,1 @@
-HomeMaster® STR-3221-R1 drives up to thirty-two low-side LED channels for stair and corridor lighting from one Modbus RS-485 slave. Progressive step lighting, presence inputs and ambient sensor support. USB-C WebConfig. CE marked. Module datasheet, EU DoC and open hardware supplied.
+HomeMaster® STR-3221-R1 drives up to thirty-two low-side LED channels for stair and corridor lighting from one Modbus RS-485 slave. Independently dimmable channels, presence inputs and ambient sensor support. USB-C WebConfig. CE marked. Module datasheet, EU DoC and open hardware supplied.

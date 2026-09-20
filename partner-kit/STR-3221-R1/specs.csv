@@ -7,17 +7,17 @@ Main Logic Supply,"AP64501 buck regulator 24 V &rarr; 5 V, AMS1117-3.3 LDO regul
 Outputs,"32 &times; low-side AO4882 dual N-MOSFET channels, 1.5 A max per channel, 18 A module total; gate RC + ferrite per channel"
 Output Voltage,External 12-24 V DC LED supply (shared + group rails)
 Maximum Total Output Current,18 A module path limit at 24 V DC (DB128L-5.08 field terminals); 1.5 A per channel
-LED Driver ICs,4 &times; TLC59208F (8-channel constant-current sinks) for status / indication and grouping
-Digital Inputs,"1 &times; IEC 61131-2 compliant 24 V DC discrete input (DI + GND) plus 2 &times; presence-sensor inputs (IN1, IN2 with GND); ISO1212 front-end; PTC fuses, TVS surge suppression"
-Sensor Rails (SENS.A / SENS.B),"2 fused 24 V auxiliary rails for external sensors (low current, ~200 mA total)"
-User Interface,"4 buttons (SW1-SW4), 4 user-assignable status LEDs plus power / RX / TX indicators"
+PWM Driver ICs,"4 &times; TLC59208F (8 channels each, U9-U12) generating the level for all 32 main outputs"
+Digital Inputs,"1 &times; IEC 61131-2 compliant 24 V DC discrete input (DI + GND), galvanically isolated ISO1212 front-end, plus 2 &times; presence-sensor inputs (IN1, IN2 with GND) opto-isolated via SFH6156 (5.3 kV); PTC fuses, TVS surge suppression"
+Sensor Rails (SENS.A / SENS.B),2 fused +5 V auxiliary rails (PTC F9 / F10) for low-current presence sensors; sensor power only
+Isolation,Digital input and presence inputs are galvanically isolated; outputs O1-O32 and the RS-485 port are not isolated
+User Interface,"4 buttons (SW1-SW4, state published on Modbus), 2 user-assignable status LEDs plus power / RX / TX indicators"
 Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
 USB,"USB-C, 5 V logic, ESD protected (WebConfig only - not for powering field devices)"
 Typical Power Consumption,"0.2-0.5 W (logic only, no LED load)"
-Modbus Address Range,1-247 (default: 21)
-Modbus Baud Rate,"9600-115200 (default: 115200, 8N1)"
+Modbus Address Range,1-247 (default: 3)
+Modbus Baud Rate,"9600-115200 (default: 19200, 8N1)"
+Sequencing,Performed by the Modbus master (MiniPLC / MicroPLC or any compliant master); the module has no on-board sequencer or scene table
 Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
 Environmental Ratings,Operating temperature 0 &deg;C to +40 &deg;C
 Mechanical &amp; Packaging,Mounting 35 mm DIN rail (EN 50022)
-File Description Link Field board schematic,STR-3221-R1 field I/O / power stage STR-3221-R1-FieldBoard.pdf
-MCU board schematic,STR-3221-R1 controller / MCU board STR-3221-R1-MCUBoard.pdf

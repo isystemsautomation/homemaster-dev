@@ -1,31 +1,6 @@
-**Firmware Version:** v0.1.0
-
 ![Firmware Version](https://img.shields.io/badge/Firmware-v0.1.0-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
-
-## Quick Start (current version)
-
-**Firmware v0.1.0** — ESPHome package:
-
-```yaml
-packages:
-  str1:
-    url: https://github.com/isystemsautomation/homemaster-dev
-    ref: main
-    files:
-      - path: STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
-        vars:
-          str_prefix: "STR#1"
-          str_id: str_1
-          str_address: 3
-```
-
-## Version History
-
-| Version | Config path (`path:`) | Date | Changes |
-|--------|------------------------|------|-----------|
-| **v0.1.0** | `STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-07-05 | First release — 32ch TLC59208F, unified WebConfig |
 
 # STR-3221-R1 — Module for Smart Lighting & I/O Control
 
@@ -33,59 +8,214 @@ packages:
 
 ![Image](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/photo1.png)
 
+**Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
-# 1. Introduction
+---
 
-## 1.1 Overview of the STR-3221-R1
+## 1. Overview
 
-The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for staircase and architectural lighting, with **motion-triggered animations**, **2 presence-sensor inputs**, one 24 V discrete input, and local buttons. WebConfig over USB-C sets address and behaviour; MiniPLC/MicroPLC (or any Modbus master) supervise it over RS-485.
+The **STR-3221-R1** is a **32-channel** low-side MOSFET output module for stair, architectural and
+accent lighting, and for underfloor-heating actuators. Each of the thirty-two channels is
+independently dimmable **0–255** over Modbus. It mounts on a **35 mm DIN rail** and connects to a
+**MiniPLC/MicroPLC** (or any Modbus RTU master) over **RS-485**, with Home Assistant integration
+via ESPHome packages.
 
-**One-line purpose:** a high-density stair/architectural lighting node with presence-driven sequences and local-first operation.
+**Key capabilities at a glance:**
 
-> **Status:** in production and shipping. Firmware **v0.1.0**, Modbus map and ESPHome package are released — see [§6](#6-modbus-rtu-communication) and [§7](#7-esphome-integration-guide).
+- **32 independently dimmable low-side MOSFET channels** (**AO4882**) — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; grouped in fours, each group with its own **+** rail
+- **3 digital inputs** — **1 × IEC 61131-2 module-wetted 24 V discrete input** (**ISO1212**, galvanically isolated) and **2 × opto-isolated presence-sensor inputs** (**SFH6156**, 5.3 kV isolation)
+- **2 fused +5 V sensor rails (SENS.A / SENS.B)** — supply for low-current PIR / presence sensors
+- **4 buttons** — their pressed state is published on Modbus; they also form the on-board key combinations for USB firmware update (BOOT) and reset
+- **2 configurable status LEDs** — Steady/Blink, source selectable in WebConfig
+- **Driverless WebConfig** — USB-C + any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). No app or login required.
+- **Persistent settings** — configuration stored in LittleFS flash and restored on boot
+
+### Where the logic runs
+
+This module is an **output module with reporting inputs**. It executes what it is told: a channel
+holds the level last written to it, and the three inputs and four buttons are published on Modbus
+for a controller to read.
+
+Sequencing — stair animations, timed fades, scenes, direction of travel — is performed by the
+**MiniPLC/MicroPLC or any Modbus master**, not on the module. The module has no sequencer, no
+scene table and no timer. If the bus stops, the outputs hold their last commanded level until a
+new command arrives or the module is power-cycled.
 
 ## Key advantages
 
-- **32-channel** low-side MOSFET LED controller with motion-triggered staircase animations and **2 presence inputs** — a focused product for stair and architectural lighting.
+- **32 dimmable channels in one 9-module DIN package**, with 3 inputs and 4 buttons published on Modbus — a focused product for stair, architectural and zone-actuator control.
 - Native ESPHome API via the MiniPLC/MicroPLC controller — no MQTT broker, no manual Modbus register mapping for the package entities.
-- Local-first / edge-resilient — onboard logic keeps working if the network or Home Assistant is down.
+- Every channel is a **dimmable light** in Home Assistant, not an on/off switch.
 - Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — repairable, reproducible, no vendor lock-in.
 - Standard **RS-485 Modbus RTU** — works with any Modbus master or industrial HMI/SCADA system, not locked to HomeMaster.
 - Driverless **USB-C WebConfig** (Chrome, Edge, Opera); configuration persists in on-device flash (**LittleFS**).
 
 ---
 
-## 1.2 Features & Architecture
+## 2. Features
 
-| Subsystem         | Qty | Description |
+| Subsystem | Qty | Description |
 |------------------:|----:|-------------|
-| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** U17/U18) |
-| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped in fours, each group with its own **+** rail (nine groups). |
-| **LED Driver ICs** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM channel drivers to FieldBoard output stages. |
-| **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
+| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped in fours, each group with its own **+** rail (nine groups). Independently dimmable 0–255. |
+| **PWM Drivers** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM drivers, **8 channels each**, generating the level for all **32 main outputs** via the FieldBoard output stages. |
+| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**, galvanically isolated) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** U17/U18, 5.3 kV) |
+| **Buttons** | 4 | SW1–SW4. Pressed state published on discrete inputs 20–23; also used for the BOOT and reset key combinations. |
 | **Status LEDs** | 2 | On-board indicators (GPIO9 / GPIO8), user-assignable steady or blink; mirrored on discrete inputs 90–91. |
-| **Modbus RTU** | Yes | RS-485 via **MAX485** transceiver; activity LEDs. |
+| **Sensor Rails** | 2 | Fused **+5 V** SENS.A / SENS.B rails (**F9**/**F10** PTC) for presence-sensor power only. |
+| **Modbus RTU** | Yes | RS-485 via **MAX485** transceiver, **not** galvanically isolated; activity LEDs. |
 | **USB-C** | Yes | **WebConfig over Web Serial** (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); ESD-protected port. |
 | **Power** | 24 VDC | Reverse/surge-protected input; **AP64501** buck → **5 V**, **AMS1117-3.3** LDO → **3.3 V** logic. |
 | **MCU** | RP2350 + **W25Q32** | Dual-core MCU with external QSPI flash for firmware/config. |
 | **Protection** | TVS, PTC | Surge/ESD and resettable fuses across field & comms lines. |
 
+### Applications
+
+- Stair and walkway lighting, one channel per step, sequenced by the controller
+- Architectural, cove and accent lighting with per-channel dimming
+- Underfloor-heating manifolds — up to 32 zones of 24 V DC thermoelectric actuators
+- Cabinet, shelf and display lighting split into many small zones
+- Any installation needing a high channel count of dimmable low-side DC outputs on one DIN module
+
+#### Example — stair lighting driven by motion sensors
+
+The sequence runs on the controller; the module supplies the inputs and drives the steps.
+
+1. Connect motion sensors to **IN1 (bottom)** and **IN2 (top)** terminals, powered from **SENS.A** / **SENS.B**.
+2. Connect each stair LED segment to outputs **O1–O32** (low-side switching).
+3. Set the module's **Modbus address** (and related options) in **WebConfig**.
+4. Program the MicroPLC/MiniPLC to poll **IN1/IN2** and write the **O1…O32** levels in a timed sequence. Which sensor fired first tells the controller the direction of travel.
+
 ---
 
-## 1.3 System Role & Communication
+## 3. Specifications
 
-- **Connection to RS-485 bus:** wire controller **A/B/COM** to the module’s **A/B/COM** terminals (daisy-chain friendly, terminate the ends).  
-- **Operating mode:** **Modbus RTU slave**; can run simple local patterns/tests from buttons, while a PLC/SCADA/HA supervises over Modbus.  
-- **Polling:** Controller reads **DI**, **IN1**, and **IN2** state and writes/reads **O1…O32**; optional mirrors for LEDs/buttons.  
-- **Factory defaults (changeable in WebConfig):**
-  - **Address:** `3`
-  - **Baud:** `19200` (8N1)
+### 3.1 I/O summary
+
+| Interface | Qty | Description |
+|-----------:|----:|-------------|
+| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
+| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped in fours, each group with its own **+** rail (nine groups); PWM from MCU-board **TLC59208F** drivers. |
+| **Buttons** | 4 | SW1–SW4; pressed state published on Modbus. |
+| **Status LEDs** | 2 | On-board indicators, assignable to a logic state; steady or blink. |
+| **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
+| **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
+| **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
+| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused **+5 V** auxiliary rails (**F9**/**F10** **1206L150THWR** PTC) for presence-sensor power only. |
+
+### 3.2 Electrical ratings
+
+| Parameter | Min | Typ | Max | Unit | Notes |
+|------------|----:|----:|----:|------|-------|
+| **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
+| **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
+| **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
+| **Full-Load Current (all outputs)** | — | — | 18 | A | **Output** path limit (DB128L green/orange terminals). Per channel ≤1.5 A (BLM). LED PS **input** path ≤20 A (grey terminals; choke 24 A). |
+| **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
+| **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
+| **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** PTC (**1206L150THWR**). For sensor power only. |
+| **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1.5 A** per channel; **≤18 A** module total. |
+| **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
+| **Communication** | — | — | — | — | RS-485 (**MAX485**); 9600, 19200, 38400, 57600 or 115200 bps. |
+| **Input Front-Ends** | — | — | — | — | **DI:** **ISO1212** (module-wetted 24 V, galvanically isolated). **IN1/IN2:** **SFH6156** opto-isolated presence inputs, 5.3 kV. |
+
+> ⚙️ **Design domains:**
+> - Field side: 24 VDC (DI, outputs); **+5 V** fused SENS.A / SENS.B for presence sensors.
+> - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.
+> - Communication side: RS-485 transient protection (TVS + PTC) — **not galvanically isolated**; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+
+### 3.3 Mechanical & environmental
+
+| Parameter | Value |
+|---|---|
+| Mounting | 35 mm DIN rail (EN 50022) |
+| DIN width | 9 modules (9 × 17.5 mm) |
+| Terminals | Pluggable screw terminal blocks, 5.08 mm pitch; 0.25–1.5 mm² conductors |
+| Operating temperature | 0 … +40 °C |
+| Humidity | 95 % RH non-condensing |
+| Ingress protection | IP20 — mount inside an enclosure |
+
+### 3.4 Communication defaults
+
+| Item | Value |
+|---|---|
+| Terminal order on this module | **COM (5) – B (6) – A (7)** — read the silkscreen, the order differs across the HomeMaster range |
+| Factory default address | `3` |
+| Factory default baud | `19200`, 8N1 |
+| Supported baud rates | 9600, 19200, 38400, 57600, 115200 |
+| Address range | 1–247 |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+A module straight out of the box answers at address **3**, **19200 baud** — set a unique address
+before putting a second module on the same bus. Address and baud are set in **WebConfig** over
+USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the caveat on HR 481 in
+[§7.4](#74-holding-registers--fc-03--06--16-readwrite).
+
+### 3.5 Reliability & protection
+
+| Area | Provision |
+|---|---|
+| Digital input **DI** | Galvanic isolation (**ISO1212**); PTC fuse (**F6**/**F7**, **1206L016**), TVS, reverse protection |
+| Presence inputs **IN1/IN2** | Opto-isolation (**SFH6156**, 5.3 kV); **SMAJ6.8CA** TVS clamps |
+| Sensor rails | Resettable PTC per rail (**F9**/**F10**) |
+| Outputs **O1…O32** | Gate RC + ferrite per channel (**BLM31PG601SN1L**); **not** isolated from logic ground |
+| Power input | Reverse-polarity protection, TVS surge suppression, EMI filtering, time-lag fuse |
+| RS-485 | TVS, PTC, common-mode choke, fail-safe biasing — transient protection, **not** isolation |
+| Configuration | Stored in LittleFS with a CRC; survives power loss |
+| Watchdog | 4 s hardware watchdog; the module reboots itself if the main loop stalls |
+| TLC59208F recovery | If the I²C drivers do not answer at boot the module retries every 5 s, with a full bus scan every 30 s, and reports status over WebConfig |
+
+#### What is isolated and what is not
+
+| Interface | Isolated? |
+|---|---|
+| **DI** (24 V discrete input) | **Yes** — **ISO1212** isolated digital-input receiver |
+| **IN1 / IN2** (presence inputs) | **Yes** — **SFH6156** optocouplers, 5.3 kV |
+| **O1…O32** (MOSFET outputs) | **No** — low-side switches referenced to field ground |
+| **RS-485 A/B/COM** | **No** — the **MAX485** shares the device's logic ground |
+| **SENS.A / SENS.B** supply rails | **No** — derived from the module's own supply |
+
+Note that the input barriers only buy separation if the sensor is powered from its **own** supply.
+A PIR powered from the module's **SENS** rail shares the module's ground by way of that rail, so
+there is no galvanic separation between module and sensor in that arrangement — which is normal
+and safe for a SELV presence sensor, but it is not isolation.
+
+### RS-485 / Modbus RTU
+
+<!-- hm:rs485-order:begin -->
+> **Terminal order differs across the HomeMaster range.**
+> Always read the silkscreen - do not wire by habit from another module.
+> On this module the order is **COM-B-A**.
+> Swapping A and B damages nothing but the node will not communicate.
+> COM is required on every node.
+<!-- hm:rs485-order:end -->
+
+All HomeMaster controllers and modules share the same RS-485 front end.
+
+| Item | Value |
+|---|---|
+| Transceiver | MAX485CSA+T, half-duplex |
+| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
+| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
+| Terminals | A / B / COM |
+| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
+| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
+| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
+| Idle state | Fail-safe biasing on board — do not add external bias resistors |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+**Bus wiring rules — apply to every device on the bus:**
+
+- One twisted pair for A/B, 120 Ω characteristic impedance.
+- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
+- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
+- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
+- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ---
 
-# 2. STR-3221-R1 — Technical Specification
+## 4. Hardware & Interface
 
-## 2.1 Diagrams & Pinouts
+### 4.1 Diagrams & pinouts
 
 | Diagrams & Descriptions |
 |--------------------------|
@@ -93,10 +223,6 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | ![FieldBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS rails. |
 | ![MCUBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
 | ![Terminal Map](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
-
----
-
-
 
 ### 4.2 Connectors & terminal map
 
@@ -183,143 +309,59 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 
 <!-- hm:terminal-map:end -->
 
-## 2.2 I/O Summary
+### 4.3 Front panel — buttons & LEDs
 
-| Interface | Qty | Description |
-|-----------:|----:|-------------|
-| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
-| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped in fours, each group with its own **+** rail (nine groups); PWM from MCU-board **TLC59208F** drivers. |
-| **Buttons** | 4 | Local control / override / test switches. |
-| **Status LEDs** | 2 | On-board indicators, assignable to a logic state; steady or blink. |
-| **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
-| **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
-| **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
-| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused **+5 V** auxiliary rails (**F9**/**F10** **1206L150THWR** PTC, **150 mA** per rail) for presence-sensor power only. |
+| Control | Function in firmware v0.1.0 |
+|---|---|
+| **SW1 – SW4** | Pressed state is published on discrete inputs 20–23 for the controller to read. The buttons perform **no local action** on the module itself. |
+| **Status LED1 / LED2** | Assignable in WebConfig: source plus steady or blink. Physical state published on discrete inputs 90–91. |
+| **PWR / TX / RX** | Fixed indicators — power present, and Modbus traffic on RS-485. |
 
----
+**Key combinations** (these work at the hardware level, independently of firmware logic):
 
-## 2.3 Electrical Specifications
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|------------|----:|----:|----:|------|-------|
-| **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
-| **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
-| **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
-| **Full-Load Current (all outputs)** | — | — | 18 | A | **Output** path limit (DB128L green/orange terminals). Per channel ≤1.5 A (BLM). LED PS **input** path ≤20 A (grey terminals; choke 24 A). |
-| **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
-| **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
-| **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** (**1206L150THWR**); **≤150 mA** continuous per rail. |
-| **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1.5 A** per channel; **≤18 A** module total. |
-| **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
-| **Communication** | — | — | — | — | RS-485 (**MAX485**); 9600, 19200, 38400, 57600 or 115200 bps. |
-| **Input Front-Ends** | — | — | — | — | **DI:** **ISO1212** (module-wetted 24 V). **IN1/IN2:** **SFH6156** opto-isolated presence inputs. |
-| **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
-
-> ⚙️ **Design domains:**  
-> - Field side: 24 VDC (DI, outputs); **+5 V** fused SENS.A / SENS.B for presence sensors.  
-> - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
-> - Communication side: RS-485 transient protection (TVS + PTC) — **not galvanically isolated**; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+| Function | Combination | Behavior |
+|-----------|--------------|-----------|
+| **BOOT Mode** | **Buttons 1 + 2** | Forces the module into flash/bootloader mode |
+| **Hardware Reset** | **Buttons 3 + 4** | Restarts the MCU without clearing configuration |
+| **Factory Reset** | **All Buttons 1–4** on power-up | Clears configuration (returns to address 3, 19200 baud) |
 
 ---
 
-## 2.4 Firmware Behavior
+## 5. Getting Started
 
-| Function | Description |
-|-----------|-------------|
-| **Input Processing** | Per-channel enable and invert; logical state published on discrete inputs 1–3. A disabled channel always reads 0. |
-| **Output Control** | 32 channels driven from holding registers 400–431, 0–255 per channel (TLC59208F PWM). |
-| **Button Actions** | SW1–SW4 assignable in WebConfig; state also published on discrete inputs 20–23. |
-| **LED Feedback** | 2 on-board status LEDs, steady or blink, source selectable; state published on discrete inputs 90–91. |
-| **Override Priority** | Local overrides take precedence over Modbus commands until released. |
-| **WebConfig (USB-C)** | Modbus address and baud, input enable/invert, button and LED mapping, live I/O, output levels. |
-| **Startup Logic** | Configuration is restored from flash at power-up, including the last **saved** output levels. Levels written over Modbus are applied immediately but are **not** auto-persisted — save explicitly in WebConfig to make them the power-up state. Factory defaults are all channels at 0. |
-| **TLC59208F recovery** | If the I²C LED drivers do not answer at boot the module retries every 5 s, with a full bus scan every 30 s, and reports status over WebConfig. |
-| **Watchdog** | 4 s hardware watchdog; the module reboots itself if the main loop stalls. |
+### 5.1 Safety *(read before wiring)*
 
----
-
-> 🧩 **Note:**  
-> The STR-3221-R1 shares the same firmware architecture as other HOMEMASTER I/O modules, enabling unified Modbus mapping, button/LED behavior, and WebConfig interface.
-
----
-# 3. Use Cases
-
-These example illustrate how the **STR-3221-R1** can be integrated into real-world automation or lighting systems.
-
----
-
-### Motion-Based Stair Lighting
-
-**What it does:**  
-Automatically lights stair LEDs in sequence when motion is detected at the top or bottom of the staircase.
-
-**Setup:**
-1. Connect motion sensors to **IN1 (bottom)** and **IN2 (top)** terminals.  
-2. Connect each stair LED segment to outputs **O1–O32** (low-side switching).  
-3. Set the module’s **Modbus address** (and related options) in **WebConfig**.  
-4. Program MicroPLC/MiniPLC to poll **IN1/IN2** and activate LEDs in a timed sequence.  
-5. Use **Button 1** as “Manual Test / All ON” and **Button 2** as “All OFF”.
-
----
-
-# 4. Safety Information
-
-The **STR-3221-R1** is a **SELV (Safety Extra-Low Voltage)** device.  
-Improper wiring, power application, or grounding may cause malfunction or damage.  
-Follow all safety and wiring practices described below.
-
----
-
-## 4.1 General Requirements
+The **STR-3221-R1** is a **SELV (Safety Extra-Low Voltage)** device.
+Improper wiring, power application, or grounding may cause malfunction or damage.
 
 | Requirement | Detail |
 |--------------|--------|
 | **Qualified Personnel** | Only trained technicians familiar with control panels, PLCs, and SELV wiring should install or service this module. |
 | **Power Isolation** | Always disconnect **24 VDC** power and RS-485 trunk before touching or rewiring terminals. |
 | **Rated Voltages Only** | Use **SELV 24 VDC** power supplies; never connect AC mains or high-voltage lines. |
-| **Grounding** | Properly bond the panel’s protective earth (PE) to reduce EMI and static discharge. |
+| **Grounding** | Properly bond the panel's protective earth (PE) to reduce EMI and static discharge. |
 | **Enclosure** | Mount in a **clean, dry, ventilated enclosure**; avoid moisture, conductive dust, or vibration. |
 | **Static Protection** | Handle circuit boards only with ESD precautions (grounded strap and antistatic mat). |
 
----
+#### Installation practices
 
-## 4.2 Installation Practices
+- **DIN Mounting:** mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress. **DIN width: 9 modules (9 × 17.5 mm).**
+- **Power domains:** the module uses separate power domains — **Field Power (24 VDC_FUSED)** for outputs and inputs, **Logic Power (5 V / 3.3 V)** for the MCU. Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
+- **Sensor Power Connection:** power low-current PIR / presence sensors only from the fused **SENS.A** / **SENS.B** rails (**+5 V**, **F9**/**F10**). Check the sensor is rated for a 5 V supply before wiring it. The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** channel — do **not** backfeed or parallel SENS rails with other supplies.
+- **Wiring Discipline:** use ferruled, properly sized conductors (0.25–1.5 mm²). Route communication (RS-485) and power lines separately to reduce noise coupling.
+- **Testing Before Power-Up:** verify all terminal polarities, check RS-485 A/B orientation, and confirm no shorts between supply rails.
 
-- **DIN Mounting:**  
-  Mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress.
+#### I/O & interface warnings
 
-**DIN width: 9 modules (9 × 17.5 mm).**
-- **Isolation Domains:**  
-  The module uses separate power domains:
-  - **Field Power (24 VDC_FUSED)** for outputs and inputs  
-  - **Logic Power (5 V / 3.3 V)** for MCU  
-  Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
-
-- **Sensor Power Connection:**  
-  Power low-current PIR / presence sensors only from fused **SENS.A** / **SENS.B** rails (**+5 V**, **F9**/**F10**, **≤150 mA** per rail). The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** channel — do **not** backfeed or parallel SENS rails with other supplies.
-
-- **Wiring Discipline:**  
-  Use ferruled, properly sized conductors (0.25–1.5 mm²).  
-  Route communication (RS-485) and power lines separately to reduce noise coupling.
-
-- **Testing Before Power-Up:**  
-  Verify all terminal polarities, check RS-485 A/B orientation, and confirm no shorts between supply rails.
-
----
-
-## 4.3 Interface Warnings
-
-### Power (24 VDC Input / LED Supply)
+**Power (24 VDC input / LED supply)**
 
 | Area | Warning |
 |-------|----------|
 | **24 VDC Power (V+ / 0V)** | Use only clean, regulated SELV 24 VDC. Reverse polarity is protected but repeated mistakes may damage fuses. |
 | **LED PS (+/–)** | Provides the external LED load voltage (typically 12–24 VDC). Do not short or exceed rated current capacity of field wiring. |
-| **Sensor Rails (SENS.A / SENS.B)** | For **+5 V** presence-sensor power only (**F9**/**F10** PTC, **150 mA** per rail). Never use to drive LED loads or feed back external power sources. |
+| **Sensor Rails (SENS.A / SENS.B)** | For **+5 V** presence-sensor power only (**F9**/**F10** PTC). Never use to drive LED loads or feed back external power sources. |
 
----
-
-### Digital Input — module-wetted 24 V (DI)
+**Digital input — module-wetted 24 V (DI)**
 
 | Area | Warning |
 |-------|----------|
@@ -327,19 +369,15 @@ Follow all safety and wiring practices described below.
 | **Wiring** | Close a potential-free contact between **Gnd** (8) and **24Vdc** (9). **Do not** apply external voltage. |
 | **Protection** | PTC/TVS protected (**F6**/**F7**, **1206L016**). Replace fuses only with identical PTC parts. |
 
----
-
-### Presence-sensor inputs (IN1, IN2)
+**Presence-sensor inputs (IN1, IN2)**
 
 | Area | Warning |
 |-------|----------|
 | **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **opto-isolated** via **SFH6156** (U17, U18); accept open-collector or dry-contact sensor outputs. |
-| **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). **≤150 mA** per rail (**F9**/**F10**). |
+| **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). |
 | **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
 
----
-
-### Outputs (O1…O32)
+**Outputs (O1…O32)**
 
 | Area | Warning |
 |-------|----------|
@@ -347,43 +385,9 @@ Follow all safety and wiring practices described below.
 | **Polarity** | Connect load +V to **+ group rail**, load – to output terminal (O#). |
 | **Inductive Loads** | Primarily LED/resistive loads; for large inductive loads add external RC or TVS snubbers. |
 | **Shared Rail** | Each **4-channel** group shares a **+** rail (nine groups) — ensure consistent LED supply voltage. |
+| **Isolation** | Outputs are **not** isolated from the module's field ground. |
 
----
-
-### RS-485 / Modbus RTU
-
-
-<!-- hm:rs485-order:begin -->
-> **Terminal order differs across the HomeMaster range.**
-> Always read the silkscreen - do not wire by habit from another module.
-> On this module the order is **COM-B-A**.
-> Swapping A and B damages nothing but the node will not communicate.
-> COM is required on every node.
-<!-- hm:rs485-order:end -->
-All HomeMaster controllers and modules share the same RS-485 front end.
-
-| Item | Value |
-|---|---|
-| Transceiver | MAX485CSA+T, half-duplex |
-| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
-| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
-| Terminals | A / B / COM |
-| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
-| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
-| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
-| Idle state | Fail-safe biasing on board — do not add external bias resistors |
-| Termination | 120 Ω at the two physical ends of the bus only |
-
-**Bus wiring rules — apply to every device on the bus:**
-
-- One twisted pair for A/B, 120 Ω characteristic impedance.
-- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
-- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
-- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
-- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
-
-
-### USB-C (Service / WebConfig)
+**USB-C (service / WebConfig)**
 
 | Area | Warning |
 |-------|----------|
@@ -392,25 +396,22 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | **During Operation** | Disconnect USB-C when running in the field; avoid ground loops with PLC systems. |
 | **ESD** | Port is ESD-protected, but avoid static discharge when plugging in cables. |
 
----
+> ⚠️ **Summary:**
+> The STR-3221-R1 is designed for **SELV 24 VDC** systems. Never connect mains voltages.
+> Always de-energize and confirm wiring before service.
 
-> ⚠️ **Summary:**  
-> The STR-3221-R1 is designed for **SELV 24 VDC** systems. Never connect mains voltages.  
-> Always de-energize and confirm wiring before service. Proper isolation, grounding, and shielding ensure safe and reliable operation.
-
-# 5. Installation & Quick Start
-
-## 5.1 What You Need
+### 5.2 What you need
 
 | Item | Description |
 |------|-------------|
 | Module | STR-3221-R1 |
 | Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
+| PSU | Regulated 24 VDC (module logic) |
+| PSU | 12 or 24 VDC, sized for the LED / actuator load |
 | Cable | USB-C and RS-485 twisted pair |
 | Software | Browser with Web Serial support |
 
-## 5.2 Power
+### 5.3 Power notes
 
 The module needs **two separate supplies**, and mixing them up is the most common wiring mistake on this product.
 
@@ -419,72 +420,85 @@ The module needs **two separate supplies**, and mixing them up is the most commo
 | **Module logic** | **V+** / **0V** (1, 2) | MCU, inputs, RS-485, sensor rails | 20–30 V DC SELV, 60–100 mA quiescent — size for electronics only |
 | **LED load** | **LED PS +** / **−** (3, 4) | Feeds the nine output group rails | 12–24 V DC, sized for the total LED load; input path ≤20 A |
 
-The **+5 V SENS.A / SENS.B** rails for presence sensors are derived internally from the module supply and fused at **150 mA** each (**F9** / **F10**, 1206L150THWR). They are for sensor power only — never for LED segments.
+The **+5 V SENS.A / SENS.B** rails for presence sensors are derived internally from the module
+supply and individually fused (**F9** / **F10**, 1206L150THWR PTC). They are for sensor power
+only — never for LED segments.
 
 Both inputs are reverse-polarity and surge protected. Do not bridge **GND_FUSED** (field) and logic **GND** externally.
 
-## 5.3 Communication
+### 5.4 Step-by-step
 
-| Item | Value |
-|---|---|
-| Terminal order on this module | **COM (5) – B (6) – A (7)** — read the silkscreen, the order differs across the HomeMaster range |
-| Factory default address | `3` |
-| Factory default baud | `19200`, 8N1 |
-| Supported baud rates | 9600, 19200, 38400, 57600, 115200 |
-| Termination | 120 Ω at the two physical ends of the bus only |
+#### Wire
 
-A module straight out of the box answers at address **3**, **19200 baud** — set a unique address
-before putting a second module on the same bus. Address and baud are set in **WebConfig** over
-USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the caveat on HR 481 in
-[§6.1](#61-register-map). Run **COM** to every node — the port is not galvanically isolated, and
-COM is what bounds the common-mode voltage the transceiver sees. Full bus rules:
-[RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and the RS-485 trunk before wiring terminals.
 
-## 5.4 Installation & Wiring
-
-Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and the RS-485 trunk before wiring terminals. Use a separate **12 V or 24 V DC** LED PSU on **LED PS** (+/−) for stair segments — do **not** bridge **GND_FUSED** (field) and logic **GND** externally.
-
-### Power (24 V DC)
-
-Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
+**Power (24 V DC).** Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
 
 ![24 V DC power supply wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
 *Module **V+** / **0V** (24 V DC logic) — size for electronics only. LED / actuator loads use the separate **LED PS** input.*
 
-### Stair LED outputs (32 channels)
+**Outputs (32 channels).** Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** loads: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
 
-Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** LED segments: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
-
-### Digital trigger input
-
-One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with an **ISO1212** front-end (PTC fuse and TVS protected — do not exceed 30 V DC).
+**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected — do not exceed 30 V DC).
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **24Vdc** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **24Vdc** (9); module supplies wetting current — do not apply external voltage.*
 
-### PIR / presence sensors (IN1, IN2)
-
-Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/U18) accept PIR or motion detectors. Power low-current sensors from fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **≤150 mA** per rail via **F9**/**F10** **1206L150THWR**); return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+**PIR / presence sensors (IN1, IN2).** Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/U18, 5.3 kV) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 
 ![PIR motion sensor wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_PIRSensors.png)
 *PIR sensors powered from **SENS** rail and signaling **IN1** / **IN2**.*
 
-### RS-485 (Modbus RTU)
-
-Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+**RS-485 (Modbus RTU).** Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu). Fit 120 Ω at both ends of the bus only.
 
 ![RS-485 bus wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_RS485_Connection.png)
 ***A**, **B**, and **COM** to the controller or next module; external 120 Ω at both bus ends.*
 
-### USB-C
+**USB-C.** The **USB-C** port is for **WebConfig** setup and firmware update only; it is **not** a field power or runtime data bus — disconnect USB before energising the installation.
 
-The **USB-C** port is for **WebConfig** setup and firmware update only; it is **not** a field power or runtime data bus — disconnect USB before energising the installation.
+#### Configure
 
-## 5.5 Software & UI Configuration
+Connect USB-C, open [WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html),
+set a unique Modbus address and the baud rate used on your bus — the factory setting is address
+**3** at **19200**. Enable the inputs you wired, invert where the sensor is normally-closed, and
+check live I/O to confirm the wiring before the controller is involved. Full reference: [§6](#6-webconfig-reference).
+
+#### Integrate
+
+Add the ESPHome package to your MiniPLC / MicroPLC configuration ([§8](#8-esphome--home-assistant-integration))
+with `str_address` matching what you set in WebConfig:
+
+```yaml
+packages:
+  str1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+        vars:
+          str_prefix: "STR#1"
+          str_id: str_1
+          str_address: 3
+```
+
+Entities appear in Home Assistant after the controller reboots. For a third-party Modbus master,
+use the register map in [§7](#7-modbus-register-map) instead.
+
+### 5.5 Verify
+
+- **PWR LED steady** — module powered and running.
+- **TX/RX blink** — the controller is polling and the module is answering.
+- **WebConfig live I/O** — toggle each wired input and watch the state change; confirm the TLC59208F drivers report ready.
+- **Outputs** — set one channel to 255 from WebConfig and confirm the correct segment lights. Use **Identify** to confirm which module you are looking at.
+- **Home Assistant** — each channel appears as a dimmable light named `<prefix> O1 Light` … `O32 Light`.
+
+---
+
+## 6. WebConfig Reference
 
 Configuration is done in the browser over USB-C — nothing to install. Open the
 [WebConfig tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html)
@@ -496,43 +510,36 @@ connect the module and grant serial access.
 | **Modbus address** | Slave address on the RS-485 bus. Factory default `3`, valid 1–247. Every module on the bus needs a unique one |
 | **Baud rate** | 9600, 19200, 38400, 57600 or 115200, 8N1. Factory default `19200`. Must match the controller |
 | **Input enable / invert** | Per channel for **DI**, **IN1**, **IN2** — switch unused channels off, invert for normally-closed sensors |
-| **Button mapping** | SW1–SW4 action assignment |
 | **LED mapping** | The two status LEDs: source and steady/blink mode |
 | **Output levels** | Set any of the 32 channels 0–255 for commissioning; save explicitly to keep them as the power-up state |
 | **Live I/O view** | Current input, button and LED states plus TLC59208F driver status |
 | **Identify** | Pulses the first output group for 5 s — useful to find one module in a full cabinet |
 
+> **Button mapping.** The page shows an action selector for SW1–SW4. In firmware **v0.1.0** the
+> buttons have no local action — they only report their pressed state on Modbus — so the selector
+> has no effect on the module.
+
 Configuration is written to on-device flash (**LittleFS**) with a CRC and survives a power cut.
 Changes to inputs, buttons and LEDs auto-save after 1.5 s; **output levels do not** — use Save.
 
-## 5.6 Getting Started
-
-**1. Wiring.** Mount on DIN rail. Connect the 24 V DC module supply to **V+ / 0V** and the
-LED PSU to **LED PS**. Wire LED segments to the output groups, sensors to **IN1 / IN2** with
-power from **SENS.A / SENS.B**, and **A / B / COM** to the bus. Fit 120 Ω at both ends of the
-bus only.
-
-**2. Configuration.** Connect USB-C, open WebConfig, set a unique Modbus address and the baud
-rate used on your bus — the factory setting is address 3 at 19200. Enable the inputs you wired,
-invert where the sensor is normally-closed, and check live I/O to confirm the wiring before the
-controller is involved.
-
-**3. Integration.** Add the ESPHome package to your MiniPLC / MicroPLC configuration
-([§7](#7-esphome-integration-guide)) with `str_address` matching what you set in WebConfig.
-Entities appear in Home Assistant after the controller reboots. For a third-party Modbus
-master, use the register map in [§6](#6-modbus-rtu-communication) instead.
-
 ---
 
-# 6. Modbus RTU Communication
+## 7. Modbus Register Map
 
 The module is a **Modbus RTU slave**. Factory default address `3`, factory default baud `19200`
 (8N1); supported rates 9600, 19200, 38400, 57600 and 115200. Register numbers below are the
 addresses used on the wire, as consumed by the shipped ESPHome package.
 
-## 6.1 Register map
+### 7.1 Address map (overview)
 
-### Discrete inputs — FC 02 (read)
+| Function code | Range | Contents |
+|---|---|---|
+| FC 02 — Discrete Inputs (read) | 1–3, 20–23, 90–91 | Input states, button states, LED states |
+| FC 05 / 15 — Coils (write, self-clearing) | 300–302, 320–322 | Enable / disable an input |
+| FC 03 / 06 / 16 — Holding Registers (read/write) | 400–431, 480–481 | Output levels, address and baud |
+| FC 04 — Input Registers (read) | 200–204 | Identity and map version |
+
+### 7.2 Discrete Inputs — FC 02 (read)
 
 | Address | Name | Meaning |
 |---:|---|---|
@@ -546,7 +553,7 @@ addresses used on the wire, as consumed by the shipped ESPHome package.
 | 90 | LED1 | Status LED 1 physical state |
 | 91 | LED2 | Status LED 2 physical state |
 
-### Command coils — FC 05 / 15 (write, self-clearing pulse)
+### 7.3 Coils — FC 05 / 15 (write, self-clearing pulse)
 
 | Address | Meaning |
 |---:|---|
@@ -556,7 +563,7 @@ addresses used on the wire, as consumed by the shipped ESPHome package.
 Writing `1` performs the action and the coil clears itself; the new enable state is persisted to
 flash. This is the way to switch an input on or off from a controller without WebConfig.
 
-### Holding registers — FC 03 / 06 / 16 (read / write)
+### 7.4 Holding Registers — FC 03 / 06 / 16 (read/write)
 
 | Address | Name | Range | Meaning |
 |---:|---|---|---|
@@ -568,7 +575,7 @@ flash. This is the way to switch an input on or off from a controller without We
 > register — at 115200 the register **reads back as `0`**. That is expected, not a fault. Set
 > 115200 through WebConfig rather than over Modbus.
 
-### Input registers — FC 04 (read)
+### 7.5 Input Registers — FC 04 (read)
 
 | Address | Field | Value on this module |
 |---:|---|---|
@@ -581,7 +588,7 @@ flash. This is the way to switch an input on or off from a controller without We
 Read 200–204 to identify a module and its register-map generation before trusting the rest of
 the map.
 
-## 6.2 Usage notes
+### 7.6 Register use examples & polling
 
 - **Brightness is a byte, not a bit.** Writing `255` to HR 400 turns O1 fully on; an intermediate
   value dims it via the TLC59208F PWM driver. There are no separate on/off coils for the outputs.
@@ -589,21 +596,21 @@ the map.
   but are not saved; after a power cycle the module restores the last levels explicitly saved in
   WebConfig (factory default: all channels 0).
 - **A disabled input always reads 0** on its discrete input, whatever the field wiring does.
-- **Buttons override.** A local override from SW1–SW4 takes precedence over Modbus writes until
-  it is released.
+- **Buttons are read-only.** SW1–SW4 report their pressed state on discrete inputs 20–23 and do
+  not change any output on the module.
 - **Polling.** 1 s is sufficient for stair lighting. Faster polling on a long bus with many
-  modules needs the timing parameters in [§7.4](#74-timing-on-longer-buses).
+  modules needs the timing parameters in [§8.5](#85-troubleshooting-integration).
 - **Changing address or baud** over HR 480 / 481 applies immediately — reconnect at the new
   settings afterwards.
 
 ---
 
-# 7. ESPHome Integration Guide
+## 8. ESPHome / Home Assistant Integration
 
 The module is reached through a MiniPLC or MicroPLC running ESPHome. The controller holds the
 `uart` and `modbus` components; the package below adds the module's entities.
 
-## 7.1 Controller side
+### 8.1 Minimal YAML (controller side)
 
 Your controller configuration needs a Modbus bus with the id `modbus_bus`, which the package
 references:
@@ -624,7 +631,7 @@ modbus:
 Pin numbers are those of your controller — check the MiniPLC or MicroPLC README. The baud rate
 must match what the module is set to; a factory-fresh module is at **19200**.
 
-## 7.2 Adding the module
+Then add the module package:
 
 ```yaml
 packages:
@@ -650,7 +657,7 @@ packages:
 For a second module, include the package again with a different `str_prefix`, `str_id` and
 `str_address`.
 
-## 7.3 Entities created
+### 8.2 Entities exposed (from the package)
 
 | Entity | Type | Source |
 |---|---|---|
@@ -661,16 +668,26 @@ For a second module, include the package again with a different `str_prefix`, `s
 | `<prefix> Status LED1…2` | binary sensor | Discrete inputs 90–91 |
 | `<prefix> O1 Light` … `O32 Light` | light (monochromatic) | HR 400–431, dimmable 0–255 |
 
-Each output is exposed as a **dimmable light**, not a switch — so a stair segment can be
-faded from Home Assistant or an ESPHome script. `gamma_correct` is set to `0.0` in the
-package: the TLC59208F already drives a linear PWM channel, and a second gamma curve on top
-would compress the low end.
+Each output is exposed as a **dimmable light**, not a switch — so a segment can be faded from
+Home Assistant or an ESPHome script. `gamma_correct` is set to `0.0` in the package: the
+TLC59208F already drives a linear PWM channel, and a second gamma curve on top would compress
+the low end.
+
+### 8.3 Optional: direct (manual) entity mapping
 
 The command coils (300–302 / 320–322) are not exposed by the package. Use them from a
 third-party Modbus master, or add `switch` entities of your own if you need them in Home
 Assistant.
 
-## 7.4 Timing on longer buses
+### 8.4 Home Assistant tips
+
+Entities appear over the native ESPHome API — no MQTT broker and no register mapping inside
+Home Assistant. A typical stair automation triggers on `<prefix> IO2` or `IO3` (the presence
+inputs) and steps through the `O*` lights with a delay between them. **That sequence lives in
+Home Assistant or in the controller's ESPHome configuration** — the module itself has no
+sequencer, so the automation is what makes the steps follow one another.
+
+### 8.5 Troubleshooting (integration)
 
 ESPHome **2026.7.0** changed the Modbus timing defaults. On a bus with several modules, or
 cable runs beyond a few metres, set these explicitly on the controller's `modbus` component
@@ -687,44 +704,38 @@ and raise `str_command_throttle` if you see timeouts. Symptoms of timing that is
 entities going unavailable intermittently, or one module on the bus dropping out while the
 others stay up.
 
-## 7.5 Home Assistant
+### 8.6 Notes & versions
 
-Entities appear over the native ESPHome API — no MQTT broker and no register mapping inside
-Home Assistant. A typical stair automation triggers on `<prefix> IO2` or `IO3` (the presence
-inputs) and steps through the `O*` lights with a delay between them. Because the module keeps
-its configuration in flash, the wiring-level behaviour set in WebConfig continues to work
-when Home Assistant is unavailable.
+The package path carries the firmware version. The current version is **v0.1.0**; when a new
+version is released the `path:` changes with it, so pin the version your module is actually
+running.
 
 ---
 
-# 8. Programming & Customization
+## 9. Programming & Build
 
-## 8.1 Supported Languages
+### 9.1 Supported languages
 
 * **MicroPython**
 * **C / C++**
 * **Arduino IDE**
 * **PlatformIO**
 
-> The STR-3221-R1 firmware is compatible with standard RP2350 toolchains and examples.  
+> The STR-3221-R1 firmware is compatible with standard RP2350 toolchains and examples.
 > It uses Modbus RTU libraries, Web Serial (for configuration), and I²C for LED drivers (TLC59208F).
 
----
+### 9.2 Flashing (USB-C, hardware buttons)
 
-## 8.2 Flashing via USB-C
-
-Firmware updates and development are performed over the **USB-C** service port.  
+Firmware updates and development are performed over the **USB-C** service port.
 The module enumerates as a **USB Serial device** when connected to a PC.
 
 **Steps:**
+
 1. Connect the module to your PC via **USB-C**.
-2. Hold **Buttons 1 + 2** → the module enters **BOOT mode**.  
-   (USB re-enumerates as a flashing device.)
+2. Hold **Buttons 1 + 2** → the module enters **BOOT mode**. (USB re-enumerates as a flashing device.)
 3. Use the **Arduino IDE**, **PlatformIO**, or the provided update utility to upload firmware.
 4. When flashing completes, press **Buttons 3 + 4** → triggers **hardware RESET** and runs the new firmware.
 5. The module reboots and appears as a standard Modbus slave or WebConfig device.
-
-📷 **Button Combination Reference**
 
 | Function | Combination | Behavior |
 |-----------|--------------|-----------|
@@ -732,12 +743,9 @@ The module enumerates as a **USB Serial device** when connected to a PC.
 | **Hardware Reset** | **Buttons 3 + 4** | Restarts the MCU without clearing configuration |
 | **Normal Operation** | — | Module runs stored firmware automatically |
 
----
+### 9.3 Arduino / PlatformIO notes
 
-## 8.3 Arduino / PlatformIO Notes
-
-### Required Libraries
-For Arduino or PlatformIO environments, include:
+#### Required libraries
 
 ```cpp
 #include <Arduino.h>
@@ -750,7 +758,7 @@ For Arduino or PlatformIO environments, include:
 #include "hardware/watchdog.h"
 ```
 
-### Board Configuration
+#### Board configuration
 
 | Parameter | Setting |
 |------------|----------|
@@ -760,7 +768,7 @@ For Arduino or PlatformIO environments, include:
 | **USB console baud** | 57600 |
 | **Libraries** | Modbus RTU, SimpleWebSerial, JSON, LittleFS, Wire |
 
-### Pin Mapping Summary
+#### Pin mapping summary
 
 Taken from the shipped sketch (`default_str_3221_r1.ino`), which is authoritative over the
 board diagrams.
@@ -782,36 +790,51 @@ board diagrams.
 and otherwise verifies candidates in the `0x20…0x5E` range. Scan results are reported over
 WebConfig.
 
----
+### 9.4 Firmware updates
 
-## 8.4 Firmware Updates
+**How to update**
 
-### How to Update
-1. Connect via **USB-C** to a PC.  
-2. Press **Buttons 1 + 2** to enter **BOOT mode**.  
+1. Connect via **USB-C** to a PC.
+2. Press **Buttons 1 + 2** to enter **BOOT mode**.
 3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.1.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
-   - **Arduino IDE** → “Upload”
+   - **Arduino IDE** → "Upload"
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
 
-### Preserving Configuration
-All configuration parameters (address, baud, input, LED and button settings) are stored in the MCU’s **non-volatile flash** with a CRC and remain intact unless manually erased via WebConfig or serial command.
+**Preserving configuration.** All configuration parameters (address, baud, input, LED and button
+settings) are stored in the MCU's **non-volatile flash** with a CRC and remain intact unless
+manually erased via WebConfig or serial command.
 
-### Recovery Methods
-If flashing fails or the module is unresponsive:
+**Recovery methods.** If flashing fails or the module is unresponsive:
+
 - Disconnect USB-C, wait 10 seconds, and reconnect while holding **Buttons 1 + 2** (force BOOT mode).
 - Reflash firmware again.
-- If configuration corruption occurs, select **“Factory Reset”** in WebConfig. Note this returns the module to **address 3, 19200 baud**.
+- If configuration corruption occurs, select **"Factory Reset"** in WebConfig. Note this returns the module to **address 3, 19200 baud**.
 
 ---
 
-# 9. Maintenance & Troubleshooting
+## 10. Maintenance & Troubleshooting
 
-| Indicator / Action | Meaning / Resolution |
-|---------------------|----------------------|
+### 10.1 Status LEDs
+
+| Indicator | Meaning |
+|---|---|
 | **PWR LED – steady ON** | Module powered and running normally. |
 | **TX/RX LEDs – blink** | Active Modbus communication on RS-485. |
 | **No TX/RX blink** | Check A/B polarity, COM reference, and termination resistors. |
+| **Status LED1 / LED2** | Whatever source was assigned in WebConfig; also readable on discrete inputs 90–91. |
+
+### 10.2 Resets
+
+| Action | Combination |
+|---|---|
+| **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
+| **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration (returns to address 3, 19200 baud). |
+
+### 10.3 Common issues
+
+| Symptom | Resolution |
+|---------------------|----------------------|
 | **Module does not answer at all** | A factory-fresh or factory-reset module is at **address 3, 19200 baud** — not at whatever the rest of your bus uses. |
 | **Two modules answer at once** | Both are still at the default address 3. Disconnect one, set a unique address in WebConfig. |
 | **HR 481 reads 0** | Expected at 115200 — the raw value does not fit a 16-bit register. Not a fault. |
@@ -819,37 +842,22 @@ If flashing fails or the module is unresponsive:
 | **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and run `i2c_scan` from WebConfig. |
 | **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
+| **Pressing a button does nothing** | Expected in v0.1.0 — the buttons report their state on Modbus and perform no local action. Drive the outputs from the controller or from WebConfig. |
 | **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
-| **Entities unavailable in Home Assistant, other modules fine** | Modbus timing too tight for the bus length — see [§7.4](#74-timing-on-longer-buses). |
+| **Entities unavailable in Home Assistant, other modules fine** | Modbus timing too tight for the bus length — see [§8.5](#85-troubleshooting-integration). |
 | **Which module is this?** | Use **Identify** in WebConfig — the first output group pulses for 5 s. |
-| **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
-| **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |
 
 ---
 
-# 10. Open Source & Licensing
+## 11. Downloads & Resources
 
-Licensing
+### Version history
 
-This project uses a hybrid licensing model.
+| Version | Config path (`path:`) | Date | Changes |
+|--------|------------------------|------|-----------|
+| **v0.1.0** (current) | `STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-07-05 | First release — 32ch TLC59208F, unified WebConfig |
 
-Hardware
-
-Hardware designs (schematics, PCB layouts, BOMs) are licensed under:
-CERN-OHL-W v2
-
-Firmware & ESPHome Integration
-
-All firmware, ESPHome configurations, and software components are licensed under:
-MIT License
-
-This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
-
-See LICENSE files in each directory for full terms.
-
----
-
-# 11. Downloads
+### Files
 
 | Resource | Description |
 |-----------|-------------|
@@ -863,25 +871,22 @@ See LICENSE files in each directory for full terms.
 
 ---
 
-# 12. Support
+## Open Source & Licensing
 
-If you need help using or configuring the **STR-3221-R1**, visit:
+This project uses a hybrid licensing model.
 
-- 🌐 **[Official Support Portal](https://www.home-master.eu/support)** – knowledge base, ticketing, and FAQs.  
+**Hardware.** Hardware designs (schematics, PCB layouts, BOMs) are licensed under **CERN-OHL-W v2**.
 
-> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
+**Firmware & ESPHome integration.** All firmware, ESPHome configurations, and software components
+are licensed under the **MIT License**.
 
-- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html)** – in-browser setup and diagnostics.  
-- ▶️ **[YouTube Channel](https://youtube.com/@HomeMaster)** – setup videos and feature walkthroughs.  
-- 💡 **[Hackster.io](https://hackster.io/homemaster)** – integration examples and community projects.  
-- 💬 **[Reddit](https://reddit.com/r/HomeMaster)** – discussion and troubleshooting community.  
-- 📸 **[Instagram](https://instagram.com/home_master.eu)** – updates, showcases, and announcements.
+This ensures full compatibility with ESPHome and Home Assistant while protecting hardware designs.
+
+See LICENSE files in each directory for full terms.
 
 ---
 
-> **HOMEMASTER – Modular control. Custom logic.**
-
-## Compliance & Certifications
+## 12. Compliance & Certifications
 
 The STR-3221-R1 Stair LED Controller module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
@@ -911,6 +916,21 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 
 ---
 
+## 13. Support
+
+If you need help using or configuring the **STR-3221-R1**, visit:
+
+- 🌐 **[Official Support Portal](https://www.home-master.eu/support)** – knowledge base, ticketing, and FAQs.
+- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html)** – in-browser setup and diagnostics.
+- ▶️ **[YouTube Channel](https://youtube.com/@HomeMaster)** – setup videos and feature walkthroughs.
+- 💡 **[Hackster.io](https://hackster.io/homemaster)** – integration examples and community projects.
+- 💬 **[Reddit](https://reddit.com/r/HomeMaster)** – discussion and troubleshooting community.
+- 📸 **[Instagram](https://instagram.com/home_master.eu)** – updates, showcases, and announcements.
+
+> Firefox: experimental only (Nightly with the Web Serial flag enabled). Safari and stable Firefox are not supported.
+
+---
+
 **Manufacturer:** ISYSTEMS AUTOMATION S.R.L. (HomeMaster® brand)
 **Registered office (registered office):** Str. Domnisori, Nr. 81, Bl. 62, Scara A, Etaj 3, Ap. 12, 100284 Ploiesti, Jud. Prahova, Romania
 **Office / Contact address:** Diligentei 18, Ploiesti, Romania
@@ -918,3 +938,7 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 **EUID:** ROONRC.J2007000919293
 **Telephone:** +40 747 757 798
 **Website:** [https://www.home-master.eu](https://www.home-master.eu)
+
+---
+
+> **HOMEMASTER – Modular control. Custom logic.**
