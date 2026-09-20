@@ -165,6 +165,7 @@
     let pwmSyncLock = false;
     let pwmSendTimer = null;
     let fsSendTimer = null;
+    const cfgHydrated = { in: false, btn: false, led: false, failsafe: false };
 
     const fsActOptsHtml = [{v:0,l:'Hold'},{v:1,l:'OFF'},{v:2,l:'Level'}]
       .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
@@ -202,6 +203,91 @@
       clearTimeout(pwmSendTimer);
       pwmSendTimer = setTimeout(sendPwmLevels, 40);
     }
+
+    function loadFailsafeFromCfg(cfg){
+      if (!cfg) return;
+      const bus = cfg.bus || {};
+      const ov = cfg.override || {};
+      if (bus.timeout != null && $('bus-timeout-s')) $('bus-timeout-s').value = String(bus.timeout);
+      if (ov.timeout != null && $('override-timeout-s')) $('override-timeout-s').value = String(ov.timeout);
+      const fs = bus.failsafe || {};
+      const actions = HMWebConfig.toArray(fs.actions);
+      const levels = HMWebConfig.toArray(fs.levels);
+      if (bus.timeout == null && ov.timeout == null && actions.length < 1 && levels.length < 1) return;
+      for (let i = 0; i < NUM_PWM; i++){
+        if (actions.length > 0) fsActions[i] = parseInt(actions[i] ?? 0, 10);
+        if (levels.length > 0) fsLevels[i] = clamp255(levels[i] ?? 0);
+        const actEl = $('fs-act-o' + (i + 1));
+        const lvlEl = $('fs-lvl-o' + (i + 1));
+        if (actEl && actEl !== document.activeElement) actEl.value = String(fsActions[i]);
+        if (lvlEl && lvlEl !== document.activeElement) lvlEl.value = String(fsLevels[i]);
+      }
+      cfgHydrated.failsafe = true;
+    }
+
+    function sendBusTimeout(){
+      if (!cfgHydrated.failsafe) return;
+      HMWebConfig.sendConfig('bus.timeout', parseInt($('bus-timeout-s')?.value || '0', 10));
+    }
+
+    function sendOverrideTimeout(){
+      if (!cfgHydrated.failsafe) return;
+      HMWebConfig.sendConfig('override.timeout', parseInt($('override-timeout-s')?.value || '0', 10));
+    }
+
+    function sendFailsafeChannels(){
+      if (!cfgHydrated.failsafe) return;
+      for (let i = 0; i < NUM_PWM; i++){
+        fsActions[i] = parseInt($('fs-act-o' + (i + 1))?.value || '0', 10);
+        fsLevels[i] = clamp255($('fs-lvl-o' + (i + 1))?.value);
+      }
+      HMWebConfig.sendConfig('bus.failsafe', { actions: fsActions.slice(), levels: fsLevels.slice() });
+    }
+
+    function debouncedSendFailsafe(){
+      clearTimeout(fsSendTimer);
+      fsSendTimer = setTimeout(sendFailsafeChannels, 120);
+    }
+
+    (function buildFailsafeGrid(){
+      const root = $('fs-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="pwm-grid" id="fs-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.pwm-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const idx = ch - 1;
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch';
+          cell.innerHTML = `
+            <label for="fs-act-o${ch}"><span>O${ch}</span></label>
+            <select id="fs-act-o${ch}">${fsActOptsHtml}</select>
+            <input id="fs-lvl-o${ch}" type="number" min="0" max="255" value="0" style="margin-top:4px;width:100%">`;
+          grid.appendChild(cell);
+          cell.querySelector('select')?.addEventListener('change', debouncedSendFailsafe);
+          cell.querySelector('input[type="number"]')?.addEventListener('change', debouncedSendFailsafe);
+        }
+      });
+      $('bus-timeout-s')?.addEventListener('change', sendBusTimeout);
+      $('override-timeout-s')?.addEventListener('change', sendOverrideTimeout);
+      $('fs-all-apply')?.addEventListener('click', () => {
+        if (!cfgHydrated.failsafe) return;
+        const act = parseInt($('fs-all-act')?.value || '0', 10);
+        const lvl = clamp255($('fs-all-lvl')?.value);
+        for (let i = 0; i < NUM_PWM; i++){
+          fsActions[i] = act;
+          fsLevels[i] = lvl;
+          const actEl = $('fs-act-o' + (i + 1));
+          const lvlEl = $('fs-lvl-o' + (i + 1));
+          if (actEl) actEl.value = String(act);
+          if (lvlEl) lvlEl.value = String(lvl);
+        }
+        sendFailsafeChannels();
+      });
+    })();
 
     (function buildModbusAddress(){
       const sel = $('modbus-address');
@@ -349,11 +435,11 @@
     $('modbus-baud')?.addEventListener('input', () =>
       HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
 
-    function sendInputEnable(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
-    function sendInputInvert(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
-    function sendInputAction(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
-    function sendInputTarget(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); HMWebConfig.sendConfig('in.target', l); }
-    function sendInputLevel(){ const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); HMWebConfig.sendConfig('in.level', l); }
+    function sendInputEnable(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); HMWebConfig.sendConfig('in.enabled', l); }
+    function sendInputInvert(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); HMWebConfig.sendConfig('in.invert', l); }
+    function sendInputAction(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); HMWebConfig.sendConfig('in.action', l); }
+    function sendInputTarget(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); HMWebConfig.sendConfig('in.target', l); }
+    function sendInputLevel(){ if (!cfgHydrated.in) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); HMWebConfig.sendConfig('in.level', l); }
     for (let i=1;i<=NUM_DI;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
@@ -363,6 +449,7 @@
     }
 
     function sendBtnCfg(){
+      if (!cfgHydrated.btn) return;
       const l=[];
       for (let i=1;i<=NUM_BTN;i++) l.push({ action: parseInt($('action-btn'+i).value||'0',10) });
       HMWebConfig.sendConfig('btn', l);
@@ -370,6 +457,7 @@
     for (let i=1;i<=NUM_BTN;i++) $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
 
     function sendLedCfg(){
+      if (!cfgHydrated.led) return;
       const l=[];
       for (let i=1;i<=NUM_LED;i++) l.push({
         mode: parseInt($('mode-led'+i)?.value||'0',10),

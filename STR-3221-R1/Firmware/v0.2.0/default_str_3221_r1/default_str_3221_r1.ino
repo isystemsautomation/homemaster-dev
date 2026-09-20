@@ -11,7 +11,7 @@
  *                         bit3=cfgDirty, bit4=localOverride
  *   4  IREG_TLC_MASK      bit0..3 TLC59208F chip OK U9..U12
  *   5  IREG_I2C_ERRORS    failed TLC transaction count (saturating)
- *   6  IREG_RESET_REASON  RP2350 reset cause (0=unknown/POR, 1=watchdog)
+ *   6  IREG_RESET_REASON  0=unknown/POR, 1=watchdog stall, 2=commanded reboot
  *   7  IREG_LINK_AGE_S    seconds since last frame to this slave (saturating)
  *   8  IREG_UPTIME_MIN    minutes since boot (saturating)
  *   9  reserved (0)
@@ -654,6 +654,21 @@ static void releaseLocalOverride() {
   }
 }
 
+static void releaseLocalOverrideForWebConfig() {
+  if (!g_localOverride) return;
+  g_localOverride = false;
+  for (int i = 0; i < NUM_DI; i++) g_inputToggleState[i] = false;
+  wsLog("WebConfig: local override released");
+}
+
+static uint16_t detectBootResetReason() {
+  // pico-sdk scratch[4]: WATCHDOG_NON_REBOOT_MAGIC set by watchdog_enable (stall path);
+  // cleared to 0 by watchdog_reboot (commanded reset path). See watchdog_enable_caused_reboot().
+  if (!watchdog_caused_reboot()) return 0;
+  if (watchdog_enable_caused_reboot()) return 1;
+  return 2;
+}
+
 static void applyFailsafeOnce() {
   for (int i = 0; i < NUM_PWM; i++) {
     switch (g_failsafeAction[i]) {
@@ -1019,13 +1034,14 @@ void handleValues(JSONVar values) {
   if (addr || baud) markCfgDirty();   // regression lost in the 2026-08-04 rollback
 
   if (values.hasOwnProperty("pwm")) {
+    releaseLocalOverrideForWebConfig();
     JSONVar arr = values["pwm"];
     for (int i = 0; i < NUM_PWM && i < arr.length(); i++) {
       uint16_t v = (uint16_t)constrain((int)arr[i], 0, 255);
       mb.Hreg(HR_PWM_BASE + i, v);
-      if (!outputsModbusLocked()) pwmLevel[i] = v;
+      pwmLevel[i] = v;
     }
-    if (!outputsModbusLocked()) drivePwmOutputs();
+    drivePwmOutputs();
   }
 
   wsLog("Modbus configuration updated");
@@ -1160,6 +1176,7 @@ void handleUnifiedConfig(JSONVar obj) {
     wsLog("LEDs Configuration updated");
     changed = true;
   } else if (type == "ext.pwm") {
+    releaseLocalOverrideForWebConfig();
     for (int i = 0; i < NUM_PWM && i < list.length(); i++) {
       uint16_t v = (uint16_t)constrain((int)list[i], 0, 255);
       pwmLevel[i] = v;
@@ -1261,9 +1278,11 @@ static void updateInputRegisters(uint32_t now) {
   }
 
   uint16_t status = 0;
-  if (tlcReady) status |= (1u << 0);
-  if (linkOkNow(now)) status |= (1u << 1);
-  if (cfgDirty) status |= (1u << 3);
+  if (tlcReady)              status |= (1u << 0);
+  if (linkOkNow(now))        status |= (1u << 1);
+  if (g_busFailsafeActive)   status |= (1u << 2);
+  if (cfgDirty)              status |= (1u << 3);
+  if (g_localOverride)       status |= (1u << 4);
 
   const uint32_t linkAgeMs = now - g_lastLinkSeenMs;
   uint16_t linkAgeS = (linkAgeMs >= 65535000UL) ? 65535 : (uint16_t)(linkAgeMs / 1000UL);
@@ -1341,11 +1360,18 @@ void sendWebCfg() {
     cfg["in"][i]["invert"]  = diCfg[i].inverted ? 1 : 0;
     cfg["in"][i]["action"]  = diCfg[i].action;
     cfg["in"][i]["target"]  = diCfg[i].target;
+    cfg["in"][i]["level"]   = (int)diCfg[i].level;
   }
   for (int i = 0; i < NUM_BTN; i++) cfg["btn"][i]["action"] = btnCfg[i].action;
   for (int i = 0; i < NUM_LED; i++) {
     cfg["led"][i]["mode"]   = ledCfg[i].mode;
     cfg["led"][i]["source"] = ledCfg[i].source;
+  }
+  cfg["bus"]["timeout"] = (int)g_busTimeoutS;
+  cfg["override"]["timeout"] = (int)g_overrideTimeoutS;
+  for (int i = 0; i < NUM_PWM; i++) {
+    cfg["bus"]["failsafe"]["actions"][i] = (int)g_failsafeAction[i];
+    cfg["bus"]["failsafe"]["levels"][i]  = (int)g_failsafeLevel[i];
   }
   for (int i = 0; i < NUM_PWM; i++) cfg["ext"]["pwm"][i] = (int)pwmLevel[i];
   WebSerial.send("cfg", cfg);
@@ -1379,7 +1405,7 @@ void setup() {
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
 
   g_bootMs = millis();
-  g_bootResetReason = watchdog_caused_reboot() ? 1 : 0;
+  g_bootResetReason = detectBootResetReason();
 
   Serial2.setTX(TX2);
   Serial2.setRX(RX2);

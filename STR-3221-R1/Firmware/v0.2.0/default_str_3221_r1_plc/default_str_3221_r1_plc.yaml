@@ -23,8 +23,9 @@
 ## Coils 300..302 / 320..322: DI enable/disable pulses (not in this package).
 ## IR 200..204: firmware identity (not polled).
 ##
-## Output readback @ IR 10..25 is registered in firmware but not exposed here —
-## lights stay on HR 400..431 writes until step 2b state echo is designed.
+## Output readback @ IR 10..25 is registered and polled (internal sensors below);
+## monochromatic lights are driven by HR 400..431 writes. Wiring readback into
+## light entity state is deferred (RGB v0.3.0 needed a dedicated fix for that).
 
 substitutions:
   str_id: str
@@ -175,6 +176,7 @@ sensor:
     register_type: read
     address: 6
     accuracy_decimals: 0
+    # 0=unknown/POR, 1=watchdog stall, 2=commanded reboot
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} Link age"
@@ -747,3 +749,15 @@ switch:
     address: 331
     internal: true
     assumed_state: true
+
+button:
+  - platform: template
+    name: "${str_prefix} Save output levels"
+    entity_category: config
+    on_press:
+      - switch.turn_on: ${str_id}_coil_save_pwm
+  - platform: template
+    name: "${str_prefix} Release local override"
+    entity_category: config
+    on_press:
+      - switch.turn_on: ${str_id}_coil_release_override
