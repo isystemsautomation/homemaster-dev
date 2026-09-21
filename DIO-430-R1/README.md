@@ -138,6 +138,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 - Reverse-path diode + high-side MOSFET on 24 V input.
 - Local PTC + TVS protection on field interfaces.
 - Relay drivers opto-isolated; RC/MOV suppression recommended.
+- Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §5.1.
 - RS-485: see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 - USB-C ESD-protected; CC resistors per spec.
 - Non-volatile flash with **auto-save** after configuration changes.
@@ -281,6 +282,17 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | RS-485 | Twisted pair, daisy-chain, **120 Ω** at both physical ends, consistent A/B polarity |
 | USB-C | Setup/maintenance only; disconnect after commissioning |
 
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the DIO-430-R1 relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
+
 **Pre-power checklist**
 
 - [ ] Wiring torqued, labeled, strain-relieved
@@ -362,7 +374,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 - **24 VDC** → **V+ / 0V** (top POWER terminals). Regulated SELV; keep pairs twisted.
 - **Digital inputs** → **INx / GNDx** (field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and front-end details.
-- **Relay outputs** → **COM / NO / NC**. Interposing contactors for motors/pumps; RC/MOV on inductive loads.
+- **Relay outputs** → **COM / NO / NC**. Interposing contactors for motors/pumps; RC/MOV on inductive loads. Capacitor motors: see §5.1.
 - **RS-485** → **A / B / COM (GND)**. Shielded twisted pair; daisy-chain; 120 Ω at both ends.
 
 > **Digital inputs:** internal fused 24 V wets dry contacts; no auxiliary 12 V/5 V sensor rail — see **Input power / wetting** under [§4.2 Connectors](#42-connectors--terminal-map).

@@ -186,6 +186,7 @@ The module communicates over **RS-485 Modbus RTU** (A/B differential + shared CO
 - **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
 - **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
 - **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
+- **Relay contacts:** 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §5.1.  
 - **RS-485:** see [RS-485 / Modbus RTU](#rs-485--modbus-rtu); TX/RX LED feedback  
 - **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
 - **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
@@ -384,6 +385,17 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 | **CT Inputs**      | Accept only **current-output** CTs (secondary rated in mA). **Never open a CT secondary while the primary is energised** — a hazardous voltage appears across the open winding. Reversing polarity may affect power sign. Use GND_ISO reference. |
 | **Relay Outputs**  | Dry contacts only. Rated: **3 A @ 250 VAC or 30 VDC** (module limit). Use snubber (RC/TVS) for inductive loads. |
 
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the ENM-223-R1 relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
+
 #### Communication & USB
 
 | Area            | Warning |
@@ -507,7 +519,7 @@ Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correc
 
 ##### Relays (2× SPDT)
 
-Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits.
+Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits. Capacitor motors: see §5.1.
 
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
 

@@ -253,6 +253,7 @@ Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot opt
 - Reverse-polarity diode + TVS on 24 V input; 1 A time-lag fuse.
 - Opto-isolated digital inputs (5300 VRMS); isolated sensor rails with PTC/fuse limiting.
 - Relay drivers with onboard suppression; add external RC/MOV for inductive field loads.
+- Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §6.1.
 - RS-485: see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 - USB-C ESD-protected; service port only.
 - Auto-save to flash after WebConfig changes (~1.5 s quiet period).
@@ -438,6 +439,17 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | Power isolation | Disconnect 24 V before wiring; lockout/tagout where applicable |
 | Grounding | Bond panel to PE; share RS-485 COM/GND in same SELV domain |
 | Relay loads | 3 A @ 250 VAC module rating; external snubbers on inductive loads |
+
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the ALM-173-R1 relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
 
 **Pre-power checklist**
 

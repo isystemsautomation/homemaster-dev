@@ -250,6 +250,17 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 | **Relays (Bottom row)**   | `NC / COM / NO` per relay. Dry contact only. Max: **3 A @ 250 VAC / 30 VDC**. Use snubbers for inductive loads (e.g. pumps, valves). |
 | **Relay Power**           | Relay contacts are **not powered**. External load must have its own power source. |
 
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the WLD-521-R1 relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
+
 ---
 
 ### Communication & USB
@@ -569,7 +580,7 @@ The protected **1-Wire** header at terminals **+5V** (9), **DATA** (10), **GND**
 
 ### Relays (2× SPDT)
 
-Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch valves, pumps, or alarms at up to **3 A @ 250 VAC** (module limit); external fuse/breaker and RC snubber are mandatory per load.
+Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch valves, pumps, or alarms at up to **3 A @ 250 VAC** (module limit); external fuse/breaker and RC snubber are mandatory per load. Capacitor motors: see §3.3.
 
 <img src="Images/WLD_RelayConnections.png" width="440" alt="Relay NO/COM/NC wiring for two relays">
 
@@ -825,7 +836,7 @@ Summarize steps in 3 phases:
 | Type                 | SPDT, dry contact (NO/C/NC). |
 | Module output limit  | **3 A @ 250 VAC (resistive)** / **3 A @ 30 VDC** — PCB, terminals and compliance limit. |
 | Relay component      | HF115F-class contacts are rated higher (up to 16 A @ 250 VAC at the component); **that chip rating does not apply to the module**. |
-| Protection           | RC / varistor snubbers for inductive loads. |
+| Protection           | RC / varistor snubbers for inductive loads. Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §3.3. |
 | Recommendation       | Use an interposing contactor or coupling relay for inductive loads or loads above **3 A**. |
 
 ### Communications

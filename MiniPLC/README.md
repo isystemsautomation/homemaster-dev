@@ -80,6 +80,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
 - 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
 - 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 16 A but the board/system rating governs — at 3 A the contacts work far below their rating and do not burn.
+- Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see [Electrical and Safety Notes](#electrical-and-safety-notes).
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
 - 2 × RTD inputs (PT100 / PT1000 via MAX31865) with on-board DIP switch configuration for sensor type and 2/3/4-wire mode
@@ -124,6 +125,18 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 > - **Disconnect all power before wiring changes.**
 > - Relay outputs are **not internally fused** — always add an external fuse or circuit breaker per channel (max 3 A).
 > - Loads above 3 A or inductive/high-inrush loads MUST be switched using an external contactor; the MiniPLC relay acts as a control signal.
+>
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the MiniPLC relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
+>
 > - Install inside a closed control cabinet only. Protect all terminals from accidental contact.
 > - **24 V DC input** is SELV (Safety Extra-Low Voltage).
 > - Follow local electrical code.
@@ -237,6 +250,8 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 > ⚠️ **External protection required:** Every relay output MUST be protected by an external fuse or circuit breaker, rated max **3 A** per channel. If using a common protective device for multiple relays, the rating must still not exceed 3 A per channel (do NOT sum across relays).
 
 > ⚠️ **Loads above 3 A or inductive / high-inrush loads** MUST be switched using an external contactor. The MiniPLC relay then drives the contactor coil, not the load directly.
+>
+> Capacitor motors: see [Electrical and Safety Notes](#electrical-and-safety-notes).
 
 ![Relay wiring](./Images/wiring_relays1.png)
 

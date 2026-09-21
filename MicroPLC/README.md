@@ -211,6 +211,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Power Supply | **24 V DC only** via terminal (field); 5 V via USB-C (programming) |
 | Onboard expansion | **No Ethernet**, **no microSD** (unlike MiniPLC) |
 | Relay Output | 1× relay (HF115F/005-1ZS3), **C and NC only** (no NO terminal) — functionally SPST-NC; closed when de-energised; 3 A @ 250 VAC module limit |
+| Relay contacts | 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see below. |
 | Digital Input | 1× 24 V DI on **GPIO36** (ISO1212-based) |
 | Communication | RS-485 Modbus RTU (MAX485, half-duplex, non-isolated), Wi-Fi, Bluetooth, USB-C |
 | RTC | PCF8563 |
@@ -222,6 +223,17 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Relative humidity | 0–90 % RH, non-condensing |
 | Firmware | ESPHome (pre-installed), Arduino |
 | Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
+
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the MicroPLC relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
 
 ## Entity Reference
 

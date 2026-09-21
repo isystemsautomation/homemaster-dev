@@ -229,6 +229,7 @@ limiting factor regardless of the controller.
 - **MCU:** Raspberry Pi RP2350A dual-core M33  
 - **Storage:** W25Q32 32 Mbit Flash  
 - **Protections:** PTC fuses, TVS diodes, reverse polarity & ESD networks  
+- **Relay contacts:** 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §4.3.  
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
 - **DIN width:** 3 modules (3 × 17.5 mm)
@@ -353,6 +354,17 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 | Component note | HF115F relay component rated up to 16 A @ 250 VAC — **module output limited to 3 A**; the margin means the contacts work far below their rating and do not burn. Use an external contactor for higher or inductive loads |
 | Protection | External RC snubber / flyback diode recommended |
 | Notes | Independent SPST-NO dry contact (**Relay C** / **NO**); not in the LED anode rail. For FOLLOW-mode LED-PSU cut, wire **Relay C / NO** externally in series with the LED driver supply. Keep field wiring separate from logic. |
+
+> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
+> motors) must NOT be connected directly to the relay outputs.** Each relay contact
+> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
+> phase-shift capacitor raises the voltage across the open contact of the other
+> direction above 330 V; the varistor conducts continuously and is destroyed within
+> seconds, regardless of motor current. Drive such motors through an interposing
+> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
+> contacts**; the RGB-621-R1 relay switches the interposing relay coil only. Follow the
+> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
+> simultaneously, direction change through OFF with a pause of at least 0.5 s.
 
 ---
 
@@ -511,7 +523,7 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 ### Relay
 
 ![Relay output — NO and C to external load](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RelayConnectioin.png)
-*External load on **Relay C** / **NO** — independent of **COM (LED+)**; FOLLOW PSU cut: external series wiring ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving), [§5.2](#52-power)).*
+*External load on **Relay C** / **NO** — independent of **COM (LED+)**; FOLLOW PSU cut: external series wiring ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving), [§5.2](#52-power)). Capacitor motors: see §4.3.*
 
 ### RS-485 (Modbus RTU)
 
