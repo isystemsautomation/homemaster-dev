@@ -1077,6 +1077,7 @@
         }
       }
       cfgHydrated.heating = true;
+      requestHeatStats();
     }
 
     // Acknowledge a config section. This is not a write, so it deliberately
@@ -1166,22 +1167,70 @@
       if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
       if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
       if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';
-      if ($('heat-stats') && st.heatCnt != null) {
-        const raw = String(st.heatCnt || '');
-        if (!raw) {
-          $('heat-stats').textContent = 'Hours / cycles: none yet';
-        } else {
-          const bits = raw.split(',').map(tok => {
-            const m = tok.match(/^(\d+):(\d+)\/(\d+)$/);
-            if (!m) return null;
-            return 'O' + m[1] + ': ' + m[2] + ' h / ' + m[3] + ' cyc';
-          }).filter(Boolean);
-          $('heat-stats').textContent = bits.length
-            ? ('Hours / cycles: ' + bits.join(', '))
-            : 'Hours / cycles: none yet';
-        }
-      }
     });
+
+    const heatHours = new Array(NUM_PWM).fill(0);
+    const heatCycles = new Array(NUM_PWM).fill(0);
+    let heatStatsTimer = null;
+
+    function renderHeatStats(){
+      const el = $('heat-stats');
+      if (!el) return;
+      const bits = [];
+      for (let i = 0; i < NUM_PWM; i++){
+        if (heatHours[i] || heatCycles[i])
+          bits.push('O' + (i + 1) + ': ' + heatHours[i] + ' h / ' + heatCycles[i] + ' cyc');
+      }
+      el.textContent = bits.length
+        ? ('Hours / cycles: ' + bits.join(', '))
+        : 'Hours / cycles: none yet';
+    }
+
+    function applyHeatStats(msg){
+      if (!msg) return;
+      const base = parseInt(msg.o ?? 0, 10);
+      const hrs = parseHexBytes(msg.hrs, 32);
+      const cyc = parseHexBytes(msg.cyc, 32);
+      for (let k = 0; k < 16; k++){
+        const i = base + k;
+        if (i >= NUM_PWM) break;
+        heatHours[i] = (hrs[k * 2] << 8) | hrs[k * 2 + 1];
+        heatCycles[i] = (cyc[k * 2] << 8) | cyc[k * 2 + 1];
+      }
+      renderHeatStats();
+    }
+
+    function requestHeatStats(){
+      if (!cfgHydrated.heating) return;
+      HMWebConfig.sendCommand('heat.stats');
+    }
+
+    function startHeatStatsPoll(){
+      requestHeatStats();
+      if (heatStatsTimer) return;
+      heatStatsTimer = setInterval(requestHeatStats, 30000);
+    }
+
+    function stopHeatStatsPoll(){
+      if (!heatStatsTimer) return;
+      clearInterval(heatStatsTimer);
+      heatStatsTimer = null;
+    }
+
+    HMWebConfig.conn.on('heatStats', applyHeatStats);
+
+    (function watchHeatingCard(){
+      const card = $('heat-stats')?.closest('section');
+      if (!card || typeof IntersectionObserver !== 'function') {
+        startHeatStatsPoll();
+        return;
+      }
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) startHeatStatsPoll();
+        else stopHeatStatsPoll();
+      }, { threshold: 0.15 });
+      io.observe(card);
+    })();
 
     $('master-level')?.addEventListener('change', sendGlobal);
     $('panic-level')?.addEventListener('change', sendGlobal);

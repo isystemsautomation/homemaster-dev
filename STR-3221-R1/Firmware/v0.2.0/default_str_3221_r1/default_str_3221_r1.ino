@@ -1738,6 +1738,7 @@ void handleCommand(JSONVar obj);
 void performReset();
 void processModbusCommandPulses();
 void sendWebStatus();
+void sendHeatStats();
 void sendWebCfg();
 void sendWebBootstrap();
 void sendWebLevels();
@@ -1917,6 +1918,8 @@ void handleCommand(JSONVar obj) {
   } else if (act == "heat.exercise") {
     heatQueueExerciseAll();
     sendWebStatus();
+  } else if (act == "heat.stats") {
+    sendHeatStats();
   } else if (act == "hello" || act == "getconfig") {
     sendWebBootstrap();
   } else if (act == "identify") {
@@ -2467,24 +2470,6 @@ void sendWebStatus() {
   bool heatEx = false;
   for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
   st["heatEx"] = heatEx ? 1 : 0;
-  // Hours / cycles live here, not in cfg. Only non-zero channels, so a
-  // fresh board adds nothing and a full 32-zone log stays one short line.
-  {
-    String cnt;
-    cnt.reserve(160);
-    for (uint8_t i = 0; i < NUM_PWM; i++) {
-      const uint16_t h = g_heatStats.hours[i];
-      const uint16_t c = g_heatStats.cycles[i];
-      if (!h && !c) continue;
-      if (cnt.length()) cnt += ',';
-      cnt += String(i + 1);
-      cnt += ':';
-      cnt += String(h);
-      cnt += '/';
-      cnt += String(c);
-    }
-    st["heatCnt"] = cnt;
-  }
   WebSerial.send("status", st);
 }
 
@@ -2521,6 +2506,35 @@ static void cfgChunkAppendHexByte(String& s, uint8_t v) {
   static const char* hex = "0123456789ABCDEF";
   s += hex[v >> 4];
   s += hex[v & 0x0F];
+}
+
+// Valve hours / cycles — on request, never on the 250 ms status line.
+// One compact hex dump does not fit a 256-byte FIFO (32×4 + 32×4 + envelope),
+// so the reply is two 16-channel parts. The page asks when the Heating card
+// is in view and again every 30 s while it stays there.
+static const uint8_t HEAT_STATS_PER_PART = 16;
+
+void sendHeatStats() {
+  for (uint8_t part = 0; part < 2; part++) {
+    if (!hmUsbCanSend(CFG_TX_BUDGET)) return;
+    JSONVar msg;
+    const uint8_t base = (uint8_t)(part * HEAT_STATS_PER_PART);
+    msg["o"] = (int)base;
+    msg["parts"] = 2;
+    String hh, cc;
+    hh.reserve(HEAT_STATS_PER_PART * 4);
+    cc.reserve(HEAT_STATS_PER_PART * 4);
+    for (uint8_t k = 0; k < HEAT_STATS_PER_PART; k++) {
+      const uint8_t i = (uint8_t)(base + k);
+      cfgChunkAppendHexByte(hh, (uint8_t)(g_heatStats.hours[i] >> 8));
+      cfgChunkAppendHexByte(hh, (uint8_t)g_heatStats.hours[i]);
+      cfgChunkAppendHexByte(cc, (uint8_t)(g_heatStats.cycles[i] >> 8));
+      cfgChunkAppendHexByte(cc, (uint8_t)g_heatStats.cycles[i]);
+    }
+    msg["hrs"] = hh;
+    msg["cyc"] = cc;
+    WebSerial.send("heatStats", msg);
+  }
 }
 
 static void sendCfgChunkNow(uint8_t sec, uint8_t part) {

@@ -451,13 +451,15 @@
   }
 
   function setCheck(id, v) {
+    if (v === undefined) return;
     const el = $(id);
     if (el && el.type === 'checkbox') el.checked = !!v;
   }
 
   function setSelect(id, v) {
+    if (v === undefined) return;
     const el = $(id);
-    if (el && el !== document.activeElement) el.value = String(v ?? 0);
+    if (el && el !== document.activeElement) el.value = String(v);
   }
 
   function applyCfg(cfg) {
@@ -466,14 +468,19 @@
     HMWebConfig._suppressCfgSend = true;
     try {
       // A sectioned cfg dump (STR v0.2.0) delivers one named card per
-      // message. Only hydrate a family when that key is present — otherwise
-      // a later `channels` or `scenes` chunk would write empty defaults
-      // over inputs / buttons / LEDs that already arrived.
+      // message, sometimes only a slice: cfg.o is the first index, and
+      // the array is that slice. Walk the arrived length and write to
+      // base+k. Missing fields are left alone — a short chunk must not
+      // stamp defaults over the other inputs.
+      const base = parseInt(cfg.o ?? 0, 10) || 0;
       if (cfg.in != null) {
         const nIn = HMWebConfig.channels.in || 0;
         const inArr = toArray(cfg.in);
-        for (let i = 0; i < nIn; i++) {
-          const o = inArr[i] || {};
+        for (let k = 0; k < inArr.length; k++) {
+          const i = base + k;
+          if (nIn && i >= nIn) break;
+          const o = inArr[k];
+          if (!o || typeof o !== 'object') continue;
           setCheck(`enable-in${i + 1}`, o.enabled);
           setCheck(`invert-in${i + 1}`, o.invert);
           setSelect(`action-in${i + 1}`, o.action);
@@ -484,8 +491,11 @@
       if (cfg.relay != null) {
         const nRly = HMWebConfig.channels.relay || 0;
         const rlyArr = toArray(cfg.relay);
-        for (let i = 0; i < nRly; i++) {
-          const o = rlyArr[i] || {};
+        for (let k = 0; k < rlyArr.length; k++) {
+          const i = base + k;
+          if (nRly && i >= nRly) break;
+          const o = rlyArr[k];
+          if (!o || typeof o !== 'object') continue;
           setCheck(`enable-relay${i + 1}`, o.enabled);
           setCheck(`invert-relay${i + 1}`, o.invert);
           if (o.powerOn != null) setSelect(`powerOn-relay${i + 1}`, o.powerOn);
@@ -495,8 +505,10 @@
       if (cfg.btn != null) {
         const nBtn = HMWebConfig.channels.btn || 0;
         const btnArr = toArray(cfg.btn);
-        for (let i = 0; i < nBtn; i++) {
-          const o = btnArr[i];
+        for (let k = 0; k < btnArr.length; k++) {
+          const i = base + k;
+          if (nBtn && i >= nBtn) break;
+          const o = btnArr[k];
           const act = (o && typeof o === 'object') ? o.action : o;
           setSelect(`action-btn${i + 1}`, act);
         }
@@ -505,8 +517,11 @@
       if (cfg.led != null) {
         const nLed = HMWebConfig.channels.led || 0;
         const ledArr = toArray(cfg.led);
-        for (let i = 0; i < nLed; i++) {
-          const o = ledArr[i] || {};
+        for (let k = 0; k < ledArr.length; k++) {
+          const i = base + k;
+          if (nLed && i >= nLed) break;
+          const o = ledArr[k];
+          if (!o || typeof o !== 'object') continue;
           setSelect(`mode-led${i + 1}`, o.mode);
           setSelect(`source-led${i + 1}`, o.source);
         }
