@@ -530,7 +530,9 @@ static const char* const CFG_SEC_NAME[SEC_COUNT] = {
   "base", "inputs", "buttons", "leds", "failsafe", "channels", "groups", "scenes",
   "stairs", "heating"
 };
-static const uint8_t CFG_SEC_PARTS[SEC_COUNT] = { 1, 1, 1, 1, 4, 8, 1, 4, 2, 1 };
+// inputs 3, failsafe 4, channels 11 (3/part), scenes 8 (1/part), stairs 3.
+// Heating stays 1: hours/cycles live on the status line, not here.
+static const uint8_t CFG_SEC_PARTS[SEC_COUNT] = { 1, 3, 1, 1, 4, 11, 1, 8, 3, 1 };
 
 // STATUS_FLAGS bits — 6 and 7 are declared for 2f/2g and read 0 in this step.
 enum : uint16_t {
@@ -2465,6 +2467,24 @@ void sendWebStatus() {
   bool heatEx = false;
   for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
   st["heatEx"] = heatEx ? 1 : 0;
+  // Hours / cycles live here, not in cfg. Only non-zero channels, so a
+  // fresh board adds nothing and a full 32-zone log stays one short line.
+  {
+    String cnt;
+    cnt.reserve(160);
+    for (uint8_t i = 0; i < NUM_PWM; i++) {
+      const uint16_t h = g_heatStats.hours[i];
+      const uint16_t c = g_heatStats.cycles[i];
+      if (!h && !c) continue;
+      if (cnt.length()) cnt += ',';
+      cnt += String(i + 1);
+      cnt += ':';
+      cnt += String(h);
+      cnt += '/';
+      cnt += String(c);
+    }
+    st["heatCnt"] = cnt;
+  }
   WebSerial.send("status", st);
 }
 
@@ -2484,8 +2504,9 @@ void sendWebStatus() {
 //  section has arrived, so the page can never echo defaults back at us.
 // ============================================================================
 static const uint8_t CFG_FS_PER_PART = NUM_PWM / 4;      // 8 channels
-static const uint8_t CFG_CH_PER_PART = NUM_PWM / 8;      // 4 channels
-static const uint8_t CFG_SCN_PER_PART = NUM_SCENES / 4;  // 2 scenes
+static const uint8_t CFG_CH_PER_PART = 3;                // 11 parts, last holds 2
+static const uint8_t CFG_SCN_PER_PART = 1;               // 8 parts, one scene each
+static const uint8_t CFG_IN_PER_PART  = 1;               // 3 parts, one input each
 
 static uint8_t  g_cfgSec = SEC_COUNT;   // SEC_COUNT = transfer idle
 static uint8_t  g_cfgPart = 0;
@@ -2516,16 +2537,20 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
       cfg["panic"]  = (int)g_panicLevel;
       break;
 
-    case SEC_INPUTS:
-      for (int i = 0; i < NUM_DI; i++) {
-        cfg["in"][i]["enabled"] = diCfg[i].enabled ? 1 : 0;
-        cfg["in"][i]["invert"]  = diCfg[i].inverted ? 1 : 0;
-        cfg["in"][i]["action"]  = diCfg[i].action;
-        cfg["in"][i]["target"]  = diCfg[i].target;
-        cfg["in"][i]["level"]   = (int)diCfg[i].level;
-        cfg["in"][i]["param"]   = (int)diCfg[i].param;
+    case SEC_INPUTS: {
+      const uint8_t base = (uint8_t)(part * CFG_IN_PER_PART);
+      cfg["o"] = (int)base;
+      for (uint8_t k = 0; k < CFG_IN_PER_PART && (base + k) < NUM_DI; k++) {
+        const uint8_t i = (uint8_t)(base + k);
+        cfg["in"][k]["enabled"] = diCfg[i].enabled ? 1 : 0;
+        cfg["in"][k]["invert"]  = diCfg[i].inverted ? 1 : 0;
+        cfg["in"][k]["action"]  = diCfg[i].action;
+        cfg["in"][k]["target"]  = diCfg[i].target;
+        cfg["in"][k]["level"]   = (int)diCfg[i].level;
+        cfg["in"][k]["param"]   = (int)diCfg[i].param;
       }
       break;
+    }
 
     case SEC_BUTTONS:
       for (int i = 0; i < NUM_BTN; i++) {
@@ -2558,7 +2583,9 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
     case SEC_CHANNELS: {
       const uint8_t base = (uint8_t)(part * CFG_CH_PER_PART);
       cfg["o"] = (int)base;
-      for (uint8_t k = 0; k < CFG_CH_PER_PART; k++) {
+      const uint8_t n = (base + CFG_CH_PER_PART > NUM_PWM)
+        ? (uint8_t)(NUM_PWM - base) : CFG_CH_PER_PART;
+      for (uint8_t k = 0; k < n; k++) {
         const ChCfg& c = chCfg[base + k];
         cfg["p"][k]  = (int)c.profile;
         cfg["c"][k]  = (int)c.curve;
@@ -2608,6 +2635,7 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
         cfg["h"]  = (int)g_stairCfg.holdS;
         cfg["f"]  = (int)g_stairCfg.fadeOutMs;
         cfg["ov"] = (int)g_stairCfg.overlapPct;
+      } else if (part == 1) {
         cfg["rt"] = (int)g_stairCfg.retrigger;
         cfg["op"] = (int)g_stairCfg.oppose;
         cfg["nl"] = (int)g_stairCfg.nightLevel;
@@ -2644,17 +2672,6 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
       for (uint8_t i = 0; i < NUM_PWM; i++) if (chCfg[i].flags & 0x01) ncMask |= (1UL << i);
       for (int8_t b = 3; b >= 0; b--) cfgChunkAppendHexByte(nc, (uint8_t)(ncMask >> (b * 8)));
       cfg["nc"] = nc;
-      String hh, cc;
-      hh.reserve(NUM_PWM * 4);
-      cc.reserve(NUM_PWM * 4);
-      for (uint8_t i = 0; i < NUM_PWM; i++) {
-        cfgChunkAppendHexByte(hh, (uint8_t)(g_heatStats.hours[i] >> 8));
-        cfgChunkAppendHexByte(hh, (uint8_t)g_heatStats.hours[i]);
-        cfgChunkAppendHexByte(cc, (uint8_t)(g_heatStats.cycles[i] >> 8));
-        cfgChunkAppendHexByte(cc, (uint8_t)g_heatStats.cycles[i]);
-      }
-      cfg["hrs"] = hh;
-      cfg["cyc"] = cc;
       break;
     }
 

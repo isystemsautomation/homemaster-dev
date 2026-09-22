@@ -811,14 +811,28 @@
     }
 
     function loadInputsSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
       const inArr = HMWebConfig.toArray(cfg.in);
-      for (let i = 0; i < NUM_DI; i++){
-        const o = inArr[i];
+      for (let k = 0; k < inArr.length; k++){
+        const i = base + k;
+        if (i >= NUM_DI) break;
+        const o = inArr[k];
         if (!o) continue;
-        if (o.level != null) setIfIdle('level-in' + (i + 1), o.level);
-        if (o.param != null) setIfIdle('param-in' + (i + 1), o.param);
+        const n = i + 1;
+        if (o.enabled != null) {
+          const el = $('enable-in' + n);
+          if (el && el !== document.activeElement) el.checked = !!parseInt(o.enabled, 10);
+        }
+        if (o.invert != null) {
+          const el = $('invert-in' + n);
+          if (el && el !== document.activeElement) el.checked = !!parseInt(o.invert, 10);
+        }
+        if (o.action != null) setIfIdle('action-in' + n, o.action);
+        if (o.target != null) setIfIdle('target-in' + n, o.target);
+        if (o.level != null) setIfIdle('level-in' + n, o.level);
+        if (o.param != null) setIfIdle('param-in' + n, o.param);
       }
-      cfgHydrated.inputs = true;
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.inputs = true;
     }
 
     function loadButtonsSection(cfg){
@@ -1014,29 +1028,28 @@
 
     function loadStairsSection(cfg){
       const part = parseInt(cfg.part ?? 0, 10);
-      if (part === 0){
-        if (cfg.n != null) setIfIdle('stair-n', cfg.n);
-        if (cfg.md != null) setIfIdle('stair-md', cfg.md);
-        if (cfg.pt != null) setIfIdle('stair-pt', cfg.pt);
-        if (cfg.ww != null) setIfIdle('stair-ww', cfg.ww);
-        if (cfg.im != null) setIfIdle('stair-im', cfg.im);
-        if (cfg.be != null) setIfIdle('stair-be', cfg.be);
-        if (cfg.bw != null) setIfIdle('stair-bw', cfg.bw);
-        if (cfg.d != null) setIfIdle('stair-d', cfg.d);
-        if (cfg.h != null) setIfIdle('stair-h', cfg.h);
-        if (cfg.f != null) setIfIdle('stair-f', cfg.f);
-        if (cfg.ov != null) setIfIdle('stair-ov', cfg.ov);
-        if (cfg.rt != null) setIfIdle('stair-rt', cfg.rt);
-        if (cfg.op != null) setIfIdle('stair-op', cfg.op);
-        if (cfg.nl != null) setIfIdle('stair-nl', cfg.nl);
-        if (cfg.dl != null) setIfIdle('stair-dl', cfg.dl);
-        if (cfg.sf != null) setIfIdle('stair-sf', cfg.sf);
-        if (cfg.sl != null) setIfIdle('stair-sl', cfg.sl);
-        if (cfg.nn != null) setIfIdle('stair-nn', cfg.nn);
-        if (cfg.fd != null) setIfIdle('stair-fd', cfg.fd);
-        if (cfg.db != null) setIfIdle('stair-db', cfg.db);
-        if (cfg.mr != null) setIfIdle('stair-mr', cfg.mr);
-      } else if (cfg.map){
+      if (cfg.n != null) setIfIdle('stair-n', cfg.n);
+      if (cfg.md != null) setIfIdle('stair-md', cfg.md);
+      if (cfg.pt != null) setIfIdle('stair-pt', cfg.pt);
+      if (cfg.ww != null) setIfIdle('stair-ww', cfg.ww);
+      if (cfg.im != null) setIfIdle('stair-im', cfg.im);
+      if (cfg.be != null) setIfIdle('stair-be', cfg.be);
+      if (cfg.bw != null) setIfIdle('stair-bw', cfg.bw);
+      if (cfg.d != null) setIfIdle('stair-d', cfg.d);
+      if (cfg.h != null) setIfIdle('stair-h', cfg.h);
+      if (cfg.f != null) setIfIdle('stair-f', cfg.f);
+      if (cfg.ov != null) setIfIdle('stair-ov', cfg.ov);
+      if (cfg.rt != null) setIfIdle('stair-rt', cfg.rt);
+      if (cfg.op != null) setIfIdle('stair-op', cfg.op);
+      if (cfg.nl != null) setIfIdle('stair-nl', cfg.nl);
+      if (cfg.dl != null) setIfIdle('stair-dl', cfg.dl);
+      if (cfg.sf != null) setIfIdle('stair-sf', cfg.sf);
+      if (cfg.sl != null) setIfIdle('stair-sl', cfg.sl);
+      if (cfg.nn != null) setIfIdle('stair-nn', cfg.nn);
+      if (cfg.fd != null) setIfIdle('stair-fd', cfg.fd);
+      if (cfg.db != null) setIfIdle('stair-db', cfg.db);
+      if (cfg.mr != null) setIfIdle('stair-mr', cfg.mr);
+      if (cfg.map){
         const bytes = parseHexBytes(cfg.map, NUM_PWM);
         for (let s = 0; s < NUM_PWM; s++) setIfIdle('stair-ch-' + s, bytes[s] > 31 ? 31 : bytes[s]);
       }
@@ -1062,18 +1075,6 @@
           if (el && el !== document.activeElement)
             el.checked = Math.floor(mask / Math.pow(2, ch - 1)) % 2 === 1;
         }
-      }
-      if (cfg.hrs || cfg.cyc){
-        const hrs = parseHexBytes(cfg.hrs, NUM_PWM * 2);
-        const cyc = parseHexBytes(cfg.cyc, NUM_PWM * 2);
-        const bits = [];
-        for (let i = 0; i < NUM_PWM; i++){
-          const h = (hrs[i * 2] << 8) | hrs[i * 2 + 1];
-          const c = (cyc[i * 2] << 8) | cyc[i * 2 + 1];
-          if (h || c) bits.push('O' + (i + 1) + ': ' + h + ' h / ' + c + ' cyc');
-        }
-        const el = $('heat-stats');
-        if (el) el.textContent = bits.length ? ('Hours / cycles: ' + bits.join(', ')) : 'Hours / cycles: none yet';
       }
       cfgHydrated.heating = true;
     }
@@ -1165,6 +1166,21 @@
       if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
       if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
       if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';
+      if ($('heat-stats') && st.heatCnt != null) {
+        const raw = String(st.heatCnt || '');
+        if (!raw) {
+          $('heat-stats').textContent = 'Hours / cycles: none yet';
+        } else {
+          const bits = raw.split(',').map(tok => {
+            const m = tok.match(/^(\d+):(\d+)\/(\d+)$/);
+            if (!m) return null;
+            return 'O' + m[1] + ': ' + m[2] + ' h / ' + m[3] + ' cyc';
+          }).filter(Boolean);
+          $('heat-stats').textContent = bits.length
+            ? ('Hours / cycles: ' + bits.join(', '))
+            : 'Hours / cycles: none yet';
+        }
+      }
     });
 
     $('master-level')?.addEventListener('change', sendGlobal);
