@@ -16,18 +16,27 @@
 ## Input Registers (FC=04, read) — contiguous 0..31 (one merged poll per cycle):
 ##   0 DI_MASK · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS
 ##      (bit0=tlcReady, bit1=linkOk, bit2=busFailsafe, bit3=cfgDirty,
-##       bit4=localOverride, bit5=panic, bit6=seqRunning 2f, bit7=heatDemand 2g)
+##       bit4=localOverride, bit5=panic, bit6=seqRunning, bit7=heatDemand)
 ##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN
 ##   9 ACTIVE_SCENE (0=none, 1..8=last recalled)
 ##  10..25 OUT readback (2 channels per reg, low=even high=odd)
 ##  26 SEQ_STATE · 27 SEQ_STEP · 28 HEAT_FLAGS · 29 ZONES_OPEN
-##  30 ZONE_MASK_LO · 31 ZONE_MASK_HI   — declared, published 0 until 2f/2g
+##  30 ZONE_MASK_LO · 31 ZONE_MASK_HI
+##     HEAT_FLAGS: bit2=DI closed · bit3=frost · bit4=valve exercise
 ##
-## Holding (FC=03/06/16): 400..431 O1..O32 · 432 master 0..255 · 436 scene recall
-##   (write 1..8, reads back 0). 433..435 / 437 reserved for 2f/2g — not declared.
-## Coils: 330 save levels · 331 release override · 332 panic · 333 all-off · 334 clear panic.
-##   340..342 / 345 reserved for 2f/2g — not declared.
+## Holding (FC=03/06/16): 400..431 O1..O32 · 432 master 0..255 · 433 inhibit
+##   · 434 night level · 435 day level · 436 scene recall (write 1..8, reads back 0)
+##   · 437 summer mode.
+## Coils: 330 save levels · 331 release override · 332 panic · 333 all-off · 334 clear panic
+##   · 340 run up · 341 run down · 342 stop · 345 exercise valves now.
 ## IR 200..204: firmware identity (not polled).
+##
+## Heat channels: this package exposes O1..O32 as monochromatic lights (0–255)
+## because one YAML covers every profile. For a zone that is profile=heat, the
+## firmware reads HR 400..431 as 0–100 % duty. To show those zones as sliders
+## in HA, comment the matching `light:` entries and uncomment the `number:`
+## block at the bottom (0–100, unit %). Mixing both for the same register
+## double-writes the holding register — pick one per channel.
 ##
 ## Output readback @ IR 10..25 is registered and polled (internal sensors below);
 ## monochromatic lights are driven by HR 400..431 writes. Wiring readback into
@@ -143,6 +152,36 @@ binary_sensor:
     register_type: read
     address: 3
     bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Sequence running"
+    register_type: read
+    address: 3
+    bitmask: 0x0040
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Heat demand"
+    register_type: read
+    address: 3
+    bitmask: 0x0080
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Heating enable input"
+    register_type: read
+    address: 28
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Frost protection active"
+    register_type: read
+    address: 28
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Valve exercise active"
+    register_type: read
+    address: 28
+    bitmask: 0x0010
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     name: "${str_prefix} TLC chip 1 OK"
@@ -343,16 +382,14 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     id: ${str_id}_ir26_block
-    name: "${str_prefix} IR26 block"
-    internal: true
+    name: "${str_prefix} Sequence state"
     register_type: read
     address: 26
     accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     id: ${str_id}_ir27_block
-    name: "${str_prefix} IR27 block"
-    internal: true
+    name: "${str_prefix} Current step"
     register_type: read
     address: 27
     accuracy_decimals: 0
@@ -367,8 +404,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
     id: ${str_id}_ir29_block
-    name: "${str_prefix} IR29 block"
-    internal: true
+    name: "${str_prefix} Open zones"
     register_type: read
     address: 29
     accuracy_decimals: 0
@@ -781,6 +817,34 @@ switch:
     address: 334
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_up
+    register_type: coil
+    address: 340
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_down
+    register_type: coil
+    address: 341
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_stop
+    register_type: coil
+    address: 342
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_heat_exercise
+    register_type: coil
+    address: 345
+    internal: true
+    assumed_state: true
 
 number:
   - platform: modbus_controller
@@ -795,12 +859,48 @@ number:
     entity_category: config
   - platform: modbus_controller
     modbus_controller_id: ${str_id}
+    name: "${str_prefix} Inhibit"
+    address: 433
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Night level"
+    address: 434
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Day level"
+    address: 435
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
     name: "${str_prefix} Recall scene"
     address: 436
     register_type: holding
     value_type: U_WORD
     min_value: 0
     max_value: 8
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Summer mode"
+    address: 437
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
     step: 1
 
 button:
@@ -826,3 +926,35 @@ button:
     name: "${str_prefix} All off"
     on_press:
       - switch.turn_on: ${str_id}_coil_all_off
+  - platform: template
+    name: "${str_prefix} Run up"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_up
+  - platform: template
+    name: "${str_prefix} Run down"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_down
+  - platform: template
+    name: "${str_prefix} Stop"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_stop
+  - platform: template
+    name: "${str_prefix} Exercise valves now"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_heat_exercise
+
+# Heat-profile channels as 0–100 % numbers instead of lights.
+# Uncomment one block per heat zone and comment the matching `light:` above.
+# Mixing both for the same register double-writes it — pick one per channel.
+# number:
+#   - platform: modbus_controller
+#     modbus_controller_id: ${str_id}
+#     name: "${str_prefix} O1 duty"
+#     address: 400
+#     register_type: holding
+#     value_type: U_WORD
+#     min_value: 0
+#     max_value: 100
+#     step: 1
+#     unit_of_measurement: "%"
+#   # …repeat address 401..431 for O2..O32 as needed

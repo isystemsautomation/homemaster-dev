@@ -25,14 +25,13 @@
  *                         for), not the driver duty after curve and master —
  *                         so a write to HR 400 reads back unchanged.
  *  26  IREG_SEQ_STATE     lo: 0 idle 1 up 2 down 3 hold 4 fade-out;
- *                         hi: direction 0/1/2                     — 2f, 0 here
- *  27  IREG_SEQ_STEP      current step, 0 = none                  — 2f, 0 here
+ *                         hi: direction 0 none · 1 up · 2 down
+ *  27  IREG_SEQ_STEP      current step, 0 = none
  *  28  IREG_HEAT_FLAGS    bit0 heat demand, bit1 summer mode, bit2 enable input
  *                         closed, bit3 anti-freeze active, bit4 valve exercise
- *                         running                                 — 2g, 0 here
- *  29  IREG_ZONES_OPEN    number of open zones                    — 2g, 0 here
- *  30  IREG_ZONE_MASK_LO  open-zone mask, channels 1..16          — 2g, 0 here
- *  31  IREG_ZONE_MASK_HI  open-zone mask, channels 17..32         — 2g, 0 here
+ *  29  IREG_ZONES_OPEN    number of open zones
+ *  30  IREG_ZONE_MASK_LO  open-zone mask, channels 1..16
+ *  31  IREG_ZONE_MASK_HI  open-zone mask, channels 17..32
  *
  * Command coils (FC=05/15, auto-clear pulse):
  *   300..302  pulse ENABLE  IO1..IO3
@@ -42,15 +41,19 @@
  *   332       pulse ENTER panic — every channel to panicLevel and HELD there
  *   333       pulse ALL OFF — one shot, not latched
  *   334       pulse CLEAR panic
- *   340..342  reserved for 2f (stair run up / down / abort) — NOT declared here
- *   345       reserved for 2g (exercise valves now)          — NOT declared here
+ *   340       pulse stair run UP
+ *   341       pulse stair run DOWN
+ *   342       pulse stair abort
+ *   345       pulse exercise all heat valves now
  *
  * Holding registers (FC=03/06/16) — config / write surface; not polled:
  *   400..431  O1..O32 level 0..255; on a channel with profile=heat, duty 0..100
  *   432       master level 0..255 (multiplier on every channel, default 255)
- *   433..435  reserved for 2f (sequencer inhibit, night / day level) — not declared
+ *   433       sequencer inhibit 0/1 (running sequence is allowed to finish)
+ *   434       night level 0..255 (writing selects the night window)
+ *   435       day level 0..255 (writing selects the day window)
  *   436       scene recall: write 1..8 applies that scene, reads back 0
- *   437       reserved for 2g (summer mode) — not declared
+ *   437       summer mode 0/1 — heat closed, valve exercise still runs
  *   480       Modbus slave address (R/W)
  *   481       Modbus baud rate (R/W, whitelist 9600..115200; stored raw,
  *             115200 not representable in uint16 → reads as 0, set via WebConfig)
@@ -72,10 +75,27 @@
  *
  * Panic and bus failsafe cut in BEFORE the profile: they replace the source
  * value, never the result, so a channel in panic is still shaped by its own
- * curve, its own min/max and the master level.
- * Priority, highest first: panic → bus failsafe → local override → Modbus.
+ * curve, its own min/max and the master level. Heat NC/NO is applied LAST,
+ * in the TLC write, so it covers PWM, exercise, frost and DI-close.
  * profile=raw skips min/max and the curve only; the master level still applies
  * to it, otherwise a master dim would silently miss raw channels.
+ *
+ * SOURCE PRIORITY — one list for the whole module, highest first:
+ *   1. DI in role `enable`, open — every heat channel closed. Unconditional.
+ *   2. Panic (coil 332) — led/raw/indicator → panicLevel. Heat channels stay
+ *      CLOSED: a fire alarm must not throw the valves open.
+ *   3. Summer mode — heat closed; valve exercise still runs.
+ *   4. Local override — holds outputs; PIR/buttons that start the sequencer
+ *      are ignored. The sequencer, if already running, is allowed to finish.
+ *   5. Frost protection — heat channels, instead of per-channel failsafe,
+ *      after T hours of silence on this slave.
+ *   6. Bus failsafe — led/raw/indicator only. Stair-table channels keep
+ *      running: a dead bus is when the staircase most has to work.
+ *   7. Sequencer — owns step-table channels while a run is in progress.
+ *      HR 400..431 writes to those channels are accepted but not applied
+ *      until the run ends (then the channel returns to accent / the bus).
+ *   8. Slow PWM — owns profile=heat channels.
+ *   9. Holding-register writes 400..431.
  *
  * ───────────────────────────────────────────────────────────────────────────
  * CONFIG CONTRACT FOR STEPS 2f AND 2g — declared now so CFG_VERSION never
@@ -85,7 +105,7 @@
  * StairCfg (2f — stair sequencer), all zero = disabled:
  *   uint8_t  stepCount            number of steps in use, 0..32 (0 = off)
  *   uint8_t  stepChannel[32]      step N → output channel index 0..31
- *   uint8_t  mode                 0 off · 1 one-shot · 2 hold-while-present
+ *   uint8_t  mode                 launch: 0 one-shot · 1 hold while presence
  *   uint16_t stepDelayMs          delay between consecutive steps
  *   uint16_t holdS                hold time at full before fade-out
  *   uint16_t fadeOutMs            fade-out phase length
@@ -100,6 +120,14 @@
  *   uint16_t stepFadeMs           per-step fade
  *   uint16_t debounceMs           sensor debounce
  *   uint16_t minRepeatMs          minimum interval between two runs
+ *   uint8_t  pattern              drawing: 0 sequential · 1 all · 2 wave
+ *                                 · 3 comet · 4 center · 5 random
+ *                                 (not the same byte as mode)
+ *   uint8_t  waveWidth            simultaneous steps for wave / comet
+ *   uint8_t  inputEndMap          bit0: 0 = IN1 bottom, 1 = IN1 top
+ *   uint8_t  bothEnds             both-in-window: 0 default dir · 1 all at once · 2 ignore
+ *   uint16_t bothWindowMs         dual-trigger window
+ *   uint8_t  _rsv[6]
  * HeatCfg (2g — underfloor heating), all zero = disabled:
  *   uint16_t slowPwmPeriodS       slow-PWM cycle length
  *   uint8_t  phaseSpreadPct       phase spread between zones, 0..100 %
@@ -111,11 +139,13 @@
  *   uint16_t exerciseDurationS    valve exercise duration
  *   uint16_t antifreezeHours      anti-freeze threshold, hours without demand
  *   uint8_t  summerMode           1 = heating inhibited
- *   uint8_t  _rsv                 alignment
+ *   uint8_t  _rsv                 unused alignment byte from 2e
+ *   uint8_t  minPulsePct          min duty; below → 0, above 100−min → 100
+ *   uint8_t  _rsv2[5]
  * Per channel, ChCfg.flags bit0 is the NC/NO inversion 2g fills in.
  *
- * Packed sizes (static_assert in this file): ChCfg 10, StairCfg 54, HeatCfg 17,
- * PersistConfigV5 868. CFG_VERSION 0x0005 is the last bump for 2f/2g.
+ * Packed sizes (static_assert in this file): ChCfg 10, StairCfg 66, HeatCfg 23,
+ * PersistConfigV5 886. CFG_VERSION stays 0x0005.
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
@@ -263,7 +293,7 @@ struct ChCfg {
 struct StairCfg {
   uint8_t  stepCount;
   uint8_t  stepChannel[NUM_PWM];
-  uint8_t  mode;
+  uint8_t  mode;                  // 0 one-shot · 1 hold while presence
   uint16_t stepDelayMs;
   uint16_t holdS;
   uint16_t fadeOutMs;
@@ -278,6 +308,12 @@ struct StairCfg {
   uint16_t stepFadeMs;
   uint16_t debounceMs;
   uint16_t minRepeatMs;
+  uint8_t  pattern;               // 0 seq · 1 all · 2 wave · 3 comet · 4 center · 5 random
+  uint8_t  waveWidth;
+  uint8_t  inputEndMap;           // bit0: 0 IN1=bottom, 1 IN1=top
+  uint8_t  bothEnds;              // 0 default dir · 1 all at once · 2 ignore
+  uint16_t bothWindowMs;
+  uint8_t  _rsv[6];
 } __attribute__((packed));
 
 // ---- Declared now, used by step 2g. Zero = disabled. See the header contract.
@@ -293,6 +329,8 @@ struct HeatCfg {
   uint16_t antifreezeHours;
   uint8_t  summerMode;
   uint8_t  _rsv;
+  uint8_t  minPulsePct;
+  uint8_t  _rsv2[5];
 } __attribute__((packed));
 
 InCfg  diCfg[NUM_DI];
@@ -419,9 +457,9 @@ struct PersistConfigV5 {
 } __attribute__((packed));
 
 static_assert(sizeof(ChCfg) == 10, "ChCfg is 10 bytes packed");
-static_assert(sizeof(StairCfg) == 54, "StairCfg is 54 bytes — 2f contract");
-static_assert(sizeof(HeatCfg) == 17, "HeatCfg is 17 bytes — 2g contract");
-static_assert(sizeof(PersistConfigV5) == 868, "PersistConfigV5 is 868 bytes packed");
+static_assert(sizeof(StairCfg) == 66, "StairCfg is 66 bytes — 2f contract");
+static_assert(sizeof(HeatCfg) == 23, "HeatCfg is 23 bytes — 2g contract");
+static_assert(sizeof(PersistConfigV5) == 886, "PersistConfigV5 is 886 bytes packed");
 
 static const uint32_t CFG_MAGIC      = 0x53545231UL; // '1RTS'
 static const uint16_t CFG_VERSION_V3 = 0x0003;
@@ -464,10 +502,17 @@ enum : uint16_t {
   COIL_PANIC_ON   = 332,
   COIL_ALL_OFF    = 333,
   COIL_PANIC_OFF  = 334,
-  // 340..342 (stair run/abort) and 345 (exercise valves) stay free for 2f/2g.
+  COIL_STAIR_UP   = 340,
+  COIL_STAIR_DOWN = 341,
+  COIL_STAIR_STOP = 342,
+  COIL_HEAT_EXERCISE = 345,
   HR_PWM_BASE = 400,
   HR_MASTER   = 432,
+  HR_INHIBIT  = 433,
+  HR_NIGHT    = 434,
+  HR_DAY      = 435,
   HR_SCENE    = 436,
+  HR_SUMMER   = 437,
   HR_MB_ADDR  = 480,
   HR_MB_BAUD  = 481
 };
@@ -476,12 +521,14 @@ enum : uint16_t {
 // acknowledged section at a time (see the WEBCONFIG block further down).
 enum : uint8_t {
   SEC_BASE = 0, SEC_INPUTS, SEC_BUTTONS, SEC_LEDS,
-  SEC_FAILSAFE, SEC_CHANNELS, SEC_GROUPS, SEC_SCENES, SEC_COUNT
+  SEC_FAILSAFE, SEC_CHANNELS, SEC_GROUPS, SEC_SCENES,
+  SEC_STAIRS, SEC_HEATING, SEC_COUNT
 };
 static const char* const CFG_SEC_NAME[SEC_COUNT] = {
-  "base", "inputs", "buttons", "leds", "failsafe", "channels", "groups", "scenes"
+  "base", "inputs", "buttons", "leds", "failsafe", "channels", "groups", "scenes",
+  "stairs", "heating"
 };
-static const uint8_t CFG_SEC_PARTS[SEC_COUNT] = { 1, 1, 1, 1, 4, 8, 1, 4 };
+static const uint8_t CFG_SEC_PARTS[SEC_COUNT] = { 1, 1, 1, 1, 4, 8, 1, 4, 2, 1 };
 
 // STATUS_FLAGS bits — 6 and 7 are declared for 2f/2g and read 0 in this step.
 enum : uint16_t {
@@ -705,6 +752,14 @@ static void i2cScanLog() {
   tlcBindFromScan();
 }
 
+static inline uint8_t driverOut(uint8_t ch, uint8_t v) {
+  // NC/NO last: immediately before the TLC. NO inverts every heat mode.
+  if (chCfg[ch].profile == CH_PROF_HEAT && (chCfg[ch].flags & 0x01)) return (uint8_t)(255 - v);
+  return v;
+}
+
+static uint16_t channelRampMs(uint8_t ch);
+
 static bool tlcWritePwm(uint8_t chipIdx, uint8_t ch, uint8_t val) {
   if (chipIdx >= 4 || ch >= 8 || !tlcChipOk[chipIdx]) return false;
   return tlcWriteReg(tlcAddrActive[chipIdx], TLC_REG_PWM0 + ch, val);
@@ -718,7 +773,7 @@ static bool tlcFlushChip(uint8_t chipIdx) {
   wrote += (uint8_t)tlcWire->write(0xA2);  // AI=101, start at PWM0 — eight bytes auto-increment
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
-    const uint8_t v = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
+    const uint8_t v = driverOut(idx, (uint8_t)constrain((int)pwmLevel[idx], 0, 255));
     wrote += (uint8_t)tlcWire->write(v);
   }
   if (wrote != 9 || tlcWire->endTransmission() != 0) {
@@ -727,7 +782,7 @@ static bool tlcFlushChip(uint8_t chipIdx) {
   }
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
-    tlcApplied[idx] = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
+    tlcApplied[idx] = driverOut(idx, (uint8_t)constrain((int)pwmLevel[idx], 0, 255));
   }
   return true;
 }
@@ -815,7 +870,7 @@ static bool diLiveState(uint8_t mbIdx) {
 static void applyPwmChannel(uint8_t idx, uint16_t val) {
   if (idx >= NUM_PWM) return;
   if (val > 255) val = 255;
-  const uint8_t v = (uint8_t)val;
+  const uint8_t v = driverOut(idx, (uint8_t)val);
   pwmLevel[idx] = val;
   const uint8_t chipIdx = idx / 8;
   if (!tlcReady || !tlcChipOk[chipIdx]) return;
@@ -834,7 +889,7 @@ static void applyAllPwmLevels() {
     uint8_t loneIdx = 0;
     for (uint8_t ch = 0; ch < 8; ch++) {
       const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
-      const uint8_t v = (uint8_t)constrain((int)pwmLevel[idx], 0, 255);
+      const uint8_t v = driverOut(idx, (uint8_t)constrain((int)pwmLevel[idx], 0, 255));
       if (tlcApplied[idx] != v) {
         diffCount++;
         loneIdx = idx;
@@ -878,7 +933,12 @@ static void buildCurveLuts() {
 // Panic outranks everything; failsafe and local override work by having already
 // written chRequest and by locking Modbus out (outputsModbusLocked).
 static inline uint8_t chEffectiveSource(uint8_t ch) {
-  return g_panicActive ? g_panicLevel : chRequest[ch];
+  if (g_panicActive) {
+    // Heat stays closed in panic — a fire alarm must not throw valves open.
+    if (chCfg[ch].profile == CH_PROF_HEAT) return 0;
+    return g_panicLevel;
+  }
+  return chRequest[ch];
 }
 
 // Stage 2 — rescale into the channel window. 0 stays off; 1..255 spans
@@ -936,7 +996,7 @@ static void serviceRamp(uint32_t now) {
   // rampMs = 0 lands at once: a plain level write keeps the latency it had
   // before ramps existed.
   for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
-    if (chCfg[ch].rampMs != 0) continue;
+    if (channelRampMs(ch) != 0) continue;
     chRampLastMs[ch] = now;
     if (pwmLevel[ch] == chDriver[ch]) continue;
     pwmLevel[ch] = chDriver[ch];
@@ -948,7 +1008,7 @@ static void serviceRamp(uint32_t now) {
   if ((uint32_t)(now - g_lastRampServiceMs) >= RAMP_SERVICE_MS) {
     g_lastRampServiceMs = now;
     for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
-      const uint16_t rampMs = chCfg[ch].rampMs;
+      const uint16_t rampMs = channelRampMs(ch);
       if (rampMs == 0) continue;
       const uint16_t target = chDriver[ch];
       if (pwmLevel[ch] == target) { chRampLastMs[ch] = now; continue; }
@@ -986,13 +1046,18 @@ static void hrPwmSet(uint8_t ch, uint8_t v) {
 }
 
 // One channel, no group propagation, no scene bookkeeping.
-static void setChannelRequestOne(uint8_t ch, uint8_t val) {
+// armAutoOff: a user/bus/scene command restarts the timer; failsafe must not.
+// Heat channels never arm — the slow-PWM cycle is not a user command.
+static void setChannelRequestOne(uint8_t ch, uint8_t val, bool armAutoOff = true) {
   if (ch >= NUM_PWM) return;
   chRequest[ch] = val;
-  // Auto-off: a fresh command on this channel restarts its timer; off clears it.
-  chAutoOffAtMs[ch] = (val > 0 && chCfg[ch].autoOffS > 0)
-    ? (millis() + (uint32_t)chCfg[ch].autoOffS * 1000UL)
-    : 0;
+  if (chCfg[ch].profile == CH_PROF_HEAT || !armAutoOff) {
+    chAutoOffAtMs[ch] = 0;
+  } else {
+    chAutoOffAtMs[ch] = (val > 0 && chCfg[ch].autoOffS > 0)
+      ? (millis() + (uint32_t)chCfg[ch].autoOffS * 1000UL)
+      : 0;
+  }
   recomputeChannelDriver(ch);
 }
 
@@ -1028,10 +1093,18 @@ static void setChannelRequest(uint8_t ch, uint8_t val, uint8_t src) {
   }
 }
 
+#include "hm_stair.h"
+#include "hm_heat.h"
+
+static uint16_t channelRampMs(uint8_t ch) {
+  return stairRampMs(ch);
+}
+
 static void setAllPwmLocal(uint16_t val) {
   if (val > 255) val = 255;
   g_activeScene = 0;
   for (uint8_t i = 0; i < NUM_PWM; i++) {
+    if (heatIsChannel(i)) continue;     // All ON must not throw valves open
     setChannelRequestOne(i, (uint8_t)val);
     hrPwmSet(i, (uint8_t)val);
   }
@@ -1049,6 +1122,7 @@ static void applyRampLevelsLocal() {
 static void restoreOutputsFromHoldingRegs() {
   g_activeScene = 0;
   for (uint8_t i = 0; i < NUM_PWM; i++) {
+    if (heatIsChannel(i) || (stairRunning() && stairOwnsChannel(i))) continue;
     uint16_t v = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
     if (v > 255) v = 255;
     setChannelRequestOne(i, (uint8_t)v);
@@ -1057,7 +1131,12 @@ static void restoreOutputsFromHoldingRegs() {
 }
 
 static void serviceAutoOff(uint32_t now) {
+  if (g_busFailsafeActive || g_panicActive) return;
   for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (chCfg[ch].profile == CH_PROF_HEAT) {
+      chAutoOffAtMs[ch] = 0;
+      continue;
+    }
     if (chAutoOffAtMs[ch] == 0) continue;
     if ((int32_t)(now - chAutoOffAtMs[ch]) < 0) continue;
     setChannelRequestOne(ch, 0);     // clears chAutoOffAtMs[ch] on the way
@@ -1164,9 +1243,11 @@ static uint16_t detectBootResetReason() {
 // through its own profile, window, curve and the master level.
 static void applyFailsafeOnce() {
   for (uint8_t i = 0; i < NUM_PWM; i++) {
+    if (heatIsChannel(i)) continue;     // frost protection owns heat
+    if (stairOwnsChannel(i)) continue;  // staircase must work on a dead bus
     switch (g_failsafeAction[i]) {
-      case FS_OFF:   setChannelRequestOne(i, 0); break;
-      case FS_LEVEL: setChannelRequestOne(i, g_failsafeLevel[i]); break;
+      case FS_OFF:   setChannelRequestOne(i, 0, false); break;
+      case FS_LEVEL: setChannelRequestOne(i, g_failsafeLevel[i], false); break;
       default: break; // HOLD — leave channel unchanged
     }
   }
@@ -1309,6 +1390,17 @@ static void applyFailsafeDefaults() {
   }
 }
 
+static void fillStairHeatFactory(StairCfg &st, HeatCfg &ht) {
+  st.pattern = 0;
+  st.waveWidth = 3;
+  st.inputEndMap = 0;
+  st.bothEnds = 0;
+  st.bothWindowMs = 300;
+  memset(st._rsv, 0, sizeof(st._rsv));
+  ht.minPulsePct = 10;
+  memset(ht._rsv2, 0, sizeof(ht._rsv2));
+}
+
 // Channels, groups, scenes and the two globals — factory state.
 // Every new field is inert by default: profile led, linear curve, full window,
 // no ramp, no auto-off, no groups, no scenes, master and panic wide open.
@@ -1330,8 +1422,9 @@ static void applyChannelDefaults() {
   }
   g_masterLevel = 255;
   g_panicLevel  = 255;
-  memset(&g_stairCfg, 0, sizeof(g_stairCfg));   // 2f — inert until that step
-  memset(&g_heatCfg,  0, sizeof(g_heatCfg));    // 2g — inert until that step
+  memset(&g_stairCfg, 0, sizeof(g_stairCfg));
+  memset(&g_heatCfg,  0, sizeof(g_heatCfg));
+  fillStairHeatFactory(g_stairCfg, g_heatCfg);
 }
 
 void setDefaults() {
@@ -1406,6 +1499,7 @@ static void fillV5Defaults(PersistConfigV5 &pc) {
   pc.panicLevel  = 255;
   memset(&pc.stair, 0, sizeof(pc.stair));
   memset(&pc.heat,  0, sizeof(pc.heat));
+  fillStairHeatFactory(pc.stair, pc.heat);
 }
 
 static bool applyFromPersistV5(const PersistConfigV5 &pc) {
@@ -1441,6 +1535,10 @@ static bool applyFromPersistV5(const PersistConfigV5 &pc) {
   g_panicLevel  = pc.panicLevel;
   memcpy(&g_stairCfg, &pc.stair, sizeof(g_stairCfg));
   memcpy(&g_heatCfg,  &pc.heat,  sizeof(g_heatCfg));
+  for (int i = 0; i < NUM_PWM; i++) {
+    if (pc.chCfg[i].profile == CH_PROF_HEAT)
+      g_heatDuty[i] = (uint8_t)((chRequest[i] > 100) ? 100 : chRequest[i]);
+  }
   return true;
 }
 
@@ -1707,6 +1805,11 @@ void handleValues(JSONVar values) {
     g_activeScene = 0;
     for (int i = 0; i < NUM_PWM && i < arr.length(); i++) {
       const uint8_t v = (uint8_t)constrain((int)arr[i], 0, 255);
+      if (heatIsChannel((uint8_t)i)) {
+        g_heatDuty[i] = (v > 100) ? 100 : v;
+        hrPwmSet((uint8_t)i, g_heatDuty[i]);
+        continue;
+      }
       setChannelRequestOne((uint8_t)i, v);
       hrPwmSet((uint8_t)i, v);
     }
@@ -1786,6 +1889,18 @@ void handleCommand(JSONVar obj) {
     panicExit();
     sendWebStatus();
     sendWebLevels();
+  } else if (act == "stair.up") {
+    stairForce(SEQ_DIR_UP);
+    sendWebStatus();
+  } else if (act == "stair.down") {
+    stairForce(SEQ_DIR_DOWN);
+    sendWebStatus();
+  } else if (act == "stair.stop") {
+    stairForce(SEQ_DIR_NONE);
+    sendWebStatus();
+  } else if (act == "heat.exercise") {
+    heatQueueExerciseAll();
+    sendWebStatus();
   } else if (act == "hello" || act == "getconfig") {
     sendWebBootstrap();
   } else if (act == "identify") {
@@ -1942,6 +2057,83 @@ void handleUnifiedConfig(JSONVar obj) {
     }
     wsLog("Output levels updated");
     sendWebLevels();  // brightness not auto-persisted
+  } else if (type == "stairs") {
+    if (list.hasOwnProperty("n"))  g_stairCfg.stepCount = (uint8_t)constrain((int)list["n"], 0, 32);
+    if (list.hasOwnProperty("md")) g_stairCfg.mode = (uint8_t)constrain((int)list["md"], 0, STAIR_MODE_MAX);
+    if (list.hasOwnProperty("pt")) g_stairCfg.pattern = (uint8_t)constrain((int)list["pt"], 0, STAIR_PAT_MAX);
+    if (list.hasOwnProperty("ww")) g_stairCfg.waveWidth = (uint8_t)constrain((int)list["ww"], 0, 32);
+    if (list.hasOwnProperty("im")) g_stairCfg.inputEndMap = (uint8_t)constrain((int)list["im"], 0, 1);
+    if (list.hasOwnProperty("be")) g_stairCfg.bothEnds = (uint8_t)constrain((int)list["be"], 0, 2);
+    if (list.hasOwnProperty("bw")) g_stairCfg.bothWindowMs = (uint16_t)constrain((int)list["bw"], 0, 5000);
+    if (list.hasOwnProperty("d"))  g_stairCfg.stepDelayMs = (uint16_t)constrain((int)list["d"], 0, 60000);
+    if (list.hasOwnProperty("h"))  g_stairCfg.holdS = (uint16_t)constrain((int)list["h"], 0, 3600);
+    if (list.hasOwnProperty("f"))  g_stairCfg.fadeOutMs = (uint16_t)constrain((int)list["f"], 0, 60000);
+    if (list.hasOwnProperty("ov")) g_stairCfg.overlapPct = (uint8_t)constrain((int)list["ov"], 0, 100);
+    if (list.hasOwnProperty("rt")) g_stairCfg.retrigger = (uint8_t)constrain((int)list["rt"], 0, 2);
+    if (list.hasOwnProperty("op")) g_stairCfg.oppose = (uint8_t)constrain((int)list["op"], 0, 2);
+    if (list.hasOwnProperty("nl")) { g_stairCfg.nightLevel = (uint8_t)constrain((int)list["nl"], 0, 255); mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel); }
+    if (list.hasOwnProperty("dl")) { g_stairCfg.dayLevel = (uint8_t)constrain((int)list["dl"], 0, 255); mb.Hreg(HR_DAY, g_stairCfg.dayLevel); }
+    if (list.hasOwnProperty("sf")) g_stairCfg.standbyFirst = (uint8_t)constrain((int)list["sf"], 0, 255);
+    if (list.hasOwnProperty("sl")) g_stairCfg.standbyLast = (uint8_t)constrain((int)list["sl"], 0, 255);
+    if (list.hasOwnProperty("nn")) g_stairCfg.nightLightLevel = (uint8_t)constrain((int)list["nn"], 0, 255);
+    if (list.hasOwnProperty("fd")) g_stairCfg.stepFadeMs = (uint16_t)constrain((int)list["fd"], 0, 60000);
+    if (list.hasOwnProperty("db")) g_stairCfg.debounceMs = (uint16_t)constrain((int)list["db"], 0, 5000);
+    if (list.hasOwnProperty("mr")) g_stairCfg.minRepeatMs = (uint16_t)constrain((int)list["mr"], 0, 60000);
+    if (list.hasOwnProperty("map")) {
+      const char* hex = (const char*)list["map"];
+      if (hex) {
+        for (uint8_t s = 0; s < NUM_PWM; s++) {
+          const char a = hex[s * 2], b = hex[s * 2 + 1];
+          if (!a || !b) break;
+          auto nib = [](char c) -> uint8_t {
+            if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
+            if (c >= 'A' && c <= 'F') return (uint8_t)(c - 'A' + 10);
+            if (c >= 'a' && c <= 'f') return (uint8_t)(c - 'a' + 10);
+            return 0;
+          };
+          const uint8_t v = (uint8_t)((nib(a) << 4) | nib(b));
+          g_stairCfg.stepChannel[s] = (v > 31) ? 31 : v;
+        }
+      }
+    }
+    stairRebuildMask();
+    if (stairEnabled() && !stairRunning()) stairApplyIdleBase();
+    wsLog("Stairs config updated");
+    changed = true;
+  } else if (type == "heating") {
+    if (list.hasOwnProperty("p"))  g_heatCfg.slowPwmPeriodS = (uint16_t)constrain((int)list["p"], 0, 3600);
+    if (list.hasOwnProperty("ph")) g_heatCfg.phaseSpreadPct = (uint8_t)constrain((int)list["ph"], 0, 100);
+    if (list.hasOwnProperty("mx")) g_heatCfg.maxOpenZones = (uint8_t)constrain((int)list["mx"], 0, 32);
+    if (list.hasOwnProperty("di")) g_heatCfg.diRole = (uint8_t)constrain((int)list["di"], 0, 3);
+    if (list.hasOwnProperty("fo")) g_heatCfg.firstOpenDelayS = (uint16_t)constrain((int)list["fo"], 0, 3600);
+    if (list.hasOwnProperty("ov")) g_heatCfg.overrunS = (uint16_t)constrain((int)list["ov"], 0, 3600);
+    if (list.hasOwnProperty("eh")) g_heatCfg.exerciseIntervalH = (uint16_t)constrain((int)list["eh"], 0, 8760);
+    if (list.hasOwnProperty("ed")) g_heatCfg.exerciseDurationS = (uint16_t)constrain((int)list["ed"], 0, 3600);
+    if (list.hasOwnProperty("af")) g_heatCfg.antifreezeHours = (uint16_t)constrain((int)list["af"], 0, 168);
+    if (list.hasOwnProperty("sm")) {
+      g_heatCfg.summerMode = (uint8_t)constrain((int)list["sm"], 0, 1);
+      mb.Hreg(HR_SUMMER, g_heatCfg.summerMode);
+    }
+    if (list.hasOwnProperty("mp")) g_heatCfg.minPulsePct = (uint8_t)constrain((int)list["mp"], 0, 50);
+    if (list.hasOwnProperty("nc")) {
+      const char* hex = (const char*)list["nc"];
+      if (hex) {
+        auto nib = [](char c) -> uint8_t {
+          if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
+          if (c >= 'A' && c <= 'F') return (uint8_t)(c - 'A' + 10);
+          if (c >= 'a' && c <= 'f') return (uint8_t)(c - 'a' + 10);
+          return 0;
+        };
+        uint32_t mask = 0;
+        for (uint8_t b = 0; b < 8 && hex[b]; b++) mask = (mask << 4) | nib(hex[b]);
+        for (uint8_t i = 0; i < NUM_PWM; i++) {
+          if (mask & (1UL << i)) chCfg[i].flags |= 0x01;
+          else chCfg[i].flags &= (uint8_t)~0x01;
+        }
+      }
+    }
+    wsLog("Heating config updated");
+    changed = true;
   } else {
     wsLog(String("Unknown Config type: ") + t);
   }
@@ -2003,6 +2195,22 @@ void processModbusCommandPulses() {
     mb.setCoil(COIL_PANIC_OFF, false);
     panicExit();
   }
+  if (mb.Coil(COIL_STAIR_UP)) {
+    mb.setCoil(COIL_STAIR_UP, false);
+    stairForce(SEQ_DIR_UP);
+  }
+  if (mb.Coil(COIL_STAIR_DOWN)) {
+    mb.setCoil(COIL_STAIR_DOWN, false);
+    stairForce(SEQ_DIR_DOWN);
+  }
+  if (mb.Coil(COIL_STAIR_STOP)) {
+    mb.setCoil(COIL_STAIR_STOP, false);
+    stairForce(SEQ_DIR_NONE);
+  }
+  if (mb.Coil(COIL_HEAT_EXERCISE)) {
+    mb.setCoil(COIL_HEAT_EXERCISE, false);
+    heatQueueExerciseAll();
+  }
 }
 
 // HR 432 master level and HR 436 scene recall. Both are runtime commands, not
@@ -2022,6 +2230,36 @@ static void processModbusHoldingWrites() {
   if (scene != 0) {
     mb.Hreg(HR_SCENE, 0);
     if (scene <= NUM_SCENES && !outputsModbusLocked()) sceneRecall((uint8_t)scene);
+  }
+
+  const uint16_t inh = (uint16_t)mb.Hreg(HR_INHIBIT);
+  const bool inhibit = (inh != 0);
+  if (inhibit != g_seqInhibit) {
+    g_seqInhibit = inhibit;
+    mb.Hreg(HR_INHIBIT, inhibit ? 1 : 0);
+  }
+
+  const uint16_t night = (uint16_t)mb.Hreg(HR_NIGHT);
+  if (night != g_stairCfg.nightLevel) {
+    g_stairCfg.nightLevel = (uint8_t)((night > 255) ? 255 : night);
+    mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel);
+    g_seqNightWindow = true;
+    markCfgDirty();
+  }
+  const uint16_t day = (uint16_t)mb.Hreg(HR_DAY);
+  if (day != g_stairCfg.dayLevel) {
+    g_stairCfg.dayLevel = (uint8_t)((day > 255) ? 255 : day);
+    mb.Hreg(HR_DAY, g_stairCfg.dayLevel);
+    g_seqNightWindow = false;
+    markCfgDirty();
+  }
+
+  const uint16_t sum = (uint16_t)mb.Hreg(HR_SUMMER);
+  const uint8_t summer = sum ? 1 : 0;
+  if (summer != g_heatCfg.summerMode) {
+    g_heatCfg.summerMode = summer;
+    mb.Hreg(HR_SUMMER, summer);
+    markCfgDirty();
   }
 }
 
@@ -2086,7 +2324,8 @@ static void updateInputRegisters(uint32_t now) {
   if (cfgDirty)              status |= ST_CFG_DIRTY;
   if (g_localOverride)       status |= ST_OVERRIDE;
   if (g_panicActive)         status |= ST_PANIC;
-  // ST_SEQ_RUN (2f) and ST_HEAT_DEM (2g) stay clear until those steps land.
+  if (stairRunning())        status |= ST_SEQ_RUN;
+  if (g_heatDemandOut)       status |= ST_HEAT_DEM;
 
   const uint32_t linkAgeMs = now - g_lastLinkSeenMs;
   uint16_t linkAgeS = (linkAgeMs >= 65535000UL) ? 65535 : (uint16_t)(linkAgeMs / 1000UL);
@@ -2113,14 +2352,12 @@ static void updateInputRegisters(uint32_t now) {
     setIregIfChanged(reg, (uint16_t)((hi << 8) | lo));
   }
 
-  // 26..31 are declared and published now so the block never changes shape.
-  // Step 2f fills SEQ_STATE / SEQ_STEP, step 2g the four heating registers.
-  setIregIfChanged(IREG_SEQ_STATE, 0);
-  setIregIfChanged(IREG_SEQ_STEP, 0);
-  setIregIfChanged(IREG_HEAT_FLAGS, 0);
-  setIregIfChanged(IREG_ZONES_OPEN, 0);
-  setIregIfChanged(IREG_ZONE_MASK_LO, 0);
-  setIregIfChanged(IREG_ZONE_MASK_HI, 0);
+  setIregIfChanged(IREG_SEQ_STATE, stairIregState());
+  setIregIfChanged(IREG_SEQ_STEP, g_seqStep);
+  setIregIfChanged(IREG_HEAT_FLAGS, heatIregFlags());
+  setIregIfChanged(IREG_ZONES_OPEN, g_heatOpenCount);
+  setIregIfChanged(IREG_ZONE_MASK_LO, (uint16_t)(g_heatOpenMask & 0xFFFFu));
+  setIregIfChanged(IREG_ZONE_MASK_HI, (uint16_t)((g_heatOpenMask >> 16) & 0xFFFFu));
 }
 
 static void buildModbusMap() {
@@ -2145,7 +2382,14 @@ static void buildModbusMap() {
   mb.setCoil(COIL_ALL_OFF, false);
   mb.addCoil(COIL_PANIC_OFF);
   mb.setCoil(COIL_PANIC_OFF, false);
-  // 340..342 and 345 are deliberately left unregistered — they belong to 2f/2g.
+  mb.addCoil(COIL_STAIR_UP);
+  mb.setCoil(COIL_STAIR_UP, false);
+  mb.addCoil(COIL_STAIR_DOWN);
+  mb.setCoil(COIL_STAIR_DOWN, false);
+  mb.addCoil(COIL_STAIR_STOP);
+  mb.setCoil(COIL_STAIR_STOP, false);
+  mb.addCoil(COIL_HEAT_EXERCISE);
+  mb.setCoil(COIL_HEAT_EXERCISE, false);
   for (uint16_t i = 0; i < NUM_PWM; i++) {
     mb.addHreg(HR_PWM_BASE + i);
     mb.Hreg(HR_PWM_BASE + i, chRequest[i]);
@@ -2154,8 +2398,16 @@ static void buildModbusMap() {
   g_prevHrPwmInit = true;
   mb.addHreg(HR_MASTER);
   mb.Hreg(HR_MASTER, g_masterLevel);
+  mb.addHreg(HR_INHIBIT);
+  mb.Hreg(HR_INHIBIT, g_seqInhibit ? 1 : 0);
+  mb.addHreg(HR_NIGHT);
+  mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel);
+  mb.addHreg(HR_DAY);
+  mb.Hreg(HR_DAY, g_stairCfg.dayLevel);
   mb.addHreg(HR_SCENE);
   mb.Hreg(HR_SCENE, 0);
+  mb.addHreg(HR_SUMMER);
+  mb.Hreg(HR_SUMMER, g_heatCfg.summerMode ? 1 : 0);
   mb.addHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD);
@@ -2175,6 +2427,17 @@ void sendWebStatus() {
   st["localOverride"] = g_localOverride ? 1 : 0;
   st["panic"] = g_panicActive ? 1 : 0;
   st["scene"] = (int)g_activeScene;
+  st["seq"] = (int)g_seqPhase;
+  st["seqDir"] = (int)g_seqDir;
+  st["seqStep"] = (int)g_seqStep;
+  st["heatDemand"] = g_heatDemandOut ? 1 : 0;
+  st["zones"] = (int)g_heatOpenCount;
+  st["frost"] = g_heatFrost ? 1 : 0;
+  st["summer"] = heatSummer() ? 1 : 0;
+  st["heatDi"] = heatDiClosed() ? 1 : 0;
+  bool heatEx = false;
+  for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
+  st["heatEx"] = heatEx ? 1 : 0;
   WebSerial.send("status", st);
 }
 
@@ -2305,6 +2568,69 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
       break;
     }
 
+    case SEC_STAIRS:
+      if (part == 0) {
+        cfg["n"]  = (int)g_stairCfg.stepCount;
+        cfg["md"] = (int)g_stairCfg.mode;
+        cfg["pt"] = (int)g_stairCfg.pattern;
+        cfg["ww"] = (int)g_stairCfg.waveWidth;
+        cfg["im"] = (int)g_stairCfg.inputEndMap;
+        cfg["be"] = (int)g_stairCfg.bothEnds;
+        cfg["bw"] = (int)g_stairCfg.bothWindowMs;
+        cfg["d"]  = (int)g_stairCfg.stepDelayMs;
+        cfg["h"]  = (int)g_stairCfg.holdS;
+        cfg["f"]  = (int)g_stairCfg.fadeOutMs;
+        cfg["ov"] = (int)g_stairCfg.overlapPct;
+        cfg["rt"] = (int)g_stairCfg.retrigger;
+        cfg["op"] = (int)g_stairCfg.oppose;
+        cfg["nl"] = (int)g_stairCfg.nightLevel;
+        cfg["dl"] = (int)g_stairCfg.dayLevel;
+        cfg["sf"] = (int)g_stairCfg.standbyFirst;
+        cfg["sl"] = (int)g_stairCfg.standbyLast;
+        cfg["nn"] = (int)g_stairCfg.nightLightLevel;
+        cfg["fd"] = (int)g_stairCfg.stepFadeMs;
+        cfg["db"] = (int)g_stairCfg.debounceMs;
+        cfg["mr"] = (int)g_stairCfg.minRepeatMs;
+      } else {
+        String hex;
+        hex.reserve(NUM_PWM * 2);
+        for (uint8_t s = 0; s < NUM_PWM; s++) cfgChunkAppendHexByte(hex, g_stairCfg.stepChannel[s]);
+        cfg["map"] = hex;
+      }
+      break;
+
+    case SEC_HEATING: {
+      cfg["p"]  = (int)g_heatCfg.slowPwmPeriodS;
+      cfg["ph"] = (int)g_heatCfg.phaseSpreadPct;
+      cfg["mx"] = (int)g_heatCfg.maxOpenZones;
+      cfg["di"] = (int)g_heatCfg.diRole;
+      cfg["fo"] = (int)g_heatCfg.firstOpenDelayS;
+      cfg["ov"] = (int)g_heatCfg.overrunS;
+      cfg["eh"] = (int)g_heatCfg.exerciseIntervalH;
+      cfg["ed"] = (int)g_heatCfg.exerciseDurationS;
+      cfg["af"] = (int)g_heatCfg.antifreezeHours;
+      cfg["sm"] = (int)g_heatCfg.summerMode;
+      cfg["mp"] = (int)heatMinPulsePct();
+      String nc;
+      nc.reserve(8);
+      uint32_t ncMask = 0;
+      for (uint8_t i = 0; i < NUM_PWM; i++) if (chCfg[i].flags & 0x01) ncMask |= (1UL << i);
+      for (int8_t b = 3; b >= 0; b--) cfgChunkAppendHexByte(nc, (uint8_t)(ncMask >> (b * 8)));
+      cfg["nc"] = nc;
+      String hh, cc;
+      hh.reserve(NUM_PWM * 4);
+      cc.reserve(NUM_PWM * 4);
+      for (uint8_t i = 0; i < NUM_PWM; i++) {
+        cfgChunkAppendHexByte(hh, (uint8_t)(g_heatStats.hours[i] >> 8));
+        cfgChunkAppendHexByte(hh, (uint8_t)g_heatStats.hours[i]);
+        cfgChunkAppendHexByte(cc, (uint8_t)(g_heatStats.cycles[i] >> 8));
+        cfgChunkAppendHexByte(cc, (uint8_t)g_heatStats.cycles[i]);
+      }
+      cfg["hrs"] = hh;
+      cfg["cyc"] = cc;
+      break;
+    }
+
     default: break;
   }
 
@@ -2418,6 +2744,9 @@ void setup() {
   buildCurveLuts();          // stage 3 tables — needed before any level resolves
   setDefaults();
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
+  heatLoadStats();
+  stairRebuildMask();
+  if (stairEnabled()) stairApplyIdleBase();
 
   // Restored levels re-enter the pipeline; boot does not ramp, it lands.
   recomputeAllDrivers();
@@ -2488,6 +2817,11 @@ void loop() {
     if (v == g_prevHrPwm[i]) continue;
     if (v > 255) { v = 255; mb.Hreg(HR_PWM_BASE + i, v); }
     g_prevHrPwm[i] = v;
+    if (heatIsChannel(i)) {
+      g_heatDuty[i] = (uint8_t)((v > 100) ? 100 : v);
+      continue;                          // slow PWM owns the source
+    }
+    if (stairRunning() && stairOwnsChannel(i)) continue;
     if (outputsHeld) continue;
     setChannelRequest(i, (uint8_t)v, SRC_MODBUS);  // brightness not auto-persisted
   }
@@ -2531,6 +2865,8 @@ void loop() {
   processButtonActions();
   processOverrideTimeout(now);
   serviceAutoOff(now);
+  stairService(now);
+  heatService(now);
   serviceRamp(now);              // stages 5 and 6 of the pipeline
   serviceCfgTransfer(now);
 

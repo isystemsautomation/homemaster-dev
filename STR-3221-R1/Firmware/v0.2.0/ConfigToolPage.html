@@ -172,6 +172,147 @@
     <div class="cardbody"><div id="scn-list"></div></div>
   </section>
 
+  <div class="sectiontitle">
+    <h3>Stairs</h3>
+    <p class="hint">On-board sequencer. Mode is how a run starts (one-shot or hold while presence). Pattern is the drawing — sequential, all, wave, comet, center, random. Hydrates only after the <code>stairs</code> section arrives.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="margin-bottom:12px">
+        <div class="pill">Phase: <span id="stair-phase">—</span></div>
+        <div class="pill">Step: <span id="stair-step">—</span></div>
+        <div class="pill">Direction: <span id="stair-dir">—</span></div>
+      </div>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="stair-run-up">Run up</button>
+        <button type="button" class="btn" id="stair-run-down">Run down</button>
+        <button type="button" class="btn" id="stair-stop">Stop</button>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div><label for="stair-n">Steps in use (0 = off)</label><input id="stair-n" type="number" min="0" max="32" value="0"></div>
+        <div><label for="stair-pt">Pattern</label>
+          <select id="stair-pt">
+            <option value="0">Sequential</option>
+            <option value="1">All at once</option>
+            <option value="2">Wave</option>
+            <option value="3">Comet</option>
+            <option value="4">Center</option>
+            <option value="5">Random</option>
+          </select>
+        </div>
+        <div><label for="stair-ww">Wave / comet width</label><input id="stair-ww" type="number" min="1" max="32" value="3"></div>
+        <div><label for="stair-md">Launch mode</label>
+          <select id="stair-md">
+            <option value="0">One-shot</option>
+            <option value="1">Hold while presence</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="stair-d">Step delay (ms)</label><input id="stair-d" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-h">Hold (s)</label><input id="stair-h" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="stair-f">Fade-out (ms)</label><input id="stair-f" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-ov">Overlap (%)</label><input id="stair-ov" type="number" min="0" max="100" value="0"></div>
+      </div>
+      <div class="row">
+        <div><label for="stair-rt">Retrigger</label>
+          <select id="stair-rt">
+            <option value="0">Ignore</option>
+            <option value="1">Restart</option>
+            <option value="2">Extend hold</option>
+          </select>
+        </div>
+        <div><label for="stair-op">Opposite end</label>
+          <select id="stair-op">
+            <option value="0">Ignore</option>
+            <option value="1">Reverse</option>
+            <option value="2">Hold both</option>
+          </select>
+        </div>
+        <div><label for="stair-im">IN1 is</label>
+          <select id="stair-im">
+            <option value="0">Bottom (up)</option>
+            <option value="1">Top (down)</option>
+          </select>
+        </div>
+        <div><label for="stair-be">Both ends in window</label>
+          <select id="stair-be">
+            <option value="0">Default direction</option>
+            <option value="1">All at once</option>
+            <option value="2">Ignore</option>
+          </select>
+        </div>
+        <div><label for="stair-bw">Both-ends window (ms)</label><input id="stair-bw" type="number" min="0" max="5000" value="300"></div>
+      </div>
+      <div class="row">
+        <div><label for="stair-dl">Day level</label><input id="stair-dl" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-nl">Night level</label><input id="stair-nl" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-sf">Standby first</label><input id="stair-sf" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-sl">Standby last</label><input id="stair-sl" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-nn">Night-light level</label><input id="stair-nn" type="number" min="0" max="255" value="0"></div>
+      </div>
+      <div class="row">
+        <div><label for="stair-fd">Step fade (ms)</label><input id="stair-fd" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-db">Debounce (ms)</label><input id="stair-db" type="number" min="0" max="5000" value="0"></div>
+        <div><label for="stair-mr">Min repeat (ms)</label><input id="stair-mr" type="number" min="0" max="60000" value="0"></div>
+      </div>
+      <h4 style="margin:16px 0 8px;font-size:13px">Step → channel</h4>
+      <div class="grp-boxes" id="stair-map"></div>
+    </div>
+  </section>
+
+  <div class="sectiontitle">
+    <h3>Heating</h3>
+    <p class="hint">Underfloor zone loop. Slow PWM owns every channel with profile Heat; that channel’s failsafe row is ignored — frost protection replaces it. Hydrates only after the <code>heating</code> section arrives.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="margin-bottom:12px">
+        <div class="pill">Open zones: <span id="heat-zones">—</span></div>
+        <div class="pill">Heat demand: <span id="heat-demand">—</span></div>
+        <div class="pill">DI: <span id="heat-di">—</span></div>
+        <div class="pill">Summer: <span id="heat-summer">—</span></div>
+        <div class="pill">Frost: <span id="heat-frost">—</span></div>
+        <div class="pill">Exercise: <span id="heat-ex">—</span></div>
+      </div>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="heat-exercise">Exercise valves now</button>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div><label for="heat-p">Slow PWM period (s, 0 = off)</label><input id="heat-p" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-mp">Min pulse (%)</label><input id="heat-mp" type="number" min="0" max="50" value="10"></div>
+        <div><label for="heat-ph">Phase spread (%)</label><input id="heat-ph" type="number" min="0" max="100" value="0"></div>
+        <div><label for="heat-mx">Max open zones (0 = none)</label><input id="heat-mx" type="number" min="0" max="32" value="0"></div>
+      </div>
+      <div class="row">
+        <div><label for="heat-di-role">DI role</label>
+          <select id="heat-di-role">
+            <option value="0">None</option>
+            <option value="1">Enable (open when DI closed)</option>
+            <option value="2">Inhibit (close when DI closed)</option>
+            <option value="3">Demand echo</option>
+          </select>
+        </div>
+        <div><label for="heat-fo">First-open delay (s)</label><input id="heat-fo" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-ov">Overrun (s)</label><input id="heat-ov" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-sm">Summer mode</label>
+          <select id="heat-sm">
+            <option value="0">Heating allowed</option>
+            <option value="1">Summer — heating off</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="heat-eh">Exercise interval (h)</label><input id="heat-eh" type="number" min="0" max="8760" value="0"></div>
+        <div><label for="heat-ed">Exercise duration (s)</label><input id="heat-ed" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-af">Antifreeze after (h silent)</label><input id="heat-af" type="number" min="0" max="168" value="0"></div>
+      </div>
+      <h4 style="margin:16px 0 8px;font-size:13px">NC / NO per channel (checked = invert / NC)</h4>
+      <div class="grp-boxes" id="heat-nc"></div>
+      <p class="hint" id="heat-stats" style="margin-top:12px">Hours / cycles: —</p>
+    </div>
+  </section>
+
   <div class="sectiontitle"><h3>Bus failsafe</h3></div>
   <section class="card">
     <div class="cardbody">
@@ -243,6 +384,7 @@
     const cfgHydrated = {
       base: false, inputs: false, buttons: false, leds: false,
       failsafe: false, channels: false, groups: false, scenes: false,
+      stairs: false, heating: false,
     };
 
     const fsActOptsHtml = [{v:0,l:'Hold'},{v:1,l:'OFF'},{v:2,l:'Level'}]
@@ -371,7 +513,8 @@
           cell.innerHTML = `
             <label for="fs-act-o${ch}"><span>O${ch}</span></label>
             <select id="fs-act-o${ch}">${fsActOptsHtml}</select>
-            <input id="fs-lvl-o${ch}" type="number" min="0" max="255" value="0" style="margin-top:4px;width:100%">`;
+            <input id="fs-lvl-o${ch}" type="number" min="0" max="255" value="0" style="margin-top:4px;width:100%">
+            <p class="hint" id="fs-heat-note-o${ch}" style="display:none;margin:6px 0 0">Unused on heat — frost protection owns this channel.</p>`;
           grid.appendChild(cell);
           cell.querySelector('select')?.addEventListener('change', debouncedSendFailsafe);
           cell.querySelector('input[type="number"]')?.addEventListener('change', debouncedSendFailsafe);
@@ -546,10 +689,11 @@
             <div class="split">
               <div><label for="ch-ramp-o${ch}">Ramp ms</label><input id="ch-ramp-o${ch}" type="number" min="0" max="60000" value="0"></div>
               <div><label for="ch-aoff-o${ch}">Auto-off s</label><input id="ch-aoff-o${ch}" type="number" min="0" max="65535" value="0"></div>
-            </div>`;
+            </div>
+            <p class="hint" id="ch-heat-note-o${ch}" style="display:none;margin:6px 0 0">Heat: failsafe is replaced by frost protection; auto-off is ignored.</p>`;
           grid.appendChild(cell);
           cell.querySelectorAll('select,input').forEach(el =>
-            el.addEventListener('change', () => sendChannelCfg(ch - 1)));
+            el.addEventListener('change', () => { sendChannelCfg(ch - 1); updateHeatNotes(); }));
         }
       });
       $('ch-all-apply')?.addEventListener('click', () => {
@@ -571,6 +715,7 @@
           setIfIdle('ch-aoff-o' + ch, all.ao);
         }
         sendConfigQueued('ch.all', all);
+        updateHeatNotes();
       });
     })();
 
@@ -699,7 +844,10 @@
         setIfIdle('ch-ramp-o' + ch, r[k] ?? 0);
         setIfIdle('ch-aoff-o' + ch, ao[k] ?? 0);
       }
-      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.channels = true;
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) {
+        cfgHydrated.channels = true;
+        updateHeatNotes();
+      }
     }
 
     function parseGroupMask(v){
@@ -745,6 +893,190 @@
       if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.scenes = true;
     }
 
+    function updateHeatNotes(){
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        const heat = parseInt($('ch-prof-o' + ch)?.value || '0', 10) === 1;
+        const note = $('ch-heat-note-o' + ch);
+        const fs = $('fs-heat-note-o' + ch);
+        if (note) note.style.display = heat ? 'block' : 'none';
+        if (fs) fs.style.display = heat ? 'block' : 'none';
+      }
+    }
+
+    function hexByte(v){ return ('0' + (v & 255).toString(16).toUpperCase()).slice(-2); }
+
+    function parseHexBytes(hex, n){
+      const s = String(hex || '');
+      const out = new Array(n).fill(0);
+      for (let i = 0; i < n; i++){
+        const v = parseInt(s.substr(i * 2, 2), 16);
+        out[i] = Number.isFinite(v) ? v : 0;
+      }
+      return out;
+    }
+
+    function parseHexMask32(hex){
+      const s = String(hex || '00000000').replace(/^0x/i, '');
+      const n = parseInt(s, 16);
+      return Number.isFinite(n) ? (n >>> 0) : 0;
+    }
+
+    (function buildStairMap(){
+      const root = $('stair-map');
+      if (!root) return;
+      const chOpts = Array.from({length: NUM_PWM}, (_, i) => `<option value="${i}">O${i + 1}</option>`).join('');
+      for (let s = 0; s < NUM_PWM; s++){
+        const lab = document.createElement('label');
+        lab.className = 'check';
+        lab.innerHTML = `<span>S${s + 1}</span><select id="stair-ch-${s}">${chOpts}</select>`;
+        const sel = lab.querySelector('select');
+        if (sel) { sel.value = String(s); sel.addEventListener('change', sendStairs); }
+        root.appendChild(lab);
+      }
+      ['stair-n','stair-pt','stair-ww','stair-md','stair-d','stair-h','stair-f','stair-ov',
+       'stair-rt','stair-op','stair-im','stair-be','stair-bw','stair-dl','stair-nl',
+       'stair-sf','stair-sl','stair-nn','stair-fd','stair-db','stair-mr']
+        .forEach(id => $(id)?.addEventListener('change', sendStairs));
+      $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
+      $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
+      $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
+    })();
+
+    (function buildHeatNc(){
+      const root = $('heat-nc');
+      if (!root) return;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        const lab = document.createElement('label');
+        lab.className = 'check';
+        lab.innerHTML = `<input type="checkbox" id="heat-nc-${ch}"> O${ch} NC`;
+        lab.querySelector('input')?.addEventListener('change', sendHeating);
+        root.appendChild(lab);
+      }
+      ['heat-p','heat-mp','heat-ph','heat-mx','heat-di-role','heat-fo','heat-ov',
+       'heat-sm','heat-eh','heat-ed','heat-af']
+        .forEach(id => $(id)?.addEventListener('change', sendHeating));
+      $('heat-exercise')?.addEventListener('click', () => HMWebConfig.sendCommand('heat.exercise'));
+    })();
+
+    function sendStairs(){
+      if (!cfgHydrated.stairs) return;
+      let map = '';
+      for (let s = 0; s < NUM_PWM; s++) map += hexByte(clampInt($('stair-ch-' + s)?.value, 0, 31));
+      sendConfigQueued('stairs', {
+        n: clampInt($('stair-n')?.value, 0, 32),
+        md: clampInt($('stair-md')?.value, 0, 1),
+        pt: clampInt($('stair-pt')?.value, 0, 5),
+        ww: clampInt($('stair-ww')?.value, 0, 32),
+        im: clampInt($('stair-im')?.value, 0, 1),
+        be: clampInt($('stair-be')?.value, 0, 2),
+        bw: clampInt($('stair-bw')?.value, 0, 5000),
+        d: clampInt($('stair-d')?.value, 0, 60000),
+        h: clampInt($('stair-h')?.value, 0, 3600),
+        f: clampInt($('stair-f')?.value, 0, 60000),
+        ov: clampInt($('stair-ov')?.value, 0, 100),
+        rt: clampInt($('stair-rt')?.value, 0, 2),
+        op: clampInt($('stair-op')?.value, 0, 2),
+        nl: clamp255($('stair-nl')?.value),
+        dl: clamp255($('stair-dl')?.value),
+        sf: clamp255($('stair-sf')?.value),
+        sl: clamp255($('stair-sl')?.value),
+        nn: clamp255($('stair-nn')?.value),
+        fd: clampInt($('stair-fd')?.value, 0, 60000),
+        db: clampInt($('stair-db')?.value, 0, 5000),
+        mr: clampInt($('stair-mr')?.value, 0, 60000),
+        map,
+      });
+    }
+
+    function sendHeating(){
+      if (!cfgHydrated.heating) return;
+      let mask = 0;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        if ($('heat-nc-' + ch)?.checked) mask += Math.pow(2, ch - 1);
+      }
+      const nc = ('00000000' + (mask >>> 0).toString(16).toUpperCase()).slice(-8);
+      sendConfigQueued('heating', {
+        p: clampInt($('heat-p')?.value, 0, 3600),
+        mp: clampInt($('heat-mp')?.value, 0, 50),
+        ph: clampInt($('heat-ph')?.value, 0, 100),
+        mx: clampInt($('heat-mx')?.value, 0, 32),
+        di: clampInt($('heat-di-role')?.value, 0, 3),
+        fo: clampInt($('heat-fo')?.value, 0, 3600),
+        ov: clampInt($('heat-ov')?.value, 0, 3600),
+        eh: clampInt($('heat-eh')?.value, 0, 8760),
+        ed: clampInt($('heat-ed')?.value, 0, 3600),
+        af: clampInt($('heat-af')?.value, 0, 168),
+        sm: clampInt($('heat-sm')?.value, 0, 1),
+        nc,
+      });
+    }
+
+    function loadStairsSection(cfg){
+      const part = parseInt(cfg.part ?? 0, 10);
+      if (part === 0){
+        if (cfg.n != null) setIfIdle('stair-n', cfg.n);
+        if (cfg.md != null) setIfIdle('stair-md', cfg.md);
+        if (cfg.pt != null) setIfIdle('stair-pt', cfg.pt);
+        if (cfg.ww != null) setIfIdle('stair-ww', cfg.ww);
+        if (cfg.im != null) setIfIdle('stair-im', cfg.im);
+        if (cfg.be != null) setIfIdle('stair-be', cfg.be);
+        if (cfg.bw != null) setIfIdle('stair-bw', cfg.bw);
+        if (cfg.d != null) setIfIdle('stair-d', cfg.d);
+        if (cfg.h != null) setIfIdle('stair-h', cfg.h);
+        if (cfg.f != null) setIfIdle('stair-f', cfg.f);
+        if (cfg.ov != null) setIfIdle('stair-ov', cfg.ov);
+        if (cfg.rt != null) setIfIdle('stair-rt', cfg.rt);
+        if (cfg.op != null) setIfIdle('stair-op', cfg.op);
+        if (cfg.nl != null) setIfIdle('stair-nl', cfg.nl);
+        if (cfg.dl != null) setIfIdle('stair-dl', cfg.dl);
+        if (cfg.sf != null) setIfIdle('stair-sf', cfg.sf);
+        if (cfg.sl != null) setIfIdle('stair-sl', cfg.sl);
+        if (cfg.nn != null) setIfIdle('stair-nn', cfg.nn);
+        if (cfg.fd != null) setIfIdle('stair-fd', cfg.fd);
+        if (cfg.db != null) setIfIdle('stair-db', cfg.db);
+        if (cfg.mr != null) setIfIdle('stair-mr', cfg.mr);
+      } else if (cfg.map){
+        const bytes = parseHexBytes(cfg.map, NUM_PWM);
+        for (let s = 0; s < NUM_PWM; s++) setIfIdle('stair-ch-' + s, bytes[s] > 31 ? 31 : bytes[s]);
+      }
+      if (part + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.stairs = true;
+    }
+
+    function loadHeatingSection(cfg){
+      if (cfg.p != null) setIfIdle('heat-p', cfg.p);
+      if (cfg.mp != null) setIfIdle('heat-mp', cfg.mp);
+      if (cfg.ph != null) setIfIdle('heat-ph', cfg.ph);
+      if (cfg.mx != null) setIfIdle('heat-mx', cfg.mx);
+      if (cfg.di != null) setIfIdle('heat-di-role', cfg.di);
+      if (cfg.fo != null) setIfIdle('heat-fo', cfg.fo);
+      if (cfg.ov != null) setIfIdle('heat-ov', cfg.ov);
+      if (cfg.eh != null) setIfIdle('heat-eh', cfg.eh);
+      if (cfg.ed != null) setIfIdle('heat-ed', cfg.ed);
+      if (cfg.af != null) setIfIdle('heat-af', cfg.af);
+      if (cfg.sm != null) setIfIdle('heat-sm', cfg.sm);
+      if (cfg.nc){
+        const mask = parseHexMask32(cfg.nc);
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          const el = $('heat-nc-' + ch);
+          if (el && el !== document.activeElement)
+            el.checked = Math.floor(mask / Math.pow(2, ch - 1)) % 2 === 1;
+        }
+      }
+      if (cfg.hrs || cfg.cyc){
+        const hrs = parseHexBytes(cfg.hrs, NUM_PWM * 2);
+        const cyc = parseHexBytes(cfg.cyc, NUM_PWM * 2);
+        const bits = [];
+        for (let i = 0; i < NUM_PWM; i++){
+          const h = (hrs[i * 2] << 8) | hrs[i * 2 + 1];
+          const c = (cyc[i * 2] << 8) | cyc[i * 2 + 1];
+          if (h || c) bits.push('O' + (i + 1) + ': ' + h + ' h / ' + c + ' cyc');
+        }
+        const el = $('heat-stats');
+        if (el) el.textContent = bits.length ? ('Hours / cycles: ' + bits.join(', ')) : 'Hours / cycles: none yet';
+      }
+      cfgHydrated.heating = true;
+    }
+
     // Acknowledge a config section. This is not a write, so it deliberately
     // bypasses the shared compatibility gate: gating it would stall the
     // sequence exactly when the identity check is still in flight.
@@ -778,6 +1110,8 @@
           case 'channels': loadChannelsSection(cfg); break;
           case 'groups':   loadGroupsSection(cfg); break;
           case 'scenes':   loadScenesSection(cfg); break;
+          case 'stairs':   loadStairsSection(cfg); break;
+          case 'heating':  loadHeatingSection(cfg); break;
           default: break;
         }
         ackSection(cfg);
@@ -807,6 +1141,17 @@
       }
       const scEl = $('scText');
       if (st.scene != null && scEl) scEl.textContent = st.scene ? ('Scene ' + st.scene) : '—';
+      const SEQ = ['idle','up','down','hold','fade'];
+      const DIR = ['none','up','down'];
+      if ($('stair-phase')) $('stair-phase').textContent = SEQ[st.seq] || String(st.seq ?? '—');
+      if ($('stair-step')) $('stair-step').textContent = (st.seqStep != null) ? String(st.seqStep) : '—';
+      if ($('stair-dir')) $('stair-dir').textContent = DIR[st.seqDir] || String(st.seqDir ?? '—');
+      if ($('heat-zones')) $('heat-zones').textContent = (st.zones != null) ? String(st.zones) : '—';
+      if ($('heat-demand')) $('heat-demand').textContent = st.heatDemand ? 'yes' : 'no';
+      if ($('heat-di')) $('heat-di').textContent = st.heatDi ? 'closed' : 'open';
+      if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
+      if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
+      if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';
     });
 
     $('master-level')?.addEventListener('change', sendGlobal);
