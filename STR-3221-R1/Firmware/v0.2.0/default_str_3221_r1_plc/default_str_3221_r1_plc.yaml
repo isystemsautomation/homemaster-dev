@@ -55,9 +55,10 @@
 ## Heat channels: this package exposes O1..O32 as monochromatic lights (0–255)
 ## because one YAML covers every profile. For a zone that is profile=heat, the
 ## firmware reads HR 400..431 as 0–100 % duty. To show those zones as sliders
-## in HA, comment the matching `light:` entries and uncomment the `number:`
-## block at the bottom (0–100, unit %). Mixing both for the same register
-## double-writes the holding register — pick one per channel.
+## in HA, comment the matching `light:` entry and add a 0–100 % `number:`
+## item to the existing `number:` section (template at the bottom of this
+## file). Do not add a second `number:` key. Mixing light and number for the
+## same register double-writes it — pick one per channel.
 ##
 ## Output readback @ IR 10..25 is registered and polled (internal sensors below);
 ## monochromatic lights are driven by HR 400..431 writes. Wiring readback into
@@ -970,10 +971,10 @@ button:
     on_press:
       - switch.turn_on: ${str_id}_coil_heat_exercise
 
-# Heat-profile channels as 0–100 % numbers instead of lights.
-# Uncomment one block per heat zone and comment the matching `light:` above.
-# Mixing both for the same register double-writes it — pick one per channel.
-# number:
+# Heat-profile channels as 0–100 % numbers. Add each item to the existing
+# `number:` section above (do not introduce a second `number:` key) and
+# comment the matching `light:` entry. Mixing both for the same register
+# double-writes it — pick one per channel.
 #   - platform: modbus_controller
 #     modbus_controller_id: ${str_id}
 #     name: "${str_prefix} O1 duty"

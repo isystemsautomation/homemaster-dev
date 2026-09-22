@@ -869,6 +869,18 @@ static bool diLiveState(uint8_t mbIdx) {
   return val;
 }
 
+// One predicate for DI_MASK and the heating DI flags. A heating role on
+// IO1 treats that input as enabled even if the WebConfig checkbox is off.
+static inline bool diConsideredEnabled(uint8_t i) {
+  if (i >= NUM_DI) return false;
+  if (i == 0 && g_heatCfg.diRole != 0) return true;
+  return diCfg[i].enabled;
+}
+
+static inline bool diReportedLive(uint8_t i) {
+  return diConsideredEnabled(i) ? diLiveState(i) : false;
+}
+
 static void applyPwmChannel(uint8_t idx, uint16_t val) {
   if (idx >= NUM_PWM) return;
   if (val > 255) val = 255;
@@ -2106,7 +2118,10 @@ void handleUnifiedConfig(JSONVar obj) {
     if (list.hasOwnProperty("p"))  g_heatCfg.slowPwmPeriodS = (uint16_t)constrain((int)list["p"], 0, 3600);
     if (list.hasOwnProperty("ph")) g_heatCfg.phaseSpreadPct = (uint8_t)constrain((int)list["ph"], 0, 100);
     if (list.hasOwnProperty("mx")) g_heatCfg.maxOpenZones = (uint8_t)constrain((int)list["mx"], 0, 32);
-    if (list.hasOwnProperty("di")) g_heatCfg.diRole = (uint8_t)constrain((int)list["di"], 0, 3);
+    if (list.hasOwnProperty("di")) {
+      g_heatCfg.diRole = (uint8_t)constrain((int)list["di"], 0, 3);
+      if (g_heatCfg.diRole != HEAT_DI_OFF) diCfg[0].enabled = true;
+    }
     if (list.hasOwnProperty("fo")) g_heatCfg.firstOpenDelayS = (uint16_t)constrain((int)list["fo"], 0, 3600);
     if (list.hasOwnProperty("ov")) g_heatCfg.overrunS = (uint16_t)constrain((int)list["ov"], 0, 3600);
     if (list.hasOwnProperty("eh")) g_heatCfg.exerciseIntervalH = (uint16_t)constrain((int)list["eh"], 0, 8760);
@@ -2155,6 +2170,8 @@ void handleUnifiedConfig(JSONVar obj) {
       sendCfgSection(SEC_LEDS);
     } else if (type == "global") {
       sendCfgSection(SEC_BASE);
+    } else if (type == "heating" && g_heatCfg.diRole != HEAT_DI_OFF) {
+      sendCfgSection(SEC_INPUTS);
     }
   }
 }
@@ -2309,7 +2326,7 @@ static void updateInputRegisters(uint32_t now) {
   uint16_t diMask = 0, btnMask = 0, ledMask = 0, tlcMask = 0;
 
   for (int i = 0; i < NUM_DI; i++) {
-    const bool logical = diCfg[i].enabled ? diLiveState(i) : false;
+    const bool logical = diReportedLive(i);
     if (logical) diMask |= (uint16_t)(1u << i);
   }
   for (int i = 0; i < NUM_BTN; i++) {

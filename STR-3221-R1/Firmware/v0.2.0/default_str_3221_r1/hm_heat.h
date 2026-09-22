@@ -58,10 +58,8 @@ static inline bool heatIsChannel(uint8_t ch) {
 }
 
 static inline bool heatDiClosed() {
-  // A heating DI role itself enables the input. The WebConfig "enabled"
-  // checkbox must not silently force-close every zone when the role is set.
   if (g_heatCfg.diRole == HEAT_DI_OFF) return false;
-  return diLiveState(0);
+  return diReportedLive(0);
 }
 
 static inline bool heatDiForcesClosed() {
