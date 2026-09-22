@@ -58,7 +58,10 @@ static inline bool heatIsChannel(uint8_t ch) {
 }
 
 static inline bool heatDiClosed() {
-  return diCfg[0].enabled && diLiveState(0);
+  // A heating DI role itself enables the input. The WebConfig "enabled"
+  // checkbox must not silently force-close every zone when the role is set.
+  if (g_heatCfg.diRole == HEAT_DI_OFF) return false;
+  return diLiveState(0);
 }
 
 static inline bool heatDiForcesClosed() {
@@ -195,7 +198,7 @@ static void heatService(uint32_t now) {
   if (g_heatCfg.antifreezeHours && !summer && !diClose) {
     const uint32_t silentMs = now - g_lastLinkSeenMs;
     const uint32_t needMs = (uint32_t)g_heatCfg.antifreezeHours * 3600000UL;
-    const bool silent = !g_linkFrameSeen || silentMs >= needMs;
+    const bool silent = silentMs >= needMs;
     if (silent && !g_heatFrost) {
       g_heatFrost = true;
       wsLog("Frost protection active — bus silent");

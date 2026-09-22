@@ -307,11 +307,17 @@ static void stairRender(uint32_t now) {
   }
 }
 
-static void stairFireBothWindow(uint8_t firstDir) {
-  (void)firstDir;
+// Second edge inside bothWindowMs. The first edge already started the run.
+static void stairApplyBothEnds(uint8_t firstDir) {
   if (g_stairCfg.bothEnds == 2) return;          // ignore
-  if (g_stairCfg.bothEnds == 1) g_seqForceAll = true;
-  stairOnTrigger(SEQ_DIR_UP);                    // default direction
+  if (g_stairCfg.bothEnds == 1) {
+    g_seqForceAll = true;
+    if (stairRunning()) stairBuildOrder(g_seqDir ? g_seqDir : firstDir);
+    else stairOnTrigger(firstDir);
+    return;
+  }
+  // bothEnds == 0: keep the direction of the first edge — already running
+  (void)firstDir;
 }
 
 static void stairServicePresence(uint32_t now) {
@@ -332,13 +338,14 @@ static void stairServicePresence(uint32_t now) {
       if (g_seqFirstDir == SEQ_DIR_NONE) {
         g_seqFirstDir = dir;
         g_seqFirstEdgeMs = now;
+        stairOnTrigger(dir);            // start on the first edge
       } else if ((uint32_t)(now - g_seqFirstEdgeMs) <= win) {
-        stairFireBothWindow(g_seqFirstDir);
+        stairApplyBothEnds(g_seqFirstDir);
         g_seqFirstDir = SEQ_DIR_NONE;
       } else {
-        stairOnTrigger(g_seqFirstDir);
         g_seqFirstDir = dir;
         g_seqFirstEdgeMs = now;
+        stairOnTrigger(dir);
       }
     } else {
       g_seqDbAt[i] = 0;
@@ -346,8 +353,7 @@ static void stairServicePresence(uint32_t now) {
   }
   if (g_seqFirstDir != SEQ_DIR_NONE &&
       (uint32_t)(now - g_seqFirstEdgeMs) > win) {
-    stairOnTrigger(g_seqFirstDir);
-    g_seqFirstDir = SEQ_DIR_NONE;
+    g_seqFirstDir = SEQ_DIR_NONE;       // window expired — do not start again
   }
 }
 

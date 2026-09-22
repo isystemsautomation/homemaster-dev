@@ -270,6 +270,7 @@
       <div class="row" style="margin-bottom:12px">
         <div class="pill">Open zones: <span id="heat-zones">—</span></div>
         <div class="pill">Heat demand: <span id="heat-demand">—</span></div>
+        <div class="pill">Role: <span id="heat-di-role-live">—</span></div>
         <div class="pill">DI: <span id="heat-di">—</span></div>
         <div class="pill">Summer: <span id="heat-summer">—</span></div>
         <div class="pill">Frost: <span id="heat-frost">—</span></div>
@@ -1148,7 +1149,19 @@
       if ($('stair-dir')) $('stair-dir').textContent = DIR[st.seqDir] || String(st.seqDir ?? '—');
       if ($('heat-zones')) $('heat-zones').textContent = (st.zones != null) ? String(st.zones) : '—';
       if ($('heat-demand')) $('heat-demand').textContent = st.heatDemand ? 'yes' : 'no';
-      if ($('heat-di')) $('heat-di').textContent = st.heatDi ? 'closed' : 'open';
+      const diRoles = ['none','enable','inhibit','echo'];
+      const role = (st.heatDiRole != null) ? parseInt(st.heatDiRole, 10) : parseInt($('heat-di-role')?.value || '0', 10);
+      if ($('heat-di-role-live')) $('heat-di-role-live').textContent = diRoles[role] || String(role);
+      if ($('heat-di')) {
+        const closed = !!st.heatDi;
+        const force = !!st.heatDiForce;
+        let why = closed ? 'closed' : 'open';
+        if (role === 1) why = force ? 'closed — DI open (enable)' : 'allowed — DI closed (enable)';
+        else if (role === 2) why = force ? 'closed — DI closed (inhibit)' : 'allowed — DI open (inhibit)';
+        else if (role === 3) why = closed ? 'echo: DI closed' : 'echo: DI open';
+        else if (role === 0) why = 'role off';
+        $('heat-di').textContent = why;
+      }
       if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
       if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
       if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';

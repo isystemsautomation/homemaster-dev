@@ -50,10 +50,11 @@
  *   400..431  O1..O32 level 0..255; on a channel with profile=heat, duty 0..100
  *   432       master level 0..255 (multiplier on every channel, default 255)
  *   433       sequencer inhibit 0/1 (running sequence is allowed to finish)
- *   434       night level 0..255 (writing selects the night window)
- *   435       day level 0..255 (writing selects the day window)
+ *   434       night level 0..255 (level only — does not select the window)
+ *   435       day level 0..255 (level only — does not select the window)
  *   436       scene recall: write 1..8 applies that scene, reads back 0
  *   437       summer mode 0/1 — heat closed, valve exercise still runs
+ *   438       night window 0=day · 1=night — the only register that selects it
  *   480       Modbus slave address (R/W)
  *   481       Modbus baud rate (R/W, whitelist 9600..115200; stored raw,
  *             115200 not representable in uint16 → reads as 0, set via WebConfig)
@@ -513,6 +514,7 @@ enum : uint16_t {
   HR_DAY      = 435,
   HR_SCENE    = 436,
   HR_SUMMER   = 437,
+  HR_NIGHT_WINDOW = 438,
   HR_MB_ADDR  = 480,
   HR_MB_BAUD  = 481
 };
@@ -2243,15 +2245,19 @@ static void processModbusHoldingWrites() {
   if (night != g_stairCfg.nightLevel) {
     g_stairCfg.nightLevel = (uint8_t)((night > 255) ? 255 : night);
     mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel);
-    g_seqNightWindow = true;
     markCfgDirty();
   }
   const uint16_t day = (uint16_t)mb.Hreg(HR_DAY);
   if (day != g_stairCfg.dayLevel) {
     g_stairCfg.dayLevel = (uint8_t)((day > 255) ? 255 : day);
     mb.Hreg(HR_DAY, g_stairCfg.dayLevel);
-    g_seqNightWindow = false;
     markCfgDirty();
+  }
+
+  const bool nightWin = ((uint16_t)mb.Hreg(HR_NIGHT_WINDOW) != 0);
+  if (nightWin != g_seqNightWindow) {
+    g_seqNightWindow = nightWin;
+    mb.Hreg(HR_NIGHT_WINDOW, nightWin ? 1 : 0);
   }
 
   const uint16_t sum = (uint16_t)mb.Hreg(HR_SUMMER);
@@ -2408,6 +2414,8 @@ static void buildModbusMap() {
   mb.Hreg(HR_SCENE, 0);
   mb.addHreg(HR_SUMMER);
   mb.Hreg(HR_SUMMER, g_heatCfg.summerMode ? 1 : 0);
+  mb.addHreg(HR_NIGHT_WINDOW);
+  mb.Hreg(HR_NIGHT_WINDOW, g_seqNightWindow ? 1 : 0);
   mb.addHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.addHreg(HR_MB_BAUD);
@@ -2435,6 +2443,8 @@ void sendWebStatus() {
   st["frost"] = g_heatFrost ? 1 : 0;
   st["summer"] = heatSummer() ? 1 : 0;
   st["heatDi"] = heatDiClosed() ? 1 : 0;
+  st["heatDiForce"] = heatDiForcesClosed() ? 1 : 0;
+  st["heatDiRole"] = (int)g_heatCfg.diRole;
   bool heatEx = false;
   for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
   st["heatEx"] = heatEx ? 1 : 0;

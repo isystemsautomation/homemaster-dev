@@ -26,7 +26,28 @@
 ##
 ## Holding (FC=03/06/16): 400..431 O1..O32 · 432 master 0..255 · 433 inhibit
 ##   · 434 night level · 435 day level · 436 scene recall (write 1..8, reads back 0)
-##   · 437 summer mode.
+##   · 437 summer mode · 438 night window (0=day, 1=night).
+## 434/435 are levels only. The day/night window is selected by 438.
+##
+##   automation:
+##     - alias: STR night window from sun.sun
+##       trigger:
+##         - platform: state
+##           entity_id: sun.sun
+##       action:
+##         - choose:
+##             - conditions:
+##                 - condition: state
+##                   entity_id: sun.sun
+##                   state: below_horizon
+##               sequence:
+##                 - service: switch.turn_on
+##                   target:
+##                     entity_id: switch.str_1_night_window
+##           default:
+##             - service: switch.turn_off
+##               target:
+##                 entity_id: switch.str_1_night_window
 ## Coils: 330 save levels · 331 release override · 332 panic · 333 all-off · 334 clear panic
 ##   · 340 run up · 341 run down · 342 stop · 345 exercise valves now.
 ## IR 200..204: firmware identity (not polled).
@@ -845,6 +866,12 @@ switch:
     address: 345
     internal: true
     assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_night_window
+    name: "${str_prefix} Night window"
+    register_type: holding
+    address: 438
 
 number:
   - platform: modbus_controller
