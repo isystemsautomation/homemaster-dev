@@ -1738,6 +1738,7 @@ void handleCommand(JSONVar obj);
 void performReset();
 void processModbusCommandPulses();
 void sendWebStatus();
+void sendWebIdentity();
 void sendHeatStats();
 void sendWebCfg();
 void sendWebBootstrap();
@@ -1795,6 +1796,7 @@ bool initFilesystemAndConfig() {
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   addr = hmValidAddress(addr);
   baud = hmValidBaud(baud);
+  const bool changed = (g_mb_address != addr) || (g_mb_baud != baud);
   if (g_mb_baud != baud) {
     Serial2.end();
     Serial2.begin(baud);
@@ -1805,14 +1807,15 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_baud = baud;
   mb.Hreg(HR_MB_ADDR, g_mb_address);
   mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
+  if (changed) sendWebIdentity();
 }
 
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
-  if (addr) g_mb_address = hmValidAddress(addr);
-  if (baud) g_mb_baud = hmValidBaud(baud);
-  applyModbusSettings(g_mb_address, g_mb_baud);
+  const uint8_t newAddr = addr ? hmValidAddress(addr) : g_mb_address;
+  const uint32_t newBaud = baud ? hmValidBaud(baud) : g_mb_baud;
+  applyModbusSettings(newAddr, newBaud);
   if (addr || baud) markCfgDirty();   // regression lost in the 2026-08-04 rollback
 
   if (values.hasOwnProperty("pwm")) {
@@ -2445,18 +2448,22 @@ static void buildModbusMap() {
   hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
 }
 
+void sendWebIdentity() {
+  JSONVar id;
+  id["model"] = HM_MODEL_ID;
+  id["fw"]    = HM_FW;
+  id["map"]   = HM_FW;
+  id["addr"]  = g_mb_address;
+  id["baud"]  = g_mb_baud;
+  WebSerial.send("identity", id);
+}
+
 void sendWebStatus() {
   JSONVar st;
-  st["model"] = HM_MODEL_ID;
-  st["fw"]    = HM_FW;
-  st["map"]   = HM_FW;
-  st["addr"]  = g_mb_address;
-  st["baud"]  = g_mb_baud;
   st["linkOk"] = linkOkNow(millis()) ? 1 : 0;
   st["busFailsafe"] = g_busFailsafeActive ? 1 : 0;
   st["localOverride"] = g_localOverride ? 1 : 0;
   st["panic"] = g_panicActive ? 1 : 0;
-  st["scene"] = (int)g_activeScene;
   st["seq"] = (int)g_seqPhase;
   st["seqDir"] = (int)g_seqDir;
   st["seqStep"] = (int)g_seqStep;
@@ -2466,7 +2473,6 @@ void sendWebStatus() {
   st["summer"] = heatSummer() ? 1 : 0;
   st["heatDi"] = heatDiClosed() ? 1 : 0;
   st["heatDiForce"] = heatDiForcesClosed() ? 1 : 0;
-  st["heatDiRole"] = (int)g_heatCfg.diRole;
   bool heatEx = false;
   for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
   st["heatEx"] = heatEx ? 1 : 0;
@@ -2776,6 +2782,7 @@ void sendWebCfg() {
 }
 
 void sendWebBootstrap() {
+  sendWebIdentity();
   sendWebStatus();
   cfgTransferStart();
 }

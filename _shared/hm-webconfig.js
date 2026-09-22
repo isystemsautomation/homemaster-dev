@@ -36,6 +36,7 @@
     _localLogic: false,
     _portOpen: false,
     _helloSent: false,
+    _identity: { model: null, fw: null, map: null, addr: null, baud: null },
   };
 
   function $(id) { return document.getElementById(id); }
@@ -69,6 +70,44 @@
   function hasCompleteIdentity(st) {
     return identityField(st, 'model') != null
       && identityField(st, 'fw') != null;
+  }
+
+  function clearIdentity() {
+    HMWebConfig._identity = { model: null, fw: null, map: null, addr: null, baud: null };
+  }
+
+  function rememberIdentity(src) {
+    if (!src) return;
+    const id = HMWebConfig._identity;
+    const m = identityField(src, 'model');
+    const f = identityField(src, 'fw');
+    const map = identityField(src, 'map');
+    const a = (src.addr != null) ? src.addr : src.address;
+    const b = (src.baud != null) ? src.baud : src.baudRate;
+    if (m != null) id.model = m;
+    if (f != null) id.fw = f;
+    if (map != null) id.map = map;
+    if (a != null && a !== '') id.addr = a;
+    if (b != null && b !== '') id.baud = b;
+  }
+
+  function applyIdentityHeader() {
+    const id = HMWebConfig._identity;
+    const model = $('hm-model');
+    const fw = $('hm-fw');
+    const addr = $('hm-addr');
+    const baud = $('hm-baud');
+    if (model && id.model != null) {
+      const mn = Number(id.model);
+      model.textContent = MODEL_NAMES[mn] || String(id.model);
+    }
+    if (fw && id.fw != null) fw.textContent = String(id.fw);
+    if (addr && id.addr != null) addr.textContent = String(id.addr);
+    if (baud && id.baud != null) baud.textContent = String(id.baud);
+    const selAddr = $('modbus-address');
+    const selBaud = $('modbus-baud');
+    if (selAddr && id.addr != null && selAddr !== document.activeElement) selAddr.value = String(id.addr);
+    if (selBaud && id.baud != null && selBaud !== document.activeElement) selBaud.value = String(id.baud);
   }
 
   function ensureCompatEl() {
@@ -206,13 +245,20 @@
     }, STATUS_IDENTITY_TIMEOUT_MS);
   }
 
-  function checkCompatFromStatus(st) {
+  function checkCompatFromCache() {
     if (!identityExpected()) return;
+    if (!hasCompleteIdentity(HMWebConfig._identity)) return;
     if (HMWebConfig._statusIdentityTimer) {
       clearTimeout(HMWebConfig._statusIdentityTimer);
       HMWebConfig._statusIdentityTimer = null;
     }
-    applyCompatUI(evaluateCompat(st));
+    applyCompatUI(evaluateCompat(HMWebConfig._identity));
+  }
+
+  function checkCompatFromStatus(st) {
+    rememberIdentity(st);
+    applyIdentityHeader();
+    checkCompatFromCache();
   }
 
   function resetModuleHeaderFields() {
@@ -242,6 +288,7 @@
     if (dot) dot.className = 'dot warn';
     if (txt) txt.textContent = 'Disconnected';
     resetModuleHeaderFields();
+    clearIdentity();
     resetCompatState();
     HMWebConfig._compat.blocked = true;
     HMWebConfig._compat.factoryBlocked = true;
@@ -427,27 +474,19 @@
   function applyStatus(st) {
     if (!st) return;
     markDataReceived();
-    const model = $('hm-model');
-    const fw = $('hm-fw');
-    const addr = $('hm-addr');
-    const baud = $('hm-baud');
-    if (model && st.model != null) {
-      const mn = Number(st.model);
-      model.textContent = MODEL_NAMES[mn] || String(st.model);
-    }
-    if (fw && st.fw != null) fw.textContent = String(st.fw);
-    const a = (st.addr != null) ? st.addr : st.address;
-    const b = (st.baud != null) ? st.baud : st.baudRate;
-    if (addr && a != null) addr.textContent = String(a);
-    if (baud && b != null) baud.textContent = String(b);
-    const selAddr = $('modbus-address');
-    const selBaud = $('modbus-baud');
-    // Do not clobber an open dropdown / focused control with ~1 Hz status echo.
-    if (selAddr && a != null && selAddr !== document.activeElement) selAddr.value = String(a);
-    if (selBaud && b != null && selBaud !== document.activeElement) selBaud.value = String(b);
+    rememberIdentity(st);
+    applyIdentityHeader();
     applyLinkStatus(st);
     applyLocalLogicStatus(st);
-    checkCompatFromStatus(st);
+    checkCompatFromCache();
+  }
+
+  function applyIdentity(id) {
+    if (!id) return;
+    markDataReceived();
+    rememberIdentity(id);
+    applyIdentityHeader();
+    checkCompatFromCache();
   }
 
   function setCheck(id, v) {
@@ -537,6 +576,7 @@
 
   function bindIncoming(conn) {
     conn.on('status', applyStatus);
+    conn.on('identity', applyIdentity);
     conn.on('io', applyIo);
     conn.on('cfg', applyCfg);
     conn.on('log', msg => { markDataReceived(); appendLog(msg); });
@@ -548,6 +588,7 @@
       HMWebConfig._helloSent = false;
       HMWebConfig._compat.blocked = true;
       document.body.classList.add('hm-compat-blocked');
+      clearIdentity();
       resetModuleHeaderFields();
       startConnectionMonitoring();
       scheduleIdentityTimeout();
