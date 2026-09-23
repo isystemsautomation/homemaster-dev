@@ -35,6 +35,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC) |
 | 📄 Datasheet (PDF) | [MiniPLC_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/MiniPLC_Datasheet.pdf) |
 | 📘 User Manual (PDF) | [User Manual.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/User%20Manual.pdf) |
+| 📄 UK PSTI statement (PDF) | [PSTI_MiniPLC.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
 | ⚙️ Default Firmware (YAML) | [miniplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Firmware/miniplc.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
 | 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC/Schematics) |
@@ -913,7 +914,7 @@ Optional features (1-Wire DS18B20 sensors, MAX31865 RTD sensors, microSD, Ethern
 
 ## Compliance & Certifications
 
-The MiniPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand) maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+The MiniPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand) maintains the technical documentation, a signed EU Declaration of Conformity (DoC), and a signed UK PSTI statement of compliance for Great Britain.
 
 ### Applicable EU directives
 
@@ -927,6 +928,7 @@ The MiniPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® br
 | Document | File |
 |---|---|
 | EU Declaration of Conformity (DoC) | [DoC_MiniPLC.pdf](./Manuals/DoC_MiniPLC.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_MiniPLC.pdf](./Manuals/PSTI_MiniPLC.pdf) |
 | Datasheet | [MiniPLC_Datasheet.pdf](./Manuals/MiniPLC_Datasheet.pdf) |
 | User Manual | [User Manual.pdf](./Manuals/User%20Manual.pdf) |
 

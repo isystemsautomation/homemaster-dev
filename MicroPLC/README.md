@@ -372,7 +372,8 @@ Firmware release history: [Firmware/CHANGELOG.md](Firmware/CHANGELOG.md)
 ## Compliance & Certifications
 
 The MicroPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
-maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+maintains the technical documentation, a signed EU Declaration of Conformity (DoC),
+and a signed UK PSTI statement of compliance for Great Britain.
 
 ### Applicable EU directives
 
@@ -388,6 +389,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 | Document | File |
 |---|---|
 | EU Declaration of Conformity (DoC) | [DoC_MicroPLC.pdf](./Manuals/DoC_MicroPLC.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_MicroPLC.pdf](./Manuals/PSTI_MicroPLC.pdf) |
 | Datasheet | [MicroPLC_Datasheet.pdf](./Manuals/MicroPLC_Datasheet.pdf) |
 
 ### Trademark

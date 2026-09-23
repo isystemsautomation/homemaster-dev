@@ -35,6 +35,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/opentherm-gateway-59) |
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev) |
 | 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
+| 📄 UK PSTI statement (PDF) | [PSTI_OpenthermGateway.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/PSTI_OpenthermGateway.pdf) |
 | ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
 | 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematics) |
@@ -966,7 +967,8 @@ status_led:
 ## Compliance & Certifications
 
 The OpenTherm Gateway module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
-maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+maintains the technical documentation, a signed EU Declaration of Conformity (DoC),
+and a signed UK PSTI statement of compliance for Great Britain.
 
 ### Applicable EU directives
 
@@ -982,6 +984,7 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 | Document | File |
 |---|---|
 | EU Declaration of Conformity (DoC) | [DoC_OTGW-R1.pdf](./Manuals/DoC_OTGW-R1.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_OpenthermGateway.pdf](./Manuals/PSTI_OpenthermGateway.pdf) |
 | Datasheet | [OpenTherm_Datasheet.pdf](./Manuals/OpenTherm_Datasheet.pdf) |
 
 ### Trademarks
