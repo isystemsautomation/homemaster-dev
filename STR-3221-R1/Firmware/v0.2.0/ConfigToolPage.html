@@ -247,6 +247,11 @@
       <div class="row">
         <div><label for="stair-dl">Day level</label><input id="stair-dl" type="number" min="0" max="255" value="0"></div>
         <div><label for="stair-nl">Night level</label><input id="stair-nl" type="number" min="0" max="255" value="0"></div>
+        <div>
+          <label for="stair-nw">Night window</label>
+          <input id="stair-nw" type="checkbox">
+          <span class="hint">Runtime — HR 438. Not saved in the stairs section.</span>
+        </div>
         <div><label for="stair-sf">Standby first</label><input id="stair-sf" type="number" min="0" max="255" value="0"></div>
         <div><label for="stair-sl">Standby last</label><input id="stair-sl" type="number" min="0" max="255" value="0"></div>
         <div><label for="stair-nn">Night-light level</label><input id="stair-nn" type="number" min="0" max="255" value="0"></div>
@@ -275,12 +280,13 @@
         <div class="pill">Summer: <span id="heat-summer">—</span></div>
         <div class="pill">Frost: <span id="heat-frost">—</span></div>
         <div class="pill">Exercise: <span id="heat-ex">—</span></div>
+        <div class="pill" id="heat-pwm-off" style="display:none">Slow PWM off — zones will not open</div>
       </div>
       <div class="ch-actions" style="margin-top:0">
         <button type="button" class="btn" id="heat-exercise">Exercise valves now</button>
       </div>
       <div class="row" style="margin-top:16px">
-        <div><label for="heat-p">Slow PWM period (s, 0 = off)</label><input id="heat-p" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-p">Slow PWM period (s, 0 = off)</label><input id="heat-p" type="number" min="0" max="3600" value="900"></div>
         <div><label for="heat-mp">Min pulse (%)</label><input id="heat-mp" type="number" min="0" max="50" value="10"></div>
         <div><label for="heat-ph">Phase spread (%)</label><input id="heat-ph" type="number" min="0" max="100" value="0"></div>
         <div><label for="heat-mx">Max open zones (0 = none)</label><input id="heat-mx" type="number" min="0" max="32" value="0"></div>
@@ -955,6 +961,11 @@
       $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
       $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
       $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
+      $('stair-nw')?.addEventListener('change', () => {
+        HMWebConfig.sendCommand($('stair-nw').checked ? 'stair.night' : 'stair.day');
+      });
+      const heatP = $('heat-p');
+      if (heatP) heatP.addEventListener('input', syncHeatPwmPill);
     })();
 
     (function buildHeatNc(){
@@ -1077,6 +1088,7 @@
         }
       }
       cfgHydrated.heating = true;
+      syncHeatPwmPill();
       requestHeatStats();
     }
 
@@ -1167,7 +1179,17 @@
       if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
       if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
       if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';
+      const nw = $('stair-nw');
+      if (nw && st.night != null && document.activeElement !== nw) nw.checked = !!st.night;
+      syncHeatPwmPill();
     });
+
+    function syncHeatPwmPill(){
+      const pill = $('heat-pwm-off');
+      if (!pill) return;
+      const p = parseInt($('heat-p')?.value ?? '0', 10);
+      pill.style.display = (p === 0) ? '' : 'none';
+    }
 
     const heatHours = new Array(NUM_PWM).fill(0);
     const heatCycles = new Array(NUM_PWM).fill(0);

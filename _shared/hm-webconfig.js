@@ -417,6 +417,7 @@
       HMWebConfig._helloSent = true;
       const packet = { action: 'hello' };
       logTx('command', packet);
+      scheduleIdentityTimeout();
       HMWebConfig.conn.send('command', packet).catch(err => {
         HMWebConfig._helloSent = false;
         appendLog('Config hello failed: ' + (err?.message || err));
@@ -591,7 +592,6 @@
       clearIdentity();
       resetModuleHeaderFields();
       startConnectionMonitoring();
-      scheduleIdentityTimeout();
     });
     conn.on('close', () => {
       appendLog('port: close');

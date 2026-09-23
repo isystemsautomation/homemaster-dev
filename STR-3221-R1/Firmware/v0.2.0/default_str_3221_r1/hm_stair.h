@@ -194,7 +194,15 @@ static void stairOnTrigger(uint8_t dir) {
     return;
   }
   if (g_stairCfg.oppose == 0) return;
-  stairStart(dir);                      // reverse / opposing front
+  if (g_stairCfg.oppose == 2) {
+    // Hold both: opposing front does not reverse — light every step
+    // until the hold ends. g_seqForceAll already switches the drawing
+    // to STAIR_PAT_ALL for the rest of this run.
+    g_seqForceAll = true;
+    if (stairRunning()) stairBuildOrder(g_seqDir);
+    return;
+  }
+  stairStart(dir);                      // oppose == 1: reverse
 }
 
 static void stairForce(uint8_t dir) {

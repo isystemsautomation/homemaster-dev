@@ -55,9 +55,13 @@
  *   436       scene recall: write 1..8 applies that scene, reads back 0
  *   437       summer mode 0/1 — heat closed, valve exercise still runs
  *   438       night window 0=day · 1=night — the only register that selects it
- *   480       Modbus slave address (R/W)
- *   481       Modbus baud rate (R/W, whitelist 9600..115200; stored raw,
- *             115200 not representable in uint16 → reads as 0, set via WebConfig)
+ *   480       Modbus slave address — PUBLISHED only. A bus write is not
+ *             applied: processModbusHoldingWrites never reads this register.
+ *             Set address in WebConfig. Changing the slave id on the same
+ *             bus that addresses it is unsafe.
+ *   481       Modbus baud rate — same: published, not applied from the bus.
+ *             Whitelist 9600..115200; stored raw, 115200 not representable
+ *             in uint16 → reads as 0. Set baud in WebConfig.
  *
  * The bus failsafe timeout is deliberately NOT on Modbus: it is configuration,
  * and configuration lives in WebConfig. The bus carries state and runtime
@@ -130,7 +134,7 @@
  *   uint16_t bothWindowMs         dual-trigger window
  *   uint8_t  _rsv[6]
  * HeatCfg (2g — underfloor heating), all zero = disabled:
- *   uint16_t slowPwmPeriodS       slow-PWM cycle length
+ *   uint16_t slowPwmPeriodS       slow-PWM cycle length (factory 900 = 15 min)
  *   uint8_t  phaseSpreadPct       phase spread between zones, 0..100 %
  *   uint8_t  maxOpenZones         limit on simultaneously open zones, 0 = no limit
  *   uint8_t  diRole               discrete input role: 0 none · 1 enable · 2 inhibit · 3 demand echo
@@ -1414,6 +1418,7 @@ static void fillStairHeatFactory(StairCfg &st, HeatCfg &ht) {
   st.bothWindowMs = 300;
   memset(st._rsv, 0, sizeof(st._rsv));
   ht.minPulsePct = 10;
+  ht.slowPwmPeriodS = 900;            // 15 min — heat opens; 0 would stay shut
   memset(ht._rsv2, 0, sizeof(ht._rsv2));
 }
 
@@ -1449,7 +1454,7 @@ void setDefaults() {
   btnCfg[0] = {BTN_ACT_ALL_ON, 0};   // SW1 = All ON (README promise)
   btnCfg[1] = {BTN_ACT_ALL_OFF, 0};  // SW2 = All OFF
   btnCfg[2] = {BTN_ACT_NONE, 0};
-  btnCfg[3] = {BTN_ACT_NONE, 0};
+  btnCfg[3] = {BTN_ACT_CLEAR_OVERRIDE, 0};  // SW4 = release local override
   for (int i = 0; i < NUM_PWM; i++) {
     pwmLevel[i] = 0;
     chRequest[i] = 0;
@@ -1917,6 +1922,14 @@ void handleCommand(JSONVar obj) {
     sendWebStatus();
   } else if (act == "stair.stop") {
     stairForce(SEQ_DIR_NONE);
+    sendWebStatus();
+  } else if (act == "stair.night") {
+    g_seqNightWindow = true;
+    mb.Hreg(HR_NIGHT_WINDOW, 1);
+    sendWebStatus();
+  } else if (act == "stair.day") {
+    g_seqNightWindow = false;
+    mb.Hreg(HR_NIGHT_WINDOW, 0);
     sendWebStatus();
   } else if (act == "heat.exercise") {
     heatQueueExerciseAll();
@@ -2473,6 +2486,7 @@ void sendWebStatus() {
   st["summer"] = heatSummer() ? 1 : 0;
   st["heatDi"] = heatDiClosed() ? 1 : 0;
   st["heatDiForce"] = heatDiForcesClosed() ? 1 : 0;
+  st["night"] = g_seqNightWindow ? 1 : 0;
   bool heatEx = false;
   for (uint8_t i = 0; i < NUM_PWM; i++) if (g_heatExercise[i]) { heatEx = true; break; }
   st["heatEx"] = heatEx ? 1 : 0;
