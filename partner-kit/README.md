@@ -17,6 +17,7 @@ Shop operators and integrators who resell genuine HomeMaster hardware and need r
 - `<MODULE>/specs.csv` — flat specification table for shop import
 - `<MODULE>/images/` — WebP product photography and diagrams
 - `<MODULE>/doc/` — EU Declaration of Conformity, datasheet and user manual (where available)
+- `MiniPLC/doc/PSTI_MiniPLC.pdf`, `MicroPLC/doc/PSTI_MicroPLC.pdf`, `OpenthermGateway/doc/PSTI_OpenthermGateway.pdf` — UK PSTI statements of compliance (PSTI-MiniPLC-V1.0, PSTI-MicroPLC-V1.0, PSTI-OTG-V1.0). A British distributor cannot legally supply a connectable product without the manufacturer’s statement. Only these three products have a network interface of their own; the eight Modbus RTU slave modules do not fall under the PSTI Regulations 2023 and have no statement.
 - `claims-notice.md` — binding limits on public statements
 
 ### Listing images
