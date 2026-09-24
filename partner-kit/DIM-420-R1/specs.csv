@@ -16,7 +16,7 @@ Default Modbus Settings,"Slave ID 3, 19200&nbsp;baud, 8N1; configurable via USB�
 Operating Temperature,0&nbsp;°C to +40&nbsp;°C (see Environmental section for details).
 Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08&nbsp;mm pitch"
 Environmental Ratings,Operating temperature 0&nbsp;°C to +40&nbsp;°C
-Mechanical &amp; Packaging,Product dimensions 157.4 × 91 × 58.4&nbsp;mm (L × W × H)
+Mechanical &amp; Packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
 File Description Link Field Board Schematic,Dimming power stage and digital inputs DIM-420-R1-FieldBoard.pdf
 MCU Board Schematic,"Controller, RS‑485, USB‑C and logic power supply DIM-420-R1-MCUBoard.pdf"
 MOSFET Board Schematic,Power MOSFET dimmer stage and related circuitry DIM-420-R1-MOSFETBoard.pdf

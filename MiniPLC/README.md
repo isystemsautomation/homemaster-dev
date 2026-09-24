@@ -98,7 +98,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - ESPHome pre-installed
 - OTA updates (ESPHome + HTTP vendor-managed)
 - Improv provisioning (BLE + USB Serial)
-- DIN-rail mounting (9 DIN modules ≈ 160 mm)
+- DIN-rail mounting (9 DIN modules ≈ 158 mm)
 - Modular architecture: MCU Board + Relay Board + USB Board
 
 ## Compatible Expansion Modules
@@ -148,8 +148,8 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 - Storage temperature: `-10 °C` to `+55 °C`
 - Relative humidity: `0–90 % RH`, non-condensing
 - Protection rating: `IP20` (inside cabinet)
-- Dimensions: `157.4 × 91 × 58.4 mm` (L × W × H)
-- **DIN width:** 9 modules (9 × 17.5 mm)
+- Dimensions: `158 × 90.6 × 67.3 mm` (L × W × H)
+- **DIN width:** 9 modules (≈ 158 mm)
 - Mounting: `35 mm DIN rail`
 - Net weight: `300 g` · Gross weight: `450 g`
 - Pack size: `230 × 140 × 87 mm` (L × W × H)
@@ -158,13 +158,13 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 
 ![Mechanical Drawing](./Images/dimension.png)
 
-*Mechanical drawing: front view + side view + DIN-clip depth (all dimensions in mm).*
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ## Installation
 
 ### DIN Rail Mounting
 
-- Mount on 35 mm DIN rail. The device occupies 9 DIN modules (≈ 160 mm width).
+- Mount on 35 mm DIN rail. The device occupies 9 DIN modules (≈ 158 mm width).
 - Install only inside a ventilated control cabinet.
 - The cabinet must include a protective front plate covering all terminals and a closing protective door.
 - Not suitable for outdoor or exposed installation.

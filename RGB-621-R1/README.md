@@ -232,9 +232,11 @@ limiting factor regardless of the controller.
 - **Relay contacts:** 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §4.3.  
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
-- **DIN width:** 3 modules (3 × 17.5 mm)
+- **DIN width:** 3 modules (≈ 52.5 mm)
 
 ![Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB-621-R1Dimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ---
 

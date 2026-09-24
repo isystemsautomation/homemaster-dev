@@ -10,14 +10,12 @@ Shop operators and integrators who resell genuine HomeMaster hardware and need r
 
 ## Contents
 
-- [`HomeMaster_Catalogue.pdf`](./HomeMaster_Catalogue.pdf) — full product catalogue: one A4 page per module with purpose, specifications and what makes it different, plus partner terms and compliance summary. Send this to a distributor who asks for a technical catalogue.
 - `index.csv` — product codes, GTIN, MPN and canonical shop URLs
 - `<MODULE>/description-short.md` — card listing text (40–60 words)
 - `<MODULE>/description-long.md` — extended product description (250–350 words)
 - `<MODULE>/specs.csv` — flat specification table for shop import
 - `<MODULE>/images/` — WebP product photography and diagrams
 - `<MODULE>/doc/` — EU Declaration of Conformity, datasheet and user manual (where available)
-- `MiniPLC/doc/PSTI_MiniPLC.pdf`, `MicroPLC/doc/PSTI_MicroPLC.pdf`, `OpenthermGateway/doc/PSTI_OpenthermGateway.pdf` — UK PSTI statements of compliance (PSTI-MiniPLC-V1.0, PSTI-MicroPLC-V1.0, PSTI-OTG-V1.0). A British distributor cannot legally supply a connectable product without the manufacturer’s statement. Only these three products have a network interface of their own; the eight Modbus RTU slave modules do not fall under the PSTI Regulations 2023 and have no statement.
 - `claims-notice.md` — binding limits on public statements
 
 ### Listing images
@@ -33,7 +31,6 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 - **Made for ESPHome** may be stated only for MiniPLC and OpenTherm Gateway.
 - Rewriting descriptions in your own words is recommended so your listing does not compete directly with home-master.eu in search results.
 - CE marking statements refer to the EU Declaration of Conformity supplied in `doc/`.
-- The catalogue PDF may be forwarded to customers as it is, but not edited or rebranded.
 
 ## Image map
 
@@ -58,6 +55,7 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 - `Images/mplisting1.png` → `images/02-listing-1.webp`
 - `Images/mplisting2.png` → `images/03-listing-2.webp`
 - `Images/mplisting3.png` → `images/04-listing-3.webp`
+- `Images/OTGWDimensions.png` → `images/06-dimensions.webp`
 - `Images/OpenTherm_SystemBlock.png` → `images/07-block-diagram.webp`
 
 ### ALM-173-R1
@@ -123,6 +121,7 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 - `Images/mplisting2.png` → `images/03-listing-2.webp`
 - `Images/mplisting3.png` → `images/04-listing-3.webp`
 - `Images/package1.png` → `images/05-package.webp`
+- `Images/WLDDimensions.png` → `images/06-dimensions.webp`
 - `Images/WLD_SystemBLockDiagram.png` → `images/07-block-diagram.webp`
 
 ## Missing
@@ -135,7 +134,6 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 
 ### OpenthermGateway
 - images/05-package
-- images/06-dimensions
 
 ### ALM-173-R1
 - images/05-package
@@ -151,5 +149,3 @@ Slots `02-listing-1`, `03-listing-2` and `04-listing-3` for modules that use `mp
 - images/04-listing-3
 - images/05-package
 
-### WLD-521-R1
-- images/06-dimensions

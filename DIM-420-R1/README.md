@@ -663,10 +663,14 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Mounting              | DIN rail (EN50022, 35 mm)         |
 | Material              | PC/ABS, V-0                       |
 | Color / Finish        | Light Gray / Smoke, Matte         |
-| Dimensions (L×W×H)    | 157.4 × 91 × 58.4 mm              |
-| DIN width | 4 modules (4 × 17.5 mm) |
+| Dimensions (L×W×H)    | 70 × 90.6 × 67.3 mm              |
+| DIN width | 4 modules (≈ 70 mm) |
 | Net Weight            | 420 g                             |
 | Terminal Specs        | 26–12 AWG, 0.5–0.6 Nm torque       |
+
+![DIM-420-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/Dimension.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ---
 

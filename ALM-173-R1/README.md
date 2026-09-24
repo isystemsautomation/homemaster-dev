@@ -224,14 +224,16 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Property | Specification |
 |----------|---------------|
 | Mounting | DIN-rail EN 50022 (35 mm) |
-| DIN width | 9 modules (9 × 17.5 mm) |
+| DIN width | 9 modules (≈ 158 mm) |
 | Enclosure | PC/ABS V-0 |
-| Dimensions | 157.4 × 91 × 58.4 mm (W × H × D) |
+| Dimensions | 158 × 90.6 × 67.3 mm (L × W × H) |
 | Terminals | Pluggable 5.08 mm; 0.2–2.5 mm²; 0.4 Nm max |
 | Ingress protection | IP20 (panel interior) |
 | Operating temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
 
 ![ALM-173-R1 DIN-rail wired sensor hub dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ### 4.4 Communication defaults
 

@@ -960,12 +960,15 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 
 ## 5.7 Mechanical Details
 
-- **DIN width:** 4 modules (4 × 17.5 mm)
-
-
+- **DIN width:** 4 modules (≈ 70 mm)
+- **Dimensions:** 70 × 90.6 × 67.3 mm (L × W × H)
 - **Mounting:** DIN rail EN 50022, 35 mm  
 - **Enclosure:** PC/ABS, V‑0, light gray/black, matte  
 - **Terminals:** 5.08 mm pitch; 26–12 AWG (to 2.5 mm²); **0.5–0.6 Nm** torque
+
+![WLD-521-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/WLD-521-R1/Images/WLDDimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ---
 

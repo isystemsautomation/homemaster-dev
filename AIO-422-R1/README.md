@@ -96,8 +96,13 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 | Property | Specification |
 |----------|---------------|
 | Mounting | DIN-rail 35 mm |
-| DIN width | 4 modules (4 × 17.5 mm) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
 | Ingress | IP20 (panel interior) |
+
+![AIO-422-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/Dimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ### 3.4 Communication defaults
 

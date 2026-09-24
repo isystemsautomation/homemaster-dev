@@ -217,12 +217,17 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | RTC | PCF8563 |
 | 1-Wire | 1 channel (ESD/OVP protected) |
 | Mounting | DIN-rail |
-| DIN width | 2 modules (2 × 17.5 mm) |
+| DIN width | 2 modules (≈ 35.5 mm) |
+| Dimensions | 35.5 × 90.6 × 67.3 mm (L × W × H) |
 | Operating temperature | 0 °C to +40 °C |
 | Storage temperature | −10 °C to +55 °C |
 | Relative humidity | 0–90 % RH, non-condensing |
 | Firmware | ESPHome (pre-installed), Arduino |
 | Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
+
+![MicroPLC mechanical drawing](./Images/dimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 > ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
 > motors) must NOT be connected directly to the relay outputs.** Each relay contact

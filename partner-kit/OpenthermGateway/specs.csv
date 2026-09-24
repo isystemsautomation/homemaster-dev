@@ -14,6 +14,7 @@ Environmental Ratings,"Operating temperature 0 °C to +40 °C (for unheated spac
 Mechanical &amp; Packaging,Product dimensions 35.5 × 90.6 × 67.3 mm (L × W × H)
 File Description Link Schematics,MCU and Field Board schematics Schematics/
 File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_OTGW-R1.pdf
+UK PSTI Statement of Compliance,Signed statement under the Product Security and Telecommunications Infrastructure Regulations 2023. A GB distributor cannot supply this connectable product without it. PSTI_OpenthermGateway.pdf
 Datasheet,Technical specifications and electrical characteristics OpenTherm_Datasheet.pdf
 Resource Description Link Default ESPHome Config,Official OpenTherm gateway YAML opentherm.yaml
 Integration Guide,"Setup, wiring, and OpenTherm usage README.md"

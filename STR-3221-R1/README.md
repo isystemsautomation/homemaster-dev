@@ -58,7 +58,7 @@ new command arrives or the module is power-cycled.
 |------------------:|----:|-------------|
 | **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; nine groups, each with its own **+** rail: top row 4+4+2, bottom row 4+4+4+4+4+2. Independently dimmable 0–255. |
 | **PWM Drivers** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM drivers, **8 channels each**, generating the level for all **32 main outputs** via the FieldBoard output stages. |
-| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**, galvanically isolated) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) |
+| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **I**, terminals 8–9, **ISO1212**, galvanically isolated) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) |
 | **Buttons** | 4 | SW1–SW4. Pressed state published on discrete inputs 20–23; also used for the BOOT and reset key combinations. |
 | **Status LEDs** | 2 | On-board indicators (GPIO9 / GPIO8), user-assignable steady or blink; mirrored on discrete inputs 90–91. |
 | **Sensor Rails** | 2 | Fused **+5 V** SENS.A / SENS.B rails (**F9**/**F10** PTC) for presence-sensor power only. |
@@ -93,7 +93,7 @@ The sequence runs on the controller; the module supplies the inputs and drives t
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
-| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** (IN1 = U18, IN2 = U17), **SMAJ6.8CA** clamp) |
+| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **I**, **ISO1212**, F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** (IN1 = U18, IN2 = U17), **SMAJ6.8CA** clamp) |
 | **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, nine groups, each with its own **+** rail: top row 4+4+2, bottom row 4+4+4+4+4+2; PWM from MCU-board **TLC59208F** drivers. |
 | **Buttons** | 4 | SW1–SW4; pressed state published on Modbus. |
 | **Status LEDs** | 2 | On-board indicators, assignable to a logic state; steady or blink. |
@@ -127,11 +127,16 @@ The sequence runs on the controller; the module supplies the inputs and drives t
 | Parameter | Value |
 |---|---|
 | Mounting | 35 mm DIN rail (EN 50022) |
-| DIN width | 9 modules (9 × 17.5 mm) |
+| DIN width | 9 modules (≈ 158 mm) |
+| Dimensions | 158 × 90.6 × 67.3 mm (L × W × H) |
 | Terminals | Pluggable screw terminal blocks, 5.08 mm pitch; 0.25–1.5 mm² conductors |
 | Operating temperature | 0 … +40 °C |
 | Humidity | 95 % RH non-condensing |
 | Ingress protection | IP20 — mount inside an enclosure |
+
+![STR-3221-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR-3221-R1%20Dimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ### 3.4 Communication defaults
 
@@ -344,7 +349,7 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 #### Installation practices
 
-- **DIN Mounting:** mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress. **DIN width: 9 modules (9 × 17.5 mm).**
+- **DIN Mounting:** mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress. **DIN width: 9 modules (≈ 158 mm).**
 - **Power domains:** the module uses separate power domains — **Field Power (24 VDC_FUSED)** for outputs and inputs, **Logic Power (5 V / 3.3 V)** for the MCU. Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
 - **Sensor Power Connection:** power low-current PIR / presence sensors only from the fused **SENS.A** / **SENS.B** rails (**+5 V**, **F9**/**F10**). Check the sensor is rated for a 5 V supply before wiring it. The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** channel — do **not** backfeed or parallel SENS rails with other supplies.
 - **Wiring Discipline:** use ferruled, properly sized conductors (0.25–1.5 mm²). Route communication (RS-485) and power lines separately to reduce noise coupling.
@@ -364,8 +369,8 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | Terminals **8** (**Gnd**) and **9** (**24Vdc**) form one **module-wetted dry-contact** input via **ISO1212**. No AC or high-voltage inputs. |
-| **Wiring** | Close a potential-free contact between **Gnd** (8) and **24Vdc** (9). **Do not** apply external voltage. |
+| **Input Type** | Terminals **8** (**Gnd**) and **9** (**I**) form one **module-wetted dry-contact** input via **ISO1212**. No AC or high-voltage inputs. |
+| **Wiring** | Close a potential-free contact between **Gnd** (8) and **I** (9). **Do not** apply external voltage. |
 | **Protection** | PTC/TVS protected (**F7**, **1206L016WR**). Replace fuses only with identical PTC parts. |
 
 **Presence-sensor inputs (IN1, IN2)**
@@ -438,12 +443,12 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 **Outputs (32 channels).** Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** loads: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
 
-**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected; module-wetted — do not apply external voltage).
+**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **I** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected; module-wetted — do not apply external voltage).
 
-Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **24Vdc** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
+Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **I** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
-*Potential-free (dry) contact between **Gnd** (8) and **24Vdc** (9); module supplies wetting current — do not apply external voltage.*
+*Potential-free (dry) contact between **Gnd** (8) and **I** (9); module supplies wetting current — do not apply external voltage.*
 
 **PIR / presence sensors (IN1, IN2).** Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
 
@@ -839,7 +844,7 @@ manually erased via WebConfig or serial command.
 | **HR 481 reads 0** | Expected at 115200 — the raw value does not fit a 16-bit register. Not a fault. |
 | **Outputs not responding** | Check the LED PS supply and the output **+** group rail; then check TLC status in WebConfig live view. |
 | **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and run `i2c_scan` from WebConfig. |
-| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
+| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **I** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
 | **Pressing a button does nothing** | Expected in v0.1.0 — the buttons report their state on Modbus and perform no local action. Drive the outputs from the controller or from WebConfig. |
 | **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |

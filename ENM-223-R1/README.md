@@ -148,9 +148,9 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | Property | Specification |
 |-----------|---------------|
 | **Mounting** | DIN rail EN 50022 (35 mm) |
-| DIN width | 4 modules (4 × 17.5 mm) |
+| DIN width | 4 modules (≈ 70 mm) |
 | **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
-| **Dimensions (L × W × H)** | 71.5 × 90 × 59 mm |
+| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm |
 | **Weight** | See product label / packing slip |
 | **Terminals** | Pluggable screw, pitch 5.08 mm / 0.2–2.5 mm² (AWG 24–12) / torque 0.4 Nm (max) |
 | **Ingress Protection** | IP20 (EN 60529) |
@@ -160,7 +160,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 <div align="center">
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
-<em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
+<em>Mechanical drawing: front and side view, dimensions in mm</em>
 </div>
 
 ### 3.4 Communication defaults

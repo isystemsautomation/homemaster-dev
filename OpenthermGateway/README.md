@@ -121,7 +121,7 @@ The table below lists boilers users have successfully run with this hardware (or
 
 ## Mechanical and Environmental
 
-- **DIN width:** 2 modules (2 × 17.5 mm)
+- **DIN width:** 2 modules (≈ 35.5 mm)
 
 
 - Operating temperature: `0 °C` to `+40 °C`
@@ -130,6 +130,10 @@ The table below lists boilers users have successfully run with this hardware (or
 - Protection rating: `IP20` (inside cabinet)
 - Dimensions: `35.5 × 90.6 × 67.3 mm` (L × W × H)
 - Mounting: `35 mm DIN rail` (2 DIN modules)
+
+![Opentherm Gateway mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OTGWDimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 - Pack size: `140 × 96 × 95 mm` (L × W × H)
 
 > ℹ️ The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
@@ -137,7 +141,7 @@ The table below lists boilers users have successfully run with this hardware (or
 ## Installation
 
 ### DIN Rail Mounting
-- Mount on 35 mm DIN rail. The device occupies 2 DIN modules (≈ 36 mm width).
+- Mount on 35 mm DIN rail. The device occupies 2 DIN modules (≈ 35.5 mm width).
 - Install only inside a ventilated control cabinet.
 - The cabinet must include a protective front plate covering all terminals and a closing protective door.
 - Not suitable for outdoor or exposed installation.

@@ -18,6 +18,6 @@ Modbus address,1–247 (default: 3)
 Modbus baud rate,"9600–115200 (default: 19200), 8N1"
 Category Specification Details Terminal specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
 Environmental ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; packaging,Product dimensions 71.5 × 90 × 59 mm (L × W × H)
+Mechanical &amp; packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
 File Description Link Field board schematic,"Inputs, 1-Wire, isolated sensor rails WLD-521-R1-FieldBoard.pdf"
 MCU board schematic,"Controller, USB, RS-485, power conversion WLD-521-R1-MCUBoard.pdf"

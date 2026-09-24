@@ -19,5 +19,5 @@ USB,"USB-C (ESD protected, CC detection, data to ESP32)"
 RTC,PCF8563 with battery backup
 Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
 Environmental Ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; Packaging,Product dimensions 157.4 × 91 × 58.4 mm (6.2 × 3.58 × 2.3 in) (L × W × H)
+Mechanical &amp; Packaging,Product dimensions 158 × 90.6 × 67.3 mm (L × W × H)
 File Description Link Schematic (MCU Board),Main controller board schematic MCU_Board.pdf

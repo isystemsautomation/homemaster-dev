@@ -109,14 +109,16 @@ Typical uses for the DIO-430-R1:
 | Property | Specification |
 |----------|---------------|
 | Mounting | DIN-rail EN 50022 (35 mm) |
-| DIN width | 4 modules (4 × 17.5 mm) |
+| DIN width | 4 modules (≈ 70 mm) |
 | Enclosure | PC/ABS V-0, panel mount |
-| Dimensions | 70 × 90.6 × 67.3 mm (W × H × D) |
+| Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
 | Terminals | Pluggable 5.08 mm, 26–12 AWG (≤ 2.5 mm²), 0.5–0.6 Nm |
 | Ingress Protection | IP20 (panel interior) |
 | Operating Temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
 
 ![DIO-430-R1 Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIODimensions.png)
+
+*Mechanical drawing: front and side view, dimensions in mm*
 
 ### 3.4 Communication defaults
 
