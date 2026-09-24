@@ -22,7 +22,7 @@ via ESPHome packages.
 
 **Key capabilities at a glance:**
 
-- **32 independently dimmable low-side MOSFET channels** (**AO4882**) — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; grouped in fours, each group with its own **+** rail
+- **32 independently dimmable low-side MOSFET channels** (**AO4882**) — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine groups, each with its own **+** rail: top row 4+4+2, bottom row 4+4+4+4+4+2
 - **3 digital inputs** — **1 × IEC 61131-2 module-wetted 24 V discrete input** (**ISO1212**, galvanically isolated) and **2 × opto-isolated presence-sensor inputs** (**SFH6156**, 5.3 kV isolation)
 - **2 fused +5 V sensor rails (SENS.A / SENS.B)** — supply for low-current PIR / presence sensors
 - **4 buttons** — their pressed state is published on Modbus; they also form the on-board key combinations for USB firmware update (BOOT) and reset
@@ -56,9 +56,9 @@ new command arrives or the module is power-cycled.
 
 | Subsystem | Qty | Description |
 |------------------:|----:|-------------|
-| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped in fours, each group with its own **+** rail (nine groups). Independently dimmable 0–255. |
+| **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; nine groups, each with its own **+** rail: top row 4+4+2, bottom row 4+4+4+4+4+2. Independently dimmable 0–255. |
 | **PWM Drivers** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM drivers, **8 channels each**, generating the level for all **32 main outputs** via the FieldBoard output stages. |
-| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**, galvanically isolated) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** U17/U18, 5.3 kV) |
+| **Digital Inputs** | 3 | **1 × IEC 61131-2 module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, terminals 8–9, **ISO1212**, galvanically isolated) plus **2 × opto-isolated presence-sensor inputs** (**IN1**/**IN2**, terminals 10–15, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) |
 | **Buttons** | 4 | SW1–SW4. Pressed state published on discrete inputs 20–23; also used for the BOOT and reset key combinations. |
 | **Status LEDs** | 2 | On-board indicators (GPIO9 / GPIO8), user-assignable steady or blink; mirrored on discrete inputs 90–91. |
 | **Sensor Rails** | 2 | Fused **+5 V** SENS.A / SENS.B rails (**F9**/**F10** PTC) for presence-sensor power only. |
@@ -93,8 +93,8 @@ The sequence runs on the controller; the module supplies the inputs and drives t
 
 | Interface | Qty | Description |
 |-----------:|----:|-------------|
-| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
-| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped in fours, each group with its own **+** rail (nine groups); PWM from MCU-board **TLC59208F** drivers. |
+| **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** (IN1 = U18, IN2 = U17), **SMAJ6.8CA** clamp) |
+| **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, nine groups, each with its own **+** rail: top row 4+4+2, bottom row 4+4+4+4+4+2; PWM from MCU-board **TLC59208F** drivers. |
 | **Buttons** | 4 | SW1–SW4; pressed state published on Modbus. |
 | **Status LEDs** | 2 | On-board indicators, assignable to a logic state; steady or blink. |
 | **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
@@ -109,9 +109,8 @@ The sequence runs on the controller; the module supplies the inputs and drives t
 | **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
 | **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
 | **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
-| **Full-Load Current (all outputs)** | — | — | 18 | A | **Output** path limit (DB128L green/orange terminals). Per channel ≤1.5 A (BLM). LED PS **input** path ≤20 A (grey terminals; choke 24 A). |
-| **Digital Input Range (DI only)** | 9 | 24 | 30 | VDC | **ISO1212** module-wetted input (terminals 8–9). |
-| **Input Threshold (DI, ON)** | — | 8 | — | VDC | Typical **ISO1212** threshold. |
+| **Full-Load Current (all outputs)** | — | — | 18 | A | Module total, shared across all channels in use. Per channel ≤1.5 A. |
+| **Digital Input (DI only)** | — | — | — | — | Module-wetted dry contact via ISO1212 (terminals 8–9). Do not apply external voltage. |
 | **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** PTC (**1206L150THWR**). For sensor power only. |
 | **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1.5 A** per channel; **≤18 A** module total. |
 | **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
@@ -154,11 +153,11 @@ USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the cav
 
 | Area | Provision |
 |---|---|
-| Digital input **DI** | Galvanic isolation (**ISO1212**); PTC fuse (**F6**/**F7**, **1206L016**), TVS, reverse protection |
+| Digital input **DI** | Galvanic isolation (**ISO1212**); PTC fuse (**F7**, **1206L016WR**), TVS, reverse protection |
 | Presence inputs **IN1/IN2** | Opto-isolation (**SFH6156**, 5.3 kV); **SMAJ6.8CA** TVS clamps |
 | Sensor rails | Resettable PTC per rail (**F9**/**F10**) |
 | Outputs **O1…O32** | Gate RC + ferrite per channel (**BLM31PG601SN1L**); **not** isolated from logic ground |
-| Power input | Reverse-polarity protection, TVS surge suppression, EMI filtering, time-lag fuse |
+| Power input | Reverse-polarity protection, TVS surge suppression, EMI filtering, 1 A fuse (F8) |
 | RS-485 | TVS, PTC, common-mode choke, fail-safe biasing — transient protection, **not** isolation |
 | Configuration | Stored in LittleFS with a CRC; survives power loss |
 | Watchdog | 4 s hardware watchdog; the module reboots itself if the main loop stalls |
@@ -302,10 +301,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 **Housing notes**
 
-- Outputs are grouped in fours, each group with its own + rail - nine groups in total.
+- Outputs are nine groups, each with its own + rail: top row 4+4+2, bottom row 4+4+4+4+4+2
 - Low-side switching: load + to the group + rail, load - to O.n.
 - Two separate presence inputs SENS.A and SENS.B, each with its own + and Gnd.
-- Output path: per channel ≤1.5 A (ferrite BLM31PG601SN1L); module total ≤18 A (DB128L-5.08 green/orange field terminals). LED PS **input** path is separate: grey PowerSupply terminals 20 A (path limit), SL1265-1R0M choke 24 A — not the same as the 18 A output total.
+- Output path: per channel ≤1.5 A (ferrite BLM31PG601SN1L); module total ≤18 A.
 
 <!-- hm:terminal-map:end -->
 
@@ -367,13 +366,13 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 |-------|----------|
 | **Input Type** | Terminals **8** (**Gnd**) and **9** (**24Vdc**) form one **module-wetted dry-contact** input via **ISO1212**. No AC or high-voltage inputs. |
 | **Wiring** | Close a potential-free contact between **Gnd** (8) and **24Vdc** (9). **Do not** apply external voltage. |
-| **Protection** | PTC/TVS protected (**F6**/**F7**, **1206L016**). Replace fuses only with identical PTC parts. |
+| **Protection** | PTC/TVS protected (**F7**, **1206L016WR**). Replace fuses only with identical PTC parts. |
 
 **Presence-sensor inputs (IN1, IN2)**
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **opto-isolated** via **SFH6156** (U17, U18); accept open-collector or dry-contact sensor outputs. |
+| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **opto-isolated** via **SFH6156** (IN1 = U18, IN2 = U17); accept open-collector or dry-contact sensor outputs. |
 | **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). |
 | **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
 
@@ -417,8 +416,8 @@ The module needs **two separate supplies**, and mixing them up is the most commo
 
 | Supply | Terminals | Purpose | Sizing |
 |---|---|---|---|
-| **Module logic** | **V+** / **0V** (1, 2) | MCU, inputs, RS-485, sensor rails | 20–30 V DC SELV, 60–100 mA quiescent — size for electronics only |
-| **LED load** | **LED PS +** / **−** (3, 4) | Feeds the nine output group rails | 12–24 V DC, sized for the total LED load; input path ≤20 A |
+| **Module logic** | **V+** / **0V** (1, 2) | MCU, inputs, RS-485, sensor rails | 24 V DC nominal SELV, typical 0.2–0.5 W, logic only — size for electronics only |
+| **LED load** | **LED PS +** / **−** (3, 4) | Feeds the nine output group rails | 12–24 V DC, sized for the total LED load |
 
 The **+5 V SENS.A / SENS.B** rails for presence sensors are derived internally from the module
 supply and individually fused (**F9** / **F10**, 1206L150THWR PTC). They are for sensor power
@@ -432,21 +431,21 @@ Both inputs are reverse-polarity and surge protected. Do not bridge **GND_FUSED*
 
 Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and the RS-485 trunk before wiring terminals.
 
-**Power (24 V DC).** Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 60–100 mA quiescent).
+**Power (24 V DC).** Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 0.2–0.5 W, logic only).
 
 ![24 V DC power supply wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
 *Module **V+** / **0V** (24 V DC logic) — size for electronics only. LED / actuator loads use the separate **LED PS** input.*
 
 **Outputs (32 channels).** Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** loads: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
 
-**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected — do not exceed 30 V DC).
+**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **24Vdc** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected; module-wetted — do not apply external voltage).
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **24Vdc** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **24Vdc** (9); module supplies wetting current — do not apply external voltage.*
 
-**PIR / presence sensors (IN1, IN2).** Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** U17/U18, 5.3 kV) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+**PIR / presence sensors (IN1, IN2).** Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 

@@ -1,12 +1,12 @@
 characteristic,value
 Specification Details Microcontroller,RP2350 dual-core microcontroller
 Storage,External QSPI Flash W25Q32 (32 Mbit)
-Power Input,24 V DC nominal (20-30 V DC recommended)
-Input Protection,"Time-lag fuse, reverse polarity diode, TVS surge suppression, EMI filtering"
+Power Input,24 V DC nominal
+Input Protection,"1 A fuse (F8), TVS surge suppression, EMI filtering"
 Main Logic Supply,"AP64501 buck regulator 24 V &rarr; 5 V, AMS1117-3.3 LDO regulator"
 Outputs,"32 &times; low-side AO4882 dual N-MOSFET channels, 1.5 A max per channel, 18 A module total; gate RC + ferrite per channel"
 Output Voltage,External 12-24 V DC LED supply (shared + group rails)
-Maximum Total Output Current,18 A module path limit at 24 V DC (DB128L-5.08 field terminals); 1.5 A per channel
+Maximum Total Output Current,"18 A per module, shared across all channels in use; 1.5 A per channel"
 PWM Driver ICs,"4 &times; TLC59208F (8 channels each, U9-U12) generating the level for all 32 main outputs"
 Digital Inputs,"1 &times; IEC 61131-2 compliant 24 V DC discrete input (DI + GND), galvanically isolated ISO1212 front-end, plus 2 &times; presence-sensor inputs (IN1, IN2 with GND) opto-isolated via SFH6156 (5.3 kV); PTC fuses, TVS surge suppression"
 Sensor Rails (SENS.A / SENS.B),2 fused +5 V auxiliary rails (PTC F9 / F10) for low-current presence sensors; sensor power only

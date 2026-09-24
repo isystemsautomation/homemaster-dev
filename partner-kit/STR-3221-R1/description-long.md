@@ -8,4 +8,4 @@ Plan step wiring so return currents share the LED PSU negative and not the logic
 
 Allow adequate airflow above the heat sink path of the LED returns. Commission each flight separately so presence direction matches physical traffic flow. Document Modbus register addresses in the integrator handover pack.
 
-Mount on 35 mm DIN rail inside an IP20 enclosure. Size the LED PSU for strip length and wattage per metre. External protection is required on relay or mains circuits if used. CE marked; EU DoC and datasheet included. Open hardware (CERN-OHL-W v2) and published firmware sources.
+Mount on 35 mm DIN rail inside an IP20 enclosure. Size the LED PSU for strip length and wattage per metre. CE marked; EU DoC and datasheet included. Open hardware (CERN-OHL-W v2) and published firmware sources.
