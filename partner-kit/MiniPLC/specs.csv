@@ -10,7 +10,7 @@ Analog Inputs,"4 × 0–10 V, 16-bit (ADS1115)"
 Analog Outputs,"1 × 0–10 V, 12-bit (MCP4725)"
 Temperature Inputs,"2 × RTD (PT100/PT1000 via MAX31865), 2 × 1-Wire (DS18B20 compatible)"
 Display,128 × 64 OLED (SH1106)
-User Interface,"4 buttons, 16 LEDs: PWR ×1, user ×2 (U.1, U.2), status ×1 (U.3), RX/TX ×2, DI ×4, relay ×6"
+User Interface,"4 buttons, 16 LEDs: PWR ×1, user ×3 (U.1–U.3; U.3 is the status LED by default, reassignable), RX/TX ×2, DI ×4, relay ×6"
 RS-485,"non-isolated RS-485 (MAX485; transceiver shares logic ground); half-duplex Modbus RTU, not galvanically isolated"
 Wi-Fi,Wi-Fi (ESP32)
 Ethernet,Optional Ethernet (LAN8720 PHY)

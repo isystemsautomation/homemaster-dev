@@ -88,7 +88,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - 2 × 1-Wire buses (DS18B20 compatible) with auxiliary +5 V supply
 - RS-485 / Modbus RTU bus (MAX485; non-isolated — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu))
 - 128 × 64 OLED display (SH1106, I²C)
-- 4 front-panel buttons + 16 LEDs (PWR ×1, user ×2 U.1/U.2, status ×1 U.3, RX/TX ×2, DI ×4, relay ×6) + buzzer
+- 4 front-panel buttons + 16 LEDs (PWR ×1, user ×3 U.1–U.3; U.3 is the status LED by default, reassignable; RX/TX ×2, DI ×4, relay ×6) + buzzer
 - PCF8563 real-time clock with on-board battery holder (battery sold separately)
 - microSD card slot (SPI, power-switched 3.3 V rail)
 - Power input options: 24 V DC or 85–265 V AC (single isolated input module)
@@ -159,7 +159,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 | Analog Outputs | 1 × 0–10 V, 12-bit (MCP4725) |
 | Temperature Inputs | 2 × RTD (PT100/PT1000 via MAX31865), 2 × 1-Wire (DS18B20 compatible) |
 | Display | 128 × 64 OLED (SH1106) |
-| User Interface | 4 buttons, 16 LEDs: PWR ×1, user ×2 (U.1, U.2), status ×1 (U.3), RX/TX ×2, DI ×4, relay ×6 |
+| User Interface | 4 buttons, 16 LEDs: PWR ×1, user ×3 (U.1–U.3; U.3 is the status LED by default, reassignable), RX/TX ×2, DI ×4, relay ×6 |
 | RS-485 | non-isolated RS-485 (MAX485; transceiver shares logic ground); half-duplex Modbus RTU, not galvanically isolated |
 | Wi-Fi | Wi-Fi (ESP32) |
 | Ethernet | Optional Ethernet (LAN8720 PHY) |
@@ -456,7 +456,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### LEDs
 
-The device has 16 LEDs total on the front panel: **PWR**, **U.1**, **U.2**, **U.3** (status), **RX**, **TX**, **DI×4**, and **R×6**.
+The device has 16 LEDs total on the front panel: **PWR**, **U.1–U.3** (user; U.3 is the status LED by default, reassignable), **RX**, **TX**, **DI×4**, and **R×6**.
 
 | LED | Behaviour | Meaning |
 |---|---|---|
@@ -464,13 +464,14 @@ The device has 16 LEDs total on the front panel: **PWR**, **U.1**, **U.2**, **U.
 | RX / TX | Activity | RS-485 / Modbus traffic |
 | DI 1–4 | Solid ON when input is active | Digital input state mirror |
 | R 1–6 | Solid ON when relay energised | Relay output state mirror |
-| U.1, U.2 | Firmware-controlled | User-assignable via ESPHome YAML |
-| U.3 (Status) | Off | Normal operation — no warning or error |
-| U.3 (Status) | Slow blink (~1 Hz) | Warning active. Warnings include Wi-Fi disruption and the native API being present with **no client connected** |
-| U.3 (Status) | Fast blink | Error found during setup |
-| U.3 (Status) | Blink pattern | OTA update in progress |
+| U.1, U.2, U.3 | Firmware-controlled | User-assignable via ESPHome YAML. U.3 is the status LED by default, reassignable |
+| U.3 (default) | Off | Normal operation — no warning or error |
+| U.3 (default) | Slow blink (~1 Hz) | Warning active. Warnings include Wi-Fi disruption and the native API being present with **no client connected** |
+| U.3 (default) | Fast blink | Error found during setup |
+| U.3 (default) | Blink pattern | OTA update in progress |
 
-> U.3 is the ESPHome `status_led` on PCF8574A pin **P7**. Patterns follow the
+> U.3 is a user LED. The default firmware uses it as the ESPHome `status_led` on
+> PCF8574A pin **P7**; it can be reassigned. Default patterns follow the
 > ESPHome `status_led` component (off = OK, slow blink = warning, fast blink =
 > setup error).
 
@@ -526,7 +527,7 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 | P4 | LED1 | User LED #1 (Relay #6 control in default firmware) |
 | P5 | LED2 | User LED #2 (Relay #5 control in default firmware) |
 | P6 | LED3 | User LED #3 (Relay #4 control in default firmware) |
-| P7 | LED_STATUS | Status LED U.3 |
+| P7 | LED_STATUS | User LED U.3 (status by default, reassignable) |
 
 **PCF8574B (I²C 0x39)** — relays #1–#3 and user LEDs
 
@@ -925,7 +926,7 @@ The file includes:
 - `api.encryption` without a baked-in key + `provisioning:` (15 min window)
 - I²C bus with all on-board peripherals (PCF8574 ×2, ADS1115, MCP4725, PCF8563, SH1106)
 - RS-485 UART (GPIO17 / GPIO16, 19200 baud) ready for Modbus
-- All digital inputs, buttons, relays, user LEDs, status LED, buzzer, analog inputs, analog output (DAC) with explicit `id` on every entity (Made for ESPHome compliant)
+- All digital inputs, buttons, relays, user LEDs (U.3 is the status LED by default, reassignable), buzzer, analog inputs, analog output (DAC) with explicit `id` on every entity (Made for ESPHome compliant)
 
 Optional features (1-Wire DS18B20 sensors, MAX31865 RTD sensors, microSD, Ethernet) are present in commented-out blocks — uncomment and adjust to enable. See also [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml), [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml), and [Optional Ethernet (LAN8720)](#optional-ethernet-lan8720).
 
