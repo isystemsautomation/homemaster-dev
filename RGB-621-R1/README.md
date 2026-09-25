@@ -240,8 +240,8 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Terminal type | Pluggable screw terminal blocks DB129V-5.08 / DB129R-5.08, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 145 g |
+| Gross weight | 240 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 
@@ -252,7 +252,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 - **Protections:** PTC fuses, TVS diodes, reverse polarity & ESD networks  
 - **Relay contacts:** 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §4.3.  
 - **Mounting:** DIN-rail EN 50022 (35 mm), IP20 enclosure  
-- **Dimensions:** 52.5 × 90.6 × 67.3 mm · Weight ≈ 0.25 kg
+- **Dimensions:** 52.5 × 90.6 × 67.3 mm · Net weight 145 g
 - **DIN width:** 3 modules (≈ 52.5 mm)
 
 ![Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB-621-R1Dimensions.png)

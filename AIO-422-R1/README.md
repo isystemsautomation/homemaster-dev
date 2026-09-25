@@ -102,8 +102,8 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 163 g |
+| Gross weight | 276 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 

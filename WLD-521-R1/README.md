@@ -845,8 +845,8 @@ Summarize steps in 3 phases:
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 204 g |
+| Gross weight | 316 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 

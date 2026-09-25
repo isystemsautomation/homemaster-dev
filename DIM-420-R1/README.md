@@ -562,8 +562,8 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 207 g |
+| Gross weight | 324 g |
 | Pack size | TBD |
 <!-- hm:specs:end -->
 
@@ -682,7 +682,6 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Color / Finish        | Light Gray / Smoke, Matte         |
 | Dimensions (L×W×H)    | 70 × 90.6 × 67.3 mm              |
 | DIN width | 4 modules (≈ 70 mm) |
-| Net Weight            | 420 g                             |
 | Terminal Specs        | 26–12 AWG, 0.5–0.6 Nm torque       |
 
 ![DIM-420-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/Dimension.png)

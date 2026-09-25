@@ -137,8 +137,8 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 199 g |
+| Gross weight | 319 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 
