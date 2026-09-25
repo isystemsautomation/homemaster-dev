@@ -80,7 +80,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 
 - ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
 - 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
-- 6 × SPDT mechanical relay outputs (HF115F/005-1ZS3) with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel; relay component rated up to 16 A but the board/system rating governs — at 3 A the contacts work far below their rating and do not burn.
+- 6 × SPDT mechanical relay outputs with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel — the board/system rating governs.
 - Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see [Electrical and Safety Notes](#electrical-and-safety-notes).
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
@@ -88,7 +88,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - 2 × 1-Wire buses (DS18B20 compatible) with auxiliary +5 V supply
 - RS-485 / Modbus RTU bus (MAX485; non-isolated — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu))
 - 128 × 64 OLED display (SH1106, I²C)
-- 4 front-panel buttons + 3 user LEDs + 1 status LED + buzzer
+- 4 front-panel buttons + 16 LEDs (PWR ×1, user ×2 U.1/U.2, status ×1 U.3, RX/TX ×2, DI ×4, relay ×6) + buzzer
 - PCF8563 real-time clock with on-board battery holder (battery sold separately)
 - microSD card slot (SPI, power-switched 3.3 V rail)
 - Power input options: 24 V DC or 85–265 V AC (single isolated input module)
@@ -144,21 +144,49 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 
 ## Mechanical and Environmental
 
-- Operating temperature: `0 °C` to `+40 °C`
-- Storage temperature: `-10 °C` to `+55 °C`
-- Relative humidity: `0–90 % RH`, non-condensing
-- Protection rating: `IP20` (inside cabinet)
-- Dimensions: `158 × 90.6 × 67.3 mm` (L × W × H)
-- **DIN width:** 9 modules (≈ 158 mm)
-- Mounting: `35 mm DIN rail`
-- Net weight: `300 g` · Gross weight: `450 g`
-- Pack size: `230 × 140 × 87 mm` (L × W × H)
 
-> ℹ️ The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | ESP32-WROOM-32U-N16 (dual-core) |
+| Storage | MicroSD card (SPI interface, power-switched 3.3 V rail) |
+| Power Input | 24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N) |
+| RTC | RTC (PCF8563); backup battery holder, battery not fitted |
+| Document revision | DS-MiniPLC Rev. B · 2026-09 · Hardware V1.0 |
+| Digital Inputs | 4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Relay outputs | 6 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
+| Analog Inputs | 4 × 0–10 V, 16-bit (ADS1115) |
+| Analog Outputs | 1 × 0–10 V, 12-bit (MCP4725) |
+| Temperature Inputs | 2 × RTD (PT100/PT1000 via MAX31865), 2 × 1-Wire (DS18B20 compatible) |
+| Display | 128 × 64 OLED (SH1106) |
+| User Interface | 4 buttons, 16 LEDs: PWR ×1, user ×2 (U.1, U.2), status ×1 (U.3), RX/TX ×2, DI ×4, relay ×6 |
+| RS-485 | non-isolated RS-485 (MAX485; transceiver shares logic ground); half-duplex Modbus RTU, not galvanically isolated |
+| Wi-Fi | Wi-Fi (ESP32) |
+| Ethernet | Optional Ethernet (LAN8720 PHY) |
+| USB | USB-C (ESD protected, CC detection, data to ESP32) |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 158 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 9 modules (≈ 158 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | 300 g |
+| Gross weight | 450 g |
+| Pack size | 230 × 140 × 87 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ![Mechanical Drawing](./Images/dimension.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
+
 
 ## Installation
 
@@ -212,7 +240,7 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 - Characteristic impedance: **120 Ω** recommended.
 - Shielding: overall shield in cabinets; individually shielded pairs + overall shield in high-EMI.
 - Examples: `J-Y(ST)Y 2×2×0.5 mm²` or `LI2YCY PiMF 2×2×0.50`.
-- Use one twisted pair for A/B and the second pair for COM (0 V reference) or spare.
+- Run COM to every node. Required, not optional: the RS-485 port is not galvanically isolated.
 
 ### Shield Grounding
 
@@ -428,7 +456,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### LEDs
 
-The device has 12 LEDs total on the front panel: **PWR**, **U.1**, **U.2**, **U.3** (status), **RX**, **TX**, **DI×4**, and **R×6**.
+The device has 16 LEDs total on the front panel: **PWR**, **U.1**, **U.2**, **U.3** (status), **RX**, **TX**, **DI×4**, and **R×6**.
 
 | LED | Behaviour | Meaning |
 |---|---|---|
@@ -645,7 +673,7 @@ The MiniPLC includes a **PCF8563** real-time clock chip on the I²C bus (address
 
 > ℹ️ **Battery is NOT installed by default.** The unit ships without a coin cell in the holder. The RTC and timekeeping work normally while the device is powered; install a battery only if you need the clock to keep running after a power outage.
 
-To enable battery backup:
+To fit a backup battery (holder is on the board; cell not fitted):
 
 1. Power OFF the MiniPLC and disconnect all inputs.
 2. Open the enclosure (refer to the hardware schematics for the battery-holder location on the MCU Board).

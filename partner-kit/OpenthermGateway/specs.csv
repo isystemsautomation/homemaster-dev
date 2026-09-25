@@ -1,21 +1,29 @@
 characteristic,value
-Specification Details Architecture,Modular — MCU Board + Relay Board
-Microcontroller,"ESP32-WROOM-32U-N16 (dual-core, 16 MB flash)"
-Power Input,24 V DC nominal (V+ / 0V) OR 85-265 V AC (L / N)
-Relay Output*,"1 × SPDT relay (component), only C and NC terminals exposed externally — functionally SPST-NC. Rated load (system limit): 3 A @ 250 VAC (resistive); max 750 VA @ 250 VAC, 90 W @ 30 VDC. Relay output insulation from mains primary on the PCB is rated Basic per EN 62368-1; cross-phase/cross-source mains use is not permitted — see Relay Output Wiring section for full restriction. Relay components (informative only) rated up to 16 A @ 250 VAC (resistive); this rating does not apply to the complete module."
-Typical Power Consumption,3 W
-Temperature Inputs,2 x 1-Wire (DS18B20 compatible)
-User Interface,"4 LEDs (PWR, O.1, U.1, U.2), 1 button"
-Wi-Fi,"Wi-Fi 2.4 GHz (ESP32, pre-certified radio module)"
-OpenTherm Interface,1 x OpenTherm bus (OT+ / OT-) with optocoupler isolation
+Microcontroller,ESP32-WROOM-32U-N16 (dual-core)
+Power Input,"24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N)"
+RTC,"RTC (PCF8563); backup battery holder, battery not fitted"
+Document revision,DS-OpenthermGateway Rev. B · 2026-09 · Hardware V1.0
+Relay outputs,"1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC per contact (module limit)"
+Temperature Inputs,2 × 1-Wire (DS18B20 compatible)
+User Interface,"1 button, 4 LEDs (PWR, 1 user, 1 status, relay state)"
+OpenTherm Interface,1 × OpenTherm bus (OT+ / OT−) with optocoupler isolation
+Wi-Fi,Wi-Fi (ESP32)
 USB,"USB-C (ESD protected, CC detection, data to ESP32)"
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,"Operating temperature 0 °C to +40 °C (for unheated spaces, use a heated/conditioned control cabinet to keep ambient temperature within range)"
-Mechanical &amp; Packaging,Product dimensions 35.5 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Schematics,MCU and Field Board schematics Schematics/
-File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_OTGW-R1.pdf
-UK PSTI Statement of Compliance,Signed statement under the Product Security and Telecommunications Infrastructure Regulations 2023. A GB distributor cannot supply this connectable product without it. PSTI_OpenthermGateway.pdf
-Datasheet,Technical specifications and electrical characteristics OpenTherm_Datasheet.pdf
-Resource Description Link Default ESPHome Config,Official OpenTherm gateway YAML opentherm.yaml
-Integration Guide,"Setup, wiring, and OpenTherm usage README.md"
-Module Repository,Firmware and hardware source files GitHub module folder
+Typical Power Consumption,3 W
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,35.5 × 90.6 × 67.3 mm (L × W × H)
+DIN width,2 modules (≈ 35.5 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,140 × 96 × 95 mm (L × W × H)

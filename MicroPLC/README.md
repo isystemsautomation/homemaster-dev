@@ -53,7 +53,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - PCF8563 RTC for time-based automation
 - One industrial-grade relay with varistor and opto-isolation
 - One 24 V digital input on **GPIO36** with surge protection (ISO1212)
-- Four front-panel buttons and status LEDs
+- one front-panel button and status LEDs
 - DIN-rail mounting for standard control cabinets
 - **24 V DC only** field supply (plus USB-C for programming) — no AC mains input
 - **No onboard Ethernet or microSD** (unlike MiniPLC); expand I/O over RS-485 modules
@@ -205,40 +205,44 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 
 ## Specifications
 
-| Feature | Details |
+
+<!-- hm:specs:start -->
+| Specification | Details |
 |---|---|
-| Microcontroller | ESP32-WROOM-32U-N16 (16 MB flash) |
-| Power Supply | **24 V DC only** via terminal (field); 5 V via USB-C (programming) |
-| Onboard expansion | **No Ethernet**, **no microSD** (unlike MiniPLC) |
-| Relay Output | 1× relay (HF115F/005-1ZS3), **C and NC only** (no NO terminal) — functionally SPST-NC; closed when de-energised; 3 A @ 250 VAC module limit |
-| Relay contacts | 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see below. |
-| Digital Input | 1× 24 V DI on **GPIO36** (ISO1212-based) |
-| Communication | RS-485 Modbus RTU (MAX485, half-duplex, non-isolated), Wi-Fi, Bluetooth, USB-C |
-| RTC | PCF8563 |
-| 1-Wire | 1 channel (ESD/OVP protected) |
-| Mounting | DIN-rail |
-| DIN width | 2 modules (≈ 35.5 mm) |
-| Dimensions | 35.5 × 90.6 × 67.3 mm (L × W × H) |
+| Microcontroller | ESP32-WROOM-32U-N16 (dual-core) |
+| Power Input | 24 V DC nominal |
+| RTC | RTC (PCF8563); backup battery holder, battery not fitted |
+| Document revision | DS-MicroPLC Rev. B · 2026-09 · Hardware V1.0 |
+| Digital Inputs | 1 × isolated 24 V DC discrete input (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC (module limit) |
+| Temperature Inputs | 1 × 1-Wire (DS18B20 compatible) |
+| User Interface | 1 front-panel button, 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| Wi-Fi | Wi-Fi (ESP32) |
+| USB | USB-C (ESD protected, CC detection, data to ESP32) |
 | Operating temperature | 0 °C to +40 °C |
 | Storage temperature | −10 °C to +55 °C |
 | Relative humidity | 0–90 % RH, non-condensing |
-| Firmware | ESPHome (pre-installed), Arduino |
-| Minimum ESPHome | **2026.7.0** (`esphome.min_version`; required for `provisioning:`) |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 35.5 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 2 modules (≈ 35.5 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | TBD |
+<!-- hm:specs:end -->
 
 ![MicroPLC mechanical drawing](./Images/dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
-> ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
-> motors) must NOT be connected directly to the relay outputs.** Each relay contact
-> carries a 275 V arc-suppression varistor. While one direction runs, the motor's
-> phase-shift capacitor raises the voltage across the open contact of the other
-> direction above 330 V; the varistor conducts continuously and is destroyed within
-> seconds, regardless of motor current. Drive such motors through an interposing
-> relay or contactor with ≥ 400 V contacts and **no RC or varistor across the
-> contacts**; the MicroPLC relay switches the interposing relay coil only. Follow the
-> motor manufacturer's rules: the same phase for UP and DOWN, never UP and DOWN
-> simultaneously, direction change through OFF with a pause of at least 0.5 s.
 
 ## Entity Reference
 

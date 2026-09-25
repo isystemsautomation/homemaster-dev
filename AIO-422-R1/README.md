@@ -65,44 +65,52 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 
 ## 3. Specifications
 
-### 3.1 I/O summary
 
-| Subsystem | Qty | Description |
-|-----------|-----|-------------|
-| Analog Inputs | 4 | 0–10 V, ADS1115 16-bit; **voltage only — no 4–20 mA** |
-| Analog Outputs | 2 | 0–10 V, MCP4725 12-bit; **voltage only — no 4–20 mA** |
-| RTD Inputs | 2 | PT100/PT1000, MAX31865; 2-/3-/4-wire |
-| User LEDs | 4 | Configurable sources (see Features) |
-| Buttons | 4 | Configurable actions (see Features) |
-| Status LEDs | 3 | Power, RX, TX |
-| Modbus RTU | Yes | RS-485 (address 1–247, 9600–115200 baud) |
-| USB-C | Yes | WebConfig / diagnostics / UF2 flash |
-| Power | 24 V DC | DIN-rail module supply |
-| MCU | RP2350 | Dual-core, LittleFS, USB, UART |
-
-### 3.2 Electrical ratings
-
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| Supply | 24 V DC | SELV |
-| AI range | 0–10 V | Field voltage; published as mV |
-| AO range | 0–10 V | DAC raw 0–4095 |
-| RTD | PT100 / PT1000 | Rref 400 Ω / 4000 Ω (from type) |
-| RS-485 | up to 115200 bit/s | Default 19200 8N1 |
-| Operating temp | 0–40 °C | ≤ 95 % RH non-condensing |
-
-### 3.3 Mechanical & environmental
-
-| Property | Specification |
-|----------|---------------|
-| Mounting | DIN-rail 35 mm |
-| DIN width | 4 modules (≈ 70 mm) |
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (32 Mbit) |
+| Power Input | 24 V DC nominal |
+| Input Protection | 1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering |
+| Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
+| Document revision | DS-AIO-422-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Analog Inputs | 4 × voltage inputs, 0–10 V nominal range |
+| ADC | ADS1115, 16-bit resolution |
+| Input Impedance | >100 kΩ |
+| Analog Outputs | 2 × voltage outputs, 0–10 V nominal range |
+| DAC | MCP4725A0, 12-bit resolution |
+| Max Output Current | 10 mA recommended per channel |
+| RTD Channels | 2 × PT100/PT1000 (2/3/4-wire) |
+| RTD Interface | MAX31865, 15-bit temperature resolution |
+| User Interface | 4 buttons; 4 user LEDs plus power, RX, TX status LEDs |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C, 5 V logic, ESD protected |
+| Typical Power Consumption | 0.2–0.4 W typical, approx. 1 W maximum (logic only) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
 | Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
-| Ingress | IP20 (panel interior) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 125 × 94 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ![AIO-422-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/Dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
+
 
 ### 3.4 Communication defaults
 

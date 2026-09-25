@@ -1,23 +1,29 @@
 characteristic,value
-Specification Details Module Type,Dual-channel phase‑cut AC dimmer module with digital inputs and local HMI
-Microcontroller,RP2350A dual‑core microcontroller
-Flash Memory,External QSPI flash (W25Q32 series) with LittleFS configuration storage
-Power Input (logic),"24&nbsp;V DC SELV nominal (V+ / 0V), protected and filtered (see Power Supply section)"
-Dimming Outputs,"2 × solid‑state phase‑cut AC dimming channels (CH1 / CH2), MOSFET‑based power stage with Leading or Trailing edge mode per channel, configurable lower/upper thresholds and mains frequency tracking."
-Load per channel,"1 A RMS per channel (continuous, Ta ≤ 40°C)"
-Mains voltage,110/230 VAC
-Derating,1 A RMS continuous at Ta ≤ 40°C
-Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DI1–DI4 with dedicated DIx_GND returns), dry-contact (module-wetted); PTC fuse, TVS surge and reverse-polarity protection"
-User Interface,4 × front‑panel buttons (U.1–U.4) and 4 × user LEDs; buttons support multi‑press logic and also special boot/UF2 entry combinations.
-Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,USB‑C port for WebConfig (Web Serial) and UF2 firmware updates; ESD‑protected data and VBUS lines.
-Configuration Storage,Onboard flash using LittleFS; configuration persists across power cycles.
-Default Modbus Settings,"Slave ID 3, 19200&nbsp;baud, 8N1; configurable via USB‑C WebConfig."
-Operating Temperature,0&nbsp;°C to +40&nbsp;°C (see Environmental section for details).
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08&nbsp;mm pitch"
-Environmental Ratings,Operating temperature 0&nbsp;°C to +40&nbsp;°C
-Mechanical &amp; Packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Field Board Schematic,Dimming power stage and digital inputs DIM-420-R1-FieldBoard.pdf
-MCU Board Schematic,"Controller, RS‑485, USB‑C and logic power supply DIM-420-R1-MCUBoard.pdf"
-MOSFET Board Schematic,Power MOSFET dimmer stage and related circuitry DIM-420-R1-MOSFETBoard.pdf
-File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_DIM-420-R1.pdf
+Microcontroller,RP2350A dual-core microcontroller
+Storage,External QSPI Flash (W25Q32JV)
+Power Input,24 V DC nominal
+File system,LittleFS persistent configuration storage
+Document revision,DS-DIM-420-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+Digital Inputs,"4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering"
+Dimmer outputs,"2 × MOSFET phase-cut dimmer channels (leading / trailing edge, selectable); 1 A RMS per channel continuous, Ta ≤ 40 °C"
+User Interface,"4 buttons, 9 LEDs (LED1–LED9)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C (ESD protected, configuration and firmware upload)"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,70 × 90.6 × 67.3 mm (L × W × H)
+DIN width,4 modules (≈ 70 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,TBD

@@ -105,129 +105,41 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 ## 3. Specifications
 
-### 3.1 I/O summary
 
-| Interface         | Qty | Description |
-|-------------------|-----|-------------|
-| **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
-| **Current Inputs** | 3 | CT1–CT3, external **current-output** split-core CTs; secondary **≤ 60 mA RMS** (6 Ω burden on FieldBoard) |
-| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 3 A @ 250 VAC / 30 VDC (module limit) |
-| **User LEDs** | 4 | Steady/blink; optional mirror of relay 1/2 logical state (GPIO18–21) |
-| **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
-| **RS-485** | 1 | A/B/COM, Modbus RTU — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
-| **Power Input** | 1 | 24 V DC (22–28 V) logic supply, reverse & surge protected |
-
-### 3.2 Electrical ratings
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|------------|-----|-----|-----|------|-------|
-| **Supply Voltage (V+)** | 22 | 24 | 28 | V DC | SELV; reverse / surge protected input |
-| **Power Consumption** | – | 1.85 | 3.0 | W | Module only, no external loads |
-| **Logic Rails** | – | 3.3 / 5 | – | V | Buck (AP64501) + LDO (AMS1117-3.3) |
-| **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
-| **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
-| **Current Inputs (CT secondary)** | – | 50 | 60 | mA RMS | Current-output CTs into a 6 Ω burden on the FieldBoard. Full scale **120 / 60 / 30 mA** at PGA **×1 / ×2 / ×4** (factory default ×2). Do **not** use 1 A or 5 A secondary CTs |
-| **Relay Outputs** | – | – | 3 | A | SPDT; 3 A @ 250 VAC/30 VDC module limit; varistor + snubber recommended |
-| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
-| **Operating Temp.** | 0 | – | 40 | °C | storage −10…+55 °C; 0–90 % RH non-condensing |
-| **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
-| **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
-
-> 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
-
-> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
-
-### 3.3 Mechanical & environmental
-
-<div align="center">
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/photo1.png" width="320"><br>
-</div>
-
-| Property | Specification |
-|-----------|---------------|
-| **Mounting** | DIN rail EN 50022 (35 mm) |
-| DIN width | 4 modules (≈ 70 mm) |
-| **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
-| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm |
-| **Weight** | See product label / packing slip |
-| **Terminals** | Pluggable screw, pitch 5.08 mm / 0.2–2.5 mm² (AWG 24–12) / torque 0.4 Nm (max) |
-| **Ingress Protection** | IP20 (EN 60529) |
-| **Altitude** | ≤ 2000 m |
-| **Environment** | RoHS / REACH compliant |
-| **Operating Temp.** | 0–40 °C (storage −10…+55 °C) / 0–90 % RH (non-condensing) |
-
-<div align="center">
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
-<em>Mechanical drawing: front and side view, dimensions in mm</em>
-</div>
-
-### 3.4 Communication defaults
-
-Factory settings applied to every new module:
-
-| Parameter | Default |
-|-----------|---------|
-| **Modbus Address** | `3` |
-| **Baud Rate** | `19200` |
-| **Parity** | `None` |
-| **Stop Bits** | `1` |
-
-Address **1–247**; baud 9600 / 19200 / 38400 / 57600 / 115200. **Set via [WebConfig](#6-webconfig-reference) over USB-C — recommended.**
-
-> 🧷 Reversed A/B will cause CRC errors — check if no response.
-
-The module communicates over **RS-485 Modbus RTU** (A/B differential + shared COM/GND). Configuration is stored persistently in **LittleFS** and can be changed live through **USB-C + WebConfig**.
-
-### 3.5 Reliability & protection
-
-- **Primary Protection:** Reverse-path diode + MOSFET high-side switch; distributed inline fuses  
-- **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
-- **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
-- **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
-- **Relay contacts:** 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §5.1.  
-- **RS-485:** see [RS-485 / Modbus RTU](#rs-485--modbus-rtu); TX/RX LED feedback  
-- **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
-- **Memory Retention:** **LittleFS** — settings `/enm_cfg.bin`, meter `/enm_meter.bin` (see [Firmware/README](Firmware/README.md))
-
-### Standards & compliance
-
-See [§12 Compliance & Certifications](#12-compliance--certifications) for directives, DoC, and related marks. Mechanical ingress (IP20) is also listed under [§3.3](#33-mechanical--environmental).
-
----
-
-### RS-485 / Modbus RTU
-
-
-<!-- hm:rs485-order:begin -->
-> **Terminal order differs across the HomeMaster range.**
-> Always read the silkscreen - do not wire by habit from another module.
-> On this module the order is **B-A-COM**.
-> Swapping A and B damages nothing but the node will not communicate.
-> COM is required on every node.
-<!-- hm:rs485-order:end -->
-All HomeMaster controllers and modules share the same RS-485 front end.
-
-| Item | Value |
+<!-- hm:specs:start -->
+| Specification | Details |
 |---|---|
-| Transceiver | MAX485CSA+T, half-duplex |
-| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
-| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
-| Terminals | A / B / COM |
-| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
-| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
-| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
-| Idle state | Fail-safe biasing on board — do not add external bias resistors |
-| Termination | 120 Ω at the two physical ends of the bus only |
-
-**Bus wiring rules — apply to every device on the bus:**
-
-- One twisted pair for A/B, 120 Ω characteristic impedance.
-- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
-- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
-- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
-- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (W25Q32JV) |
+| Power Input | 24 V DC nominal |
+| File system | LittleFS persistent configuration storage |
+| Document revision | DS-ENM-223-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Metering IC | ATM90E32AS (3-phase energy metering / power quality) |
+| Voltage Inputs | 3 × L1/L2/L3-N+PE sensing, 85–265 V AC (mains measurement inputs) |
+| Current Inputs | 3 × CT channels (external current-output CTs); secondary ≤ 60 mA RMS into a 6 Ω on-board burden. Full scale 120 / 60 / 30 mA at PGA ×1 / ×2 / ×4 (default ×2). Do not use 1 A or 5 A secondary CTs. |
+| Relay outputs | 2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
+| User Interface | 4 buttons, 9 LEDs (power, 4 user, RX, TX, 2× relay) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C (ESD protected, configuration and firmware upload) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 125 × 94 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ## 4. Hardware & Interface
 

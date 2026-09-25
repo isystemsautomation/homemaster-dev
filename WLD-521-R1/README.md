@@ -809,52 +809,46 @@ Summarize steps in 3 phases:
 
 ## 5.3 Electrical Specifications
 
-### Power & Rails
 
-- **Power consumption:** 3 W typ., 5 W max (24 V DC nominal input)
-
-| Parameter                    | Min | Typ | Max | Notes |
-|-----------------------------|-----|-----|-----|------|
-| **Supply voltage (V+)**     | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
-| **Power consumption**       | —   | **3 W** | **5 W** | 24 V DC nominal; per product label (logic + RS‑485 + USB‑C typ.; max with both relays on, ISO rails loaded, all DIs active, RS‑485 traffic). |
-| **Logic rails**             | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
-| **Isolated sensor rails**   | —   | +12 V ISO / +5 V ISO | — | Fused, LC‑filtered; for sensors only (≤ ~150 mA shared). |
-| **1‑Wire bus power**        | —   | +5 V (logic) | — | Non‑isolated, for 1‑Wire devices only. |
-
-### Digital Inputs (DI1…DI5)
-| Parameter            | Value / Behavior |
-|----------------------|------------------|
-| Type                 | Opto‑isolated; dry contact / open‑collector / pulse. |
-| Threshold            | Low‑voltage, sensor‑level (use GND_ISO return). |
-| Debounce             | Firmware‑controlled. |
-| Pulse rate (counter) | ~ up to 9–10 Hz practical for flow meters. |
-| Isolation            | Field domain to logic via opto barrier. |
-
-### Relay Outputs (R1, R2)
-| Parameter            | Value / Behavior |
-|----------------------|------------------|
-| Type                 | SPDT, dry contact (NO/C/NC). |
-| Module output limit  | **3 A @ 250 VAC (resistive)** / **3 A @ 30 VDC** — PCB, terminals and compliance limit. |
-| Relay component      | HF115F-class contacts are rated higher (up to 16 A @ 250 VAC at the component); **that chip rating does not apply to the module**. |
-| Protection           | RC / varistor snubbers for inductive loads. Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §3.3. |
-| Recommendation       | Use an interposing contactor or coupling relay for inductive loads or loads above **3 A**. |
-
-### Communications
-| Interface | Details |
-|----------|---------|
-| **RS‑485** | Modbus RTU, half‑duplex; 9600–115200 bps (default **19200**, **8N1**); fail‑safe, short‑circuit limited, surge‑protected. |
-| **USB‑C** | USB 2.0 device for WebConfig (setup only); ESD‑protected; CP2102N bridge. |
-
-### Environment & Compliance
-| Parameter                  | Value |
-|----------------------------|-------|
-| Operating temperature      | 0…40 °C |
-| Humidity                   | ≤95 % RH, non‑condensing |
-| Ingress / Safety class     | IP20; Operation Type 1 |
-| Rated impulse (outputs)    | 2.5 kV |
-| Max altitude / pollution   | 2000 m / Degree 2 |
-
----
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (W25Q32JV, 32 Mbit) |
+| Power Input | 24 V DC nominal |
+| Input Protection | 1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering |
+| Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
+| File system | LittleFS persistent configuration storage |
+| Document revision | DS-WLD-521-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Digital Inputs | 5 × isolated 5 V DC discrete inputs |
+| Max Input Voltage | 5 V DC continuous |
+| Relay outputs | 2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
+| Isolated +12 V Output | 12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended) |
+| Isolated +5 V Output | 5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended) |
+| 1-Wire | 1 × protected 1-Wire interface (+5 V, DATA, GND) |
+| User Interface | 4 buttons; 9 LEDs (Power, 4 user, RX, TX, Relay1, Relay2) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C, 5 V logic, ESD protected |
+| Typical Power Consumption | 3 W typical / 5 W maximum (both relays energised, isolated sensor supplies fully loaded) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 125 × 94 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ## 5.4 Firmware Behavior
 

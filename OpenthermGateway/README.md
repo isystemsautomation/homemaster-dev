@@ -121,22 +121,44 @@ The table below lists boilers users have successfully run with this hardware (or
 
 ## Mechanical and Environmental
 
-- **DIN width:** 2 modules (≈ 35.5 mm)
 
-
-- Operating temperature: `0 °C` to `+40 °C`
-- Storage temperature: `-10 °C` to `+55 °C`
-- Relative humidity: `0–90 % RH`, non-condensing
-- Protection rating: `IP20` (inside cabinet)
-- Dimensions: `35.5 × 90.6 × 67.3 mm` (L × W × H)
-- Mounting: `35 mm DIN rail` (2 DIN modules)
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | ESP32-WROOM-32U-N16 (dual-core) |
+| Power Input | 24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N) |
+| RTC | RTC (PCF8563); backup battery holder, battery not fitted |
+| Document revision | DS-OpenthermGateway Rev. B · 2026-09 · Hardware V1.0 |
+| Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC per contact (module limit) |
+| Temperature Inputs | 2 × 1-Wire (DS18B20 compatible) |
+| User Interface | 1 button, 4 LEDs (PWR, 1 user, 1 status, relay state) |
+| OpenTherm Interface | 1 × OpenTherm bus (OT+ / OT−) with optocoupler isolation |
+| Wi-Fi | Wi-Fi (ESP32) |
+| USB | USB-C (ESD protected, CC detection, data to ESP32) |
+| Typical Power Consumption | 3 W |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 35.5 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 2 modules (≈ 35.5 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 96 × 95 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ![Opentherm Gateway mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OTGWDimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
-- Pack size: `140 × 96 × 95 mm` (L × W × H)
 
-> ℹ️ The 0–40 °C range assumes installation inside a heated indoor control cabinet. Do not deploy in unheated garages, outbuildings, or outdoor enclosures.
 
 ## Installation
 

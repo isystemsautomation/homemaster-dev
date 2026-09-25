@@ -187,112 +187,49 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 
 ## 4. Specifications
 
-### 4.1 I/O summary
 
-| Subsystem | Qty | Description |
-|-----------|-----|-------------|
-| Digital Inputs | 17 | Opto-isolated, 5 V DC; 5300 VRMS isolation test voltage; dry contact / SELV |
-| Relays | 3 | SPDT (NO/NC/COM), HF115F/005-1ZS3; **3 A @ 250 VAC** resistive (module rating) |
-| Buttons | 4 | Configurable ack / relay override |
-| User LEDs | 4 | Configurable Steady/Blink + PWR/TX/RX status |
-| Modbus RTU | 1 | RS-485; address 1–247; 9600–115200 baud |
-| USB-C | 1 | WebConfig (Web Serial); UF2 flashing |
-| Power | 24 V DC | 24 V DC nominal; 1 A time-lag fuse, reverse diode, TVS |
-| Sensor rails | 4 terminals | Isolated domain **GND_ISO**: **+12 V** PS/1+PS/2 shared **150 mA** (U58); **+5 V** **200 mA** (U59) |
-| MCU | RP2350A | Dual-core; QSPI flash; LittleFS |
-
-### 4.2 Electrical ratings
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|-----------|----:|----:|----:|:----:|-------|
-| Supply voltage | — | 24 | — | V DC | SELV; 1 A time-lag fuse, reverse-polarity diode, TVS |
-| Module power | — | 1.85 | 3.0 | W | Excludes external relay load currents |
-| Digital inputs | — | 5 | — | V DC | Opto-isolated; 5300 VRMS test voltage (SFH6156 optocoupler) |
-| Relay contact (module) | — | — | 3 | A | @ 250 VAC resistive |
-| Relay contact voltage | — | — | 250 | V AC | or 30 V DC max |
-| RS-485 data rate | — | 19.2 | 115.2 | kbps | Default 19200 8N1 |
-| Operating temp. | 0 | — | 40 | °C | ≤ 95 % RH, non-condensing |
-
-> **Relay component vs module rating:** Relay components (HF115F class) are rated up to **16 A @ 250 VAC** at the device level. **This chip rating does NOT apply to the module** — PCB traces, terminals, and compliance testing limit the **module output to 3 A @ 250 VAC (resistive)**. The margin is deliberate: at 3 A the contacts work far below their rating, so arcing stays low and the contacts do not burn. Use interposing contactors for higher or inductive loads.
-
-> **Isolation figure:** 5300 VRMS is the optocoupler's **isolation test voltage** (VISO, one minute, per the SFH6156 datasheet) — the industry-standard figure to compare parts by. It is not a working voltage: continuous operation is governed by VIORM = 890 V. Neither matters in practice here, because the inputs are 5 V DC dry-contact signalling and the barrier never approaches either. The figure is there to confirm a real barrier is present, **not** to permit mains on the input terminals — see the SELV warnings in §5.3 and §6.1.
-
-> **Power budgeting:** logic + LEDs + relay coils + sensor rails → add ≥ 30 % PSU headroom.
-
-### 4.3 Mechanical & environmental
-
-| Property | Specification |
-|----------|---------------|
-| Mounting | DIN-rail EN 50022 (35 mm) |
-| DIN width | 9 modules (≈ 158 mm) |
-| Enclosure | PC/ABS V-0 |
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (W25Q32JV, 32 Mbit) |
+| Power Input | 24 V DC nominal |
+| Input Protection | 1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering |
+| Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
+| File system | LittleFS persistent configuration storage |
+| Document revision | DS-ALM-173-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Digital Inputs | 17 × opto-isolated digital inputs, 5 V DC discrete inputs |
+| Max Input Voltage | 5 V DC continuous; input isolation 5.3 kVrms (SFH6156 optocoupler test voltage) |
+| Relay outputs | 3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
+| Isolated +12 V Output | 12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended) |
+| Isolated +5 V Output | 5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended) |
+| User Interface | 4 buttons; 27 LEDs: PWR, TX, RX; 4 user LEDs; 17 input LEDs (I1–I17); 3 relay LEDs (O.1–O.3) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C, 5 V logic, ESD protected |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
 | Dimensions | 158 × 90.6 × 67.3 mm (L × W × H) |
-| Terminals | Pluggable 5.08 mm; 0.2–2.5 mm²; 0.4 Nm max |
-| Ingress protection | IP20 (panel interior) |
-| Operating temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
+| DIN width | 9 modules (≈ 158 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | 200 g |
+| Gross weight | 330 g |
+| Pack size | 230 × 140 × 87 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ![ALM-173-R1 DIN-rail wired sensor hub dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
-### 4.4 Communication defaults
-
-| Parameter | Default |
-|-----------|---------|
-| **Modbus address** | `3` |
-| **Baud rate** | `19200` |
-| **Parity** | None |
-| **Stop bits** | 1 |
-| **MODEL_ID** | `1` |
-| **Firmware** | `0.2.0` |
-
-Address **1–247** (248–255 reserved by Modbus); baud 9600 / 19200 / 38400 / 57600 / 115200. Set via [WebConfig](#6-webconfig-reference) over USB-C (recommended).
-
-Configuration is stored in **LittleFS** (`/cfg.bin`); relay restore snapshot optional for power-on **Restore** policy.
-
-### 4.5 Reliability & protection
-
-- Reverse-polarity diode + TVS on 24 V input; 1 A time-lag fuse.
-- Opto-isolated digital inputs (5300 VRMS); isolated sensor rails with PTC/fuse limiting.
-- Relay drivers with onboard suppression; add external RC/MOV for inductive field loads.
-- Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see §6.1.
-- RS-485: see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
-- USB-C ESD-protected; service port only.
-- Auto-save to flash after WebConfig changes (~1.5 s quiet period).
-
----
-
-### RS-485 / Modbus RTU
-
-
-<!-- hm:rs485-order:begin -->
-> **Terminal order differs across the HomeMaster range.**
-> Always read the silkscreen - do not wire by habit from another module.
-> On this module the order is **COM-B-A**.
-> Swapping A and B damages nothing but the node will not communicate.
-> COM is required on every node.
-<!-- hm:rs485-order:end -->
-All HomeMaster controllers and modules share the same RS-485 front end.
-
-| Item | Value |
-|---|---|
-| Transceiver | MAX485CSA+T, half-duplex |
-| Galvanic isolation | **None** — the transceiver shares the device's logic ground |
-| Common-mode range | −7 V … +12 V referred to the device's own ground (MAX485 limit) |
-| Terminals | A / B / COM |
-| Surge protection | 3 × SMAJ6.8CA TVS (A–COM, B–COM, A–B) |
-| Overcurrent | 2 × resettable PTC, 1.5 A hold, in series with A and B |
-| EMI filtering | Common-mode choke on the A/B pair; COM referenced through 1 MΩ ∥ 4.7 nF |
-| Idle state | Fail-safe biasing on board — do not add external bias resistors |
-| Termination | 120 Ω at the two physical ends of the bus only |
-
-**Bus wiring rules — apply to every device on the bus:**
-
-- One twisted pair for A/B, 120 Ω characteristic impedance.
-- Run **COM** to every node. Required, not optional: the ports are not isolated, and COM is what bounds the common-mode voltage the transceivers see.
-- Prefer one power supply for the whole bus, distributed in star topology. With separate supplies, additionally tie the 0 V references together at a single point.
-- Bond the cable shield to cabinet PE at one end only. Never land a shield on A, B or COM.
-- Where the bus crosses into a different electrical installation with its own earthing reference — a utility or billing meter, another building, another cabinet's PE system — fit an external galvanic RS-485 isolator at that boundary. The on-board components are transient protection, not isolation, and will not survive a sustained ground-potential difference.
 
 ## 5. Hardware & Interface
 
@@ -466,14 +403,14 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 |----------|------|
 | **Hardware** | ALM-173-R1 — 17 opto DI, 3 SPDT relays, 4 buttons, 4 LEDs, RS-485, USB-C |
 | **Controller** | MiniPLC/MicroPLC or Modbus RTU master |
-| **24 V PSU** | Regulated SELV 18–30 V DC |
+| **24 V PSU** | Regulated SELV 24 V DC nominal |
 | **RS-485 cable** | Twisted pair A/B + COM; 120 Ω at trunk ends |
 | **Browser** | Chromium-based (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+). Firefox: experimental only (Nightly + Web Serial flag). Safari/stable Firefox not supported. |
 | **WebConfig** | [ConfigToolPage.html v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 
 ### 6.3 Power notes
 
-The module uses **24 V DC** primary (18–30 V DC nominal). Onboard regulation provides logic and isolated sensor rails.
+The module uses **24 V DC** primary (24 V DC nominal). Onboard regulation provides logic and isolated sensor rails.
 
 - **24 V DC DIN-rail PSU** → **V+ / 0V** power terminals.
 - **Digital inputs** — opto-isolated **5 V DC** signalling; dry contact or open-collector to **INx / GND I.x** (isolated return per channel). Do **not** apply mains to input terminals.

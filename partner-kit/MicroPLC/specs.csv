@@ -1,23 +1,29 @@
 characteristic,value
-Specification Details Microcontroller,ESP32-WROOM-32U-N16 (dual-core)
-Flash Memory,16 MB SPI flash
-SRAM,536 KB SRAM
-Power Input,24 V DC nominal (24VDC)
-Digital Inputs,"1 × IEC 61131-2 compliant 24 V digital input (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection"
-Relay Outputs,"1 × relay (HF115F-005-1ZS3), C and NC only (no NO) — functionally SPST-NC; closed when de-energised"
-Temperature Inputs,1-Wire interface supported
-User Interface,"1 button, status LEDs"
-Wi-Fi,Integrated Wi-Fi (ESP32)
-Wi-Fi standard,IEEE 802.11 b/g/n (2.4 GHz)
-RS-485,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-Storage,Internal ESP32 flash
-USB,USB-C programming interface via CP2102N USB-UART bridge
-RTC,PCF8563 RTC with CR2032 battery backup
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; Packaging,Product dimensions 35.5 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Schematic (MCU Board),Main controller board schematic MCUBoard.pdf
-Schematic (Relay Board),Relay and power section schematic RelayBoard.pdf
-File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_MicroPLC.pdf
-UK PSTI Statement of Compliance,Signed statement under the Product Security and Telecommunications Infrastructure Regulations 2023. A GB distributor cannot supply this connectable product without it. PSTI_MicroPLC.pdf
-Datasheet,Technical specifications and electrical characteristics MicroPLC_Datasheet.pdf
+Microcontroller,ESP32-WROOM-32U-N16 (dual-core)
+Power Input,24 V DC nominal
+RTC,"RTC (PCF8563); backup battery holder, battery not fitted"
+Document revision,DS-MicroPLC Rev. B · 2026-09 · Hardware V1.0
+Digital Inputs,"1 × isolated 24 V DC discrete input (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering"
+Relay outputs,"1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC (module limit)"
+Temperature Inputs,1 × 1-Wire (DS18B20 compatible)
+User Interface,"1 front-panel button, 6 LEDs (1 user, 1 status, RX, TX, relay, DI)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+Wi-Fi,Wi-Fi (ESP32)
+USB,"USB-C (ESD protected, CC detection, data to ESP32)"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,35.5 × 90.6 × 67.3 mm (L × W × H)
+DIN width,2 modules (≈ 35.5 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,TBD

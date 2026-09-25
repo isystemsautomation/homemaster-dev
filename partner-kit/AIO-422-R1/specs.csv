@@ -1,23 +1,37 @@
 characteristic,value
-Specification Details Microcontroller,RP2350A dual-core microcontroller
-Storage,External QSPI flash (32 Mbit)
-Power input,24 V DC nominal ; includes reverse polarity protection and surge protection
-Analog inputs,"4 × voltage inputs, 0–10 V nominal range; ADC ADS1115, 16-bit resolution; input impedance &gt;100 kΩ"
-Analog outputs,"2 × voltage outputs, 0–10 V nominal range; DAC MCP4725A0, 12-bit resolution; recommended max output current 10 mA per channel"
-RTD inputs,"2 × PT100/PT1000 (supports 2-, 3-, or 4-wire); interface MAX31865; 15-bit temperature resolution"
-Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,"USB-C, 5 V logic, ESD protected (configuration and firmware update)"
-User Interface,"4 × front-panel buttons and 4 × user LEDs (plus power, RX, TX status LEDs)"
-Power consumption,Typical 0.2–0.4 W; maximum module power consumption approx. 1 W
-Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
-Wire cross-section,0.2–2.5 mm² (AWG 24–12)
-Tightening torque,0.4–0.6 Nm
+Microcontroller,RP2350A dual-core microcontroller
+Storage,External QSPI Flash (32 Mbit)
+Power Input,24 V DC nominal
+Input Protection,"1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering"
+Main Logic Supply,"Buck regulator 24 V → 5 V, 3.3 V LDO regulator"
+Document revision,DS-AIO-422-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+Analog Inputs,"4 × voltage inputs, 0–10 V nominal range"
+ADC,"ADS1115, 16-bit resolution"
+Input Impedance,>100 kΩ
+Analog Outputs,"2 × voltage outputs, 0–10 V nominal range"
+DAC,"MCP4725A0, 12-bit resolution"
+Max Output Current,10 mA recommended per channel
+RTD Channels,2 × PT100/PT1000 (2/3/4-wire)
+RTD Interface,"MAX31865, 15-bit temperature resolution"
+User Interface,"4 buttons; 4 user LEDs plus power, RX, TX status LEDs"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C, 5 V logic, ESD protected"
+Typical Power Consumption,"0.2–0.4 W typical, approx. 1 W maximum (logic only)"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
 Operating temperature,0 °C to +40 °C
 Storage temperature,−10 °C to +55 °C
 Relative humidity,"0–90 % RH, non-condensing"
 Ingress protection,IP20 (inside cabinet only)
-Max altitude / Pollution,2000 m / Pollution degree 2
-Modbus address / Baud,1–247; typically default address 3 and baud range 9600–115200 (set via WebConfig)
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; Packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,70 × 90.6 × 67.3 mm (L × W × H)
+DIN width,4 modules (≈ 70 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,140 × 125 × 94 mm (L × W × H)

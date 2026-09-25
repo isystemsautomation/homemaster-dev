@@ -1,23 +1,29 @@
 characteristic,value
-Specification Details Microcontroller,RP2350A dual-core microcontroller
-Flash Memory,External QSPI Flash (W25Q32JV)
-Power Input,24 V DC nominal (V+ / 0V)
+Microcontroller,RP2350A dual-core microcontroller
+Storage,External QSPI Flash (W25Q32JV)
+Power Input,24 V DC nominal
+File system,LittleFS persistent configuration storage
+Document revision,DS-DIO-430-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
 Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering"
-Relay Outputs,"3 × SPDT dry-contact relays. Rated load (system limit): 3 A @ 250 V AC (resistive); max 750 VA @ 250 V AC, 90 W @ 30 V DC. Relay components (informative only) rated up to 16 A @ 250 V AC (resistive); rating does not apply to the complete module."
-User Interface,"3 buttons (2 user-configurable), 13 LEDs (power, 3 user LEDs, RX, TX, 3× relay, 4× DI)"
-Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,"USB-C (ESD protected), configuration and firmware upload"
-Storage,LittleFS persistent configuration storage
-Modbus Address Range,1–247 (default: 3)
-Modbus Baud Rate,9600–115200 (default: 19200)
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; Packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Field Board Schematic,Digital input and relay interface DIO-430-R1-FieldBoard.pdf
-MCU Board Schematic,Controller and communication circuitry DIO-430-R1-MCUBoard.pdf
-Relay Board Schematic,Relay extension and output circuitry DIO-430-R1-RelayBoard.pdf
-File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_DIO-430-R1.pdf
-Datasheet,Technical specifications and electrical characteristics DIO-430-R1_Datasheet.pdf
-Resource Description Link Firmware v0.2.0 (UF2),"Pre-built firmware — drag-and-drop upgrade (BOOT: hold 1+2+3, release 1, then release 2+3 together → RPI-RP2 drive) DIO-430-R1.uf2"
-Firmware Source Code,Firmware and configuration tools GitHub repository
-Integration Guide,Setup and configuration documentation README.md
+Relay outputs,3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
+User Interface,"3 buttons (2 user-configurable), 13 LEDs (power, 3 user, RX, TX, 3× relay, 4× DI)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C (ESD protected, configuration and firmware upload)"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,70 × 90.6 × 67.3 mm (L × W × H)
+DIN width,4 modules (≈ 70 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,140 × 125 × 94 mm (L × W × H)

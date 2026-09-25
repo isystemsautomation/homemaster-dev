@@ -1,23 +1,31 @@
 characteristic,value
-Specification Details Microcontroller,RP2350A dual-core microcontroller
-Metering IC,ATM90E32AS (3-phase energy metering / power quality)
+Microcontroller,RP2350A dual-core microcontroller
 Storage,External QSPI Flash (W25Q32JV)
-Power Input,"24 V DC nominal (V+ / 0V) with protection (reverse polarity diode, TVS, EMI filtering)"
-Voltage Inputs,"3 × L1/L2/L3-N + PE sensing, 85–265 V AC (mains measurement inputs)"
+Power Input,24 V DC nominal
+File system,LittleFS persistent configuration storage
+Document revision,DS-ENM-223-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+Metering IC,ATM90E32AS (3-phase energy metering / power quality)
+Voltage Inputs,"3 × L1/L2/L3-N+PE sensing, 85–265 V AC (mains measurement inputs)"
 Current Inputs,3 × CT channels (external current-output CTs); secondary ≤ 60 mA RMS into a 6 Ω on-board burden. Full scale 120 / 60 / 30 mA at PGA ×1 / ×2 / ×4 (default ×2). Do not use 1 A or 5 A secondary CTs.
-Measured quantities,"RMS voltage L1/L2/L3 (V), RMS current L1/L2/L3 and neutral (A), active / reactive / apparent power per phase and total (W, var, VA), power factor per phase and total, line frequency (Hz), voltage–current angle L1/L2/L3 (°), THD L1/L2/L3 (%), active and reactive energy import/export per phase and total (Wh, varh), temperature (°C), sag / overvoltage / phase-loss / overcurrent / frequency / reverse-phase-sequence flags"
-Relay Outputs,"2 × SPDT dry-contact relays (NO / COM / NC). Rated load (system limit): 3 A @ 250 V AC (resistive contact rating). Max load: 750 VA @ 250 V AC, 90 W @ 30 V DC. Relay outputs are not internally fused ; external overcurrent protection is required."
-RS-485,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,"USB-C (ESD protected), configuration and firmware upload"
-File System,LittleFS persistent configuration storage
-User Interface,"4 buttons; 9 LEDs (power, 4 user LEDs, RX, TX, relay status)"
-Modbus Address Range,1–247 (default is configurable; typically 3)
-Modbus Baud Rate,"9600–115200 (default: 19200, 8N1)"
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; Packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Field Board Schematic,Voltage sensing and CT front-end ENM-223-R1-FieldBoard.pdf
-MCU Board Schematic,"Controller, RS-485, USB, power conversion ENM-223-R1-MCUBoard.pdf"
-Relay Board Schematic,Relay output stage ENM-223-R1-RelayBoard.pdf
-File Description Link EU Declaration of Conformity (DoC),Signed EU Declaration of Conformity per Reg. (EC) 765/2008 and Decision 768/2008/EC DoC_ENM-223-R1.pdf
-Datasheet,Technical specifications and electrical characteristics ENM-223-R1_Datasheet.pdf
+Relay outputs,2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
+User Interface,"4 buttons, 9 LEDs (power, 4 user, RX, TX, 2× relay)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C (ESD protected, configuration and firmware upload)"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,70 × 90.6 × 67.3 mm (L × W × H)
+DIN width,4 modules (≈ 70 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,140 × 125 × 94 mm (L × W × H)

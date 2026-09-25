@@ -533,22 +533,39 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 ## 5.3 Electrical Specifications
 
-| Parameter             | Value                     |
-|-----------------------|---------------------------|
-| Supply Voltage (V+)   | 24 VDC ±10% SELV          |
-| Power Consumption     | Typ. 1.85 W / Max. 3 W     |
-| Logic Rails           | 5 V (Buck), 3.3 V (LDO)    |
-| Isolated Power Rails  | +5V_ISO1 / +5V_ISO2        |
-| Dimming Outputs       | 110/230 VAC, Leading/Trailing |
-| DI Input Threshold    | 24 VDC, IEC 61131-2 front-end (ISO1212) |
-| USB-C Function        | Web Serial + UF2 upload    |
-| RS-485 Interface      | 115.2 kbps max, Modbus RTU |
-| Temperature Range     | 0…+40 °C                   |
-| Humidity Range        | ≤ 95 % RH, non-condensing |
 
-> ⚠ Installer note: Fuse 24 VDC input externally; protect AC loads per local code.
-
----
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (W25Q32JV) |
+| Power Input | 24 V DC nominal |
+| File system | LittleFS persistent configuration storage |
+| Document revision | DS-DIM-420-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Digital Inputs | 4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Dimmer outputs | 2 × MOSFET phase-cut dimmer channels (leading / trailing edge, selectable); 1 A RMS per channel continuous, Ta ≤ 40 °C |
+| User Interface | 4 buttons, 9 LEDs (LED1–LED9) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C (ESD protected, configuration and firmware upload) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | TBD |
+<!-- hm:specs:end -->
 
 ## 5.4 Terminal Map
 

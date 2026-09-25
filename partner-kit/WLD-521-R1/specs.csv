@@ -1,23 +1,36 @@
 characteristic,value
-Specification Details Microcontroller,RP2350A dual-core microcontroller
-Flash memory,"External QSPI flash (W25Q32JV, 32 Mbit)"
-Power input,"24 V DC nominal (V+ / 0V). Input protection: 1 A time-lag fuse, reverse-polarity diode, TVS, EMI filtering"
-Module power,Typical 3 W (logic + RS-485 + USB-C); maximum 5 W (both relays on + isolated +12 V ISO and +5 V ISO rails loaded + all 5 DI active + RS-485 traffic)
-Main logic supplies,Buck 24 V → ~5 V; 3.3 V LDO
-Digital inputs,5 × isolated 5 V DC inputs (I1–I5 + GND_ISO); per-input mode: water sensor / soil moisture / water counter. Max input voltage 5 V DC continuous.
-Pulse counting (counter mode),"Any of the 5 inputs. Rising-edge count, 20 ms firmware debounce, ~9–10 Hz max. Pulses per litre configurable (default 450) plus Rate× / Total× calibration. Flow rate L/min and total L on Modbus (HREG 104–113, 114–123, ×1000 UINT32); reset via WebConfig or coils 340–344."
-1-Wire temperature,"1 × protected bus (+5 V, DATA, GND) for DS18B20; up to 10 sensors on Modbus (HREG 154–173, °C×1000)."
-Heat metering (per counter input),"Computed on the module from flow × ΔT of two 1-Wire sensors: power W (HREG 124–133), energy Wh×1000 (134–143), ΔT °C×1000 (144–153). Indicative only, not MID-certified."
-Relay outputs,"2 × SPDT dry-contact relays. Rated load (system limit): 3 A @ 250 V AC (resistive); max 750 VA @ 250 V AC, 90 W @ 30 V DC. Relay components (informative only) may be rated higher; that rating does not apply to the complete module. Relay outputs are not internally fused."
-Isolated outputs,"+12 V ISO: 12 V isolated rail, 2 W; ≤150 mA recommended (≤167 mA theoretical). +5 V ISO: 5 V isolated rail, 1 W; ≤150 mA recommended (≤200 mA theoretical). For low-power sensors only — not for actuators"
-User interface,"4 buttons; 9 LEDs (power, 4 user, RX, TX, relay 1, relay 2)"
-Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,"USB-C, 5 V logic, ESD protected — configuration and firmware"
-Storage,LittleFS persistent configuration
-Modbus address,1–247 (default: 3)
-Modbus baud rate,"9600–115200 (default: 19200), 8N1"
-Category Specification Details Terminal specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental ratings,Operating temperature 0 °C to +40 °C
-Mechanical &amp; packaging,Product dimensions 70 × 90.6 × 67.3 mm (L × W × H)
-File Description Link Field board schematic,"Inputs, 1-Wire, isolated sensor rails WLD-521-R1-FieldBoard.pdf"
-MCU board schematic,"Controller, USB, RS-485, power conversion WLD-521-R1-MCUBoard.pdf"
+Microcontroller,RP2350A dual-core microcontroller
+Storage,"External QSPI Flash (W25Q32JV, 32 Mbit)"
+Power Input,24 V DC nominal
+Input Protection,"1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering"
+Main Logic Supply,"Buck regulator 24 V → 5 V, 3.3 V LDO regulator"
+File system,LittleFS persistent configuration storage
+Document revision,DS-WLD-521-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+Digital Inputs,5 × isolated 5 V DC discrete inputs
+Max Input Voltage,5 V DC continuous
+Relay outputs,2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
+Isolated +12 V Output,"12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended)"
+Isolated +5 V Output,"5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended)"
+1-Wire,"1 × protected 1-Wire interface (+5 V, DATA, GND)"
+User Interface,"4 buttons; 9 LEDs (Power, 4 user, RX, TX, Relay1, Relay2)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C, 5 V logic, ESD protected"
+Typical Power Consumption,"3 W typical / 5 W maximum (both relays energised, isolated sensor supplies fully loaded)"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,70 × 90.6 × 67.3 mm (L × W × H)
+DIN width,4 modules (≈ 70 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,TBD
+Gross weight,TBD
+Pack size,140 × 125 × 94 mm (L × W × H)

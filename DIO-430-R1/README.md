@@ -65,60 +65,44 @@ Typical uses for the DIO-430-R1:
 
 ## 3. Specifications
 
-### 3.1 I/O summary
 
-| Subsystem | Qty | Description |
-|-----------|-----|-------------|
-| Digital Inputs | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
-| Relays | 3 | SPDT (NO/NC), 3 A @ 250 VAC (resistive), dry contacts |
-| LEDs | 3 | Configurable: Steady or Blink modes, linked to relays/logic |
-| Buttons | 3 | 3 buttons (2 user-configurable); third — boot/reset combo only |
-| Modbus RTU | Yes | RS-485 interface (address 1–247, 9600–115200 baud) |
-| USB-C | Yes | WebConfig via Web Serial (Chromium-based browsers; see [§6](#6-webconfig-reference)) |
-| Power | 24 V DC | Fused input, reverse-polarity and surge protected |
-| MCU | RP2350 | Dual-core, QSPI flash, USB, UART, LittleFS |
-| Protection | TVS, PTC | ESD, surge, and short-circuit protection on I/O and power |
-
-| Interface | Qty | Description |
-|-----------|----:|-------------|
-| **Digital Inputs** | 4 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
-| **Relay Outputs** | 3 | SPDT (NO/NC/COM), 3 A @ 250 VAC (resistive) dry contacts. Relay component rated higher, but module output is limited to 3 A — use interposing contactors for larger or inductive/mains loads. |
-| **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
-| **Buttons** | 3 | Momentary. 3 buttons (2 user-configurable); third — boot/reset combo only. |
-| **RS-485 (Modbus RTU)** | 1 | A/B/COM — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu) |
-| **USB-C** | 1 | Web Serial setup, diagnostics, firmware flashing (ESD-protected). |
-| **Power Input** | 1 | 24 V DC SELV. Reverse-polarity + surge protected. |
-
-### 3.2 Electrical ratings
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|-----------|----:|----:|----:|:----:|-------|
-| Supply Voltage | 22 | 24 | 28 | V DC | SELV/PELV input |
-| Logic Consumption | – | 1.5 | 3.0 | W | Excludes relay loads |
-| Digital Input Range | 0 | 24 | 30 | V DC | IEC 61131-2 front-end; surge/EMI protected |
-| Relay Contact Current | – | – | 3 | A | @ 250 VAC resistive; module/trace-limited (relay component rated higher) |
-| Relay Contact Voltage | – | – | 250 | V AC | or 30 V DC max |
-| RS-485 Data Rate | – | 19.2 | 115.2 | kbps | Default 19200 8N1 |
-| USB-C Voltage | 4.75 | 5.0 | 5.25 | V DC | Service only |
-| Operating Temp. | 0 | – | 40 | °C | ≤ 95 % RH, non-condensing |
-
-> **Power budgeting:** logic + LEDs + up to 3 relay coils + sensor loads → add ≥ 30 % PSU headroom.
-
-### 3.3 Mechanical & environmental
-
-| Property | Specification |
-|----------|---------------|
-| Mounting | DIN-rail EN 50022 (35 mm) |
-| DIN width | 4 modules (≈ 70 mm) |
-| Enclosure | PC/ABS V-0, panel mount |
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (W25Q32JV) |
+| Power Input | 24 V DC nominal |
+| File system | LittleFS persistent configuration storage |
+| Document revision | DS-DIO-430-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
+| Relay outputs | 3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
+| User Interface | 3 buttons (2 user-configurable), 13 LEDs (power, 3 user, RX, TX, 3× relay, 4× DI) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C (ESD protected, configuration and firmware upload) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | 0–90 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
 | Dimensions | 70 × 90.6 × 67.3 mm (L × W × H) |
-| Terminals | Pluggable 5.08 mm, 26–12 AWG (≤ 2.5 mm²), 0.5–0.6 Nm |
-| Ingress Protection | IP20 (panel interior) |
-| Operating Temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
+| DIN width | 4 modules (≈ 70 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 125 × 94 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ![DIO-430-R1 Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIODimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
+
 
 ### 3.4 Communication defaults
 

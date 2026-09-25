@@ -1,23 +1,34 @@
 characteristic,value
-Sensor type Typical current How many fit PIR motion detector,10–20 mA 6–10
-Curtain PIR,10–15 mA 8–12
-Dual-technology detector (PIR + microwave),20–30 mA 4–6
-Glass-break detector,15–25 mA 6–8
-12 V smoke detector with relay output,20–50 mA 3–6
-Gas or CO detector with relay output,30–60 mA 2–4
-Infrared beam sensor or photoelectric barrier,20–40 mA 3–6
-Inductive or capacitive proximity sensor (NPN),5–15 mA 8–15
-Category Devices Openings,"Door and window reed contacts, gate contacts, garage door position, roller shutter end positions, mailbox contacts"
-Water and fluids,"Contact-type leak detectors, float switches, level switches, flow switches, pressure switches"
-Heating and HVAC,"Thermostat contacts, frost stats, boiler fault contacts, pump fault contacts, heat pump alarm outputs, burner lockout"
-Security,"Tamper switches, vibration and shock sensors, key switches, panic buttons, door strike and lock status"
-Controls,"Momentary wall switches, push buttons, rotary and toggle switches, limit switches"
-Equipment status,"UPS alarm contacts, generator run and fault contacts, machine fault relays, filter-blocked switches, belt-break detectors"
-Weather,Rain sensors and wind switches with contact output
-Signal / device Use instead Mains voltage on an input,Interposing contactor or relay — inputs are SELV and dry contact only
-Analogue sensors 0–10 V / 4–20 mA / PT100 / PT1000,AIO-422-R1
-Pulse counting from S0 meter outputs,DIO-430-R1
-Addressable fire alarm loops,Conventional detectors with relay output only
-End-of-line resistor supervision,Not supported — see the NC tip below
-Specification Details Microcontroller,RP2350A dual-core microcontroller
-Flash Memory,External QSPI Flash (W25Q32)
+Microcontroller,RP2350A dual-core microcontroller
+Storage,"External QSPI Flash (W25Q32JV, 32 Mbit)"
+Power Input,24 V DC nominal
+Input Protection,"1 A fuse, reverse polarity diode, TVS surge suppression, EMI filtering"
+Main Logic Supply,"Buck regulator 24 V → 5 V, 3.3 V LDO regulator"
+File system,LittleFS persistent configuration storage
+Document revision,DS-ALM-173-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+Digital Inputs,"17 × opto-isolated digital inputs, 5 V DC discrete inputs"
+Max Input Voltage,5 V DC continuous; input isolation 5.3 kVrms (SFH6156 optocoupler test voltage)
+Relay outputs,3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
+Isolated +12 V Output,"12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended)"
+Isolated +5 V Output,"5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended)"
+User Interface,"4 buttons; 27 LEDs: PWR, TX, RX; 4 user LEDs; 17 input LEDs (I1–I17); 3 relay LEDs (O.1–O.3)"
+RS-485,"half-duplex Modbus RTU, not galvanically isolated"
+USB,"USB-C, 5 V logic, ESD protected"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–90 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,158 × 90.6 × 67.3 mm (L × W × H)
+DIN width,9 modules (≈ 158 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,200 g
+Gross weight,330 g
+Pack size,230 × 140 × 87 mm (L × W × H)

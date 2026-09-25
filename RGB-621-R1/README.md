@@ -204,25 +204,46 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 
 ## 2.5 Electrical & Environmental
 
-- **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** 5 × low-side channels, **≈1 kHz**, 12-bit; LED PS is a **separate 12/24 V** input, fused at **10 A**. The 10 A is a shared budget: a single channel may draw the full 10 A, or the current may be split across however many channels the installation uses. Size the LED PSU for strip length and W/m — do not share with module logic V+/0V. See [⚠️ IMPORTANT — POWER](#important-power)
-- **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
-- **Digital inputs:** IEC 61131-2 front-end (ISO1212), **dry-contact (module-wetted)**; surge/EMI protected  
-- **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
-- **USB-C:** WebConfig / firmware only, ESD-protected  
-- **Env.:** 0 – 40 °C, ≤ 95 % RH non-condensing
 
-**Where the 10 A comes from.** It is a design choice, not a component ceiling.
-The channel MOSFETs (AP9990GH-HF, TO-252) are rated 75 A by package and the
-reverse-polarity stage 89 A, so neither constrains the output. The binding
-limits are the pluggable terminal blocks (DB129V-5.08, 2.5 mm², 24 A per pole)
-and the thermal behaviour of a 3-DIN IP20 module in a cabinet. The 10 A fuse
-sits below both, and 240 W of strip at 24 V is what we consider a sensible
-maximum for a module of this size. Above that, split the strip across several
-modules — beyond that length, voltage drop along the strip becomes the
-limiting factor regardless of the controller.
-
----
+<!-- hm:specs:start -->
+| Specification | Details |
+|---|---|
+| Microcontroller | RP2350A dual-core microcontroller |
+| Storage | External QSPI Flash (32 Mbit) |
+| Power Input | 24 V DC nominal |
+| Input Protection (24 V logic) | 1 A fuse, reverse polarity diode (STPS340U), TVS surge suppression, EMI filtering |
+| LED PS input protection | 10 A fuse; ideal-diode reverse-polarity stage (LM74610 controller + N-channel MOSFET); TVS surge suppression |
+| Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
+| Document revision | DS-RGB-621-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
+| LED Outputs | 5 × low-side MOSFET outputs (AP9990GH-HF: R, G, B, CW, WW) |
+| LED Output Voltage | External 12–24 V DC supply |
+| Maximum Total LED Current | 10 A, shared across all channels in use (10 A fuse on LED PS input) |
+| Any single PWM channel | 10 A — same shared budget as the module; no per-channel ceiling below 10 A |
+| Relay outputs | 1 × relay, NO and C only (SPST-NO); 3 A @ 250 VAC (module limit) |
+| Digital Inputs | 2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), galvanically isolated digital-input receiver, dry-contact (module-wetted); per-channel PTC fuse, TVS, reverse-polarity protection |
+| User Interface | 2 buttons, 8 LEDs (power, 2 user, RX, TX, 1× relay, 2× DI) |
+| RS-485 | half-duplex Modbus RTU, not galvanically isolated |
+| USB | USB-C, 5 V logic, ESD protected |
+| Typical Power Consumption | 1.85 W typical / 3.0 W maximum (no LED load) |
+| Modbus defaults | Address 3, 19200 baud, 8N1 |
+| Operating temperature | 0 °C to +40 °C |
+| Storage temperature | −10 °C to +55 °C |
+| Relative humidity | ≤ 95 % RH, non-condensing |
+| Ingress protection | IP20 (inside cabinet only) |
+| Installation | Indoor control cabinet only; not for outdoor or exposed installation |
+| Maximum altitude | 2000 m |
+| Pollution degree | 2 |
+| Dimensions | 52.5 × 90.6 × 67.3 mm (L × W × H) |
+| DIN width | 3 modules (≈ 52.5 mm) |
+| Mounting | 35 mm DIN rail |
+| Enclosure | PC/ABS industrial enclosure |
+| Terminal type | Pluggable screw terminal blocks DB129V-5.08 / DB129R-5.08, 5.08 mm pitch |
+| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
+| Tightening torque | 0.4–0.6 Nm |
+| Net weight | TBD |
+| Gross weight | TBD |
+| Pack size | 140 × 125 × 94 mm (L × W × H) |
+<!-- hm:specs:end -->
 
 ## 2.6 MCU, Protections & Build
 
@@ -313,7 +334,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 - **Disconnect** the **24 V DC module supply**, **LED PSU**, and RS-485 network before wiring or servicing.
 - Route **LED-power wiring separately** from RS-485 and signal lines.
 - **Do not** externally bridge `GND_FUSED` (field) and `GND` (logic/USB) — domains are separated on the PCB.
-- Relay coil drive is isolated from contacts via **SFH6156 optocoupler** (**basic insulation**); digital inputs use an ISO1212 IEC 61131-2 front-end wetted from module 24 V — **not** a galvanic isolator.
+- Relay coil drive is isolated from contacts via **SFH6156 optocoupler** (**basic insulation**); **ISO1212 is a galvanically isolated digital-input receiver** (module-wetted dry contact from the 24 V rail).
 - For inductive relay loads, add an **external flyback diode or RC snubber**; keep relay conductors away from signal wiring.
 - Follow local electrical codes for fusing, grounding, and enclosure class.
 
@@ -353,7 +374,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 | Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
 | Contact Rating | 3 A @ 250 VAC / 30 VDC (module/PCB limit, resistive) |
 | Insulation | Basic insulation between SELV coil drive and contacts; external contactor for reinforced isolation or heavy/inductive loads |
-| Component note | HF115F relay component rated up to 16 A @ 250 VAC — **module output limited to 3 A**; the margin means the contacts work far below their rating and do not burn. Use an external contactor for higher or inductive loads |
+| Contact limit | **3 A @ 250 VAC** module limit. Use an external contactor for higher or inductive loads |
 | Protection | External RC snubber / flyback diode recommended |
 | Notes | Independent SPST-NO dry contact (**Relay C** / **NO**); not in the LED anode rail. For FOLLOW-mode LED-PSU cut, wire **Relay C / NO** externally in series with the LED driver supply. Keep field wiring separate from logic. |
 
@@ -451,7 +472,7 @@ Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-
   - **TVS surge suppression**  
   - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
 
-- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF, rated 75 A by package); strip must be **12/24 V common-anode**. No channel has a current ceiling of its own — the limits are the terminal blocks (DB129V-5.08, 24 A per pole) and board heat dissipation, and the **10 A** LED PS fuse sits below both. Size strips by length and W/m.
+- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF, rated 75 A by package); strip must be **12/24 V common-anode**. No channel has a current ceiling of its own — the limits are the terminal blocks (DB129V-5.08 / DB129R-5.08, 5.08 mm pitch) and board heat dissipation, and the **10 A** LED PS fuse sits below both. Size strips by length and W/m.
 
 - **Relay (Relay C / NO):** independent **SPST-NO dry-contact** rated **3 A @ 250 VAC / 30 VDC** (module/PCB limit); suitable for **230 VAC** loads when installed per [§4.1](#41-general-requirements). **Basic insulation** between SELV coil and contacts; external contactor for reinforced isolation or heavy/inductive loads. For **FOLLOW-mode** LED-PSU cut, wire **Relay C / NO** **externally in series** with the LED PSU (+) feed ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)).
 

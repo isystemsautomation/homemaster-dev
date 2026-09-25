@@ -1,23 +1,42 @@
 characteristic,value
-Specification Details Microcontroller,RP2350 dual-core microcontroller
-Storage,External QSPI Flash W25Q32 (32 Mbit)
+Microcontroller,RP2350A dual-core microcontroller
+Storage,External QSPI Flash (32 Mbit)
 Power Input,24 V DC nominal
 Input Protection,"1 A fuse (F8), TVS surge suppression, EMI filtering"
-Main Logic Supply,"AP64501 buck regulator 24 V &rarr; 5 V, AMS1117-3.3 LDO regulator"
-Outputs,"32 &times; low-side AO4882 dual N-MOSFET channels, 1.5 A max per channel, 18 A module total; gate RC + ferrite per channel"
-Output Voltage,External 12-24 V DC LED supply (shared + group rails)
-Maximum Total Output Current,"18 A per module, shared across all channels in use; 1.5 A per channel"
-PWM Driver ICs,"4 &times; TLC59208F (8 channels each, U9-U12) generating the level for all 32 main outputs"
-Digital Inputs,"1 &times; IEC 61131-2 compliant 24 V DC discrete input (DI + GND), galvanically isolated ISO1212 front-end, plus 2 &times; presence-sensor inputs (IN1, IN2 with GND) opto-isolated via SFH6156 (5.3 kV); PTC fuses, TVS surge suppression"
-Sensor Rails (SENS.A / SENS.B),2 fused +5 V auxiliary rails (PTC F9 / F10) for low-current presence sensors; sensor power only
-Isolation,Digital input and presence inputs are galvanically isolated; outputs O1-O32 and the RS-485 port are not isolated
-User Interface,"4 buttons (SW1-SW4, state published on Modbus), 2 user-assignable status LEDs plus power / RX / TX indicators"
-Communication,"RS-485 Modbus RTU (MAX485, half-duplex), non-isolated; TVS surge protection, PTC fuses, common-mode choke, fail-safe biasing"
-USB,"USB-C, 5 V logic, ESD protected (WebConfig only - not for powering field devices)"
-Typical Power Consumption,"0.2-0.5 W (logic only, no LED load)"
-Modbus Address Range,1-247 (default: 3)
-Modbus Baud Rate,"9600-115200 (default: 19200, 8N1)"
-Sequencing,Performed by the Modbus master (MiniPLC / MicroPLC or any compliant master); the module has no on-board sequencer or scene table
-Category Specification Details Terminal Specifications,"Terminal type Pluggable screw terminal blocks, 5.08 mm pitch"
-Environmental Ratings,Operating temperature 0 &deg;C to +40 &deg;C
-Mechanical &amp; Packaging,Mounting 35 mm DIN rail (EN 50022)
+Main Logic Supply,"Buck regulator 24 V → 5 V (~4.96 V nominal), 3.3 V LDO regulator"
+LEDs supply input,External 12–24 V DC (independent from logic supply)
+Document revision,DS-STR-3221-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
+LED Outputs,"32 × low-side MOSFET outputs (O1–O32), driven by 4 × TLC59208F (8 channels per chip). The TLC chips drive the main outputs, not the status LEDs."
+LED Output Voltage,External 12–24 V DC supply
+Maximum Total LED Current,"18 A per module, shared across all channels in use"
+Maximum current per channel,1.5 A per channel
+Output Structure,"Open-drain, grouped by VCC rails, each channel with gate resistor + RC + ferrite"
+Digital Inputs,"1 × 24 V DC discrete input (ISO1212, galvanically isolated), module-wetted dry contact, PTC + TVS on the field side. Outputs and RS-485 are not isolated."
+Isolation,DI isolated (ISO1212); presence inputs optically isolated (SFH6156); outputs and RS-485 not isolated.
+Presence sensor inputs (SENS.A / SENS.B),2 × opto-isolated presence inputs (SFH6156). SENS.A / SENS.B are +5 V rails. Do not connect a 24 V PIR to these terminals.
+User Interface,"4 buttons; 2 assignable status LEDs; power, RX and TX indicators; 32 channel-state indicators"
+Local control,Buttons SW1–SW4 and the three inputs act on the outputs; a local action holds priority until released.
+Bus failsafe,Per-channel Hold / Off / Level on loss of the master; timeout 0 = off. Heat uses frost protection instead.
+Sequencing,Stair sequence and heating-zone cycle run on the module.
+Heating demand,Aggregate demand flag and open-zone count for the controller’s pump / boiler relay.
+RS-485,"Half-duplex Modbus RTU, not galvanically isolated; surge protection and fail-safe biasing. Factory default address 3, 19200 baud, 8N1."
+USB,"USB-C, 5 V logic, ESD protected"
+Modbus defaults,"Address 3, 19200 baud, 8N1"
+Typical Power Consumption,0.2–0.5 W
+Operating temperature,0 °C to +40 °C
+Storage temperature,−10 °C to +55 °C
+Relative humidity,"0–95 % RH, non-condensing"
+Ingress protection,IP20 (inside cabinet only)
+Installation,Indoor control cabinet only; not for outdoor or exposed installation
+Maximum altitude,2000 m
+Pollution degree,2
+Dimensions,158 × 90.6 × 67.3 mm (L × W × H)
+DIN width,9 modules (≈ 158 mm)
+Mounting,35 mm DIN rail
+Enclosure,PC/ABS industrial enclosure
+Terminal type,"Pluggable screw terminal blocks, 5.08 mm pitch"
+Wire cross-section,0.2–2.5 mm² (AWG 24–12)
+Tightening torque,0.4–0.6 Nm
+Net weight,150 g
+Gross weight,248 g
+Pack size,230 × 140 × 87 mm (L × W × H)
