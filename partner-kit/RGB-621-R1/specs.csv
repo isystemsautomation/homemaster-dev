@@ -11,7 +11,7 @@ LED Output Voltage,External 12–24 V DC supply
 Maximum Total LED Current,"10 A, shared across all channels in use (10 A fuse on LED PS input)"
 Any single PWM channel,10 A — same shared budget as the module; no per-channel ceiling below 10 A
 Relay outputs,"1 × relay, NO and C only (SPST-NO); 3 A @ 250 VAC (module limit)"
-Digital Inputs,"2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), galvanically isolated digital-input receiver, dry-contact (module-wetted); per-channel PTC fuse, TVS, reverse-polarity protection"
+Digital Inputs,"2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 input receiver, module-wetted; not isolated); per-channel PTC fuse, TVS, reverse-polarity protection"
 User Interface,"2 buttons, 8 LEDs (power, 2 user, RX, TX, 1× relay, 2× DI)"
 RS-485,"half-duplex Modbus RTU, not galvanically isolated"
 USB,"USB-C, 5 V logic, ESD protected"

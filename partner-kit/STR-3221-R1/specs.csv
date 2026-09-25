@@ -11,9 +11,9 @@ LED Output Voltage,External 12–24 V DC supply
 Maximum Total LED Current,"18 A per module, shared across all channels in use"
 Maximum current per channel,1.5 A per channel
 Output Structure,"Open-drain, grouped by VCC rails, each channel with gate resistor + RC + ferrite"
-Digital Inputs,"1 × 24 V DC discrete input (ISO1212, galvanically isolated), module-wetted dry contact, PTC + TVS on the field side. Outputs and RS-485 are not isolated."
-Isolation,DI isolated (ISO1212); presence inputs optically isolated (SFH6156); outputs and RS-485 not isolated.
-Presence sensor inputs (SENS.A / SENS.B),2 × opto-isolated presence inputs (SFH6156). SENS.A / SENS.B are +5 V rails. Do not connect a 24 V PIR to these terminals.
+Digital Inputs,"1 × module-wetted dry-contact input (ISO1212 input receiver, supplied from the module; not isolated)"
+Isolation,"None — DI, IN1/IN2, outputs and RS-485 all share the module ground"
+Presence sensor inputs (SENS.A / SENS.B),"2 × presence inputs IN1 / IN2 (SFH6156), supplied from the module's SENS.A / SENS.B +5 V rails; not isolated"
 User Interface,"4 buttons; 2 assignable status LEDs; power, RX and TX indicators; 32 channel-state indicators"
 Local control,Buttons SW1–SW4 and the three inputs act on the outputs; a local action holds priority until released.
 Bus failsafe,Per-channel Hold / Off / Level on loss of the master; timeout 0 = off. Heat uses frost protection instead.

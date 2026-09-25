@@ -220,7 +220,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Maximum Total LED Current | 10 A, shared across all channels in use (10 A fuse on LED PS input) |
 | Any single PWM channel | 10 A — same shared budget as the module; no per-channel ceiling below 10 A |
 | Relay outputs | 1 × relay, NO and C only (SPST-NO); 3 A @ 250 VAC (module limit) |
-| Digital Inputs | 2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), galvanically isolated digital-input receiver, dry-contact (module-wetted); per-channel PTC fuse, TVS, reverse-polarity protection |
+| Digital Inputs | 2 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 input receiver, module-wetted; not isolated); per-channel PTC fuse, TVS, reverse-polarity protection |
 | User Interface | 2 buttons, 8 LEDs (power, 2 user, RX, TX, 1× relay, 2× DI) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
 | USB | USB-C, 5 V logic, ESD protected |
@@ -334,7 +334,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 - **Disconnect** the **24 V DC module supply**, **LED PSU**, and RS-485 network before wiring or servicing.
 - Route **LED-power wiring separately** from RS-485 and signal lines.
 - **Do not** externally bridge `GND_FUSED` (field) and `GND` (logic/USB) — domains are separated on the PCB.
-- Relay coil drive is isolated from contacts via **SFH6156 optocoupler** (**basic insulation**); **ISO1212 is a galvanically isolated digital-input receiver** (module-wetted dry contact from the 24 V rail).
+- Relay coil drive is isolated from contacts via **SFH6156 optocoupler** (**basic insulation**); the **ISO1212** digital-input receiver is module-wetted from the 24 V rail and is **not galvanically isolated**.
 - For inductive relay loads, add an **external flyback diode or RC snubber**; keep relay conductors away from signal wiring.
 - Follow local electrical codes for fusing, grounding, and enclosure class.
 

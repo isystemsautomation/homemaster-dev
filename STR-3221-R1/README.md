@@ -31,7 +31,7 @@ controller holds temperature, the pump/boiler relay and the schedule.
 - **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine physical groups of four, each with its own **+** rail
 - **On-module stair sequencer** — direction from the two presence inputs, six drawing patterns, day/night levels, accent and night-light; runs with no controller
 - **On-module heating loop** — slow PWM, phase spread, simultaneous-open cap, first-open delay, pump-demand flag, valve exercise, frost protection, NC/NO per channel
-- **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212**, galvanically isolated) and 2 × opto-isolated presence inputs (**SFH6156**, 5.3 kV)
+- **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212** input receiver, supplied from the module; not galvanically isolated) and 2 × presence inputs **IN1 / IN2** (**SFH6156**, supplied from the module **SENS** rails; not galvanically isolated)
 - **2 fused +5 V sensor rails (SENS.A / SENS.B)** — for low-current PIR / presence sensors only
 - **4 buttons** with local actions (factory: SW1 all on, SW2 all off, SW3 none, SW4 clear local override)
 - **2 configurable status LEDs**
@@ -127,9 +127,9 @@ software only if you have accepted that a dead controller leaves the pump on.
 | Maximum Total LED Current | 18 A per module, shared across all channels in use |
 | Maximum current per channel | 1.5 A per channel |
 | Output Structure | Open-drain, grouped by VCC rails, each channel with gate resistor + RC + ferrite |
-| Digital Inputs | 1 × 24 V DC discrete input (ISO1212, galvanically isolated), module-wetted dry contact, PTC + TVS on the field side. Outputs and RS-485 are not isolated. |
-| Isolation | DI isolated (ISO1212); presence inputs optically isolated (SFH6156); outputs and RS-485 not isolated. |
-| Presence sensor inputs (SENS.A / SENS.B) | 2 × opto-isolated presence inputs (SFH6156). SENS.A / SENS.B are +5 V rails. Do not connect a 24 V PIR to these terminals. |
+| Digital Inputs | 1 × module-wetted dry-contact input (ISO1212 input receiver, supplied from the module; not isolated) |
+| Isolation | None — DI, IN1/IN2, outputs and RS-485 all share the module ground |
+| Presence sensor inputs (SENS.A / SENS.B) | 2 × presence inputs IN1 / IN2 (SFH6156), supplied from the module's SENS.A / SENS.B +5 V rails; not isolated |
 | User Interface | 4 buttons; 2 assignable status LEDs; power, RX and TX indicators; 32 channel-state indicators |
 | Local control | Buttons SW1–SW4 and the three inputs act on the outputs; a local action holds priority until released. |
 | Bus failsafe | Per-channel Hold / Off / Level on loss of the master; timeout 0 = off. Heat uses frost protection instead. |
@@ -183,8 +183,8 @@ USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the cav
 
 | Area | Provision |
 |---|---|
-| Digital input **DI** | Galvanic isolation (**ISO1212**); PTC fuse (**F7**, **1206L016WR**), TVS, reverse protection |
-| Presence inputs **IN1/IN2** | Opto-isolation (**SFH6156**, 5.3 kV); **SMAJ6.8CA** TVS clamps |
+| Digital input **DI** | **ISO1212** input receiver, module-wetted (field side supplied from the module; not galvanically isolated); PTC fuse (**F7**, **1206L016WR**), TVS, reverse protection |
+| Presence inputs **IN1/IN2** | **SFH6156** opto-coupled receiver, supplied from the module — not isolation; **SMAJ6.8CA** TVS clamps |
 | Sensor rails | Resettable PTC per rail (**F9**/**F10**) |
 | Outputs **O1…O32** | Gate RC + ferrite per channel (**BLM31PG601SN1L**); **not** isolated from logic ground |
 | Power input | Reverse-polarity protection, TVS surge suppression, EMI filtering, 1 A fuse (F8) |
@@ -197,16 +197,16 @@ USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the cav
 
 | Interface | Isolated? |
 |---|---|
-| **DI** (24 V discrete input) | **Yes** — **ISO1212** isolated digital-input receiver |
-| **IN1 / IN2** (presence inputs) | **Yes** — **SFH6156** optocouplers, 5.3 kV |
+| **DI** (24 V discrete input) | **No** — module-wetted: ISO1212 field side is supplied from the module |
+| **IN1 / IN2** (presence inputs) | **No** — opto-coupled receiver, supplied from the module — not isolation |
 | **O1…O32** (MOSFET outputs) | **No** — low-side switches referenced to field ground |
 | **RS-485 A/B/COM** | **No** — the **MAX485** shares the device's logic ground |
 | **SENS.A / SENS.B** supply rails | **No** — derived from the module's own supply |
 
-Note that the input barriers only buy separation if the sensor is powered from its **own** supply.
-A PIR powered from the module's **SENS** rail shares the module's ground by way of that rail, so
-there is no galvanic separation between module and sensor in that arrangement — which is normal
-and safe for a SELV presence sensor, but it is not isolation.
+None of the field interfaces is isolated. **ISO1212** and **SFH6156** are receivers on the
+module; their field sides are supplied from the module's own 24 V and **SENS** rails, so they
+share the module ground. That is normal and safe for SELV dry contacts and presence sensors,
+but it is not galvanic isolation.
 
 ### RS-485 / Modbus RTU
 
@@ -402,7 +402,7 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **opto-isolated** via **SFH6156** (IN1 = U18, IN2 = U17); accept open-collector or dry-contact sensor outputs. |
+| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **SFH6156** opto-coupled receivers supplied from the module (IN1 = U18, IN2 = U17) — not isolation; accept open-collector or dry-contact sensor outputs. |
 | **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). |
 | **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
 
@@ -468,14 +468,14 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 **Outputs (32 channels).** Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** loads: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
 
-**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **I** (9) with a galvanically isolated **ISO1212** front-end (PTC fuse and TVS protected; module-wetted — do not apply external voltage).
+**Digital trigger input.** One **IEC 61131-2** module-wetted discrete input uses terminals **Gnd** (8) and **I** (9) with an **ISO1212** input receiver supplied from the module (PTC fuse and TVS protected; not galvanically isolated — do not apply external voltage).
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **I** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **I** (9); module supplies wetting current — do not apply external voltage.*
 
-**PIR / presence sensors (IN1, IN2).** Two **opto-isolated presence-sensor inputs** (**IN1**, **IN2**, **SFH6156** (IN1 = U18, IN2 = U17), 5.3 kV) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+**PIR / presence sensors (IN1, IN2).** Two presence-sensor inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U18, IN2 = U17), supplied from the module **SENS** rails — not galvanically isolated) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 
