@@ -8,6 +8,7 @@ Metering IC,ATM90E32AS (3-phase energy metering / power quality)
 Voltage Inputs,"3 × L1/L2/L3-N+PE sensing, 85–265 V AC (mains measurement inputs)"
 Current Inputs,3 × CT channels (external current-output CTs); secondary ≤ 60 mA RMS into a 6 Ω on-board burden. Full scale 120 / 60 / 30 mA at PGA ×1 / ×2 / ×4 (default ×2). Do not use 1 A or 5 A secondary CTs.
 Relay outputs,2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
+Isolation,5 kV RMS between MCU and measurement side (ISO7761); RS-485 not isolated
 User Interface,"4 buttons, 9 LEDs (power, 4 user, RX, TX, 2× relay)"
 RS-485,"half-duplex Modbus RTU, not galvanically isolated"
 USB,"USB-C (ESD protected, configuration and firmware upload)"
