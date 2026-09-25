@@ -117,7 +117,7 @@ The table below lists boilers users have successfully run with this hardware (or
 >   by a Schottky diode (STPS340U).
 > - Follow local electrical code and boiler manufacturer
 >   OpenTherm wiring requirements.
-> - **Relay output use restriction:** terminals C and NC shall be connected only to the same mains supply as L/N, or to SELV / Limited Power Source circuits. Cross-phase or cross-source mains connection is not permitted with hardware revision V1.0. See Wiring → Relay Output Wiring for the full rationale.
+> - The relay contacts (C/NC) and the L/N supply terminals are separated by basic insulation only (PCB revision V1.0). Connect C/NC only to the same mains supply that feeds L/N, or to SELV/LPS circuits. Cross-mains use (a different phase or a different supply) is not permitted.
 
 ## Mechanical and Environmental
 
@@ -150,8 +150,8 @@ The table below lists boilers users have successfully run with this hardware (or
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | TBD |
-| Gross weight | TBD |
+| Net weight | 130 g |
+| Gross weight | 220 g |
 | Pack size | 140 × 96 × 95 mm (L × W × H) |
 <!-- hm:specs:end -->
 
@@ -229,7 +229,7 @@ Keep OT wiring separated from mains and relay output conductors.
 >
 > Connection of the relay output to a **different mains phase**, an **isolated mains source**, or any circuit at a **higher voltage class** than the device's L/N input is **not permitted**. Failure to follow this restriction may cause dielectric breakdown between the device input and relay output circuits, presenting an electric-shock and fire hazard.
 >
-> This restriction is required because the printed-circuit-board insulation between the L/N tracks and the C/NC tracks of the Relay board is rated as **Basic** (per EN 62368-1 Table 11/14, working voltage 250 V r.m.s.); cross-mains use would require Reinforced insulation that the current PCB revision (V1.0) does not provide. The next hardware revision will lift this restriction.
+> The relay contacts (C/NC) and the L/N supply terminals are separated by basic insulation only (PCB revision V1.0). Connect C/NC only to the same mains supply that feeds L/N, or to SELV/LPS circuits. Cross-mains use (a different phase or a different supply) is not permitted.
 
 The relay output is a 1 × SPDT relay (component), but only **C and NC** terminals are exposed externally — functionally **SPST-NC**.
 System load limits: **3 A @ 250 VAC** (resistive) · **750 VA @ 250 VAC** max · **90 W @ 30 VDC** max.

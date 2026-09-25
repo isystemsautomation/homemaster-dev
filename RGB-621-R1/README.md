@@ -228,7 +228,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Modbus defaults | Address 3, 19200 baud, 8N1 |
 | Operating temperature | 0 °C to +40 °C |
 | Storage temperature | −10 °C to +55 °C |
-| Relative humidity | ≤ 95 % RH, non-condensing |
+| Relative humidity | 0–90 % RH, non-condensing |
 | Ingress protection | IP20 (inside cabinet only) |
 | Installation | Indoor control cabinet only; not for outdoor or exposed installation |
 | Maximum altitude | 2000 m |
@@ -272,7 +272,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Any single PWM channel | — | — | 10 A | Same limit as the module: no channel-specific ceiling below the shared 10 A budget. |
 | RS-485 Rate | — | — | 115.2 kbps | Half-duplex |
 | USB Voltage | 4.75 V | 5 V | 5.25 V | Logic only |
-| Operating Temp | 0 °C | — | 40 °C | ≤ 95 % RH |
+| Operating Temp | 0 °C | — | 40 °C | 0–90 % RH |
 
 > **Installer Tip:** Use upstream fusing and snubbers for inductive loads.
 

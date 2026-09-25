@@ -141,7 +141,7 @@ software only if you have accepted that a dead controller leaves the pump on.
 | Typical Power Consumption | 0.2–0.5 W |
 | Operating temperature | 0 °C to +40 °C |
 | Storage temperature | −10 °C to +55 °C |
-| Relative humidity | 0–95 % RH, non-condensing |
+| Relative humidity | 0–90 % RH, non-condensing |
 | Ingress protection | IP20 (inside cabinet only) |
 | Installation | Indoor control cabinet only; not for outdoor or exposed installation |
 | Maximum altitude | 2000 m |
