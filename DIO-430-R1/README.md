@@ -227,7 +227,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 - GND precedes the signal on every DI pair. DIM prints the opposite order - do not wire by habit.
 - Power reads 0V then V+. Most other modules read V+ first.
-- Relays are SPDT. System limit 3 A @ 250 VAC regardless of the relay component rating.
+- Relays are SPDT. System limit 3 A @ 250 VAC per contact (module limit).
 
 <!-- hm:terminal-map:end -->
 

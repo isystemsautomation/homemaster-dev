@@ -57,6 +57,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Terminal Reference](#terminal-reference)
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Map](#gpio-map)
+- [Temperature Inputs](#temperature-inputs)
 - [RTD Jumper Configuration](#rtd-jumper-configuration)
 - [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml)
 - [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml)
@@ -124,7 +125,8 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 > - **L / N terminals carry hazardous mains voltage.** Installation by qualified personnel only.
 > - **Use only ONE power input at a time** (24 V DC at V+/0V, OR 85–265 V AC at L/N). Never connect multiple power inputs simultaneously.
 > - **Disconnect all power before wiring changes.**
-> - Relay outputs are **not internally fused** — always add an external fuse or circuit breaker per channel (max 3 A).
+> - Relay outputs are **not internally fused**. Protect every channel with an external fuse or breaker, not more than **3 A per channel**.
+> - If several channels share one common breaker, its rating is **not** the sum of the channel currents. The common device must still protect each channel — so not more than **3 A**.
 > - Loads above 3 A or inductive/high-inrush loads MUST be switched using an external contactor; the MiniPLC relay acts as a control signal.
 >
 > ⚠️ **Capacitor motors (roller shutters, blinds, awnings, gate and garage tubular
@@ -263,9 +265,10 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 |:---:|:---:|
 | ![24V DC wiring](./Images/wiring_ps_dc.png)<br>*Connect + to V+, − to 0V.* | ![230V AC wiring](./Images/wiring_ps_ac1.png)<br>*Connect Live to L, Neutral to N.* |
 
-- Typical current at 24 V DC: **~150 mA** (≈ 3.6 W).
+Typical operating current: 150 mA @ 24 V DC (≈ 3.6 W), measured.
+Upstream protection: external T0.5 A fuse or 0.5 A breaker on V+.
+
 - Internal service fuse: **1.0 A** (soldered).
-- Recommended upstream protection: external **T0.5 A** slow-blow fuse or **0.5 A** breaker on the input.
 - AC input passes through an isolated AC/DC power module that generates the internal 24 V rail.
 
 ### Digital Input Wiring
@@ -276,7 +279,9 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 
 ### Relay Output Wiring
 
-> ⚠️ **External protection required:** Every relay output MUST be protected by an external fuse or circuit breaker, rated max **3 A** per channel. If using a common protective device for multiple relays, the rating must still not exceed 3 A per channel (do NOT sum across relays).
+> ⚠️ **External protection required:** Every relay output MUST be protected by an external fuse or circuit breaker, not more than **3 A per channel**. Relay output circuits are not internally fused.
+>
+> ⚠️ **Common protection:** If a single common fuse or breaker protects several channels, do **not** size it by summing the channel currents. The common device must still protect each channel, so its rating is not more than **3 A**.
 
 > ⚠️ **Loads above 3 A or inductive / high-inrush loads** MUST be switched using an external contactor. The MiniPLC relay then drives the contactor coil, not the load directly.
 >
@@ -363,6 +368,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 ## Pinout
 
 ![Pinout](./pinout.png)
+
+![MiniPLC system block diagram](./system_block_diagram.png)
+
+*MiniPLC system block diagram — MCU, power, I/O and bus interfaces.*
 
 ## Terminal Reference
 
@@ -541,11 +550,20 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 
 > ℹ️ Relays #4, #5, #6 share PCF8574A pins P6, P5, P4 with the user LEDs U.3 / U.2 / U.1 silkscreen labels — they are the same physical signal lines driving both the relay coil and the front-panel relay-status LED.
 
+## Temperature Inputs
+
+| Input | Sensor | Measuring range |
+|---|---|---|
+| RTD #1, RTD #2 | PT100 / PT1000 (MAX31865) | −200 … +850 °C (sensor range) |
+| 1-Wire BUS #1, #2 | DS18B20 or compatible | −55 … +125 °C; ±0.5 °C in −10 … +85 °C (DS18B20 data) |
+
 ## RTD Jumper Configuration
+
+> **Correction (2026-09-17).** Earlier README and example YAML had RTD chip-select pins swapped (**RTD1 = GPIO1**, **RTD2 = GPIO3**) and listed RTD2 as PT1000 from the factory. Correct: **RTD1 = GPIO3**, **RTD2 = GPIO1**, and both channels ship as **PT100, 2-wire**. Board and enclosure labels were always correct.
 
 The MiniPLC includes **two MAX31865 RTD interface ICs** for direct connection of **PT100 and PT1000 sensors** in **2-, 3-, or 4-wire** configurations.
 
-RTD configuration jumpers sit on the **field/RTD front-end** for each channel (**J-RTD/1**, **J-RTD/2**). Factory default is **PT100** and **2-wire** on both channels. Use the table below when changing sensor type or wiring topology.
+RTD configuration jumpers sit on the **field/RTD front-end** for each channel (**J - RTD/1**, **J - RTD/2**). Each block has eight positions **J1–J8**. Factory default is **PT100** and **2-wire** on both channels. Use the table below when changing sensor type or wiring topology.
 
 ![RTD jumper blocks](./Images/jumpers.png)
 
