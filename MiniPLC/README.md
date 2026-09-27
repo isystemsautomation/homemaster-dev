@@ -57,7 +57,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Terminal Reference](#terminal-reference)
 - [LED and Button Behaviour](#led-and-button-behaviour)
 - [GPIO Map](#gpio-map)
-- [RTD DIP Switch Configuration](#rtd-dip-switch-configuration)
+- [RTD Jumper Configuration](#rtd-jumper-configuration)
 - [Enabling RTD Sensors in YAML](#enabling-rtd-sensors-in-yaml)
 - [Enabling 1-Wire Sensors in YAML](#enabling-1-wire-sensors-in-yaml)
 - [Real-Time Clock (RTC) Battery](#real-time-clock-rtc-battery)
@@ -84,7 +84,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see [Electrical and Safety Notes](#electrical-and-safety-notes).
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
 - 1 × analog output 0–10 V (MCP4725, 12-bit DAC) with op-amp output stage
-- 2 × RTD inputs (PT100 / PT1000 via MAX31865) with on-board DIP switch configuration for sensor type and 2/3/4-wire mode
+- 2 × RTD inputs (PT100 / PT1000 via MAX31865) with on-board jumper configuration (J-RTD/1, J-RTD/2) for sensor type and 2/3/4-wire mode
 - 2 × 1-Wire buses (DS18B20 compatible) with auxiliary +5 V supply
 - RS-485 / Modbus RTU bus (MAX485; non-isolated — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu))
 - 128 × 64 OLED display (SH1106, I²C)
@@ -313,7 +313,7 @@ For inductive or DC loads, use appropriate suppression (RC snubbers, MOVs, or fl
 |:---:|:---:|:---:|
 | ![RTD 2-wire](./Images/wiring_rtd1.png) | ![RTD 3-wire](./Images/wiring_rtd2.png) | ![RTD 4-wire](./Images/wiring_rtd4.png) |
 
-The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by on-board DIP switches — see [RTD DIP Switch Configuration](#rtd-dip-switch-configuration) below.
+The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by on-board jumpers J-RTD/1 and J-RTD/2 — see [RTD Jumper Configuration](#rtd-jumper-configuration) below.
 
 ### 1-Wire Sensor Wiring
 
@@ -502,8 +502,8 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 | GPIO13 | SPI MOSI — microSD + MAX31865 RTD | No — reserved |
 | GPIO14 | SPI SCLK — microSD + MAX31865 RTD | No — reserved |
 | GPIO15 | SPI CS — microSD | No — reserved |
-| GPIO1 | SPI CS — MAX31865 RTD #1 | No — reserved |
-| GPIO3 | SPI CS — MAX31865 RTD #2 | No — reserved |
+| GPIO1 | SPI CS — MAX31865 RTD #2 | No — reserved |
+| GPIO3 | SPI CS — MAX31865 RTD #1 | No — reserved |
 | GPIO23 | RMII MDC (Ethernet) | No — reserved (Ethernet) |
 | GPIO18 | RMII MDIO (Ethernet) | No — reserved (Ethernet) |
 | GPIO19 | RMII TXD0 (Ethernet) | No — reserved (Ethernet) |
@@ -541,41 +541,35 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 
 > ℹ️ Relays #4, #5, #6 share PCF8574A pins P6, P5, P4 with the user LEDs U.3 / U.2 / U.1 silkscreen labels — they are the same physical signal lines driving both the relay coil and the front-panel relay-status LED.
 
-## RTD DIP Switch Configuration
+## RTD Jumper Configuration
 
 The MiniPLC includes **two MAX31865 RTD interface ICs** for direct connection of **PT100 and PT1000 sensors** in **2-, 3-, or 4-wire** configurations.
 
-Each RTD channel has an on-board **8-position DIP switch block** (SW1 = RTD1, SW2 = RTD2) that configures the complete RTD bias, sense, and compensation network. **Every switch position is functional** — there is no unused or "default OFF" position. The entire 8-switch pattern must match the selected sensor type and wiring mode.
+RTD configuration jumpers sit on the **field/RTD front-end** for each channel (**J-RTD/1**, **J-RTD/2**). Factory default is **PT100** and **2-wire** on both channels. Use the table below when changing sensor type or wiring topology.
 
-![RTD DIP Switch](./Images/jumpers.png)
+![RTD jumper blocks](./Images/jumpers.png)
 
-*RTD DIP switch blocks (RTD1 and RTD2) on the MiniPLC PCB with silkscreened configuration table.*
+*RTD jumper blocks.*
 
 ### Factory configuration (as shipped)
 
-#### RTD1 → PT100, 2-wire
+Both channels: **PT100, 2-wire**.
 
-| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| Jumper | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 |---|---|---|---|---|---|---|---|---|
 | State | **ON** | **ON** | **OFF** | **OFF** | **ON** | **ON** | **OFF** | **ON** |
 
-#### RTD2 → PT1000, 2-wire
+### Jumper logic (per channel, J-RTD/1 and J-RTD/2)
 
-| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| Mode | J1 | J2 | J3 | J4 | J5 | J6 | J7 | J8 |
 |---|---|---|---|---|---|---|---|---|
-| State | **ON** | **OFF** | **ON** | **OFF** | **ON** | **OFF** | **ON** | **ON** |
+| **PT100** | — | ON | OFF | — | — | ON | OFF | — |
+| **PT1000** | — | OFF | ON | — | — | OFF | ON | — |
+| **2-wire** | ON | — | — | OFF | ON | — | — | ON |
+| **3-wire** | OFF | — | — | ON | OFF | — | — | ON |
+| **4-wire** | OFF | — | — | OFF | ON | — | — | OFF |
 
-### DIP switch logic (per channel)
-
-| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-|---|---|---|---|---|---|---|---|---|
-| **PT100** | – | ON | OFF | – | – | ON | OFF | – |
-| **PT1000** | – | OFF | ON | – | – | OFF | ON | – |
-| **2-wire** | ON | – | – | OFF | ON | – | – | ON |
-| **3-wire** | OFF | – | – | ON | OFF | – | – | ON |
-| **4-wire** | OFF | – | – | OFF | ON | – | – | OFF |
-
-Switches **1 and 4–5 and 8** select wiring mode. Switches **2–3 and 6–7** select sensor type. The full pattern must be set consistently.
+Jumpers **J1, J4–J5 and J8** select wiring mode. Jumpers **J2–J3 and J6–J7** select sensor type. The full pattern must be set consistently.
 
 ### Terminal mapping (per RTD block)
 
@@ -589,11 +583,11 @@ Switches **1 and 4–5 and 8** select wiring mode. Switches **2–3 and 6–7** 
 ### How to change sensor type or wiring
 
 1. Power OFF the MiniPLC.
-2. Set all 8 DIP positions per the logic table above.
+2. Set jumpers J1–J8 per the logic table above.
 3. Update ESPHome YAML: change `rtd_nominal_resistance` (100 or 1000) and `wires` (2, 3, or 4).
 4. Power ON and verify temperature readings.
 
-**Fixed by hardware:** MAX31865 IC, SPI pins, CS pins, reference resistor network, terminal order.
+**Fixed by hardware:** MAX31865 IC, SPI pins, CS pins (RTD1 = GPIO3, RTD2 = GPIO1), reference resistor network, terminal order.
 
 **Configurable in YAML:** sensor type (`rtd_nominal_resistance: 100` or `1000`), wiring mode (`wires: 2/3/4`), update interval, filters, alarm thresholds.
 
@@ -631,7 +625,7 @@ To enable RTD sensors, after taking control of the device:
      - platform: max31865
        id: rtd_1
        name: "RTD Temperature 1"
-       cs_pin: GPIO1
+       cs_pin: GPIO3
        reference_resistance: 400 Ω
        rtd_nominal_resistance: 100 Ω
        wires: 2
@@ -639,14 +633,14 @@ To enable RTD sensors, after taking control of the device:
      - platform: max31865
        id: rtd_2
        name: "RTD Temperature 2"
-       cs_pin: GPIO3
-       reference_resistance: 4000 Ω
-       rtd_nominal_resistance: 1000 Ω
+       cs_pin: GPIO1
+       reference_resistance: 400 Ω
+       rtd_nominal_resistance: 100 Ω
        wires: 2
        update_interval: 60s
 ```
 
-4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `wires` (`2`, `3`, or `4`) to match the DIP-switch settings — see [RTD DIP Switch Configuration](#rtd-dip-switch-configuration).
+4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `wires` (`2`, `3`, or `4`) to match the jumper settings — see [RTD Jumper Configuration](#rtd-jumper-configuration).
 
 ## Enabling 1-Wire Sensors in YAML
 
@@ -875,7 +869,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | Digital input not responding | DI LED on front panel ON when input active? Wiring uses potential-free contact to GND (not 0V power return)? | Wire the contact between the DI terminal and its GND return; do not apply external voltage. Verify the input is not inverted in YAML and debounce is not too high. |
 | Relay does not switch | `RELAY #n` switch entity present in HA? | Toggle from HA. Check external fuse / breaker on the load circuit. Note: load needs its own power supply — relays are dry contact. |
 | Analog input reads 0 V | Sensor 0 V tied to AI GND? Sensor powered? | Tie sensor reference to AI GND. Check that sensor output is actually in 0–10 V range (some sensors output 4–20 mA — those need a separate 250 Ω resistor or a 4–20 mA-capable module). |
-| RTD reads `NaN` or constant -242 °C | DIP switches set correctly for sensor type and wiring mode? YAML `rtd_nominal_resistance` and `wires` match? | Cross-check the DIP-switch table above against the sensor wiring. PT100 vs PT1000 mismatch is the most common cause. |
+| RTD reads `NaN` or constant -242 °C | Jumpers J-RTD/1 and J-RTD/2 set correctly for sensor type and wiring mode? YAML `rtd_nominal_resistance` and `wires` match? | Cross-check the jumper table above against the sensor wiring. PT100 vs PT1000 mismatch is the most common cause. |
 | 1-Wire sensor shows unknown / no value | Sensor wired correctly (+5 V / DATA / Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | OLED display blank | I²C bus working? | Look at ESPHome logs for I²C scan output at boot. Verify 0x3C appears. |
 | Modbus slave not responding | Address correct on slave WebConfig? Same baud / parity? A/B not swapped? | Check ESPHome logs for `[modbus]` timeouts. Confirm A→A and B→B (not crossed). Confirm COM is tied between all nodes. |
@@ -900,8 +894,8 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | DAC 0-10V | Fan / Output | Enabled | 0–10 V analog output (MCP4725) |
 | 1-Wire Bus 1 Temperature | Sensor | Disabled by default | DS18B20 on GPIO5 — uncomment in YAML, set explicit address |
 | 1-Wire Bus 2 Temperature | Sensor | Disabled by default | DS18B20 on GPIO4 — uncomment in YAML, set explicit address |
-| RTD Temperature 1 | Sensor | Disabled by default | MAX31865 PT100/PT1000 — enable in YAML, set DIP switches |
-| RTD Temperature 2 | Sensor | Disabled by default | MAX31865 PT100/PT1000 — enable in YAML, set DIP switches |
+| RTD Temperature 1 | Sensor | Disabled by default | MAX31865 PT100/PT1000 — enable in YAML, set jumpers J-RTD/1 |
+| RTD Temperature 2 | Sensor | Disabled by default | MAX31865 PT100/PT1000 — enable in YAML, set jumpers J-RTD/2 |
 | Uptime | Sensor | Enabled (diagnostic) | Device uptime in seconds |
 | WiFi Signal | Sensor | Enabled (diagnostic) | RSSI in dBm |
 | ESP32 Temperature | Sensor | Enabled (diagnostic) | Internal chip temperature |
