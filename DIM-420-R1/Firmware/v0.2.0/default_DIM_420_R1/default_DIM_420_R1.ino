@@ -1,5 +1,6 @@
 /********** Arduino preprocessor fix: forward declare before includes **********/
 struct PersistConfig;
+struct PersistConfigV6;
 
 /**************************************************************
  * DIM-420-R1 — RP2350A (Pico 2) firmware
