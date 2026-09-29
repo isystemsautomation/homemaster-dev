@@ -1,7 +1,6 @@
 ##
-## RGB-621-R1 — ESPHome Modbus package (v0.3.0 beta)
+## RGB-621-R1 — ESPHome Modbus package (v0.3.0)
 ##
-## Beta for firmware v0.3.0 — not for production; v0.2.0 remains the stable release.
 ## STATE@26-28 reports TARGET levels (pwmTarget), not mid-fade values. Flags bit4
 ## (FADING) is set while any channel is still slewing; readback skips entity updates
 ## until the transition completes.

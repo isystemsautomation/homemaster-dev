@@ -28,23 +28,21 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 P
 - [12. Support](#12-support)
 - [Compliance & Certifications](#compliance--certifications)
 
-> **v0.1.0 is deprecated — use v0.2.0.** v0.1.0 remains available for existing installs but is no longer maintained.
-
-> **Beta:** [WebConfig v0.3.0 (beta)](https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html) — testing only; v0.2.0 remains the stable release.
+> **v0.1.0 and v0.2.0 are deprecated — use v0.3.0.** Both remain available for existing installs but are no longer maintained.
 
 ## Quick Start
 
-New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC** / **MiniPLC** — see [§7 ESPHome Integration](#7-esphome-integration-guide) for the ready-to-copy YAML. Give each module a **unique Modbus address** (default **3**).
+New modules ship firmware **v0.3.0**. Add the ESPHome package to your **MicroPLC** / **MiniPLC** — see [§7 ESPHome Integration](#7-esphome-integration-guide) for the ready-to-copy YAML. Give each module a **unique Modbus address** (default **3**).
 
 ## Version History
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.3.0 (beta)** | `RGB-621-R1/Firmware/v0.3.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-09 | **Beta — not for production.** Fixes HA state feedback: STATE@26–28 now reports target levels instead of mid-fade values, adds flags bit4 FADING, corrects light-state reconstruction in the ESPHome package, rounds the 8-bit↔12-bit conversion. |
-| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | **Current stable release.** Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
+| **v0.3.0** | `RGB-621-R1/Firmware/v0.3.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-09 | **Current.** Fixes HA state feedback: STATE@26–28 now reports target levels instead of mid-fade values, adds flags bit4 FADING, corrects light-state reconstruction in the ESPHome package, rounds the 8-bit↔12-bit conversion. |
+| **v0.2.0** | `RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-07 | Legacy. Local input engine (momentary/maintained, multi-click, hold-to-dim), 12-bit PWM + gamma + slew, scenes, relay FOLLOW, HA STATE readback; Modbus engine-config removed (config is USB WebConfig only). |
 | **v0.1.0** | `RGB-621-R1/Firmware/v0.1.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml` | 2026-01 | Deprecated (legacy) — superseded by v0.2.0. Kept for existing installs; no longer maintained. |
 
-> **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
+> **Reproducible firmware build (v0.3.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.3.0/default_rgb_621_r1/sketch.yaml)
 
 > **Documentation note (current board revision):** earlier documentation quoted
 > 5 A total and ≤ 1000 mA per channel. Both figures belong to a superseded
@@ -559,9 +557,7 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 
 ## 5.5 Software & UI Configuration
 
-Configure over USB-C in a browser with **Web Serial API** support: open [https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html), click **Connect**, pick the module's port. Changes apply live and save to flash.
-
-> **Beta:** [WebConfig v0.3.0 (beta)](https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html) — testing only; v0.2.0 remains the stable release.
+Configure over USB-C in a browser with **Web Serial API** support: open [https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html](https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html), click **Connect**, pick the module's port. Changes apply live and save to flash.
 
 ### 1) Connection, light levels & presets
 
@@ -642,7 +638,7 @@ Follow these steps for a first-time install (field wiring detail: [§5.4](#54-in
 
 # 6. Modbus RTU Communication
 
-The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.2.0) and firmware v0.2.0.
+The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Register map matches `default_rgb_621_r1_plc.yaml` (v0.3.0) and firmware v0.3.0.
 
 **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
 
@@ -654,53 +650,53 @@ The RGB‑621‑R1 communicates as a **Modbus RTU slave** over **RS‑485**. Reg
 >
 > Example: PWM Red = holding register offset **400** → FC06 request address `0x0190`. In tools that use one-based register numbering, enter **401**.
 
-Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-code detail in [§6.1](#61-input-registers-fc04--map_version-3)–[§6.3](#63-holding-registers-fc0306). Gesture/scene/trim/relay-mode/gamma configuration is **USB WebConfig only** — not on Modbus.
+Master reference for firmware **v0.3.0** (`MAP_VERSION` **3**). Per-function-code detail in [§6.1](#61-input-registers-fc04--map_version-3)–[§6.3](#63-holding-registers-fc0306). Gesture/scene/trim/relay-mode/gamma configuration is **USB WebConfig only** — not on Modbus.
 
-> **PWM dual bank:** HR **400–404** (8-bit) and HR **410–414** (12-bit) address the same PWM targets. The last successful write wins. HR 400–404 scales as `hi = value × 4095 / 255` (integer division); HR 410–414 sets the 12-bit target directly. Values above the register maximum are clamped (writing 300 to HR 400 yields 255; writing 5000 to HR 410 yields 4095). The module does not return exception code 03.
+> **PWM dual bank:** HR **400–404** (8-bit) and HR **410–414** (12-bit) address the same PWM targets. The last successful write wins. HR 400–404 scales as `hi = (value × 4095 + 127) / 255` (rounded); the 8-bit read-back is `api = (hi × 255 + 2047) / 4095`. HR 410–414 sets the 12-bit target directly. Values above the register maximum are clamped (writing 300 to HR 400 yields 255; writing 5000 to HR 410 yields 4095). The module does not return exception code 03.
 
 | Register / Address | Name | FC / Access | Type | Units / Range | Default | Effect | Firmware |
 |--------------------|------|-------------|------|---------------|---------|--------|----------|
-| **1** | **DI1** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.2.0 |
-| **2** | **DI2** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.2.0 |
-| **60** | **Relay1** | FC02 R | discrete input | 0 / 1 | 0 | Relay logical state | v0.2.0 |
-| **90** | **LED1** | FC02 R | discrete input | 0 / 1 | 0 | User LED1 logical state | v0.2.0 |
-| **91** | **LED2** | FC02 R | discrete input | 0 / 1 | 0 | User LED2 logical state | v0.2.0 |
-| **0** | **DI_STATE_MASK** | FC04 R | input register | bit0..1 | — | DI1..DI2 bitmask | v0.2.0 |
-| **1** | **RLY_STATE_MASK** | FC04 R | input register | bit0 | — | Relay1 logical state | v0.2.0 |
-| **2** | **BTN_STATE_MASK** | FC04 R | input register | bit0 | — | SW2 onboard button | v0.2.0 |
-| **3** | **LED_STATE_MASK** | FC04 R | input register | bit0..1 | — | LED1..LED2 bitmask | v0.2.0 |
-| **4** | **STATUS_FLAGS** | FC04 R | input register | bitfield | — | Link / config status — see [STATUS_FLAGS](#status_flags-ireg-4) | v0.2.0 |
-| **6–20** | **EVT_COUNTERS** | FC04 R | input register | uint16 | 0 | Press counters — see [event counters](#event-counters-ireg-620) | v0.2.0 |
-| **21** | **PWM_RAW R** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
-| **22** | **PWM_RAW G** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
-| **23** | **PWM_RAW B** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
-| **24** | **PWM_RAW WW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
-| **25** | **PWM_RAW CW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.2.0 |
-| **26** | **STATE RG** | FC04 R | input register | packed | — | Applied R (high byte) + G (low byte), API 0–255 | v0.2.0 |
-| **27** | **STATE BWW** | FC04 R | input register | packed | — | Applied B (high byte) + WW (low byte), API 0–255 | v0.2.0 |
-| **28** | **STATE CW+flags** | FC04 R | input register | packed | — | Applied CW (high byte); flags: anyOn, rgbGroupOn, cctGroupOn, relay1 | v0.2.0 |
-| **0** | **Relay1** | FC01 R / FC05 W | coil | 0 / 1 | 0 | Relay1 — level-controlled coil: write `1` = energize, write `0` = de-energize | v0.2.0 |
-| **5** | **IDENTIFY** | FC05 W | coil (pulse) | write 1 | 0 | LED identify blink | v0.2.0 |
-| **6** | **SAVE_CFG** | FC05 W | coil (pulse) | write 1 | 0 | Save config to flash | v0.2.0 |
-| **7** | **REBOOT** | FC05 W | coil (pulse) | write 1 | 0 | Reboot module | v0.2.0 |
-| **200** | **Relay1 ON** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — energize relay | v0.2.0 |
-| **210** | **Relay1 OFF** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — de-energize relay | v0.2.0 |
-| **300** | **DI1 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI1 | v0.2.0 |
-| **301** | **DI2 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI2 | v0.2.0 |
-| **320** | **DI1 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI1 | v0.2.0 |
-| **321** | **DI2 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI2 | v0.2.0 |
-| **400** | **R** | FC03 R / FC06 W | holding | 0–255 | 0 | Red PWM setpoint (8-bit API; slew-smoothed) | v0.2.0 |
-| **401** | **G** | FC03 R / FC06 W | holding | 0–255 | 0 | Green PWM setpoint | v0.2.0 |
-| **402** | **B** | FC03 R / FC06 W | holding | 0–255 | 0 | Blue PWM setpoint | v0.2.0 |
-| **403** | **WW** | FC03 R / FC06 W | holding | 0–255 | 0 | Warm-white PWM setpoint | v0.2.0 |
-| **404** | **CW** | FC03 R / FC06 W | holding | 0–255 | 0 | Cool-white PWM setpoint | v0.2.0 |
-| **410** | **R (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Red fine PWM setpoint | v0.2.0 |
-| **411** | **G (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Green fine PWM setpoint | v0.2.0 |
-| **412** | **B (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Blue fine PWM setpoint | v0.2.0 |
-| **413** | **WW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Warm-white fine PWM setpoint | v0.2.0 |
-| **414** | **CW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Cool-white fine PWM setpoint | v0.2.0 |
-| **480** | **MB_ADDR** | FC03 R / FC06 W | holding | 1–247 | **3** | Modbus slave address | v0.2.0 |
-| **481** | **MB_BAUD** | FC03 R / FC06 W | holding | 9600 / 19200 / 38400 / 57600 / 115200 | **19200** | Modbus baud rate (bps) | v0.2.0 |
+| **1** | **DI1** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.3.0 |
+| **2** | **DI2** | FC02 R | discrete input | 0 / 1 | 0 | Wall-switch logical state (after enable + invert) | v0.3.0 |
+| **60** | **Relay1** | FC02 R | discrete input | 0 / 1 | 0 | Relay logical state | v0.3.0 |
+| **90** | **LED1** | FC02 R | discrete input | 0 / 1 | 0 | User LED1 logical state | v0.3.0 |
+| **91** | **LED2** | FC02 R | discrete input | 0 / 1 | 0 | User LED2 logical state | v0.3.0 |
+| **0** | **DI_STATE_MASK** | FC04 R | input register | bit0..1 | — | DI1..DI2 bitmask | v0.3.0 |
+| **1** | **RLY_STATE_MASK** | FC04 R | input register | bit0 | — | Relay1 logical state | v0.3.0 |
+| **2** | **BTN_STATE_MASK** | FC04 R | input register | bit0 | — | SW2 onboard button | v0.3.0 |
+| **3** | **LED_STATE_MASK** | FC04 R | input register | bit0..1 | — | LED1..LED2 bitmask | v0.3.0 |
+| **4** | **STATUS_FLAGS** | FC04 R | input register | bitfield | — | Link / config status — see [STATUS_FLAGS](#status_flags-ireg-4) | v0.3.0 |
+| **6–20** | **EVT_COUNTERS** | FC04 R | input register | uint16 | 0 | Press counters — see [event counters](#event-counters-ireg-620) | v0.3.0 |
+| **21** | **PWM_RAW R** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.3.0 |
+| **22** | **PWM_RAW G** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.3.0 |
+| **23** | **PWM_RAW B** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.3.0 |
+| **24** | **PWM_RAW WW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.3.0 |
+| **25** | **PWM_RAW CW** | FC04 R | input register | 0–4095 | 0 | Applied 12-bit PWM duty after trim, gamma and slew (not measured LED current) | v0.3.0 |
+| **26** | **STATE RG** | FC04 R | input register | packed | — | Target R (high byte) + G (low byte), API 0–255 | v0.3.0 |
+| **27** | **STATE BWW** | FC04 R | input register | packed | — | Target B (high byte) + WW (low byte), API 0–255 | v0.3.0 |
+| **28** | **STATE CW+flags** | FC04 R | input register | packed | — | Target CW (high byte); flags: anyOn, rgbGroupOn, cctGroupOn, relay1, fading | v0.3.0 |
+| **0** | **Relay1** | FC01 R / FC05 W | coil | 0 / 1 | 0 | Relay1 — level-controlled coil: write `1` = energize, write `0` = de-energize | v0.3.0 |
+| **5** | **IDENTIFY** | FC05 W | coil (pulse) | write 1 | 0 | LED identify blink | v0.3.0 |
+| **6** | **SAVE_CFG** | FC05 W | coil (pulse) | write 1 | 0 | Save config to flash | v0.3.0 |
+| **7** | **REBOOT** | FC05 W | coil (pulse) | write 1 | 0 | Reboot module | v0.3.0 |
+| **200** | **Relay1 ON** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — energize relay | v0.3.0 |
+| **210** | **Relay1 OFF** | FC05 W | coil (pulse) | write 1 | 0 | Legacy pulse — de-energize relay | v0.3.0 |
+| **300** | **DI1 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI1 | v0.3.0 |
+| **301** | **DI2 Enable** | FC05 W | coil (pulse) | write 1 | 0 | Enable DI2 | v0.3.0 |
+| **320** | **DI1 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI1 | v0.3.0 |
+| **321** | **DI2 Disable** | FC05 W | coil (pulse) | write 1 | 0 | Disable DI2 | v0.3.0 |
+| **400** | **R** | FC03 R / FC06 W | holding | 0–255 | 0 | Red PWM setpoint (8-bit API; slew-smoothed) | v0.3.0 |
+| **401** | **G** | FC03 R / FC06 W | holding | 0–255 | 0 | Green PWM setpoint | v0.3.0 |
+| **402** | **B** | FC03 R / FC06 W | holding | 0–255 | 0 | Blue PWM setpoint | v0.3.0 |
+| **403** | **WW** | FC03 R / FC06 W | holding | 0–255 | 0 | Warm-white PWM setpoint | v0.3.0 |
+| **404** | **CW** | FC03 R / FC06 W | holding | 0–255 | 0 | Cool-white PWM setpoint | v0.3.0 |
+| **410** | **R (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Red fine PWM setpoint | v0.3.0 |
+| **411** | **G (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Green fine PWM setpoint | v0.3.0 |
+| **412** | **B (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Blue fine PWM setpoint | v0.3.0 |
+| **413** | **WW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Warm-white fine PWM setpoint | v0.3.0 |
+| **414** | **CW (12-bit)** | FC03 R / FC06 W | holding | 0–4095 | 0 | Cool-white fine PWM setpoint | v0.3.0 |
+| **480** | **MB_ADDR** | FC03 R / FC06 W | holding | 1–247 | **3** | Modbus slave address | v0.3.0 |
+| **481** | **MB_BAUD** | FC03 R / FC06 W | holding | 9600 / 19200 / 38400 / 57600 / 115200 | **19200** | Modbus baud rate (bps) | v0.3.0 |
 
 ---
 
@@ -717,7 +713,7 @@ Master reference for firmware **v0.2.0** (`MAP_VERSION` **3**). Per-function-cod
 | **4** | **STATUS_FLAGS** | bitfield | Link / config status — see below |
 | **6–20** | **EVT_COUNTERS** | uint16 | Press counters — see below |
 | **21–25** | **PWM_RAW** | 0–4095 | Applied 12-bit PWM duty after trim, gamma and slew. This is not a measured LED current. |
-| **26–28** | **STATE** | packed | Applied PWM levels (API 0–255, after slew) + status flags |
+| **26–28** | **STATE** | packed | Target PWM levels (API 0–255, not mid-fade) + status flags |
 
 #### STATUS_FLAGS (IREG 4) {#status_flags-ireg-4}
 
@@ -757,13 +753,13 @@ Counters saturate at **65535** and do not wrap (`if (count < 0xFFFF) count++`). 
 
 | Address | Format | Description |
 |---------|--------|-------------|
-| **26** | `(R<<8)\|G` | Applied red (high byte) and green (low byte), API 0–255 |
-| **27** | `(B<<8)\|WW` | Applied blue and warm white |
-| **28** | `(CW<<8)\|flags` | Applied cold white (high byte); flags low byte: bit0 **anyOn**, bit1 **rgbGroupOn**, bit2 **cctGroupOn**, bit3 **relay1** |
+| **26** | `(R<<8)\|G` | Target red (high byte) and green (low byte), API 0–255 |
+| **27** | `(B<<8)\|WW` | Target blue and warm white |
+| **28** | `(CW<<8)\|flags` | Target cold white (high byte); flags low byte: bit0 **anyOn**, bit1 **rgbGroupOn**, bit2 **cctGroupOn**, bit3 **relay1**, bit4 **fading** (any channel still slewing) |
 
 Sources: **0** = DI1, **1** = DI2, **2** = SW2. Layout: `EVT_BASE + source×5 + gesture` (`EVT_BASE` = **6**).
 
-> ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (applied light + relay flags) every 5 s. Event counters **6–20** are optional for masters that need register-based press accounting.
+> ESPHome package reads **FC04 @0 count=5** (DI/LED/status) and **FC04 @26 count=3** (target light + relay/fading flags) every 5 s. Event counters **6–20** are optional for masters that need register-based press accounting. IREG **21–25** remain the mid-fade 12-bit diagnostic.
 
 ---
 
@@ -866,7 +862,7 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 | Read DI2 | FC04 IR **0**, bitmask `0x0002` |
 | Read button state | FC04 IR **2**, bitmask `0x0001` |
 | Read relay state | FC04 STATE **28**, flags bit3 *(or legacy IR **1**)* |
-| Read applied light levels | FC04 STATE **26–28** (one contiguous read) |
+| Read target light levels | FC04 STATE **26–28** (one contiguous read; skip while flags bit4 **fading**) |
 | Enable DI1 | Coil **300** ← 1 (pulse) |
 
 | Read press counters (DI1 singles) | FC04 IR **6** |
@@ -876,11 +872,11 @@ Wall switches (DI1/DI2) run the full gesture engine (momentary/maintained, hold-
 ## 6.7 Polling Recommendations
 
 - **DI / LED / status:** one FC04 read **0..4** every 5 s (ESPHome package default)  
-- **Applied PWM + relay flags:** one FC04 read **26..28** every 5 s (STATE block; drives HA light/relay feedback)  
+- **Target PWM + relay/fading flags:** one FC04 read **26..28** every 5 s (STATE block; drives HA light/relay feedback)  
 - **PWM holding 400–404:** write via Light only; do not poll HR from ESPHome  
 - **Relay/service coils:** write only on demand  
 - **HA light transitions:** ESPHome package sets `default_transition_length: 0s` so HA sends one final value per channel; smooth crossfade is done on-module via per-channel **fadeMs** (WebConfig, default 400 ms). HA’s transition slider does not apply to this entity.  
-- **HA light readback:** STATE@26–28 updates HA display via publish-only `remote_values` (4 s HA-command gate) — never re-writes HR 400–404. Template holders have no lambda so `publish_state` values persist.
+- **HA light readback:** STATE@26–28 reports **target** levels. While flags bit4 **fading** is set, the package skips entity updates. An echo of HA’s own command is not reconstructed (five bytes cannot be decomposed back into brightness × colour unambiguously). A local button or scene that differs from the last HA command does update the light via `remote_values` — never re-writes HR 400–404.
 
 ---
 
@@ -894,14 +890,14 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: RGB-621-R1/Firmware/v0.2.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
+      - path: RGB-621-R1/Firmware/v0.3.0/default_rgb_621_r1_plc/default_rgb_621_r1_plc.yaml
         vars:
           rgb_prefix: "RGB#1"
           rgb_id: rgb_1
           rgb_address: 3
 ```
 
-The package exposes an **RGB+CCT light**, **relay switch**, **digital inputs**, and **button** entities in Home Assistant. UART and Modbus are configured on the controller; poll intervals and STATE readback match firmware v0.2.0 (see [§6](#6-modbus-rtu-communication)).
+The package exposes an **RGB+CCT light**, **relay switch**, **digital inputs**, and **button** entities in Home Assistant. UART and Modbus are configured on the controller; poll intervals and STATE readback match firmware v0.3.0 (see [§6](#6-modbus-rtu-communication)).
 
 ---
 
@@ -929,7 +925,7 @@ For modifying or rebuilding the firmware.
   - USB upload: Serial (CDC)
   - Flash layout (Arduino): e.g. 2 MB (Sketch 1 MB / FS 1 MB)
   - Libraries (Arduino examples): ModbusSerial, Arduino_JSON, LittleFS, SimpleWebSerial.
-- Build the sketch (see the [reproducible build environment](../README.md#build-environment-reproducible) and [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)), enter BOOT mode ([§8.1](#81-updating-firmware-regular-users) step 2), then upload the new build over USB, **or** export a `.uf2` and drag-drop it onto **RPI-RP2**.
+- Build the sketch (see the [reproducible build environment](../README.md#build-environment-reproducible) and [`sketch.yaml`](Firmware/v0.3.0/default_rgb_621_r1/sketch.yaml)), enter BOOT mode ([§8.1](#81-updating-firmware-regular-users) step 2), then upload the new build over USB, **or** export a `.uf2` and drag-drop it onto **RPI-RP2**.
 - **Reset:** power-cycle the module (remove and re-apply **24 V DC**) or use **Reset** in WebConfig — there is no reset button combo.
 
 ---
@@ -999,7 +995,7 @@ See LICENSE files in each directory for full terms.
 - **Repository (module path):**  
   [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
-- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html`
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`
 - **Datasheet & docs:** `RGB-621-R1/Manuals/`
 - **Images & diagrams:** `RGB-621-R1/Images/`
@@ -1009,8 +1005,7 @@ See LICENSE files in each directory for full terms.
 # 12. Support
 
 - **Official Support:** https://www.home-master.eu/support  
-- **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.2.0/ConfigToolPage.html  
-- **WebConfig v0.3.0 (beta):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html — testing only  
+- **WebConfig Tool (RGB-621-R1):** https://config.home-master.eu/RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html  
 - **YouTube:** https://youtube.com/@HomeMaster  
 - **Hackster:** https://hackster.io/homemaster  
 - **Reddit:** https://reddit.com/r/HomeMaster  
