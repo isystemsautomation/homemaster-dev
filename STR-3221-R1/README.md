@@ -154,7 +154,7 @@ software only if you have accepted that a dead controller leaves the pump on.
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
 | Net weight | 150 g |
-| Gross weight | 248 g |
+| Gross weight | 250 g |
 | Pack size | 230 × 140 × 87 mm (L × W × H) |
 <!-- hm:specs:end -->
 

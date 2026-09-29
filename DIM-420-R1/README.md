@@ -562,8 +562,8 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 | Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
 | Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
 | Tightening torque | 0.4–0.6 Nm |
-| Net weight | 207 g |
-| Gross weight | 324 g |
+| Net weight | 210 g |
+| Gross weight | 320 g |
 | Pack size | TBD |
 <!-- hm:specs:end -->
 
