@@ -563,7 +563,7 @@ void setup() {
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
 
-  wsLog("Boot OK (RGB v0.2.0; 12-bit gamma+slew; USB-configured engine)");
+  wsLog("Boot OK (RGB v" HM_FW "; 12-bit gamma+slew; USB-configured engine)");
   sendWebBootstrap();
 
   // Seed debounce state from current pin levels (no spurious edge on first loop).
