@@ -13,7 +13,20 @@
     .pwm-ch label{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
     .pwm-ch .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
     .ch-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    #i2c-diag{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;margin:12px 0 0;white-space:pre-wrap}
+    .i2c-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+    .i2c-chip{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+    .i2c-chip .nm{font-size:13px;font-weight:850}
+    .i2c-chip .outs{font-size:11px;color:var(--muted2);margin-top:2px}
+    .i2c-chip .addr{font-family:ui-monospace,Consolas,monospace;font-size:12px;margin-top:8px}
+    .i2c-chip .st{margin-top:8px;font-size:13px;font-weight:750}
+    .i2c-chip.ok{border-color:#bbf7d0;background:#f0fdf4}
+    .i2c-chip.ok .st{color:var(--ok)}
+    .i2c-chip.warn{border-color:#fde68a;background:#fffbeb}
+    .i2c-chip.warn .st{color:#b45309}
+    .i2c-chip.bad{border-color:#fecaca;background:#fef2f2}
+    .i2c-chip.bad .st{color:var(--bad)}
+    .i2c-meta{margin:12px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+    @media(max-width:980px){.i2c-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
     .prof-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
     .prof-cell select,.prof-cell input{width:100%}
     .prof-cell select{margin-bottom:4px}
@@ -49,6 +62,11 @@
         <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
         <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
         <div class="pill">Baud: <span id="hm-baud">—</span></div>
+        <div class="pill"><span class="dot warn" id="i2cU9d"></span>U9 <span id="i2cU9t">—</span></div>
+        <div class="pill"><span class="dot warn" id="i2cU10d"></span>U10 <span id="i2cU10t">—</span></div>
+        <div class="pill"><span class="dot warn" id="i2cU11d"></span>U11 <span id="i2cU11t">—</span></div>
+        <div class="pill"><span class="dot warn" id="i2cU12d"></span>U12 <span id="i2cU12t">—</span></div>
+        <div class="pill">I2C errors: <span id="i2cErrT">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
@@ -103,14 +121,15 @@
 
   <div class="sectiontitle">
     <h3>I2C / TLC59208F</h3>
-    <p class="hint">On-demand bus scan — not on the 250&nbsp;ms status line. Typical U9–U12 are Arduino 7-bit <code>0x20–0x23</code> (TI datasheet 40h–46h). Probe codes: 0 = ACK, 2 = NACK address, 4 = timeout.</p>
+    <p class="hint">Four LED drivers on the MCU board. U9 always 0x20, U10 0x21, U11 0x22, U12 0x23. Connect to see live status; Scan re-probes the bus.</p>
   </div>
   <section class="card">
     <div class="cardbody">
       <div class="ch-actions" style="margin-top:0">
         <button type="button" class="btn" id="btn-i2c-scan">Scan I2C bus</button>
       </div>
-      <pre id="i2c-diag">Not scanned yet. Connect, then Scan.</pre>
+      <div id="i2c-chips" class="i2c-chips"></div>
+      <div id="i2c-meta" class="i2c-meta">Connect the module to see which drivers answer.</div>
     </div>
   </section>
 
@@ -1148,7 +1167,10 @@
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
-    HMWebConfig.conn.on('ext', ext => { if (ext && ext.pwm) applyPwmFromDevice(ext.pwm); });
+    HMWebConfig.conn.on('ext', ext => {
+      if (ext && ext.pwm) applyPwmFromDevice(ext.pwm);
+      if (ext && (ext.tlc_chip != null || ext.tlc_ready != null)) applyTlcLive(ext);
+    });
     HMWebConfig.conn.on('status', st => {
       const fsDot = $('fsDot'), fsText = $('fsText');
       const ovDot = $('ovDot'), ovText = $('ovText');
@@ -1255,45 +1277,116 @@
 
     HMWebConfig.conn.on('heatStats', applyHeatStats);
 
-    function splitHexPairs(s){
+    const TLC_SLOTS = [
+      { name: 'U9',  outs: 'O1–O8',   addr: 0x20 },
+      { name: 'U10', outs: 'O9–O16',  addr: 0x21 },
+      { name: 'U11', outs: 'O17–O24', addr: 0x22 },
+      { name: 'U12', outs: 'O25–O32', addr: 0x23 },
+    ];
+    const i2cState = {
+      found: [],
+      ok: [null, null, null, null],
+      err: null,
+      idle: '',
+      clk: null,
+      ready: null,
+    };
+
+    function parseHexPairs(s){
       const t = String(s || '');
       const out = [];
-      for (let i = 0; i + 1 < t.length; i += 2)
-        out.push('0x' + t.slice(i, i + 2).toUpperCase());
-      return out.length ? out.join(' ') : '—';
+      for (let i = 0; i + 1 < t.length; i += 2) {
+        const v = parseInt(t.slice(i, i + 2), 16);
+        if (!Number.isNaN(v)) out.push(v);
+      }
+      return out;
+    }
+
+    function hex2(a){
+      return '0x' + Number(a).toString(16).toUpperCase().padStart(2, '0');
+    }
+
+    function setChipPill(i, cls, text){
+      const id = TLC_SLOTS[i].name;
+      const d = $('i2c' + id + 'd');
+      const t = $('i2c' + id + 't');
+      if (d) d.className = 'dot ' + cls;
+      if (t) t.textContent = text;
+    }
+
+    function renderI2cPanel(){
+      const host = $('i2c-chips');
+      if (!host) return;
+      const foundSet = new Set(i2cState.found);
+      host.innerHTML = TLC_SLOTS.map((s, i) => {
+        const onBus = foundSet.has(s.addr);
+        const drv = i2cState.ok[i] === true;
+        const known = i2cState.ok[i] !== null;
+        let cls = 'warn';
+        let st = 'ожидание';
+        if (known && drv) { cls = 'ok'; st = 'на связи'; }
+        else if (known && onBus) { cls = 'warn'; st = 'на шине, драйвер не поднялся'; }
+        else if (known) { cls = 'bad'; st = 'нет ответа'; }
+        else if (onBus) { cls = 'warn'; st = 'найден на шине'; }
+        setChipPill(i, cls, known ? (drv ? 'OK' : 'нет') : '—');
+        return '<div class="i2c-chip ' + cls + '">' +
+          '<div class="nm">' + s.name + '</div>' +
+          '<div class="outs">' + s.outs + '</div>' +
+          '<div class="addr">' + hex2(s.addr) + '</div>' +
+          '<div class="st">' + st + '</div></div>';
+      }).join('');
+      const expected = new Set(TLC_SLOTS.map(s => s.addr));
+      const extras = i2cState.found.filter(a => !expected.has(a)).map(hex2);
+      const bits = [];
+      if (i2cState.idle) {
+        const sda = i2cState.idle[0] === 'H' ? 'SDA в покое High' : 'SDA в покое Low (обрыв/КЗ)';
+        const scl = i2cState.idle[1] === 'H' ? 'SCL High' : 'SCL Low (обрыв/КЗ)';
+        bits.push(sda + ', ' + scl);
+      }
+      if (i2cState.clk) bits.push('такт ' + i2cState.clk + ' кГц');
+      if (i2cState.ready != null) bits.push(i2cState.ready ? 'модуль считает драйверы живыми' : 'ни один драйвер не инициализирован');
+      if (i2cState.err != null) bits.push('ошибок I2C: ' + i2cState.err);
+      if (extras.length) bits.push('ещё на шине (не U9–U12): ' + extras.join(' '));
+      const missing = TLC_SLOTS.filter(s => i2cState.found.length && !foundSet.has(s.addr)).map(s => s.name);
+      if (missing.length) bits.push('не ответили: ' + missing.join(', '));
+      const meta = $('i2c-meta');
+      if (meta) meta.textContent = bits.length ? bits.join('. ') + '.' : 'Connect the module to see which drivers answer.';
+      const errEl = $('i2cErrT');
+      if (errEl && i2cState.err != null) errEl.textContent = String(i2cState.err);
+    }
+
+    function applyTlcLive(ext){
+      const chips = ext.tlc_chip;
+      if (chips && typeof chips === 'object') {
+        for (let i = 0; i < 4; i++) {
+          const v = chips[i];
+          if (v == null) continue;
+          i2cState.ok[i] = !!Number(v);
+        }
+      }
+      if (ext.tlc_ready != null) i2cState.ready = !!Number(ext.tlc_ready);
+      renderI2cPanel();
     }
 
     function applyI2cDiag(msg){
-      const el = $('i2c-diag');
-      if (!el || !msg) return;
-      const ok = String(msg.ok || '----');
-      const chips = [0,1,2,3].map(i => 'U' + (9 + i) + '=' + (ok[i] === '1' ? 'OK' : 'fail')).join('  ');
-      const prb = String(msg.prb || '');
-      const probe = prb.length
-        ? prb.split('').map((c, i) => 'U' + (9 + i) + '=' + c).join('  ')
-        : '—';
-      el.textContent = [
-        'Bus: Wire1  SDA=GP' + (msg.sda ?? '—') + '  SCL=GP' + (msg.scl ?? '—') +
-          '  idle ' + (msg.idle || '??') + '  clock ' + (msg.clk ?? '?') + ' kHz',
-        'Found (' + (msg.n ?? 0) + '): ' + splitHexPairs(msg.found),
-        'Bound: ' + splitHexPairs(msg.bound) + '  ready=' + (msg.rdy ? 'yes' : 'no'),
-        'Chips: ' + chips,
-        'Probe (0=ACK, 2=NACK, 4=timeout): ' + probe,
-        'I2C errors: ' + (msg.err ?? 0),
-      ].join('\n');
+      if (!msg) return;
+      i2cState.found = parseHexPairs(msg.found);
+      const ok = String(msg.ok || '');
+      for (let i = 0; i < 4; i++) i2cState.ok[i] = ok[i] === '1';
+      if (msg.err != null) i2cState.err = parseInt(msg.err, 10);
+      i2cState.idle = String(msg.idle || '');
+      if (msg.clk != null) i2cState.clk = parseInt(msg.clk, 10);
+      if (msg.rdy != null) i2cState.ready = !!Number(msg.rdy);
+      renderI2cPanel();
     }
 
+    renderI2cPanel();
     HMWebConfig.conn.on('i2c', applyI2cDiag);
     $('btn-i2c-scan')?.addEventListener('click', () => HMWebConfig.sendCommand('i2c_scan'));
-    HMWebConfig.conn.on('open', () => {
-      const el = $('i2c-diag');
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      if (r.bottom > 0 && r.top < (window.innerHeight || 0)) HMWebConfig.sendCommand('i2c');
-    });
+    HMWebConfig.conn.on('open', () => HMWebConfig.sendCommand('i2c'));
 
     (function watchI2cCard(){
-      const card = $('i2c-diag')?.closest('section');
+      const card = $('i2c-chips')?.closest('section');
       const ask = () => HMWebConfig.sendCommand('i2c');
       if (!card || typeof IntersectionObserver !== 'function') return;
       const io = new IntersectionObserver(entries => {

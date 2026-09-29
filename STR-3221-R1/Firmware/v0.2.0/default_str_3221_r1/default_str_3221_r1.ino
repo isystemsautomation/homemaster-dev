@@ -782,7 +782,8 @@ static void i2cScanLog() {
     prb += String(e);
   }
   wsLog(prb);
-  tlcBindFromScan();
+  // U9..U12 stay at 0x20..0x23. Scan does not remap slots onto whatever ACK'd.
+  tlcLoadDefaultAddrs();
 }
 
 static inline uint8_t driverOut(uint8_t ch, uint8_t v) {
@@ -838,6 +839,7 @@ static bool tlcInitChip(uint8_t chipIdx, uint8_t addr) {
 
 static bool tlcInitAll(bool fullScan) {
   tlcWireBegin();
+  tlcLoadDefaultAddrs();
   if (fullScan) {
     i2cScanLog();
   } else {
