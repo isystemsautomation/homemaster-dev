@@ -166,9 +166,10 @@
  *   BUTTON1..4  GPIO16..19  active-HIGH via CD4069 (INPUT, pressed=HIGH)
  *
  * TLC59208F address map (TI datasheet Table 1):
- *   Strap GND/VCC on A2:A1:A0 → 0x40, 0x42, 0x44, 0x46 (U9..U12 typical)
- *   Strap GND/SCL/SDA on A2:A1:A0 → 0x20..0x3E range (A1=SCL on bus)
- *   Runtime auto-bind from I2C scan (prefers block 0x20..0x23 if present)
+ *   Table 1 ADDRESS is the 8-bit write address (R/W = 0). Arduino Wire is 7-bit
+ *   (8-bit >> 1). Typical U9..U12 A2/A1/A0 = GND/GND/GND … GND/VCC/VCC →
+ *   datasheet 40h,42h,44h,46h → Arduino 0x20,0x21,0x22,0x23.
+ *   Software reset (SWRST) 7-bit is 1001111 = 0x4F (8-bit write 9Eh).
  */
 
 #include <Arduino.h>
@@ -229,11 +230,12 @@ static const uint8_t NUM_GROUPS = 8;
 static const uint8_t NUM_SCENES = 8;
 
 // ================== TLC59208F ==================
-static const uint8_t TLC_ADDR_DEFAULT[4] = {0x40, 0x42, 0x44, 0x46};
-static const uint8_t TLC_ADDR_SCL_BLOCK[4] = {0x20, 0x21, 0x22, 0x23};
-static uint8_t tlcAddrActive[4] = {0x40, 0x42, 0x44, 0x46};
-static const uint8_t TLC_ADDR_BIND_MIN = 0x20;
-static const uint8_t TLC_ADDR_BIND_MAX = 0x5E;
+// 7-bit. Datasheet 40h/42h/44h/46h (GND/VCC straps) are these values, not 0x40..
+static const uint8_t TLC_ADDR_DEFAULT[4] = {0x20, 0x21, 0x22, 0x23};
+static uint8_t tlcAddrActive[4] = {0x20, 0x21, 0x22, 0x23};
+// Datasheet ADDRESS 20h..5Eh as 7-bit (GND/SCL/SDA and GND/VCC ranges).
+static const uint8_t TLC_ADDR_BIND_MIN = 0x10;
+static const uint8_t TLC_ADDR_BIND_MAX = 0x2F;
 static const uint8_t I2C_SCAN_MIN = 0x08;
 static const uint8_t I2C_SCAN_MAX = 0x77;
 static const uint8_t I2C_FOUND_MAX = 24;
@@ -253,6 +255,9 @@ static bool    tlcReady = false;
 static uint32_t tlcNextRetryMs = 0;
 static const uint32_t TLC_RETRY_MS = 5000;
 static uint16_t g_i2cErrorCount = 0;
+static uint16_t g_i2cClockKhz = 100;
+static bool g_i2cIdleSda = false;
+static bool g_i2cIdleScl = false;
 static uint16_t g_bootResetReason = 0;
 static uint32_t g_bootMs = 0;
 static uint16_t iregCache[32];
@@ -566,7 +571,8 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
   -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
 inline void setSlaveIdIfAvailable(...) {}
 
-static const uint8_t TLC_SWRST_ADDR = 0x96;
+// Datasheet 9.3.3: 7-bit 1001111. Arduino beginTransmission is 7-bit, not 9Eh.
+static const uint8_t TLC_SWRST_ADDR = 0x4F;
 static const uint32_t I2C_TIMEOUT_MS = 25;
 
 static TwoWire* tlcWire = &Wire1;
@@ -586,14 +592,21 @@ static void tlcWireBegin() {
   if (!tlcWireStarted) {
     pinMode(PIN_I2C_SDA, INPUT_PULLUP);
     pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+    delayMicroseconds(50);
+    g_i2cIdleSda = digitalRead(PIN_I2C_SDA);
+    g_i2cIdleScl = digitalRead(PIN_I2C_SCL);
     Wire1.setSDA(PIN_I2C_SDA);
     Wire1.setSCL(PIN_I2C_SCL);
     Wire1.begin();
     Wire1.setTimeout(I2C_TIMEOUT_MS);
     Wire1.setClock(100000);
+    g_i2cClockKhz = 100;
     tlcWire = &Wire1;
     tlcWireStarted = true;
     delay(2);
+    wsLog(String("I2C Wire1 GP") + PIN_I2C_SDA + "/GP" + PIN_I2C_SCL +
+          " idle SDA=" + (g_i2cIdleSda ? "H" : "L") +
+          " SCL=" + (g_i2cIdleScl ? "H" : "L"));
   }
 }
 
@@ -621,8 +634,14 @@ static bool tlcWriteReg(uint8_t addr, uint8_t reg, uint8_t val) {
 static bool tlcReadReg(uint8_t addr, uint8_t reg, uint8_t* val) {
   tlcWire->beginTransmission(addr);
   tlcWire->write(reg);
-  if (tlcWire->endTransmission(false) != 0) return false;
-  if (tlcWire->requestFrom(addr, (uint8_t)1) != 1) return false;
+  if (tlcWire->endTransmission(false) != 0) {
+    tlcNoteI2cFailure();
+    return false;
+  }
+  if (tlcWire->requestFrom(addr, (uint8_t)1) != 1) {
+    tlcNoteI2cFailure();
+    return false;
+  }
   *val = tlcWire->read();
   return true;
 }
@@ -679,10 +698,10 @@ static uint8_t i2cBusScan(uint8_t start, uint8_t end) {
     }
   }
   if (n == 0) {
-    found += " (none; SDA=";
-    found += digitalRead(PIN_I2C_SDA) ? "H" : "L";
+    found += " (none; idle SDA=";
+    found += g_i2cIdleSda ? "H" : "L";
     found += " SCL=";
-    found += digitalRead(PIN_I2C_SCL) ? "H" : "L";
+    found += g_i2cIdleScl ? "H" : "L";
     found += ")";
   }
   wsLog(found);
@@ -690,14 +709,9 @@ static uint8_t i2cBusScan(uint8_t start, uint8_t end) {
 }
 
 static uint8_t tlcBindFromScan() {
-  if (i2cFoundHasAll(TLC_ADDR_SCL_BLOCK, 4)) {
-    tlcSetAddrs(TLC_ADDR_SCL_BLOCK, 4);
-    wsLog("TLC bind: block 0x20 0x21 0x22 0x23 (A1=SCL strap range)");
-    return 4;
-  }
   if (i2cFoundHasAll(TLC_ADDR_DEFAULT, 4)) {
     tlcSetAddrs(TLC_ADDR_DEFAULT, 4);
-    wsLog("TLC bind: block 0x40 0x42 0x44 0x46 (GND/VCC strap range)");
+    wsLog("TLC bind: 0x20 0x21 0x22 0x23 (datasheet 40h-46h, Arduino 7-bit)");
     return 4;
   }
 
@@ -740,7 +754,7 @@ static uint8_t tlcBindFromScan() {
 
   if (n >= 4) {
     tlcSetAddrs(candidates, 4);
-    String msg = "TLC bind (unverified, first 4 in 0x20..0x5E):";
+    String msg = "TLC bind (unverified, first 4 in 0x10..0x2F):";
     for (uint8_t i = 0; i < 4; i++) {
       msg += " 0x";
       if (tlcAddrActive[i] < 0x10) msg += "0";
@@ -751,12 +765,23 @@ static uint8_t tlcBindFromScan() {
   }
 
   tlcLoadDefaultAddrs();
-  wsLog("TLC bind: no 4-chip block, using defaults 0x40 0x42 0x44 0x46");
+  wsLog("TLC bind: no 4-chip block, using defaults 0x20 0x21 0x22 0x23");
   return 0;
 }
 
 static void i2cScanLog() {
   i2cBusScan(I2C_SCAN_MIN, I2C_SCAN_MAX);
+  String prb = "I2C probe 7-bit:";
+  for (uint8_t i = 0; i < 4; i++) {
+    const uint8_t a = TLC_ADDR_DEFAULT[i];
+    const uint8_t e = i2cProbeErr(a);
+    prb += " 0x";
+    if (a < 0x10) prb += "0";
+    prb += String(a, HEX);
+    prb += "=";
+    prb += String(e);
+  }
+  wsLog(prb);
   tlcBindFromScan();
 }
 
@@ -842,7 +867,7 @@ static bool tlcInitAll(bool fullScan) {
     yield();
     hmWatchdogFeed();
   }
-  if (anyTlc && i2cFoundHasAll(TLC_ADDR_SCL_BLOCK, 4)) tlcSoftwareReset();
+  if (anyTlc) tlcSoftwareReset();
 
   uint8_t chipsOk = 0;
   for (uint8_t i = 0; i < 4; i++) {
@@ -853,6 +878,7 @@ static bool tlcInitAll(bool fullScan) {
   tlcReady = (chipsOk > 0);
   if (!tlcReady) return false;
   Wire1.setClock(400000);
+  g_i2cClockKhz = 400;
   for (uint8_t i = 0; i < NUM_PWM; i++) tlcApplied[i] = 0xFF;
   if (chipsOk < 4) {
     wsLog(String("TLC59208F: ") + chipsOk + "/4 chips OK");
@@ -1745,6 +1771,7 @@ void processModbusCommandPulses();
 void sendWebStatus();
 void sendWebIdentity();
 void sendHeatStats();
+void sendI2cDiag();
 void sendWebCfg();
 void sendWebBootstrap();
 void sendWebLevels();
@@ -1942,9 +1969,11 @@ void handleCommand(JSONVar obj) {
     g_identifyUntilMs = millis() + IDENTIFY_MS;
     wsLog("Identify: status LEDs active for 5 s");
   } else if (act == "i2c_scan" || act == "i2cscan") {
-    tlcWireBegin();
-    i2cScanLog();
     if (!tlcInitAll(true)) wsLog("TLC init still failed after I2C scan");
+    sendI2cDiag();
+  } else if (act == "i2c" || act == "i2c.diag" || act == "i2c_diag") {
+    tlcWireBegin();
+    sendI2cDiag();
   } else if (act == "off") {
     releaseLocalOverrideForWebConfig();
     setAllPwmLocal(0);
@@ -2555,6 +2584,42 @@ void sendHeatStats() {
     msg["cyc"] = cc;
     WebSerial.send("heatStats", msg);
   }
+}
+
+// I2C / TLC — on request, never on the 250 ms status line (CDC FIFO 256).
+void sendI2cDiag() {
+  if (!hmUsbCanSend(CFG_TX_BUDGET)) return;
+  tlcWireBegin();
+  JSONVar d;
+  d["bus"] = "W1";
+  d["sda"] = (int)PIN_I2C_SDA;
+  d["scl"] = (int)PIN_I2C_SCL;
+  d["idle"] = String(g_i2cIdleSda ? "H" : "L") + (g_i2cIdleScl ? "H" : "L");
+
+  String found;
+  const uint8_t show = (i2cFoundCount > 12) ? 12 : i2cFoundCount;
+  found.reserve((size_t)show * 2);
+  for (uint8_t i = 0; i < show; i++) cfgChunkAppendHexByte(found, i2cFound[i]);
+  d["n"] = (int)i2cFoundCount;
+  d["found"] = found;
+
+  String bound, ok, prb;
+  bound.reserve(8);
+  ok.reserve(4);
+  prb.reserve(4);
+  for (uint8_t i = 0; i < 4; i++) {
+    cfgChunkAppendHexByte(bound, tlcAddrActive[i]);
+    ok += tlcChipOk[i] ? '1' : '0';
+    const uint8_t e = i2cProbeErr(tlcAddrActive[i]);
+    prb += (char)('0' + ((e > 9) ? 9 : e));
+  }
+  d["bound"] = bound;
+  d["ok"] = ok;
+  d["prb"] = prb;
+  d["err"] = (int)g_i2cErrorCount;
+  d["rdy"] = tlcReady ? 1 : 0;
+  d["clk"] = (int)g_i2cClockKhz;
+  WebSerial.send("i2c", d);
 }
 
 static void sendCfgChunkNow(uint8_t sec, uint8_t part) {

@@ -877,10 +877,7 @@ board diagrams.
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
 
-**TLC59208F addressing.** The driver auto-binds from an I²C scan at boot: it prefers the block
-`0x20 0x21 0x22 0x23` (A1 strapped to SCL), falls back to `0x40 0x42 0x44 0x46` (GND/VCC strap),
-and otherwise verifies candidates in the `0x20…0x5E` range. Scan results are reported over
-WebConfig.
+**TLC59208F addressing.** TI Table 1 lists **8-bit write** addresses (R/W = 0). Arduino `Wire` uses **7-bit**, so the typical U9–U12 straps GND/GND/GND … GND/VCC/VCC (datasheet 40h, 42h, 44h, 46h) are `0x20 0x21 0x22 0x23` on the bus. The driver binds those first, then any verified 7-bit address in `0x10…0x2F` (datasheet 20h…5Eh). Software reset is 7-bit `0x4F`. WebConfig **Scan I2C bus** reports idle SDA/SCL, found addresses, bound chips and probe codes (0 = ACK, 2 = NACK, 4 = timeout). That reply is on demand — it is not on the 250 ms status line.
 
 ### 9.4 Firmware updates
 
@@ -931,7 +928,7 @@ manually erased via WebConfig or serial command.
 | **Two modules answer at once** | Both are still at the default address 3. Disconnect one, set a unique address in WebConfig. |
 | **HR 481 reads 0** | Expected at 115200 — the raw value does not fit a 16-bit register. Not a fault. |
 | **Outputs not responding** | Check the LED PS supply and the output **+** group rail; then check TLC status in WebConfig live view. |
-| **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and run `i2c_scan` from WebConfig. |
+| **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and use **Scan I2C bus** in WebConfig (idle SDA/SCL should both read H; bound addresses should be `0x20–0x23`). |
 | **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **I** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
 | **Pressing a button does nothing** | Factory SW3 is none. SW1 All ON / SW2 All OFF skip heat channels. All ON/OFF/ramp/scene are blocked during failsafe or panic. |

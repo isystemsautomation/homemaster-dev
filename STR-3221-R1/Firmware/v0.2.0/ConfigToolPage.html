@@ -13,6 +13,7 @@
     .pwm-ch label{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
     .pwm-ch .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
     .ch-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    #i2c-diag{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;margin:12px 0 0;white-space:pre-wrap}
     .prof-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
     .prof-cell select,.prof-cell input{width:100%}
     .prof-cell select{margin-bottom:4px}
@@ -99,6 +100,19 @@
       </div>
     </section>
   </div>
+
+  <div class="sectiontitle">
+    <h3>I2C / TLC59208F</h3>
+    <p class="hint">On-demand bus scan — not on the 250&nbsp;ms status line. Typical U9–U12 are Arduino 7-bit <code>0x20–0x23</code> (TI datasheet 40h–46h). Probe codes: 0 = ACK, 2 = NACK address, 4 = timeout.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="btn-i2c-scan">Scan I2C bus</button>
+      </div>
+      <pre id="i2c-diag">Not scanned yet. Connect, then Scan.</pre>
+    </div>
+  </section>
 
   <div class="sectiontitle">
     <h3>Output Channels O1–O32 (0–255)</h3>
@@ -1240,6 +1254,53 @@
     }
 
     HMWebConfig.conn.on('heatStats', applyHeatStats);
+
+    function splitHexPairs(s){
+      const t = String(s || '');
+      const out = [];
+      for (let i = 0; i + 1 < t.length; i += 2)
+        out.push('0x' + t.slice(i, i + 2).toUpperCase());
+      return out.length ? out.join(' ') : '—';
+    }
+
+    function applyI2cDiag(msg){
+      const el = $('i2c-diag');
+      if (!el || !msg) return;
+      const ok = String(msg.ok || '----');
+      const chips = [0,1,2,3].map(i => 'U' + (9 + i) + '=' + (ok[i] === '1' ? 'OK' : 'fail')).join('  ');
+      const prb = String(msg.prb || '');
+      const probe = prb.length
+        ? prb.split('').map((c, i) => 'U' + (9 + i) + '=' + c).join('  ')
+        : '—';
+      el.textContent = [
+        'Bus: Wire1  SDA=GP' + (msg.sda ?? '—') + '  SCL=GP' + (msg.scl ?? '—') +
+          '  idle ' + (msg.idle || '??') + '  clock ' + (msg.clk ?? '?') + ' kHz',
+        'Found (' + (msg.n ?? 0) + '): ' + splitHexPairs(msg.found),
+        'Bound: ' + splitHexPairs(msg.bound) + '  ready=' + (msg.rdy ? 'yes' : 'no'),
+        'Chips: ' + chips,
+        'Probe (0=ACK, 2=NACK, 4=timeout): ' + probe,
+        'I2C errors: ' + (msg.err ?? 0),
+      ].join('\n');
+    }
+
+    HMWebConfig.conn.on('i2c', applyI2cDiag);
+    $('btn-i2c-scan')?.addEventListener('click', () => HMWebConfig.sendCommand('i2c_scan'));
+    HMWebConfig.conn.on('open', () => {
+      const el = $('i2c-diag');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.bottom > 0 && r.top < (window.innerHeight || 0)) HMWebConfig.sendCommand('i2c');
+    });
+
+    (function watchI2cCard(){
+      const card = $('i2c-diag')?.closest('section');
+      const ask = () => HMWebConfig.sendCommand('i2c');
+      if (!card || typeof IntersectionObserver !== 'function') return;
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) ask();
+      }, { threshold: 0.15 });
+      io.observe(card);
+    })();
 
     (function watchHeatingCard(){
       const card = $('heat-stats')?.closest('section');
