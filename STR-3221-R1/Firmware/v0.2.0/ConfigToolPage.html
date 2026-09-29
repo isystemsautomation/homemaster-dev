@@ -1323,12 +1323,12 @@
         const drv = i2cState.ok[i] === true;
         const known = i2cState.ok[i] !== null;
         let cls = 'warn';
-        let st = 'ожидание';
-        if (known && drv) { cls = 'ok'; st = 'на связи'; }
-        else if (known && onBus) { cls = 'warn'; st = 'на шине, драйвер не поднялся'; }
-        else if (known) { cls = 'bad'; st = 'нет ответа'; }
-        else if (onBus) { cls = 'warn'; st = 'найден на шине'; }
-        setChipPill(i, cls, known ? (drv ? 'OK' : 'нет') : '—');
+        let st = 'waiting';
+        if (known && drv) { cls = 'ok'; st = 'online'; }
+        else if (known && onBus) { cls = 'warn'; st = 'on bus, driver failed'; }
+        else if (known) { cls = 'bad'; st = 'no response'; }
+        else if (onBus) { cls = 'warn'; st = 'seen on bus'; }
+        setChipPill(i, cls, known ? (drv ? 'OK' : 'fail') : '—');
         return '<div class="i2c-chip ' + cls + '">' +
           '<div class="nm">' + s.name + '</div>' +
           '<div class="outs">' + s.outs + '</div>' +
@@ -1339,16 +1339,16 @@
       const extras = i2cState.found.filter(a => !expected.has(a)).map(hex2);
       const bits = [];
       if (i2cState.idle) {
-        const sda = i2cState.idle[0] === 'H' ? 'SDA в покое High' : 'SDA в покое Low (обрыв/КЗ)';
-        const scl = i2cState.idle[1] === 'H' ? 'SCL High' : 'SCL Low (обрыв/КЗ)';
+        const sda = i2cState.idle[0] === 'H' ? 'SDA idle High' : 'SDA idle Low (open/short)';
+        const scl = i2cState.idle[1] === 'H' ? 'SCL High' : 'SCL Low (open/short)';
         bits.push(sda + ', ' + scl);
       }
-      if (i2cState.clk) bits.push('такт ' + i2cState.clk + ' кГц');
-      if (i2cState.ready != null) bits.push(i2cState.ready ? 'модуль считает драйверы живыми' : 'ни один драйвер не инициализирован');
-      if (i2cState.err != null) bits.push('ошибок I2C: ' + i2cState.err);
-      if (extras.length) bits.push('ещё на шине (не U9–U12): ' + extras.join(' '));
+      if (i2cState.clk) bits.push('clock ' + i2cState.clk + ' kHz');
+      if (i2cState.ready != null) bits.push(i2cState.ready ? 'at least one driver initialised' : 'no driver initialised');
+      if (i2cState.err != null) bits.push('I2C errors: ' + i2cState.err);
+      if (extras.length) bits.push('also on the bus (not U9–U12): ' + extras.join(' '));
       const missing = TLC_SLOTS.filter(s => i2cState.found.length && !foundSet.has(s.addr)).map(s => s.name);
-      if (missing.length) bits.push('не ответили: ' + missing.join(', '));
+      if (missing.length) bits.push('no response: ' + missing.join(', '));
       const meta = $('i2c-meta');
       if (meta) meta.textContent = bits.length ? bits.join('. ') + '.' : 'Connect the module to see which drivers answer.';
       const errEl = $('i2cErrT');
