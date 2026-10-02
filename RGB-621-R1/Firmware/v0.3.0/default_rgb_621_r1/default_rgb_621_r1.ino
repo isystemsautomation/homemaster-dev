@@ -14,6 +14,7 @@
 #include <utility>
 #include <string.h>
 #include "hardware/watchdog.h"
+#include "hardware/clocks.h"
 #include "hm_input_engine.h"
 #include "hm_pwm_output.h"
 #include "hm_trace.h"
@@ -143,6 +144,35 @@ HmTraceRec  g_traceBuf[HM_TRACE_CAP];
 uint16_t    g_traceHead = 0;
 uint32_t    g_traceCount = 0;
 uint32_t    g_traceDropped = 0;
+
+// ---- Diagnostics: last accepted traffic and counters ----
+static uint32_t dbgMbWrites   = 0;   // master writes to HR
+static uint32_t dbgMbLastMs   = 0;
+static uint8_t  dbgMbLastCh   = 0;
+static uint16_t dbgMbLastApi  = 0;   // HR 400+ch at the write
+static uint16_t dbgMbLastHi   = 0;   // HR 410+ch
+static uint32_t dbgWebMsgs    = 0;   // WebConfig messages
+static uint32_t dbgWebLastMs  = 0;
+static String   dbgWebLastName = "";
+static String   dbgWebLastPayload = "";
+
+// What actually goes to analogWrite for channel ch. Repeats
+// pwmWriteHardware() with no side effects.
+static inline uint16_t dbgDutyOf(uint8_t ch) {
+  const uint16_t trimmed = pwmApplyTrim(ch, pwmCurrent[ch]);
+  return outQuality.gammaEnable ? g_gammaLut[trimmed] : trimmed;
+}
+
+// Actual channel frequency from PWM peripheral registers, not from
+// assumed core settings. div is 8.4: bits 11..4 integer, 3..0 fraction.
+static inline float dbgPwmHz(uint8_t ch) {
+  const uint8_t s   = pwm_gpio_to_slice_num(PWM_PINS[ch]);
+  const uint32_t top = pwm_hw->slice[s].top;
+  const uint32_t div = pwm_hw->slice[s].div;
+  const float divf = (float)((div >> 4) & 0xFF) + (float)(div & 0xF) / 16.0f;
+  if (divf <= 0.0f || top == 0) return 0.0f;
+  return (float)clock_get_hz(clk_sys) / (divf * (float)(top + 1u));
+}
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -639,6 +669,12 @@ bool initFilesystemAndConfig() {
 
 // ================== Command handler / reset ==================
 void handleCommand(JSONVar obj) {
+  dbgWebMsgs++; dbgWebLastMs = millis();
+  dbgWebLastName = "command";
+  dbgWebLastPayload = JSON.stringify(obj);
+  if (dbgWebLastPayload.length() > 96) dbgWebLastPayload = dbgWebLastPayload.substring(0, 96) + "…";
+  wsLog("RX WEB command " + dbgWebLastPayload);
+
   const char* actC = (const char*)obj["action"];
   if (!actC) { wsLog("command: missing 'action'"); return; }
   String act = String(actC); act.toLowerCase();
@@ -738,6 +774,12 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values) {
+  dbgWebMsgs++; dbgWebLastMs = millis();
+  dbgWebLastName = "values";
+  dbgWebLastPayload = JSON.stringify(values);
+  if (dbgWebLastPayload.length() > 96) dbgWebLastPayload = dbgWebLastPayload.substring(0, 96) + "…";
+  wsLog("RX WEB values " + dbgWebLastPayload);
+
   // Settings (flash) vs channel levels (not flash). Slider motion used to
   // set cfgDirty, so CFG_AUTOSAVE_MS later ran saveConfigFS(). A LittleFS
   // write stalls loop(), pwmServiceSlew() skips, fade freezes then jumps.
@@ -805,6 +847,10 @@ static void applyGestureObj(HmGestureBind& g, JSONVar o) {
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"]; JSONVar list = obj["list"]; if (!t) return;
   String type = String(t); bool changed = false;
+  dbgWebMsgs++; dbgWebLastMs = millis();
+  dbgWebLastName = "Config";
+  dbgWebLastPayload = "t=" + type;
+  wsLog("RX WEB Config t=" + type);
 
   if (type == "in.enabled" || type == "inputEnable") {
     for (int i = 0; i < NUM_IN_CH && i < list.length(); i++) inChCfg[i].enabled = (bool)list[i];
@@ -1357,6 +1403,8 @@ void applyPwmFromHoldingRegs() {
     if (api > 255) api = 255;
     pwmSetTargetHi((uint8_t)i, hi);
     hmTraceAdd(HMT_BULK, (uint8_t)i, api, hi, pwmTarget[i], 0);
+    wsLog("RX BULK ch=" + String(i) + " hr400=" + String(api) +
+          " hr410=" + String(hi) + " tgt=" + String(pwmTarget[i]));
     pwmLevel[i] = pwmTarget[i];
     mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
     mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
@@ -1435,6 +1483,15 @@ void loop() {
       // Write BEFORE apply: need prev values, otherwise the dump cannot show
       // what changed and who wrote it.
       hmTraceAdd(HMT_MB_DETECT, (uint8_t)i, v, vhi, prevPwm[i], prevPwmHi[i]);
+      dbgMbWrites++;
+      dbgMbLastMs  = now;
+      dbgMbLastCh  = (uint8_t)i;
+      dbgMbLastApi = v;
+      dbgMbLastHi  = vhi;
+      wsLog("RX MB ch=" + String(i) +
+            " hr400=" + String(v) + " hr410=" + String(vhi) +
+            " prev=" + String(prevPwm[i]) + "/" + String(prevPwmHi[i]) +
+            (apiChg ? " api" : "") + (hiChg ? " hi" : ""));
       applyPwmModbusChange((uint8_t)i, apiChg, hiChg);
       // Снимок берём ПОСЛЕ обратной записи, иначе следующая итерация примет
       // собственный writeback за новую внешнюю запись и применит всё заново.
@@ -1464,6 +1521,34 @@ void loop() {
   maybePersistOutputState(now);
 
   pwmServiceSlew(now);
+
+  // Hardware-channel history. Printed on any change of target, slew
+  // position or duty, at most once per 250 ms. Silent when everything is
+  // still. If LEDs blink and these lines are absent, firmware is not
+  // changing the values and the blink is happening outside it.
+  {
+    static uint32_t dbgLastMs = 0;
+    static uint16_t dbgT[NUM_PWM] = {0,0,0,0,0};
+    static uint16_t dbgC[NUM_PWM] = {0,0,0,0,0};
+    static uint16_t dbgD[NUM_PWM] = {0,0,0,0,0};
+    uint16_t d[NUM_PWM];
+    bool diff = false;
+    for (uint8_t i = 0; i < NUM_PWM; i++) {
+      d[i] = dbgDutyOf((uint8_t)i);
+      if (pwmTarget[i] != dbgT[i] || pwmCurrent[i] != dbgC[i] || d[i] != dbgD[i]) diff = true;
+    }
+    if (diff && (uint32_t)(now - dbgLastMs) >= 250u) {
+      dbgLastMs = now;
+      String s = "PWM tgt=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(pwmTarget[i]);  if (i < NUM_PWM-1) s += ","; }
+      s += " cur=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(pwmCurrent[i]); if (i < NUM_PWM-1) s += ","; }
+      s += " duty=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(d[i]);          if (i < NUM_PWM-1) s += ","; }
+      wsLog(s);
+      for (uint8_t i = 0; i < NUM_PWM; i++) { dbgT[i]=pwmTarget[i]; dbgC[i]=pwmCurrent[i]; dbgD[i]=d[i]; }
+    }
+  }
 
   // -------- Local input engine: DI1/2 + SW2 --------
   JSONVar inputs;
@@ -1549,6 +1634,38 @@ void loop() {
   syncCoilsFromState();
   updateInputRegisters(now);
 
+  // What the master will read from the module. Printed only on change,
+  // at most once per 250 ms.
+  {
+    static uint32_t dbgTxLastMs = 0;
+    static uint16_t prevHr[NUM_PWM*2] = {0};
+    static uint16_t prevIr[NUM_PWM+3] = {0};
+    uint16_t hr[NUM_PWM*2], ir[NUM_PWM+3];
+    bool diff = false;
+    for (uint8_t i = 0; i < NUM_PWM; i++) {
+      hr[i]          = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
+      hr[NUM_PWM+i]  = (uint16_t)mb.Hreg(HR_PWM_HI_BASE + i);
+      ir[i]          = (uint16_t)mb.Ireg(IREG_PWM_RAW_BASE + i);
+    }
+    for (uint8_t k = 0; k < 3; k++) ir[NUM_PWM+k] = (uint16_t)mb.Ireg(IREG_STATE_BASE + k);
+    for (uint8_t i = 0; i < NUM_PWM*2; i++) if (hr[i] != prevHr[i]) diff = true;
+    for (uint8_t i = 0; i < NUM_PWM+3; i++) if (ir[i] != prevIr[i]) diff = true;
+    if (diff && (uint32_t)(now - dbgTxLastMs) >= 250u) {
+      dbgTxLastMs = now;
+      String s = "TX MB hr400=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(hr[i]); if (i < NUM_PWM-1) s += ","; }
+      s += " hr410=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(hr[NUM_PWM+i]); if (i < NUM_PWM-1) s += ","; }
+      s += " ireg21=";
+      for (uint8_t i = 0; i < NUM_PWM; i++) { s += String(ir[i]); if (i < NUM_PWM-1) s += ","; }
+      s += " ireg26=";
+      for (uint8_t k = 0; k < 3; k++) { s += String(ir[NUM_PWM+k]); if (k < 2) s += ","; }
+      wsLog(s);
+      for (uint8_t i = 0; i < NUM_PWM*2;  i++) prevHr[i] = hr[i];
+      for (uint8_t i = 0; i < NUM_PWM+3;  i++) prevIr[i] = ir[i];
+    }
+  }
+
   // -------- WebSerial UI updates --------
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
@@ -1575,6 +1692,35 @@ void loop() {
         ext["pwmOut"][i] = (int)(outQuality.gammaEnable ? g_gammaLut[trimmed] : trimmed);
       }
       WebSerial.send("ext", ext);
+
+      JSONVar diag;
+      // Channel physics
+      for (int i = 0; i < NUM_PWM; i++) {
+        diag["duty"][i]  = (int)dbgDutyOf((uint8_t)i);
+        diag["hz"][i]    = (double)dbgPwmHz((uint8_t)i);
+        diag["slice"][i] = (int)pwm_gpio_to_slice_num(PWM_PINS[i]);
+        diag["gpio"][i]  = (int)PWM_PINS[i];
+      }
+      diag["top"] = (int)PWM_HI;
+      // Last Modbus write accepted
+      diag["mbIn"]["n"]     = (double)dbgMbWrites;
+      diag["mbIn"]["ch"]    = (int)dbgMbLastCh;
+      diag["mbIn"]["api"]   = (int)dbgMbLastApi;
+      diag["mbIn"]["hi"]    = (int)dbgMbLastHi;
+      diag["mbIn"]["agoMs"] = (double)(dbgMbWrites ? (millis() - dbgMbLastMs) : 0);
+      // What the module exposes to a Modbus master
+      for (int i = 0; i < NUM_PWM; i++) {
+        diag["hr400"][i] = (int)mb.Hreg(HR_PWM_BASE + i);
+        diag["hr410"][i] = (int)mb.Hreg(HR_PWM_HI_BASE + i);
+        diag["ireg21"][i] = (int)mb.Ireg(IREG_PWM_RAW_BASE + i);
+      }
+      for (int k = 0; k < 3; k++) diag["ireg26"][k] = (int)mb.Ireg(IREG_STATE_BASE + k);
+      // Last WebConfig message accepted
+      diag["webIn"]["n"]     = (double)dbgWebMsgs;
+      diag["webIn"]["name"]  = dbgWebLastName;
+      diag["webIn"]["p"]     = dbgWebLastPayload;
+      diag["webIn"]["agoMs"] = (double)(dbgWebMsgs ? (millis() - dbgWebLastMs) : 0);
+      WebSerial.send("diag", diag);
     }
   }
   mb.task();

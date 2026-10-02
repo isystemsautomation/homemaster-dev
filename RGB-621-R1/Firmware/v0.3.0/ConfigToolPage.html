@@ -31,6 +31,11 @@
       color:#6b7280;margin-top:4px;letter-spacing:-0.2px}
     .out-line.fading{color:#b45309}
     .out-line.dark{color:#b91c1c}
+    .diag-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+    .diag-h{font-weight:600;font-size:12px;color:#374151;margin-bottom:6px}
+    .diag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+      line-height:1.5;color:#111827;background:#f9fafb;border:1px solid #e5e7eb;
+      border-radius:8px;padding:10px;margin:0;overflow-x:auto;white-space:pre}
   </style>
 
   <header class="appbar">
@@ -155,6 +160,17 @@
       </div>
     </div>
   </section>
+
+  <div class="sectiontitle"><h3>Diagnostics</h3>
+    <p class="hint">Physical PWM, Modbus in/out, WebConfig in. Live.</p></div>
+  <section class="card"><div class="cardbody">
+    <div class="diag-grid">
+      <div><div class="diag-h">PWM — physical</div><pre class="diag" id="diag-pwm">—</pre></div>
+      <div><div class="diag-h">Modbus IN (master writes)</div><pre class="diag" id="diag-mbin">—</pre></div>
+      <div><div class="diag-h">Modbus OUT (master reads)</div><pre class="diag" id="diag-mbout">—</pre></div>
+      <div><div class="diag-h">WebConfig IN</div><pre class="diag" id="diag-webin">—</pre></div>
+    </div>
+  </div></section>
 
   <div class="sectiontitle"><h3>Wall-switch inputs (DI1, DI2)</h3><p class="hint">Momentary: gestures and hold-to-dim. Maintained: output follows contact (closed = ON, open = OFF).</p></div>
   <section class="card"><div class="cardbody"><div id="io-inputs"></div></div></section>
@@ -488,6 +504,49 @@
       if (!ext) return;
       applyOutFromExt(ext);
       if (ext.pwm) applyPwmFromExt(ext.pwm);
+    });
+    const DIAG_NAMES = ['R','G','B','WW','CW'];
+
+    HMWebConfig.conn.on('diag', d=>{
+      if (!d) return;
+      const A = x => HMWebConfig.toArray(x||[]);
+      const duty=A(d.duty), hz=A(d.hz), sl=A(d.slice), gp=A(d.gpio);
+      const top=Number(d.top||4095);
+
+      let s='ch  gpio sl   duty    %      Hz\n';
+      for (let i=0;i<NUM_PWM;i++){
+        const dv=Number(duty[i]||0);
+        s += DIAG_NAMES[i].padEnd(4)
+           + String(gp[i]??'').padEnd(5)
+           + String(sl[i]??'').padEnd(5)
+           + String(dv).padStart(5) + '  '
+           + (100*dv/top).toFixed(1).padStart(5) + '  '
+           + Number(hz[i]||0).toFixed(1).padStart(8) + '\n';
+      }
+      const pwmEl=document.getElementById('diag-pwm'); if (pwmEl) pwmEl.textContent = s;
+
+      const mi=d.mbIn||{};
+      const mbinEl=document.getElementById('diag-mbin');
+      if (mbinEl) mbinEl.textContent =
+        `writes : ${mi.n??0}\n` +
+        `last   : ch=${mi.ch??'-'} HR400=${mi.api??'-'} HR410=${mi.hi??'-'}\n` +
+        `ago    : ${((Number(mi.agoMs||0))/1000).toFixed(1)} s`;
+
+      const j = x => A(x).join(',');
+      const mboutEl=document.getElementById('diag-mbout');
+      if (mboutEl) mboutEl.textContent =
+        `HR 400-404 : ${j(d.hr400)}\n` +
+        `HR 410-414 : ${j(d.hr410)}\n` +
+        `IREG 21-25 : ${j(d.ireg21)}\n` +
+        `IREG 26-28 : ${j(d.ireg26)}`;
+
+      const wi=d.webIn||{};
+      const webinEl=document.getElementById('diag-webin');
+      if (webinEl) webinEl.textContent =
+        `messages : ${wi.n??0}\n` +
+        `last     : ${wi.name??'-'}\n` +
+        `payload  : ${wi.p??'-'}\n` +
+        `ago      : ${((Number(wi.agoMs||0))/1000).toFixed(1)} s`;
     });
     HMWebConfig.conn.on('cfg', cfg=>{ if(cfg) applyRgbCfg(null, cfg); });
 
