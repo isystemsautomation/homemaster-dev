@@ -684,13 +684,19 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values) {
-  bool changed = false;
+  // Settings (flash) vs channel levels (not flash). Slider motion used to
+  // set cfgDirty, so CFG_AUTOSAVE_MS later ran saveConfigFS(). A LittleFS
+  // write stalls loop(), pwmServiceSlew() skips, fade freezes then jumps.
+  // Transient slider positions also wore the flash. Persist-after-reboot
+  // for levels is maybePersistOutputState() on its own timer.
+  bool cfgChanged = false;
+  bool levelsChanged = false;
 
   if (values.hasOwnProperty("mb_address") || values.hasOwnProperty("mb_baud")) {
     int addr = values.hasOwnProperty("mb_address") ? (int)values["mb_address"] : (int)g_mb_address;
     int baud = values.hasOwnProperty("mb_baud")    ? (int)values["mb_baud"]    : (int)g_mb_baud;
     applyModbusSettings(hmValidAddress(addr), hmValidBaud(baud));
-    changed = true;
+    cfgChanged = true;
   }
 
   // Optionally accept direct PWM payloads: {"rgb":[r,g,b],"cct":[ww,cw]} (0..255)
@@ -704,7 +710,7 @@ void handleValues(JSONVar values) {
         mb.Hreg(HR_PWM_BASE + i, api);
         mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
       }
-      changed = true;
+      levelsChanged = true;
     }
   }
   if (values.hasOwnProperty("cct")) {
@@ -717,12 +723,18 @@ void handleValues(JSONVar values) {
         mb.Hreg(HR_PWM_BASE + 3 + j, api);
         mb.Hreg(HR_PWM_HI_BASE + 3 + j, pwmTarget[3 + j]);
       }
-      changed = true;
+      levelsChanged = true;
     }
   }
-  wsLog("Values updated");
-  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
-  sendWebStatus();
+  // Log only settings. On slider motion this was an extra outbound line per
+  // ~25 messages/s on the same CDC as status/io/ext.
+  if (cfgChanged) {
+    wsLog("Values updated");
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    sendWebStatus();
+  }
+  (void)levelsChanged;   // levels go to the browser on the periodic ext.pwm
 }
 
 // Contract t: in.*, relay, led, ext.pwmPowerOn, global (+ legacy aliases)
@@ -1333,6 +1345,20 @@ void loop() {
   updateLinkOkDetector(now);
   processModbusCoils(now);
 
+  // Drain WebConfig inbound every loop pass. SimpleWebSerial::check() handles
+  // exactly one message per call (its while exits on the first '\n'). When that
+  // call sat inside the 250 ms sendInterval block the module accepted 4
+  // messages/s while the page can send ~25 while a slider is dragged. The rest
+  // queued in the USB CDC buffer and replayed late — light kept walking after
+  // the slider was released, channels out of step.
+  //
+  // The guard caps messages per pass so a browser flood cannot starve Modbus
+  // and the input engine. Leftover is handled on the next pass (tens of
+  // microseconds, not 250 ms).
+  for (uint8_t wsGuard = 0; wsGuard < 8 && Serial.available() > 0; wsGuard++) {
+    WebSerial.check();
+  }
+
   // Monitor for external Modbus writes to PWM registers
   static uint16_t prevPwm[NUM_PWM] = {0,0,0,0,0};
   static uint16_t prevPwmHi[NUM_PWM] = {0,0,0,0,0};
@@ -1460,7 +1486,6 @@ void loop() {
   // -------- WebSerial UI updates --------
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
-    WebSerial.check();
     if (hmUsbCanSend()) {
       sendWebStatus();
 

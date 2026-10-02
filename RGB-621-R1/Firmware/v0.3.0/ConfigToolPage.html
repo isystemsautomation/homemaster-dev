@@ -272,6 +272,14 @@
     const PWM_NAMES = ['Red','Green','Blue','Warm White','Cool White'];
     const PWM_IDS = ['r','g','b','ww','cw'];
     let pwmSyncLock = false;
+    // Last manual change of any of the five sliders. Module echo (ext.pwm)
+    // lags by at least the 250 ms send period plus fade. While the user is
+    // working, that echo must not be written back: sendRGB()/sendCCT() read
+    // every channel in the group from the DOM, and stale echo would go out
+    // as a new command on the neighbouring channels.
+    let pwmUserTouchMs = 0;
+    const PWM_ECHO_HOLD_MS = 1500;
+    function markPwmUserTouch(){ pwmUserTouchMs = Date.now(); }
 
     const r=$('pwm-r'), g=$('pwm-g'), b=$('pwm-b'), ww=$('pwm-ww'), cw=$('pwm-cw');
     const vr=$('val-r'), vg=$('val-g'), vb=$('val-b'), vww=$('val-ww'), vcw=$('val-cw');
@@ -297,6 +305,10 @@
 
     function applyPwmFromExt(pwm){
       if(!pwm || pwmSyncLock) return;
+      // activeElement is not enough: only one slider has focus, echo used
+      // to overwrite the other four, and they went back to the module on
+      // the next step of the focused slider.
+      if((Date.now() - pwmUserTouchMs) < PWM_ECHO_HOLD_MS) return;
       pwmSyncLock=true;
       const arr=HMWebConfig.toArray(pwm);
       const sliders=[r,g,b,ww,cw], vals=[vr,vg,vb,vww,vcw];
@@ -685,17 +697,21 @@
     function sendCCT(){ const cct=readCCT(); vww.textContent=cct[0]; vcw.textContent=cct[1]; updatePreview(); HMWebConfig.conn.send('values',{ cct }); }
     let tRGB=null,tCCT=null;
     function debounce(fn,ms,tag){ return (...a)=>{ clearTimeout(tag==='rgb'?tRGB:tCCT); const id=setTimeout(()=>fn(...a),ms); if(tag==='rgb') tRGB=id; else tCCT=id; }; }
-    r.addEventListener('input', debounce(sendRGB,40,'rgb'));
-    g.addEventListener('input', debounce(sendRGB,40,'rgb'));
-    b.addEventListener('input', debounce(sendRGB,40,'rgb'));
-    ww.addEventListener('input', debounce(sendCCT,40,'cct'));
-    cw.addEventListener('input', debounce(sendCCT,40,'cct'));
+    const sendRGBd = debounce(sendRGB,40,'rgb');
+    const sendCCTd = debounce(sendCCT,40,'cct');
+    // markPwmUserTouch() runs immediately, before debounce: the hold window
+    // must open on the first movement, not 40 ms later.
+    r.addEventListener('input', ()=>{ markPwmUserTouch(); sendRGBd(); });
+    g.addEventListener('input', ()=>{ markPwmUserTouch(); sendRGBd(); });
+    b.addEventListener('input', ()=>{ markPwmUserTouch(); sendRGBd(); });
+    ww.addEventListener('input', ()=>{ markPwmUserTouch(); sendCCTd(); });
+    cw.addEventListener('input', ()=>{ markPwmUserTouch(); sendCCTd(); });
 
     function setActivePreset(id){ ['btn-off','btn-white','btn-red','btn-full'].forEach(x=>{ const el=$(x); if(el) el.classList.toggle('btn-seg-active', x===id); }); }
-    $('btn-off')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=ww.value=cw.value=0; vr.textContent=vg.textContent=vb.textContent=vww.textContent=vcw.textContent='0'; updatePreview(); setActivePreset('btn-off'); await HMWebConfig.sendCommand('off'); });
-    $('btn-white')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=0; ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-white'); });
-    $('btn-red')?.addEventListener('click', async ()=>{ r.value=255; g.value=128; b.value=64; ww.value=64; cw.value=32; await sendRGB(); await sendCCT(); setActivePreset('btn-red'); });
-    $('btn-full')?.addEventListener('click', async ()=>{ r.value=g.value=b.value=ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-full'); });
+    $('btn-off')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=g.value=b.value=ww.value=cw.value=0; vr.textContent=vg.textContent=vb.textContent=vww.textContent=vcw.textContent='0'; updatePreview(); setActivePreset('btn-off'); await HMWebConfig.sendCommand('off'); });
+    $('btn-white')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=g.value=b.value=0; ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-white'); });
+    $('btn-red')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=255; g.value=128; b.value=64; ww.value=64; cw.value=32; await sendRGB(); await sendCCT(); setActivePreset('btn-red'); });
+    $('btn-full')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=g.value=b.value=ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-full'); });
   })();
   </script>
 </section>
