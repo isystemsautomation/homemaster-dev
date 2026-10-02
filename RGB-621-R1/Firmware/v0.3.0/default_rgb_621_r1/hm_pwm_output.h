@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <math.h>
 #include "hardware/pwm.h"
+#include "hm_trace.h"
 
 #ifndef RGB_NUM_PWM
 #define RGB_NUM_PWM 5
@@ -87,6 +88,21 @@ inline void pwmWriteHardware(uint8_t ch, uint16_t perceived) {
   const uint16_t trimmed = pwmApplyTrim(ch, perceived);
   const uint16_t out = outQuality.gammaEnable ? g_gammaLut[trimmed] : trimmed;
   analogWrite(PWM_PINS[ch], out);
+
+  // Actual duty. Called every slew step, so throttle: write on change, at
+  // most once per 20 ms per channel, but always write the settle point so
+  // the dump shows where the channel stopped.
+  if (g_traceOn) {
+    static uint16_t lastOut[NUM_PWM] = {0};
+    static uint32_t lastT[NUM_PWM]   = {0};
+    const uint32_t now = millis();
+    const bool settled = (perceived == pwmTarget[ch]);
+    if (out != lastOut[ch] && (settled || (uint32_t)(now - lastT[ch]) >= 20u)) {
+      lastOut[ch] = out;
+      lastT[ch]   = now;
+      hmTraceAdd(HMT_DUTY, ch, perceived, trimmed, out, settled ? 1 : 0);
+    }
+  }
 }
 
 inline void pwmSetTargetHi(uint8_t ch, uint16_t perceivedHi) {

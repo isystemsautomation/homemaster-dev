@@ -27,6 +27,10 @@
     .input-mode-card .split-gest>div{min-width:0}
     .input-mode-card .split-gest select{width:100%;max-width:100%}
     @media(max-width:640px){.input-mode-card .split-gest{grid-template-columns:1fr}}
+    .out-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+      color:#6b7280;margin-top:4px;letter-spacing:-0.2px}
+    .out-line.fading{color:#b45309}
+    .out-line.dark{color:#b91c1c}
   </style>
 
   <header class="appbar">
@@ -101,6 +105,26 @@
     </section>
   </div>
 
+  <section class="card" id="hm-fw-trace" hidden>
+    <div class="cardheader">
+      <div>
+        <h2>PWM trace</h2>
+        <div class="sub">Page TX plus firmware ring buffer. Record, then dump. Dump pauses Modbus for a fraction of a second — not for a live plant.</div>
+      </div>
+    </div>
+    <div class="cardbody">
+      <div class="light-actions">
+        <button type="button" class="btn" id="btn-fw-trace-on">FW trace ON</button>
+        <button type="button" class="btn" id="btn-fw-trace-off">FW trace OFF</button>
+        <button type="button" class="btn" id="btn-fw-dump">FW dump</button>
+        <button type="button" class="btn" id="btn-fw-copy" disabled>Copy FW trace</button>
+      </div>
+      <p class="hint" id="fw-trace-status">Idle.</p>
+      <pre id="fw-trace-browser" style="max-height:140px;overflow:auto;font-size:12px;margin:8px 0 0;white-space:pre-wrap"></pre>
+      <textarea id="fw-trace-text" readonly hidden style="width:100%;min-height:160px;margin-top:8px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+    </div>
+  </section>
+
   <div class="sectiontitle">
     <h3>Light Levels (0–255)</h3>
     <p class="hint">Adjust RGB and CCT output levels in real time.</p>
@@ -108,11 +132,16 @@
   <section class="card">
     <div class="cardbody">
       <div class="iogroup cols3">
-        <div><label>Red <span id="val-r">0</span><input id="pwm-r" class="light-slider light-slider--red" type="range" min="0" max="255" value="0"></label></div>
-        <div><label>Green <span id="val-g">0</span><input id="pwm-g" class="light-slider light-slider--green" type="range" min="0" max="255" value="0"></label></div>
-        <div><label>Blue <span id="val-b">0</span><input id="pwm-b" class="light-slider light-slider--blue" type="range" min="0" max="255" value="0"></label></div>
-        <div><label>Warm White <span id="val-ww">0</span><input id="pwm-ww" class="light-slider light-slider--warm" type="range" min="0" max="255" value="0"></label></div>
-        <div><label>Cool White <span id="val-cw">0</span><input id="pwm-cw" class="light-slider light-slider--cool" type="range" min="0" max="255" value="0"></label></div>
+        <div><label>Red <span id="val-r">0</span><input id="pwm-r" class="light-slider light-slider--red" type="range" min="0" max="255" value="0"></label>
+          <div class="out-line" id="out-r">—</div></div>
+        <div><label>Green <span id="val-g">0</span><input id="pwm-g" class="light-slider light-slider--green" type="range" min="0" max="255" value="0"></label>
+          <div class="out-line" id="out-g">—</div></div>
+        <div><label>Blue <span id="val-b">0</span><input id="pwm-b" class="light-slider light-slider--blue" type="range" min="0" max="255" value="0"></label>
+          <div class="out-line" id="out-b">—</div></div>
+        <div><label>Warm White <span id="val-ww">0</span><input id="pwm-ww" class="light-slider light-slider--warm" type="range" min="0" max="255" value="0"></label>
+          <div class="out-line" id="out-ww">—</div></div>
+        <div><label>Cool White <span id="val-cw">0</span><input id="pwm-cw" class="light-slider light-slider--cool" type="range" min="0" max="255" value="0"></label>
+          <div class="out-line" id="out-cw">—</div></div>
       </div>
       <div id="light-preview"></div>
       <div class="light-actions">
@@ -161,6 +190,7 @@
   <script>
   (function(){
     const $ = id => document.getElementById(id);
+    const TRACE_QS = new URLSearchParams(location.search).get('trace') === '1';
     const NUM_IN_CH = 2, NUM_RLY = 1, NUM_BTN = 1, NUM_LED = 2, NUM_PWM = 5, NUM_SCENES = 4;
     const ACT_DI_CORE = [
       {v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'On'},{v:3,l:'Off'},
@@ -420,7 +450,45 @@
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
     HMWebConfig.mountTools('hm-tools', { identify: true });
-    HMWebConfig.conn.on('ext', ext=>{ if(ext&&ext.pwm) applyPwmFromExt(ext.pwm); });
+    const OUT_IDS = ['out-r','out-g','out-b','out-ww','out-cw'];
+
+    // Actual output state. Always updated, including while the operator is
+    // holding a slider: the slider shows the setpoint, this line shows what
+    // is really on the channel.
+    function applyOutFromExt(ext){
+      if (ext.pwmTgtHi == null || ext.pwmOut == null) {
+        for (let i = 0; i < NUM_PWM; i++) {
+          const el = document.getElementById(OUT_IDS[i]); if (!el) continue;
+          el.textContent = '—';
+          el.classList.remove('fading', 'dark');
+        }
+        return;
+      }
+      const tgt = HMWebConfig.toArray(ext.pwmTgtHi || []);
+      const cur = HMWebConfig.toArray(ext.pwmRaw   || []);
+      const out = HMWebConfig.toArray(ext.pwmOut   || []);
+      for (let i = 0; i < NUM_PWM; i++) {
+        const el = document.getElementById(OUT_IDS[i]); if (!el) continue;
+        const t = Number(tgt[i] ?? 0), c = Number(cur[i] ?? 0), o = Number(out[i] ?? 0);
+        if (!Number.isFinite(t) || !Number.isFinite(c) || !Number.isFinite(o)) {
+          el.textContent = '—';
+          el.classList.remove('fading', 'dark');
+          continue;
+        }
+        el.textContent = `tgt ${t} · cur ${c} · duty ${o}`;
+        // Channel still slewing toward the target.
+        el.classList.toggle('fading', c !== t);
+        // Target non-zero, duty zero: channel is "on" but physically dark
+        // (trim and gamma ate the bottom of the scale).
+        el.classList.toggle('dark', t > 0 && o === 0);
+      }
+    }
+
+    HMWebConfig.conn.on('ext', ext=>{
+      if (!ext) return;
+      applyOutFromExt(ext);
+      if (ext.pwm) applyPwmFromExt(ext.pwm);
+    });
     HMWebConfig.conn.on('cfg', cfg=>{ if(cfg) applyRgbCfg(null, cfg); });
 
     (function buildTiming(){
@@ -693,8 +761,15 @@
 
     function readRGB(){ return [Number(r.value||0), Number(g.value||0), Number(b.value||0)]; }
     function readCCT(){ return [Number(ww.value||0), Number(cw.value||0)]; }
-    function sendRGB(){ const rgb=readRGB(); vr.textContent=rgb[0]; vg.textContent=rgb[1]; vb.textContent=rgb[2]; updatePreview(); HMWebConfig.conn.send('values',{ rgb }); }
-    function sendCCT(){ const cct=readCCT(); vww.textContent=cct[0]; vcw.textContent=cct[1]; updatePreview(); HMWebConfig.conn.send('values',{ cct }); }
+    function notePageTx(kind, payload){
+      if (!TRACE_QS) return;
+      const el = $('fw-trace-browser');
+      if (!el) return;
+      el.textContent += Date.now() + ',tx,' + kind + ',' + JSON.stringify(payload) + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+    function sendRGB(){ const rgb=readRGB(); vr.textContent=rgb[0]; vg.textContent=rgb[1]; vb.textContent=rgb[2]; updatePreview(); notePageTx('rgb', rgb); HMWebConfig.conn.send('values',{ rgb }); }
+    function sendCCT(){ const cct=readCCT(); vww.textContent=cct[0]; vcw.textContent=cct[1]; updatePreview(); notePageTx('cct', cct); HMWebConfig.conn.send('values',{ cct }); }
     let tRGB=null,tCCT=null;
     function debounce(fn,ms,tag){ return (...a)=>{ clearTimeout(tag==='rgb'?tRGB:tCCT); const id=setTimeout(()=>fn(...a),ms); if(tag==='rgb') tRGB=id; else tCCT=id; }; }
     const sendRGBd = debounce(sendRGB,40,'rgb');
@@ -712,6 +787,84 @@
     $('btn-white')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=g.value=b.value=0; ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-white'); });
     $('btn-red')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=255; g.value=128; b.value=64; ww.value=64; cw.value=32; await sendRGB(); await sendCCT(); setActivePreset('btn-red'); });
     $('btn-full')?.addEventListener('click', async ()=>{ markPwmUserTouch(); r.value=g.value=b.value=ww.value=cw.value=255; await sendRGB(); await sendCCT(); setActivePreset('btn-full'); });
+
+    (function mountFwTrace(){
+      if (!TRACE_QS) return;
+      const card = $('hm-fw-trace');
+      if (!card) return;
+      card.hidden = false;
+      const statusEl = $('fw-trace-status');
+      const copyBtn = $('btn-fw-copy');
+      const ta = $('fw-trace-text');
+      const lines = [];
+      let headMeta = null;
+
+      function setStatus(msg){ if (statusEl) statusEl.textContent = msg; }
+
+      function asLines(payload){
+        if (Array.isArray(payload)) return payload.map(String);
+        if (payload && typeof payload === 'object') {
+          return Object.keys(payload).sort((a,b)=>(+a)-(+b)).map(k => String(payload[k]));
+        }
+        if (payload != null && payload !== '') return [String(payload)];
+        return [];
+      }
+      function dumpText(){
+        const meta = headMeta
+          ? `# cap=${headMeta.cap} count=${headMeta.count} dropped=${headMeta.dropped} now=${headMeta.now}`
+          : '# (no traceHead)';
+        return ['t,src,ch,a,b,c,d', meta].concat(lines).join('\n');
+      }
+
+      $('btn-fw-trace-on')?.addEventListener('click', ()=>{
+        lines.length = 0; headMeta = null;
+        if (copyBtn) copyBtn.disabled = true;
+        if (ta) { ta.hidden = true; ta.value = ''; }
+        setStatus('Firmware trace ON. Move one slider, wait, then OFF and dump.');
+        HMWebConfig.sendCommand('trace_on');
+      });
+      $('btn-fw-trace-off')?.addEventListener('click', ()=>{
+        setStatus('Firmware trace OFF.');
+        HMWebConfig.sendCommand('trace_off');
+      });
+      $('btn-fw-dump')?.addEventListener('click', ()=>{
+        lines.length = 0; headMeta = null;
+        if (copyBtn) copyBtn.disabled = true;
+        setStatus('Dumping…');
+        HMWebConfig.sendCommand('trace_dump');
+      });
+      copyBtn?.addEventListener('click', async ()=>{
+        const text = dumpText();
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            setStatus('Copied ' + lines.length + ' records.');
+            return;
+          }
+        } catch (e) { /* fall through to textarea */ }
+        if (ta) { ta.hidden = false; ta.value = text; ta.focus(); ta.select(); }
+        setStatus('Clipboard unavailable — copy from the box below.');
+      });
+
+      HMWebConfig.conn.on('traceHead', head=>{
+        headMeta = {
+          cap: head?.cap ?? '',
+          count: head?.count ?? '',
+          dropped: head?.dropped ?? '',
+          now: head?.now ?? ''
+        };
+        setStatus('Dump header: count=' + headMeta.count + ' dropped=' + headMeta.dropped);
+      });
+      HMWebConfig.conn.on('trace', chunk=>{
+        const got = asLines(chunk);
+        for (const row of got) lines.push(row);
+        setStatus('Dumping… ' + lines.length + ' records');
+      });
+      HMWebConfig.conn.on('traceEnd', ()=>{
+        setStatus('dump complete, ' + lines.length + ' records');
+        if (copyBtn) copyBtn.disabled = false;
+      });
+    })();
   })();
   </script>
 </section>

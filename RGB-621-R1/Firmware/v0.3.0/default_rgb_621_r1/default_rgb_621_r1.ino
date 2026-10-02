@@ -16,6 +16,7 @@
 #include "hardware/watchdog.h"
 #include "hm_input_engine.h"
 #include "hm_pwm_output.h"
+#include "hm_trace.h"
 
 // Arduino IDE inserts function prototypes before struct definitions — forward-declare persist types.
 struct PersistConfig;
@@ -136,6 +137,12 @@ SimpleWebSerial WebSerial;
 
 static inline void wsLog(const char* msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
 static inline void wsLog(const String& msg) { if (hmUsbCanSend()) WebSerial.send("log", msg); }
+
+bool        g_traceOn = false;
+HmTraceRec  g_traceBuf[HM_TRACE_CAP];
+uint16_t    g_traceHead = 0;
+uint32_t    g_traceCount = 0;
+uint32_t    g_traceDropped = 0;
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
@@ -290,6 +297,7 @@ void applyPowerOnOutputs() {
     } else pwmSetTargetHi((uint8_t)i, 0);
     pwmCurrent[i] = pwmTarget[i];
     pwmLevel[i] = pwmTarget[i];
+    hmTraceAdd(HMT_POWERON, (uint8_t)i, pwmChCfg[i].powerOn, pwmTarget[i], 0, 0);
     pwmWriteHardware((uint8_t)i, pwmCurrent[i]);
     slewLastMs[i] = millis();
   }
@@ -496,6 +504,7 @@ void serviceRelayFollow(uint32_t now);
 void applyPwmFromHoldingRegs();
 void syncPwmHregsFromTargets();
 void writePwmCh(uint8_t ch, uint16_t lvlHi);
+void sendTraceDump();
 
 // ================== Setup ==================
 void setup() {
@@ -663,9 +672,54 @@ void handleCommand(JSONVar obj) {
   } else if (act == "off") {
     for (int i = 0; i < NUM_PWM; i++) writePwmCh((uint8_t)i, 0);
     wsLog("All PWM channels set to 0");
+  } else if (act == "trace_on") {
+    hmTraceReset();
+    g_traceOn = true;
+    wsLog("trace on");
+  } else if (act == "trace_off") {
+    g_traceOn = false;
+    wsLog("trace off");
+  } else if (act == "trace_dump") {
+    sendTraceDump();
   } else {
     wsLog(String("Unknown command: ") + actC);
   }
+}
+
+void sendTraceDump() {
+  if (!hmUsbCanSend()) return;
+  wsLog("trace dump: bus paused");
+
+  JSONVar head;
+  head["cap"]     = (int)HM_TRACE_CAP;
+  head["count"]   = (int)g_traceCount;
+  head["dropped"] = (int)g_traceDropped;
+  head["now"]     = (int)millis();
+  WebSerial.send("traceHead", head);
+
+  const uint32_t total = (g_traceCount < HM_TRACE_CAP) ? g_traceCount : HM_TRACE_CAP;
+  const uint16_t start = (g_traceCount < HM_TRACE_CAP)
+                         ? 0
+                         : g_traceHead;   // ring wrapped: oldest record is at the head
+
+  uint32_t k = 0;
+  while (k < total) {
+    JSONVar chunk;
+    int n = 0;
+    while (k < total && n < 20) {
+      const HmTraceRec& r = g_traceBuf[(start + k) % HM_TRACE_CAP];
+      char line[64];
+      snprintf(line, sizeof(line), "%lu,%u,%u,%u,%u,%u,%u",
+               (unsigned long)r.t, (unsigned)r.src, (unsigned)r.ch,
+               (unsigned)r.a, (unsigned)r.b, (unsigned)r.c, (unsigned)r.d);
+      chunk[n++] = line;
+      k++;
+    }
+    WebSerial.send("trace", chunk);
+    hmWatchdogFeed();
+    if (k < total) delay(5);   // let the host chew the frame
+  }
+  WebSerial.send("traceEnd", JSONVar(1));
 }
 
 void performReset() {
@@ -709,6 +763,7 @@ void handleValues(JSONVar values) {
         pwmLevel[i] = pwmTarget[i];
         mb.Hreg(HR_PWM_BASE + i, api);
         mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
+        hmTraceAdd(HMT_WEBCFG_RGB, (uint8_t)i, api, pwmTarget[i], pwmCurrent[i], 0);
       }
       levelsChanged = true;
     }
@@ -722,6 +777,7 @@ void handleValues(JSONVar values) {
         pwmLevel[3 + j] = pwmTarget[3 + j];
         mb.Hreg(HR_PWM_BASE + 3 + j, api);
         mb.Hreg(HR_PWM_HI_BASE + 3 + j, pwmTarget[3 + j]);
+        hmTraceAdd(HMT_WEBCFG_CCT, (uint8_t)(3 + j), api, pwmTarget[3 + j], pwmCurrent[3 + j], 0);
       }
       levelsChanged = true;
     }
@@ -970,6 +1026,7 @@ void syncPwmHregsFromTargets() {
 void writePwmCh(uint8_t ch, uint16_t lvlHi) {
   if (ch >= NUM_PWM) return;
   pwmSetTargetHi(ch, lvlHi);
+  hmTraceAdd(HMT_WRITE_CH, ch, lvlHi, pwmTarget[ch], 0, 0);
   pwmLevel[ch] = pwmTarget[ch];
   mb.Hreg(HR_PWM_BASE + ch, pwmHiToApi(pwmTarget[ch]));
   mb.Hreg(HR_PWM_HI_BASE + ch, pwmTarget[ch]);
@@ -1016,6 +1073,7 @@ static void holdDimArmChannel(uint8_t ch, uint16_t targetHi) {
   pwmSetTargetHi(ch, targetHi);
   slewLastMs[ch] = millis();
   pwmLevel[ch] = pwmTarget[ch];
+  hmTraceAdd(HMT_HOLD_ARM, ch, targetHi, pwmTarget[ch], pwmHoldTraverseMs[ch], 0);
 }
 
 static void beginGroupHoldDim(uint8_t ch0, uint8_t count, bool dimDown) {
@@ -1082,6 +1140,7 @@ void hmHoldDimEnd(uint8_t physIdx, uint32_t now) {
   for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
     if (!(holdDimChMask & (1u << ch))) continue;
     pwmTarget[ch] = pwmCurrent[ch];
+    hmTraceAdd(HMT_HOLD_END, ch, pwmCurrent[ch], pwmTarget[ch], 0, 0);
     pwmLevel[ch] = pwmTarget[ch];
     if (pwmTarget[ch] > 0) pwmLastNonZero[ch] = pwmTarget[ch];
     pwmHoldTraverseMs[ch] = 0;
@@ -1297,6 +1356,7 @@ void applyPwmFromHoldingRegs() {
     uint16_t api = (uint16_t)mb.Hreg(HR_PWM_BASE + i);
     if (api > 255) api = 255;
     pwmSetTargetHi((uint8_t)i, hi);
+    hmTraceAdd(HMT_BULK, (uint8_t)i, api, hi, pwmTarget[i], 0);
     pwmLevel[i] = pwmTarget[i];
     mb.Hreg(HR_PWM_BASE + i, pwmHiToApi(pwmTarget[i]));
     mb.Hreg(HR_PWM_HI_BASE + i, pwmTarget[i]);
@@ -1305,16 +1365,19 @@ void applyPwmFromHoldingRegs() {
 
 static void applyPwmModbusChange(uint8_t ch, bool apiChanged, bool hiChanged) {
   if (ch >= NUM_PWM) return;
+  const uint16_t a = (uint16_t)mb.Hreg(HR_PWM_BASE + ch);
+  const uint16_t b = (uint16_t)mb.Hreg(HR_PWM_HI_BASE + ch);
   if (hiChanged) {
-    uint16_t hi = (uint16_t)mb.Hreg(HR_PWM_HI_BASE + ch);
+    uint16_t hi = b;
     if (hi > PWM_HI) hi = PWM_HI;
     pwmSetTargetHi(ch, hi);
   } else if (apiChanged) {
-    uint16_t api = (uint16_t)mb.Hreg(HR_PWM_BASE + ch);
+    uint16_t api = a;
     if (api > 255) api = 255;
     pwmSetTargetApi(ch, api);
   }
   pwmLevel[ch] = pwmTarget[ch];
+  hmTraceAdd(HMT_MB_APPLY, ch, a, b, pwmTarget[ch], hiChanged ? 1 : 0);
   mb.Hreg(HR_PWM_BASE + ch, pwmHiToApi(pwmTarget[ch]));
   mb.Hreg(HR_PWM_HI_BASE + ch, pwmTarget[ch]);
 }
@@ -1369,6 +1432,9 @@ void loop() {
     bool apiChg = (v != prevPwm[i]);
     bool hiChg = (vhi != prevPwmHi[i]);
     if (apiChg || hiChg) {
+      // Write BEFORE apply: need prev values, otherwise the dump cannot show
+      // what changed and who wrote it.
+      hmTraceAdd(HMT_MB_DETECT, (uint8_t)i, v, vhi, prevPwm[i], prevPwmHi[i]);
       applyPwmModbusChange((uint8_t)i, apiChg, hiChg);
       // Снимок берём ПОСЛЕ обратной записи, иначе следующая итерация примет
       // собственный writeback за новую внешнюю запись и применит всё заново.
@@ -1499,6 +1565,15 @@ void loop() {
       JSONVar ext;
       for (int i = 0; i < NUM_PWM; i++) ext["pwm"][i] = (int)pwmHiToApi(pwmTarget[i]);
       for (int i = 0; i < NUM_PWM; i++) ext["pwmRaw"][i] = (int)pwmCurrent[i];
+      // Actual output state, 12-bit:
+      //   pwmTgtHi — target after trim
+      //   pwmOut   — what goes to analogWrite (after trim and gamma)
+      // Repeats pwmWriteHardware() with no side effects.
+      for (int i = 0; i < NUM_PWM; i++) ext["pwmTgtHi"][i] = (int)pwmTarget[i];
+      for (int i = 0; i < NUM_PWM; i++) {
+        const uint16_t trimmed = pwmApplyTrim((uint8_t)i, pwmCurrent[i]);
+        ext["pwmOut"][i] = (int)(outQuality.gammaEnable ? g_gammaLut[trimmed] : trimmed);
+      }
       WebSerial.send("ext", ext);
     }
   }
