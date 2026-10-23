@@ -173,7 +173,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 </div>
 
-> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4 Nm max).
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4–0.6 Nm).
 
 ### 4.2 Connectors & terminal map
 

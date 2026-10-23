@@ -4,7 +4,7 @@ Storage,"MicroSD card (SPI interface, power-switched 3.3 V rail)"
 Power Input,"24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N)"
 RTC,"RTC (PCF8563); backup battery holder, battery not fitted"
 Document revision,DS-MiniPLC Rev. B · 2026-09 · Hardware V1.0
-Digital Inputs,"4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering"
+Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering"
 Relay outputs,6 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
 Analog Inputs,"4 × 0–10 V, 16-bit (ADS1115)"
 Analog Outputs,"1 × 0–10 V, 12-bit (MCP4725)"

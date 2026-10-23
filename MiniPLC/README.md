@@ -80,7 +80,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 ## Features
 
 - ESP32-WROOM-32U-N16 (dual-core, 16 MB flash, Wi-Fi + Bluetooth, external antenna)
-- 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
+- 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), not galvanically isolated; PTC fuse, TVS surge and reverse-polarity protection; per-channel EMI filtering
 - 6 × SPDT mechanical relay outputs with NO / NC / COM terminals. System limit **3 A @ 250 VAC** (resistive) per channel — the board/system rating governs.
 - Relay contacts: 275 V rms metal-oxide varistor across each contact pair. Not suitable for the elevated open-contact voltage of directly connected capacitor motors — see [Electrical and Safety Notes](#electrical-and-safety-notes).
 - 4 × analog inputs 0–10 V (ADS1115, 16-bit) with op-amp buffer and scaling network
@@ -155,7 +155,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 | Power Input | 24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N) |
 | RTC | RTC (PCF8563); backup battery holder, battery not fitted |
 | Document revision | DS-MiniPLC Rev. B · 2026-09 · Hardware V1.0 |
-| Digital Inputs | 4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
 | Relay outputs | 6 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
 | Analog Inputs | 4 × 0–10 V, 16-bit (ADS1115) |
 | Analog Outputs | 1 × 0–10 V, 12-bit (MCP4725) |
@@ -203,7 +203,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 
 - Terminal type: pluggable screw terminal blocks, 5.08 mm pitch.
 - Wire cross-section: 0.2–2.5 mm² (AWG 24–12), solid or stranded copper.
-- Use ferrules for stranded wire. Tightening torque: 0.4 Nm maximum.
+- Use ferrules for stranded wire. Tightening torque: 0.4–0.6 Nm.
 - All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
 
 ## Cable Recommendations & Shield Grounding
@@ -496,10 +496,10 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 
 | GPIO | Function | User-configurable |
 |---|---|---|
-| GPIO36 | Digital Input #1 (24 V DC, isolated) | No — reserved |
-| GPIO39 | Digital Input #2 (24 V DC, isolated) | No — reserved |
-| GPIO34 | Digital Input #3 (24 V DC, isolated) | No — reserved |
-| GPIO35 | Digital Input #4 (24 V DC, isolated) | No — reserved |
+| GPIO36 | Digital Input #1 (24 V DC, ISO1212, not galvanically isolated) | No — reserved |
+| GPIO39 | Digital Input #2 (24 V DC, ISO1212, not galvanically isolated) | No — reserved |
+| GPIO34 | Digital Input #3 (24 V DC, ISO1212, not galvanically isolated) | No — reserved |
+| GPIO35 | Digital Input #4 (24 V DC, ISO1212, not galvanically isolated) | No — reserved |
 | GPIO32 | I²C SDA — OLED, RTC, ADC, DAC, PCF8574 | No — reserved |
 | GPIO33 | I²C SCL — OLED, RTC, ADC, DAC, PCF8574 | No — reserved |
 | GPIO17 | RS-485 UART TX | No — reserved |

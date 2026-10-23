@@ -17,7 +17,7 @@ The **DIO-430-R1** is a digital I/O module whose **standalone local logic** — 
 
 **Key capabilities at a glance:**
 
-- **4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end)** — dry-contact (module-wetted); PTC fuse, TVS surge and reverse-polarity protection; per-input Maintained/Momentary logic
+- **4 IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end)** — dry-contact (module-wetted), not galvanically isolated; PTC fuse, TVS surge and reverse-polarity protection; per-input Maintained/Momentary logic
 - **3 SPDT relays** — 3 A @ 250 VAC (resistive) dry contacts (NO/NC/COM); use interposing contactors for loads above 3 A
 - **3 buttons (2 user-configurable).** Button 1 and Button 2 are configurable in WebConfig (short/long-press actions). The third button has no software function — it is used only as part of the on-board key combination for USB firmware-update (BOOTSEL) and reset.
 - **3 configurable user LEDs** — Steady/Blink; multiple sources (Link, HA, relay, etc.)
@@ -44,7 +44,7 @@ Relays can be switched from **any** source — wired inputs, front buttons, or H
 
 | Area | Detail |
 |------|--------|
-| **Isolation** | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected; opto-isolated relay drivers |
+| **Input front-end & protection** | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected; opto-isolated relay drivers |
 | **Configurable I/O** | Per-input Enable/Invert/**Type** (Maintained or Momentary). **Maintained** → mode Toggle/Follow + target relay. **Momentary** → Short/Long actions {None, Toggle, On, Off} + target (R1–R3 / All / None). |
 | **Buttons** | 3 buttons (2 user-configurable): Button 1 / Button 2 assignable to relay actions (none, toggle, on, off) |
 | **LEDs** | Configurable Steady/Blink; 8 firmware sources (Off, HA, Link, Local, Child lock, Safe mode, Identify, Relay) |
@@ -74,7 +74,7 @@ Typical uses for the DIO-430-R1:
 | Power Input | 24 V DC nominal |
 | File system | LittleFS persistent configuration storage |
 | Document revision | DS-DIO-430-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
-| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
+| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
 | Relay outputs | 3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
 | User Interface | 3 buttons (2 user-configurable), 13 LEDs (power, 3 user, RX, TX, 3× relay, 4× DI) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |

@@ -213,7 +213,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Power Input | 24 V DC nominal |
 | RTC | RTC (PCF8563); backup battery holder, battery not fitted |
 | Document revision | DS-MicroPLC Rev. B · 2026-09 · Hardware V1.0 |
-| Digital Inputs | 1 × isolated 24 V DC discrete input (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Digital Inputs | 1 × IEC 61131-2 compliant 24 V digital input (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
 | Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC (module limit) |
 | Temperature Inputs | 1 × 1-Wire (DS18B20 compatible) |
 | User Interface | 1 front-panel button, 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
