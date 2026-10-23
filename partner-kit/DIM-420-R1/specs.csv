@@ -4,7 +4,7 @@ Storage,External QSPI Flash (W25Q32JV)
 Power Input,24 V DC nominal
 File system,LittleFS persistent configuration storage
 Document revision,DS-DIM-420-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
-Digital Inputs,"4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering"
+Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering"
 Dimmer outputs,"2 × MOSFET phase-cut dimmer channels (leading / trailing edge, selectable); 1 A RMS per channel continuous, Ta ≤ 40 °C"
 User Interface,"4 buttons, 9 LEDs (LED1–LED9)"
 RS-485,"half-duplex Modbus RTU, not galvanically isolated"

@@ -3,7 +3,7 @@
 
 ## Quick Start (current version)
 
-**Firmware shipped on new modules: `v0.1.0`**
+**Status: not released.** This module is not available for purchase.
 
 ```yaml
 packages:
@@ -35,7 +35,7 @@ packages:
 ### Module Description
 
 The **DIM-420-R1** is a configurable smart I/O module designed for **dimming AC loads via leading/trailing edge phase control**.  
-It includes **4 digital inputs**, **2 dimming outputs**, **4 user buttons**, and **4 LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
+It includes **4 digital inputs**, **2 dimming outputs**, **4 user buttons**, and **9 LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
 It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **smart lighting, scene control, and automation of resistive or LED loads**.
 
 ---
@@ -92,7 +92,7 @@ Typical use: wall switches on the DIs, **Leading/Trailing** and thresholds per l
 
 | Subsystem       | Qty    | Description |
 |-----------------|--------|-------------|
-| **Digital Inputs** | 4      | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection; modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
+| **Digital Inputs** | 4      | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), not galvanically isolated; PTC fuse, TVS surge and reverse-polarity protection; modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
 | **Dimming Outputs** | 2      | MOSFET‑based **phase‑cut** AC outputs; **Leading/Trailing** per channel with **Lower/Upper** threshold limits and zero‑cross sync/monitoring.  |
 | **Relays**         | 0      | – |
 | **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
@@ -239,7 +239,7 @@ The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and on
 
 | Category            | Item            | Details |
 |---------------------|------------------|---------|
-| **Hardware**         | DIM‑420‑R1       | DIN-rail dimmer with **2 AC outputs**, **4 DIs**, **4 buttons**, **4 LEDs**, **USB‑C**, **RS‑485** |
+| **Hardware**         | DIM‑420‑R1       | DIN-rail dimmer with **2 AC outputs**, **4 DIs**, **4 buttons**, **9 LEDs**, **USB‑C**, **RS‑485** |
 |                     | Controller (master) | HomeMaster MiniPLC / MicroPLC or any Modbus RTU master |
 |                     | 24 VDC PSU (SELV) | Regulated 24 VDC to `V+ / 0V` (logic + UI). AC loads powered separately. |
 |                     | RS‑485 Cable     | Twisted pair (shielded). Use `A/B/COM`, terminate with 120 Ω if needed. |
@@ -271,7 +271,7 @@ AC power is handled separately by the dimming channels (see §4.4).
 ### Current
 
 - ~50 mA idle (logic + UI only)
-- Add budget if using all 4 LEDs, buttons, and rapid RS‑485 comms.
+- Add budget if using all 9 LEDs, buttons, and rapid RS‑485 comms.
 - AC loads pull from **separate mains lines** — never through the 24 V rail.
 
 ---
@@ -521,10 +521,10 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 | Interface        | Qty | Description |
 |------------------|-----|-------------|
-| **Digital Inputs** | 4   | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), with PTC fuse, TVS surge and reverse-polarity protection |
+| **Digital Inputs** | 4   | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), dry-contact (module-wetted), not galvanically isolated; PTC fuse, TVS surge and reverse-polarity protection |
 | **Dimming Outputs** | 2 | Phase-cut AC outputs (MOSFET, Leading/Trailing) |
 | **User Buttons** | 4   | Local override / toggle / ramp / preset actions |
-| **User LEDs**    | 4   | Configurable (CH state, AC presence, DI state) |
+| **LEDs**         | 9   | LED1–LED9 |
 | **RS‑485 Bus**   | 1   | Modbus RTU slave (A/B/COM) |
 | **USB‑C Port**   | 1   | Configuration & firmware via Web Serial (USB) |
 | **Relays**       | 0   | Not present (uses solid-state AC dimming) |
@@ -542,7 +542,7 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 | Power Input | 24 V DC nominal |
 | File system | LittleFS persistent configuration storage |
 | Document revision | DS-DIM-420-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
-| Digital Inputs | 4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
 | Dimmer outputs | 2 × MOSFET phase-cut dimmer channels (leading / trailing edge, selectable); 1 A RMS per channel continuous, Ta ≤ 40 °C |
 | User Interface | 4 buttons, 9 LEDs (LED1–LED9) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
