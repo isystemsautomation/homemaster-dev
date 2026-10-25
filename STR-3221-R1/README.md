@@ -875,9 +875,9 @@ board diagrams.
 | **RS-485 TX / RX** | GPIO4 / GPIO5 | UART2 to **MAX485**, auto DE/RE (`TxenPin = -1`) |
 | **I²C SDA / SCL** | GPIO6 / GPIO7 | `Wire1` / I2C1 — 4× **TLC59208F** (U9–U12) |
 | **Status LED1 / LED2** | GPIO9 / GPIO8 | On-board indicators — driven directly, **not** through the TLC59208F |
-| **DI** | GPIO11 | **ISO1212**, terminal 9, module-wetted 24 V — idle 0 V, active HIGH |
-| **IN1** | GPIO10 | **SFH6156** U18, terminal 11, sensor supply from the SENS.A rail — idle 3 V, active LOW |
-| **IN2** | GPIO12 | **SFH6156** U17, terminal 14, sensor supply from the SENS.B rail — idle 3 V, active LOW |
+| **DI** | GPIO12 | **ISO1212** U23, net IO3 — module-wetted 24 V discrete input — idle 0 V, active HIGH |
+| **IN1** | GPIO10 | **SFH6156** U18, net IO2 — presence; sensor supply from the SENS.A rail — idle 3 V, active LOW |
+| **IN2** | GPIO11 | **SFH6156** U17, net IO1 — presence; sensor supply from the SENS.B rail — idle 3 V, active LOW |
 | **Button 1–4** | GPIO16–GPIO19 | Active-HIGH via CD4069 (pressed = HIGH) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |

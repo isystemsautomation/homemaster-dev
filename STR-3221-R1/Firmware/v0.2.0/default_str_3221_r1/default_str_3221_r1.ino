@@ -159,10 +159,14 @@
  *   UART TX/RX  GPIO4/5   RS-485 via MAX485 (DE/RE auto, TxenPin=-1)
  *   I2C SDA/SCL GPIO6/7 (Wire1 / I2C1)   4× TLC59208F (U9..U12)
  *   LED2/LED1   GPIO8/9   onboard indicators (not front-panel O.1..O32 — those follow TLC PWM)
- *   Field inputs (Modbus index 0..2 → IR 0 bits 0..2):
- *     DI   GPIO11  ISO1212, terminal 9, module-wetted 24 V — idle 0 V, active HIGH
- *     IN1  GPIO10  SFH6156 U18, terminal 11, sensor supply from the SENS.A rail — idle 3 V, active LOW
- *     IN2  GPIO12  SFH6156 U17, terminal 14, sensor supply from the SENS.B rail — idle 3 V, active LOW
+ *   Field inputs (index 0..2 → IR 0 bits 0..2):
+ *     DI   GPIO12  ISO1212 U23, net IO3 — module-wetted 24 V discrete input
+ *                  idle 0 V, active HIGH
+ *     IN1  GPIO10  SFH6156 U18, net IO2 — presence; sensor supply from the SENS.A rail
+ *                  idle 3 V, active LOW
+ *     IN2  GPIO11  SFH6156 U17, net IO1 — presence; sensor supply from the SENS.B rail
+ *                  idle 3 V, active LOW
+ *   Verified against STR-3221-R1.eprj, sheets `di` and `mcu`.
  *   BUTTON1..4  GPIO16..19  active-HIGH via CD4069 (INPUT, pressed=HIGH)
  *
  * TLC59208F address map (TI datasheet Table 1):
@@ -211,10 +215,11 @@ int SlaveId = 3;   // constructor seed only — setup() overrides from g_mb_addr
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (STR MCU board) ==================
-// Modbus index 0 = DI GPIO11, 1 = IN1 GPIO10 (SENS.A rail), 2 = IN2 GPIO12 (SENS.B rail).
-#define PIN_DI      11
-#define PIN_SENS_B  12
-#define PIN_SENS_A  10
+// Modbus index 0 = DI GPIO12 (ISO1212, net IO3), 1 = IN1 GPIO10 (U18, IO2),
+// 2 = IN2 GPIO11 (U17, IO1). SENS.A / SENS.B are sensor-supply rails, not inputs.
+#define PIN_DI      12   // ISO1212 U23, net IO3 — 24 V discrete input
+#define PIN_IN1     10   // SFH6156 U18, net IO2 — presence, sensor supply from the SENS.A rail
+#define PIN_IN2     11   // SFH6156 U17, net IO1 — presence, sensor supply from the SENS.B rail
 #define PIN_LED1  9
 #define PIN_LED2  8
 #define PIN_BTN1  16
@@ -224,8 +229,8 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 #define PIN_I2C_SDA 6
 #define PIN_I2C_SCL 7
 
-static const uint8_t DI_PINS[3]  = { PIN_DI, PIN_SENS_A, PIN_SENS_B };
-static const bool    DI_ACTIVE_HIGH[3] = { true, false, false };
+static const uint8_t DI_PINS[3]        = { PIN_DI, PIN_IN1, PIN_IN2 };
+static const bool    DI_ACTIVE_HIGH[3] = { true,   false,   false   };
 static const uint8_t LED_PINS[2] = {PIN_LED1, PIN_LED2};
 static const uint8_t BTN_PINS[4] = {PIN_BTN1, PIN_BTN2, PIN_BTN3, PIN_BTN4};
 

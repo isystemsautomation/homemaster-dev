@@ -622,9 +622,9 @@
       if (!c) return;
       const ioNames = ['DI', 'IN1', 'IN2'];
       const ioHints = [
-        '',
-        'Sensor supply from the SENS.A rail, terminals 10 and 12.',
-        'Sensor supply from the SENS.B rail, terminals 13 and 15.',
+        'Module-wetted 24 V discrete input. Dry contact only — do not apply external voltage.',
+        'Presence input. Power the sensor from the SENS.A rail (+5 V).',
+        'Presence input. Power the sensor from the SENS.B rail (+5 V).',
       ];
       const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'},{v:3,l:'Recall scene'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
@@ -691,8 +691,8 @@
       const ledSrcOpts = [
         {v:0,l:'(none)'},
         {v:10,l:'Follow IN1'},
-        {v:11,l:'Follow DI'},
-        {v:12,l:'Follow IN2'},
+        {v:11,l:'Follow IN2'},
+        {v:12,l:'Follow DI'},
       ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       for (let i = 1; i <= NUM_LED; i++){
         const d = document.createElement('div');
