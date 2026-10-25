@@ -58,6 +58,26 @@ static inline uint16_t stairBothWindowMs() {
   return g_stairCfg.bothWindowMs ? g_stairCfg.bothWindowMs : 300;
 }
 
+static inline uint16_t stairDelay() {
+  return g_stairCfg.stepDelayMs ? g_stairCfg.stepDelayMs : 120;
+}
+
+static inline uint16_t stairHoldS() {
+  return g_stairCfg.holdS ? g_stairCfg.holdS : 20;
+}
+
+static inline uint16_t stairFadeOutMs() {
+  return g_stairCfg.fadeOutMs ? g_stairCfg.fadeOutMs : 1500;
+}
+
+static inline uint16_t stairStepFadeMs() {
+  return g_stairCfg.stepFadeMs ? g_stairCfg.stepFadeMs : 300;
+}
+
+static inline uint16_t stairMinRepeatMs() {
+  return g_stairCfg.minRepeatMs ? g_stairCfg.minRepeatMs : 2000;
+}
+
 static inline uint8_t stairWaveWidth(uint8_t n) {
   uint8_t w = g_stairCfg.waveWidth ? g_stairCfg.waveWidth : 3;
   if (w < 1) w = 1;
@@ -84,13 +104,13 @@ static inline bool stairRunning() {
 
 static inline uint16_t stairRampMs(uint8_t ch) {
   if (chCfg[ch].rampMs) return chCfg[ch].rampMs;
-  if (stairRunning() && stairOwnsChannel(ch) && g_stairCfg.stepFadeMs) return g_stairCfg.stepFadeMs;
+  if (stairRunning() && stairOwnsChannel(ch)) return stairStepFadeMs();
   return chCfg[ch].rampMs;
 }
 
 static inline uint8_t stairRunLevel() {
-  const uint8_t v = g_seqNightWindow ? g_stairCfg.nightLevel : g_stairCfg.dayLevel;
-  return v ? v : 255;
+  if (g_seqNightWindow) return g_stairCfg.nightLevel ? g_stairCfg.nightLevel : 40;
+  return g_stairCfg.dayLevel ? g_stairCfg.dayLevel : 255;
 }
 
 static uint8_t stairAccent(uint8_t step) {
@@ -178,8 +198,8 @@ static void stairOnTrigger(uint8_t dir) {
   const uint32_t now = millis();
   if (!stairRunning()) {
     if (g_seqInhibit) return;
-    if (g_stairCfg.minRepeatMs && g_seqEndedMs &&
-        (uint32_t)(now - g_seqEndedMs) < g_stairCfg.minRepeatMs) return;
+    if (g_seqEndedMs &&
+        (uint32_t)(now - g_seqEndedMs) < stairMinRepeatMs()) return;
     stairStart(dir);
     return;
   }
@@ -187,7 +207,7 @@ static void stairOnTrigger(uint8_t dir) {
   if (same) {
     if (g_stairCfg.retrigger == 0) return;
     if (g_stairCfg.retrigger == 2 && g_seqPhase == SEQ_HOLD) {
-      g_seqHoldEndMs = now + (uint32_t)g_stairCfg.holdS * 1000UL;
+      g_seqHoldEndMs = now + (uint32_t)stairHoldS() * 1000UL;
       return;
     }
     stairStart(dir);                    // restart
@@ -211,10 +231,6 @@ static void stairForce(uint8_t dir) {
   stairStart(dir);
 }
 
-static uint16_t stairDelay() {
-  return g_stairCfg.stepDelayMs ? g_stairCfg.stepDelayMs : 1;
-}
-
 static inline bool stairAnyPresence() {
   return g_seqDb[0] || g_seqDb[1];
 }
@@ -225,9 +241,8 @@ static void stairRender(uint32_t now) {
   const uint8_t pat = stairPattern();
   const uint16_t delay = stairDelay();
   const uint32_t tLight = (pat == STAIR_PAT_ALL) ? 0 : (uint32_t)(n - 1) * delay;
-  const uint32_t tHold  = (uint32_t)g_stairCfg.holdS * 1000UL;
-  uint32_t tFade = g_stairCfg.fadeOutMs;
-  if (tFade == 0) tFade = tLight ? tLight : delay;
+  const uint32_t tHold  = (uint32_t)stairHoldS() * 1000UL;
+  const uint32_t tFade = stairFadeOutMs();
 
   uint32_t fadeStart;
   if (g_stairCfg.overlapPct == 0) fadeStart = tLight + tHold;

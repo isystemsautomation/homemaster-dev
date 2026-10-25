@@ -1492,6 +1492,12 @@ static void fillStairHeatFactory(StairCfg &st, HeatCfg &ht) {
   st.inputEndMap = 0;
   st.bothEnds = 0;
   st.bothWindowMs = 300;
+  st.stepDelayMs = 120;
+  st.holdS = 20;
+  st.fadeOutMs = 1500;
+  st.stepFadeMs = 300;
+  st.minRepeatMs = 2000;
+  st.nightLevel = 40;
   memset(st._rsv, 0, sizeof(st._rsv));
   ht.minPulsePct = 10;
   ht.slowPwmPeriodS = 900;            // 15 min — heat opens; 0 would stay shut

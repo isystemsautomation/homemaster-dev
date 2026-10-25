@@ -38,6 +38,12 @@
     @media(max-width:560px){.prof-grid{grid-template-columns:1fr}.grp-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:980px){.pwm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
     @media(max-width:560px){.pwm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    details.adv-block{margin:24px 0;border:1px solid var(--border);border-radius:16px;background:#fff;padding:4px 16px 16px}
+    details.adv-block>summary{cursor:pointer;font-weight:800;font-size:16px;padding:14px 0;list-style:none}
+    details.adv-block>summary::-webkit-details-marker{display:none}
+    details.adv-block>summary::before{content:'▸ ';color:var(--muted2)}
+    details.adv-block[open]>summary::before{content:'▾ '}
+    .stair-run-est{margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px;font-variant-numeric:tabular-nums;line-height:1.5;white-space:pre-line}
   </style>
 
   <header class="appbar">
@@ -79,14 +85,12 @@
   <div id="hm-compat"></div>
   <div id="hm-tools"></div>
 
-  <div class="grid two">
-    <section class="card">
+  <section class="card">
       <div class="cardheader">
         <div>
           <h2>Device Setup</h2>
-          <div class="sub">Serial connection and Modbus addressing.</div>
+          <div class="sub">Modbus address and baud — first thing at commissioning.</div>
         </div>
-        <span class="tag">Step 1</span>
       </div>
       <div class="cardbody">
         <div class="row">
@@ -107,104 +111,6 @@
         </div>
       </div>
     </section>
-    <section class="card">
-      <div class="cardheader">
-        <div>
-          <h2>Serial Log</h2>
-          <div class="sub">Communication messages and status updates.</div>
-        </div>
-      </div>
-      <div class="cardbody">
-        <div id="hm-log-box"><div id="hm-log"></div></div>
-      </div>
-    </section>
-  </div>
-
-  <div class="sectiontitle">
-    <h3>I2C / TLC59208F</h3>
-    <p class="hint">Four LED drivers on the MCU board. U9 always 0x20, U10 0x21, U11 0x22, U12 0x23. Connect to see live status; Scan re-probes the bus.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div class="ch-actions" style="margin-top:0">
-        <button type="button" class="btn" id="btn-i2c-scan">Scan I2C bus</button>
-      </div>
-      <div id="i2c-chips" class="i2c-chips"></div>
-      <div id="i2c-meta" class="i2c-meta">Connect the module to see which drivers answer.</div>
-    </div>
-  </section>
-
-  <div class="sectiontitle">
-    <h3>Output Channels O1–O32 (0–255)</h3>
-    <p class="hint">32 dimmable stair-LED channels via TLC59208F (8 per driver U9–U12).</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div id="pwm-groups"></div>
-      <div class="ch-actions">
-        <button id="btn-all-off" type="button" class="btn">All OFF</button>
-        <button id="btn-ramp-test" type="button" class="btn">Ramp test (O1→O32)</button>
-      </div>
-    </div>
-  </section>
-
-  <div class="sectiontitle">
-    <h3>Master &amp; panic</h3>
-    <p class="hint">Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div class="row">
-        <div>
-          <label for="master-level">Master level (0–255)</label>
-          <input id="master-level" type="number" min="0" max="255" value="255">
-        </div>
-        <div>
-          <label for="panic-level">Panic level (0–255)</label>
-          <input id="panic-level" type="number" min="0" max="255" value="255">
-        </div>
-      </div>
-      <div class="ch-actions">
-        <button id="btn-panic" type="button" class="btn danger">Panic — hold all channels</button>
-        <button id="btn-panic-clear" type="button" class="btn">Clear panic</button>
-      </div>
-    </div>
-  </section>
-
-  <div class="sectiontitle">
-    <h3>Channel profiles</h3>
-    <p class="hint">Per channel: how the holding-register value is read, the dimming curve, the output window and the ramp. Order of application is profile → min/max → curve → master level → ramp.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody">
-      <div class="row" style="align-items:flex-end">
-        <div><label for="ch-all-prof">Set all — profile</label><select id="ch-all-prof"></select></div>
-        <div><label for="ch-all-curve">Set all — curve</label><select id="ch-all-curve"></select></div>
-        <div><label for="ch-all-min">Min</label><input id="ch-all-min" type="number" min="0" max="255" value="0"></div>
-        <div><label for="ch-all-max">Max</label><input id="ch-all-max" type="number" min="0" max="255" value="255"></div>
-        <div><label for="ch-all-ramp">Ramp (ms)</label><input id="ch-all-ramp" type="number" min="0" max="60000" value="0"></div>
-        <div><label for="ch-all-aoff">Auto-off (s)</label><input id="ch-all-aoff" type="number" min="0" max="65535" value="0"></div>
-        <div><button type="button" class="btn" id="ch-all-apply">Apply to all channels</button></div>
-      </div>
-      <div id="ch-groups" style="margin-top:16px"></div>
-    </div>
-  </section>
-
-  <div class="sectiontitle">
-    <h3>Groups</h3>
-    <p class="hint">Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody"><div id="grp-list"></div></div>
-  </section>
-
-  <div class="sectiontitle">
-    <h3>Scenes</h3>
-    <p class="hint">Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
-  </div>
-  <section class="card">
-    <div class="cardbody"><div id="scn-list"></div></div>
-  </section>
 
   <div class="sectiontitle">
     <h3>Stairs</h3>
@@ -248,6 +154,7 @@
         <div><label for="stair-f">Fade-out (ms)</label><input id="stair-f" type="number" min="0" max="60000" value="0"></div>
         <div><label for="stair-ov">Overlap (%)</label><input id="stair-ov" type="number" min="0" max="100" value="0"></div>
       </div>
+      <p class="stair-run-est" id="stair-run-est">Run: —</p>
       <div class="row">
         <div><label for="stair-rt">Retrigger</label>
           <select id="stair-rt">
@@ -299,6 +206,7 @@
       <div class="grp-boxes" id="stair-map"></div>
     </div>
   </section>
+
 
   <div class="sectiontitle">
     <h3>Heating</h3>
@@ -354,10 +262,118 @@
     </div>
   </section>
 
+
+  <div class="sectiontitle">
+    <h3>Digital Inputs · Buttons · Status LEDs</h3>
+    <p class="hint">Commissioning — wire sensors and check the dots move.</p>
+  </div>
+  <div class="sectiontitle"><h3>Digital Inputs (3)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-inputs"></div></div></section>
+
+  <div class="sectiontitle"><h3>Buttons (4)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
+
+  <div class="sectiontitle"><h3>Status LEDs (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
+
+  <details class="adv-block" id="adv-main">
+    <summary>Advanced</summary>
+  <div class="sectiontitle">
+    <h3>I2C / TLC59208F</h3>
+    <p class="hint">Four LED drivers on the MCU board. U9 always 0x20, U10 0x21, U11 0x22, U12 0x23. Connect to see live status; Scan re-probes the bus.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="btn-i2c-scan">Scan I2C bus</button>
+      </div>
+      <div id="i2c-chips" class="i2c-chips"></div>
+      <div id="i2c-meta" class="i2c-meta">Connect the module to see which drivers answer.</div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Output Channels O1–O32 (0–255)</h3>
+    <p class="hint">Ручное управление выходами. Для наладки и проверки проводки; при работающем секвенсоре его каналы игнорируют записи.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="pwm-groups"></div>
+      <div class="ch-actions">
+        <button id="btn-all-off" type="button" class="btn">All OFF</button>
+        <button id="btn-ramp-test" type="button" class="btn">Ramp test (O1→O32)</button>
+      </div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Channel profiles</h3>
+    <p class="hint">Как трактуется уровень канала: LED, зона отопления, сырое значение, индикация. Профиль Heat передаёт канал медленному ШИМ. Per channel: how the holding-register value is read, the dimming curve, the output window and the ramp. Order of application is profile → min/max → curve → master level → ramp.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="align-items:flex-end">
+        <div><label for="ch-all-prof">Set all — profile</label><select id="ch-all-prof"></select></div>
+        <div><label for="ch-all-curve">Set all — curve</label><select id="ch-all-curve"></select></div>
+        <div><label for="ch-all-min">Min</label><input id="ch-all-min" type="number" min="0" max="255" value="0"></div>
+        <div><label for="ch-all-max">Max</label><input id="ch-all-max" type="number" min="0" max="255" value="255"></div>
+        <div><label for="ch-all-ramp">Ramp (ms)</label><input id="ch-all-ramp" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="ch-all-aoff">Auto-off (s)</label><input id="ch-all-aoff" type="number" min="0" max="65535" value="0"></div>
+        <div><button type="button" class="btn" id="ch-all-apply">Apply to all channels</button></div>
+      </div>
+      <div id="ch-groups" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Master &amp; panic</h3>
+    <p class="hint">Общий множитель яркости и аварийный режим. Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row">
+        <div>
+          <label for="master-level">Master level (0–255)</label>
+          <input id="master-level" type="number" min="0" max="255" value="255">
+        </div>
+        <div>
+          <label for="panic-level">Panic level (0–255)</label>
+          <input id="panic-level" type="number" min="0" max="255" value="255">
+        </div>
+      </div>
+      <div class="ch-actions">
+        <button id="btn-panic" type="button" class="btn danger">Panic — hold all channels</button>
+        <button id="btn-panic-clear" type="button" class="btn">Clear panic</button>
+      </div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Groups</h3>
+    <p class="hint">Связать произвольные каналы, чтобы запись в один применялась ко всем. Для лестницы и отопления не нужны. Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="grp-list"></div></div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Scenes</h3>
+    <p class="hint">Восемь сохранённых наборов уровней всех 32 каналов. Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="scn-list"></div></div>
+  </section>
+
+
   <div class="sectiontitle"><h3>Bus failsafe</h3></div>
   <section class="card">
     <div class="cardbody">
-      <p class="hint">Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
+      <p class="hint">Что делает каждый канал, если контроллер перестал опрашивать. У каналов Heat заменяется антизамерзанием. Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
       <div class="row">
         <div>
           <label for="bus-timeout-s">Bus timeout (s)</label>
@@ -387,14 +403,18 @@
     </div>
   </section>
 
-  <div class="sectiontitle"><h3>Digital Inputs (3)</h3></div>
-  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-inputs"></div></div></section>
 
-  <div class="sectiontitle"><h3>Buttons (4)</h3></div>
-  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
+  </details>
 
-  <div class="sectiontitle"><h3>Status LEDs (2)</h3></div>
-  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
+  <details class="adv-block" id="adv-log">
+    <summary>Serial Log</summary>
+    <section class="card" style="margin-top:8px">
+      <div class="cardbody">
+        <div id="hm-log-box"><div id="hm-log"></div></div>
+      </div>
+    </section>
+  </details>
+
 
   <script src="simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
@@ -405,10 +425,10 @@
     const NUM_GROUPS = 8, NUM_SCENES = 8;
     const FS_PER_PART = 8;   // matches CFG_FS_PER_PART in the firmware
     const PWM_GROUPS = [
-      { title: 'O1–O8 (U9, 0x40)', start: 1 },
-      { title: 'O9–O16 (U10, 0x42)', start: 9 },
-      { title: 'O17–O24 (U11, 0x44)', start: 17 },
-      { title: 'O25–O32 (U12, 0x46)', start: 25 },
+      { title: 'O1–O8 (U9 · silk 0x40 · bus 0x20)', start: 1 },
+      { title: 'O9–O16 (U10 · silk 0x42 · bus 0x21)', start: 9 },
+      { title: 'O17–O24 (U11 · silk 0x44 · bus 0x22)', start: 17 },
+      { title: 'O25–O32 (U12 · silk 0x46 · bus 0x23)', start: 25 },
     ];
     const pwmSliders = [];
     const pwmVals = [];
@@ -998,6 +1018,14 @@
        'stair-rt','stair-op','stair-im','stair-be','stair-bw','stair-dl','stair-nl',
        'stair-sf','stair-sl','stair-nn','stair-fd','stair-db','stair-mr']
         .forEach(id => $(id)?.addEventListener('change', sendStairs));
+      ['stair-n','stair-d','stair-h','stair-f','stair-ov']
+        .forEach(id => {
+          $(id)?.addEventListener('input', updateStairRunEst);
+          $(id)?.addEventListener('change', updateStairRunEst);
+        });
+      rememberDetails($('adv-main'), 'str3221.adv-main');
+      rememberDetails($('adv-log'), 'str3221.adv-log');
+      updateStairRunEst();
       $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
       $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
       $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
@@ -1105,6 +1133,7 @@
         for (let s = 0; s < NUM_PWM; s++) setIfIdle('stair-ch-' + s, bytes[s] > 31 ? 31 : bytes[s]);
       }
       if (part + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.stairs = true;
+      updateStairRunEst();
     }
 
     function loadHeatingSection(cfg){
@@ -1226,6 +1255,50 @@
       if (nw && st.night != null && document.activeElement !== nw) nw.checked = !!st.night;
       syncHeatPwmPill();
     });
+
+    function stairOr(v, fallback){
+      const n = parseInt(v, 10);
+      return (Number.isFinite(n) && n > 0) ? n : fallback;
+    }
+    function fmtSec(sec){
+      const r = Math.round(sec * 10) / 10;
+      return (Math.abs(r - Math.round(r)) < 1e-9) ? String(Math.round(r)) : r.toFixed(1);
+    }
+    function updateStairRunEst(){
+      const el = $('stair-run-est');
+      if (!el) return;
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const delay = stairOr($('stair-d')?.value, 120);
+      const holdS = stairOr($('stair-h')?.value, 20);
+      const fadeMs = stairOr($('stair-f')?.value, 1500);
+      const ov = Math.max(0, Math.min(100, parseInt($('stair-ov')?.value || '0', 10) || 0));
+      const lightingMs = (n > 1) ? (n - 1) * delay : 0;
+      const totalMs = lightingMs + holdS * 1000 + fadeMs;
+      if (n < 1){
+        el.textContent = 'Run: sequencer off (0 steps).';
+        return;
+      }
+      let line = 'Run: lighting ' + fmtSec(lightingMs / 1000) + ' s → hold '
+        + fmtSec(holdS) + ' s → fade-out ' + fmtSec(fadeMs / 1000)
+        + ' s = ' + fmtSec(totalMs / 1000) + ' s total';
+      if (ov > 0){
+        const fadeStartMs = (lightingMs * (100 - ov)) / 100;
+        line += '\nOverlap ' + ov + ' % — fade-out starts at '
+          + fmtSec(fadeStartMs / 1000) + ' s (during lighting), not after hold.';
+      }
+      el.textContent = line;
+    }
+    function rememberDetails(el, key){
+      if (!el) return;
+      try {
+        const v = localStorage.getItem(key);
+        if (v === '1') el.open = true;
+        else if (v === '0') el.open = false;
+      } catch (e) {}
+      el.addEventListener('toggle', () => {
+        try { localStorage.setItem(key, el.open ? '1' : '0'); } catch (e) {}
+      });
+    }
 
     function syncHeatPwmPill(){
       const pill = $('heat-pwm-off');
