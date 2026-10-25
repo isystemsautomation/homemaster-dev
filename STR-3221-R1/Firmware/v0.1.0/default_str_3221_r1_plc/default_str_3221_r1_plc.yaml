@@ -20,6 +20,10 @@
 ##   HR  400..431 O1..O32 brightness 0..255
 ##   HR  480/481 Modbus address / baud
 ##   IR  200..204 firmware identity
+##
+## HR 400..431 are driven by `output` + `light: monochromatic`. The light gives the
+## output a 0.0..1.0 float, so each output MUST carry `multiply: 255.0` — without it
+## full brightness writes 1 and the channel looks dead.
 
 substitutions:
   str_id: str
@@ -89,192 +93,224 @@ output:
     address: 400
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o2
     modbus_controller_id: ${str_id}
     address: 401
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o3
     modbus_controller_id: ${str_id}
     address: 402
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o4
     modbus_controller_id: ${str_id}
     address: 403
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o5
     modbus_controller_id: ${str_id}
     address: 404
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o6
     modbus_controller_id: ${str_id}
     address: 405
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o7
     modbus_controller_id: ${str_id}
     address: 406
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o8
     modbus_controller_id: ${str_id}
     address: 407
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o9
     modbus_controller_id: ${str_id}
     address: 408
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o10
     modbus_controller_id: ${str_id}
     address: 409
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o11
     modbus_controller_id: ${str_id}
     address: 410
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o12
     modbus_controller_id: ${str_id}
     address: 411
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o13
     modbus_controller_id: ${str_id}
     address: 412
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o14
     modbus_controller_id: ${str_id}
     address: 413
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o15
     modbus_controller_id: ${str_id}
     address: 414
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o16
     modbus_controller_id: ${str_id}
     address: 415
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o17
     modbus_controller_id: ${str_id}
     address: 416
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o18
     modbus_controller_id: ${str_id}
     address: 417
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o19
     modbus_controller_id: ${str_id}
     address: 418
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o20
     modbus_controller_id: ${str_id}
     address: 419
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o21
     modbus_controller_id: ${str_id}
     address: 420
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o22
     modbus_controller_id: ${str_id}
     address: 421
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o23
     modbus_controller_id: ${str_id}
     address: 422
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o24
     modbus_controller_id: ${str_id}
     address: 423
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o25
     modbus_controller_id: ${str_id}
     address: 424
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o26
     modbus_controller_id: ${str_id}
     address: 425
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o27
     modbus_controller_id: ${str_id}
     address: 426
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o28
     modbus_controller_id: ${str_id}
     address: 427
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o29
     modbus_controller_id: ${str_id}
     address: 428
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o30
     modbus_controller_id: ${str_id}
     address: 429
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o31
     modbus_controller_id: ${str_id}
     address: 430
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
   - platform: modbus_controller
     id: ${str_id}_out_o32
     modbus_controller_id: ${str_id}
     address: 431
     register_type: holding
     value_type: U_WORD
+    multiply: 255.0
 
 light:
   - platform: monochromatic
