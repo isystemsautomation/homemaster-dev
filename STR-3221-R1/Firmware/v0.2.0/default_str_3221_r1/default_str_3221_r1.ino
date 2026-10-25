@@ -170,6 +170,13 @@
  *   (8-bit >> 1). Typical U9..U12 A2/A1/A0 = GND/GND/GND … GND/VCC/VCC →
  *   datasheet 40h,42h,44h,46h → Arduino 0x20,0x21,0x22,0x23.
  *   Software reset (SWRST) 7-bit is 1001111 = 0x4F (8-bit write 9Eh).
+ *
+ * U11 OUT0..OUT3 are routed to O20, O17, O18, O19. That is a property of
+ * this board, not a firmware error. TLC_CH2REG / TLC_REG2CH exist for it —
+ * do not "correct" them back to identity.
+ * MODE2 = 0x00 selects open-drain. The field-board SN74HCT540 buffers invert.
+ * Together that is a non-inverting channel. Switching the TLC output to
+ * totem-pole inverts all 32 channels at once.
  */
 
 #include <Arduino.h>
@@ -248,6 +255,37 @@ static const uint8_t TLC_REG_PWM0    = 0x02;
 static const uint8_t TLC_REG_LEDOUT0 = 0x0C;
 static const uint8_t TLC_REG_LEDOUT1 = 0x0D;
 static const uint8_t TLC_LEDOUT_INDIVIDUAL_PWM = 0xAA;
+
+// Channel inside chip → PWM register. U11 (chip 2) first four pins
+// are routed rotated: OUT0 drives O20, O17..O19 sit on OUT1..OUT3.
+// Confirmed from STR-3221-R1.eprj, sheet TLC59208F.
+static constexpr uint8_t TLC_CH2REG[4][8] = {
+  {0, 1, 2, 3, 4, 5, 6, 7},   // U9  — O1..O8
+  {0, 1, 2, 3, 4, 5, 6, 7},   // U10 — O9..O16
+  {1, 2, 3, 0, 4, 5, 6, 7},   // U11 — O17..O24
+  {0, 1, 2, 3, 4, 5, 6, 7},   // U12 — O25..O32
+};
+// PWM register → channel inside chip. Inverse of TLC_CH2REG, for block writes.
+static constexpr uint8_t TLC_REG2CH[4][8] = {
+  {0, 1, 2, 3, 4, 5, 6, 7},
+  {0, 1, 2, 3, 4, 5, 6, 7},
+  {3, 0, 1, 2, 4, 5, 6, 7},
+  {0, 1, 2, 3, 4, 5, 6, 7},
+};
+#define TLC_ASSERT_INV(chip, ch) \
+  static_assert(TLC_REG2CH[chip][TLC_CH2REG[chip][ch]] == (ch), \
+                "TLC_CH2REG and TLC_REG2CH must be inverses"); \
+  static_assert(TLC_CH2REG[chip][TLC_REG2CH[chip][ch]] == (ch), \
+                "TLC_CH2REG and TLC_REG2CH must be inverses")
+TLC_ASSERT_INV(0, 0); TLC_ASSERT_INV(0, 1); TLC_ASSERT_INV(0, 2); TLC_ASSERT_INV(0, 3);
+TLC_ASSERT_INV(0, 4); TLC_ASSERT_INV(0, 5); TLC_ASSERT_INV(0, 6); TLC_ASSERT_INV(0, 7);
+TLC_ASSERT_INV(1, 0); TLC_ASSERT_INV(1, 1); TLC_ASSERT_INV(1, 2); TLC_ASSERT_INV(1, 3);
+TLC_ASSERT_INV(1, 4); TLC_ASSERT_INV(1, 5); TLC_ASSERT_INV(1, 6); TLC_ASSERT_INV(1, 7);
+TLC_ASSERT_INV(2, 0); TLC_ASSERT_INV(2, 1); TLC_ASSERT_INV(2, 2); TLC_ASSERT_INV(2, 3);
+TLC_ASSERT_INV(2, 4); TLC_ASSERT_INV(2, 5); TLC_ASSERT_INV(2, 6); TLC_ASSERT_INV(2, 7);
+TLC_ASSERT_INV(3, 0); TLC_ASSERT_INV(3, 1); TLC_ASSERT_INV(3, 2); TLC_ASSERT_INV(3, 3);
+TLC_ASSERT_INV(3, 4); TLC_ASSERT_INV(3, 5); TLC_ASSERT_INV(3, 6); TLC_ASSERT_INV(3, 7);
+#undef TLC_ASSERT_INV
 
 static uint8_t tlcApplied[NUM_PWM];
 static bool    tlcChipOk[4] = {false, false, false, false};
@@ -794,6 +832,7 @@ static inline uint8_t driverOut(uint8_t ch, uint8_t v) {
 
 static uint16_t channelRampMs(uint8_t ch);
 
+// ch is the PWM register index (0 = PWM0), not the logical channel.
 static bool tlcWritePwm(uint8_t chipIdx, uint8_t ch, uint8_t val) {
   if (chipIdx >= 4 || ch >= 8 || !tlcChipOk[chipIdx]) return false;
   return tlcWriteReg(tlcAddrActive[chipIdx], TLC_REG_PWM0 + ch, val);
@@ -805,8 +844,8 @@ static bool tlcFlushChip(uint8_t chipIdx) {
   tlcWire->beginTransmission(addr);
   uint8_t wrote = 0;
   wrote += (uint8_t)tlcWire->write(0xA2);  // AI=101, start at PWM0 — eight bytes auto-increment
-  for (uint8_t ch = 0; ch < 8; ch++) {
-    const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
+  for (uint8_t k = 0; k < 8; k++) {
+    const uint8_t idx = (uint8_t)(chipIdx * 8 + TLC_REG2CH[chipIdx][k]);
     const uint8_t v = driverOut(idx, (uint8_t)constrain((int)pwmLevel[idx], 0, 255));
     wrote += (uint8_t)tlcWire->write(v);
   }
@@ -814,6 +853,7 @@ static bool tlcFlushChip(uint8_t chipIdx) {
     tlcNoteI2cFailure();
     return false;
   }
+  // tlcApplied is indexed by logical channel, not PWM register.
   for (uint8_t ch = 0; ch < 8; ch++) {
     const uint8_t idx = (uint8_t)(chipIdx * 8 + ch);
     tlcApplied[idx] = driverOut(idx, (uint8_t)constrain((int)pwmLevel[idx], 0, 255));
@@ -829,6 +869,7 @@ static bool tlcInitChip(uint8_t chipIdx, uint8_t addr) {
   if (!tlcWriteReg(addr, TLC_REG_LEDOUT0, TLC_LEDOUT_INDIVIDUAL_PWM)) return false;
   if (!tlcWriteReg(addr, TLC_REG_LEDOUT1, TLC_LEDOUT_INDIVIDUAL_PWM)) return false;
   delayMicroseconds(500);
+  // All eight PWM registers to 0. Channel↔register rotation does not matter here.
   for (uint8_t ch = 0; ch < 8; ch++) {
     if (!tlcWriteReg(addr, TLC_REG_PWM0 + ch, 0)) return false;
     yield();
@@ -924,12 +965,14 @@ static void applyPwmChannel(uint8_t idx, uint16_t val) {
   if (!tlcReady || !tlcChipOk[chipIdx]) return;
   if (tlcApplied[idx] == v) return;
   tlcApplied[idx] = v;
-  tlcWritePwm(chipIdx, idx % 8, v);
+  tlcWritePwm(chipIdx, TLC_CH2REG[chipIdx][idx % 8], v);
 }
 
 // The single flush path to the drivers. Per chip: two or more changed channels
 // go out as ONE auto-increment block write (tlcFlushChip), so a ramp moving all
 // 32 channels costs four I2C transactions per service tick, not thirty-two.
+// Diff is computed on logical channels (tlcApplied[]). Register remapping
+// happens only inside applyPwmChannel / tlcFlushChip.
 static void applyAllPwmLevels() {
   for (uint8_t chipIdx = 0; chipIdx < 4; chipIdx++) {
     if (!tlcReady || !tlcChipOk[chipIdx]) continue;
