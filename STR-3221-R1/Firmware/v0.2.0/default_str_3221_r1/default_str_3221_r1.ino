@@ -34,8 +34,8 @@
  *  31  IREG_ZONE_MASK_HI  open-zone mask, channels 17..32
  *
  * Command coils (FC=05/15, auto-clear pulse):
- *   300..302  pulse ENABLE  IO1..IO3
- *   320..322  pulse DISABLE IO1..IO3
+ *   300..302  pulse ENABLE  DI / IN1 / IN2
+ *   320..322  pulse DISABLE DI / IN1 / IN2
  *   330       pulse SAVE output levels to flash (rate-limited 10 s)
  *   331       pulse RELEASE local override
  *   332       pulse ENTER panic — every channel to panicLevel and HELD there
@@ -159,10 +159,10 @@
  *   UART TX/RX  GPIO4/5   RS-485 via MAX485 (DE/RE auto, TxenPin=-1)
  *   I2C SDA/SCL GPIO6/7 (Wire1 / I2C1)   4× TLC59208F (U9..U12)
  *   LED2/LED1   GPIO8/9   onboard indicators (not front-panel O.1..O32 — those follow TLC PWM)
- *   Field inputs (Modbus DI1..3):
- *     DI1 / DI     GPIO11  ISO1212 24 V — idle 0 V, active 3 V (HIGH)
- *     DI2 / SENS.B GPIO12  SFH6156 U17 — idle 3 V, active 0 V (LOW)
- *     DI3 / SENS.A GPIO10  SFH6156 U18 — idle 3 V, active 0 V (LOW)
+ *   Field inputs (Modbus index 0..2 → IR 0 bits 0..2):
+ *     DI   GPIO11  ISO1212, terminal 9, module-wetted 24 V — idle 0 V, active HIGH
+ *     IN1  GPIO10  SFH6156 U18, terminal 11, sensor supply from the SENS.A rail — idle 3 V, active LOW
+ *     IN2  GPIO12  SFH6156 U17, terminal 14, sensor supply from the SENS.B rail — idle 3 V, active LOW
  *   BUTTON1..4  GPIO16..19  active-HIGH via CD4069 (INPUT, pressed=HIGH)
  *
  * TLC59208F address map (TI datasheet Table 1):
@@ -204,7 +204,7 @@ int SlaveId = 3;   // constructor seed only — setup() overrides from g_mb_addr
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (STR MCU board) ==================
-// Modbus DI1=GPIO11 ISO1212, DI2=GPIO12 SENS.B, DI3=GPIO10 SENS.A.
+// Modbus index 0 = DI GPIO11, 1 = IN1 GPIO10 (SENS.A rail), 2 = IN2 GPIO12 (SENS.B rail).
 #define PIN_DI      11
 #define PIN_SENS_B  12
 #define PIN_SENS_A  10
@@ -217,7 +217,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 #define PIN_I2C_SDA 6
 #define PIN_I2C_SCL 7
 
-static const uint8_t DI_PINS[3]  = { PIN_DI, PIN_SENS_B, PIN_SENS_A };
+static const uint8_t DI_PINS[3]  = { PIN_DI, PIN_SENS_A, PIN_SENS_B };
 static const bool    DI_ACTIVE_HIGH[3] = { true, false, false };
 static const uint8_t LED_PINS[2] = {PIN_LED1, PIN_LED2};
 static const uint8_t BTN_PINS[4] = {PIN_BTN1, PIN_BTN2, PIN_BTN3, PIN_BTN4};
@@ -904,7 +904,7 @@ static bool diLiveState(uint8_t mbIdx) {
 }
 
 // One predicate for DI_MASK and the heating DI flags. A heating role on
-// IO1 treats that input as enabled even if the WebConfig checkbox is off.
+// DI (index 0) treats that input as enabled even if the WebConfig checkbox is off.
 static inline bool diConsideredEnabled(uint8_t i) {
   if (i >= NUM_DI) return false;
   if (i == 0 && g_heatCfg.diRole != 0) return true;

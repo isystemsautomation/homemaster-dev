@@ -26,6 +26,7 @@
     .i2c-chip.bad{border-color:#fecaca;background:#fef2f2}
     .i2c-chip.bad .st{color:var(--bad)}
     .i2c-meta{margin:12px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+    .iohint{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
     @media(max-width:980px){.i2c-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
     .prof-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
     .prof-cell select,.prof-cell input{width:100%}
@@ -619,7 +620,12 @@
     (function buildInputs(){
       const c = $('io-inputs');
       if (!c) return;
-      const ioNames = ['IO1', 'IO2', 'IO3'];
+      const ioNames = ['DI', 'IN1', 'IN2'];
+      const ioHints = [
+        '',
+        'Sensor supply from the SENS.A rail, terminals 10 and 12.',
+        'Sensor supply from the SENS.B rail, terminals 13 and 15.',
+      ];
       const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'},{v:3,l:'Recall scene'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       const sceneOpts = ['<option value="0">—</option>']
@@ -631,6 +637,7 @@
         d.className = 'iocard tint-input';
         d.innerHTML = `
           <div class="iotop"><span class="ioid">${ioNames[i-1]}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          ${ioHints[i-1] ? `<p class="iohint">${ioHints[i-1]}</p>` : ''}
           <div class="checkRow">
             <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
             <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
@@ -683,9 +690,9 @@
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       const ledSrcOpts = [
         {v:0,l:'(none)'},
-        {v:10,l:'Follow IO1'},
-        {v:11,l:'Follow IO2'},
-        {v:12,l:'Follow IO3'},
+        {v:10,l:'Follow IN1'},
+        {v:11,l:'Follow DI'},
+        {v:12,l:'Follow IN2'},
       ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
       for (let i = 1; i <= NUM_LED; i++){
         const d = document.createElement('div');

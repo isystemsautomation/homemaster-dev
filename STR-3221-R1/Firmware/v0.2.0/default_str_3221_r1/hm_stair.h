@@ -7,8 +7,8 @@
 // StairCfg.mode    — launch: 0 one-shot · 1 hold while presence
 // StairCfg.pattern — drawing: 0 sequential · 1 all · 2 wave · 3 comet
 //                    · 4 center · 5 random
-// IN1 = DI2 (index 1), IN2 = DI3 (index 2). inputEndMap bit0 swaps which
-// end is bottom. bothWindowMs / bothEnds govern a dual-edge window.
+// IN1 = index 1 (GPIO10, terminal 11), IN2 = index 2 (GPIO12, terminal 14).
+// inputEndMap bit0 swaps which end is bottom. bothWindowMs / bothEnds govern a dual-edge window.
 
 enum : uint8_t { STAIR_MODE_ONESHOT = 0, STAIR_MODE_HOLD = 1, STAIR_MODE_MAX = 1 };
 enum : uint8_t {

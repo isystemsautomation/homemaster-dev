@@ -71,10 +71,10 @@ Only behaviour confirmed in the v0.2.0 firmware.
 | **Scenes** | Eight stored sets of 32 levels. Recalled from HR 436, a button, an input, or WebConfig. |
 | **Save levels** | Coil 330 writes the current levels to flash as the power-up state (rate-limited 10 s). |
 | **Panic** | Coil 332 / button / WebConfig. LED/raw/indicator → panic level and held. Heat stays **closed**. Coil 334 clears. |
-| **Inputs** | Per input: enable, invert, action (none / toggle / pulse / recall scene), target, level. A heating DI role on IO1 enables that input itself. |
+| **Inputs** | Per input: enable, invert, action (none / toggle / pulse / recall scene), target, level. A heating DI role on DI enables that input itself. |
 | **Buttons** | None, All ON, All OFF, Ramp test, Clear override, Recall scene, Panic, Clear panic. |
 | **Local override** | A local action holds the outputs against the bus until released. |
-| **Status LEDs** | Two; solid or blink; source none / IO1 / IO2 / IO3. |
+| **Status LEDs** | Two; solid or blink; source none / DI / IN1 / IN2. |
 | **Stair sequencer** | Step count 2–32, free channel map, six patterns (sequential, all, wave, comet, centre, random), launch one-shot or hold-while-presence, timings, overlap, retrigger, opposite-end reverse, both-ends window, day/night levels, accent, night light, inhibit. Debounce and minimum-repeat are **stair** settings, not general input settings. |
 | **Heating loop** | Slow PWM 300–3600 s (factory **900 s / 15 minutes**), phase spread, max open zones (0 = no limit), first-open delay, overrun, DI role (none / enable / inhibit / demand echo), valve exercise, frost (15 min on / 45 min off after T silent hours), summer mode, NC/NO, min-pulse hysteresis. A period of 0 (user-set) leaves every heat channel closed. |
 | **Bus failsafe** | Timeout 0 = disabled. Per-channel Hold / Off / Level for LED/raw/indicator. Heat uses frost instead. Stair-table channels keep running. |
@@ -333,7 +333,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 - Outputs are nine groups, each with its own + rail: top row 4+4+2, bottom row 4+4+4+4+4+2
 - Low-side switching: load + to the group + rail, load - to O.n.
-- Two separate presence inputs SENS.A and SENS.B, each with its own + and Gnd.
+- Two separate presence inputs IN1 and IN2, each with its own + and Gnd on the matching SENS rail.
 - Output path: per channel ≤1.5 A (ferrite BLM31PG601SN1L); module total ≤18 A.
 
 <!-- hm:terminal-map:end -->
@@ -346,7 +346,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | **SW2** | Factory **All OFF**. Configurable. Engages local override. |
 | **SW3** | Factory **none**. Configurable (same action list as SW1). |
 | **SW4** | Factory **Clear override**. Configurable (same action list as SW1). |
-| **Status LED1 / LED2** | Assignable source (none / IO1 / IO2 / IO3), solid or blink. State in **IR 2**. |
+| **Status LED1 / LED2** | Assignable source (none / DI / IN1 / IN2), solid or blink. State in **IR 2**. |
 | **PWR / TX / RX** | Fixed — power, Modbus traffic. |
 
 Pressed state of SW1–SW4 is **IR 1** (bits 0–3), not the v0.1.0 discrete inputs 20–23.
@@ -607,9 +607,9 @@ rows are stored but **not applied**.
 
 ### Digital Inputs
 
-Per input (IO1 / IO2 / IO3): enabled, inverted, action (none / toggle / pulse /
+Per input (DI / IN1 / IN2): enabled, inverted, action (none / toggle / pulse /
 recall scene), target (none / all), on-level, scene binding. Assigning a
-heating role to IO1 enables that input even if the checkbox is cleared.
+heating role to DI enables that input even if the checkbox is cleared.
 
 ### Buttons
 
@@ -618,7 +618,7 @@ SW3 none, SW4 Clear override.
 
 ### Status LEDs
 
-Per LED: solid / blink; source none / IO1 / IO2 / IO3.
+Per LED: solid / blink; source none / DI / IN1 / IN2.
 
 ---
 
@@ -649,7 +649,7 @@ accent or the bus value.
 
 | Address | Name | Meaning |
 |---:|---|---|
-| 0 | `DI_MASK` | Bit 0 = DI (IO1), bit 1 = IN1 (IO2), bit 2 = IN2 (IO3), after enable and invert |
+| 0 | `DI_MASK` | Bit 0 = DI, bit 1 = IN1, bit 2 = IN2, after enable and invert |
 | 1 | `BTN_MASK` | Bit 0…3 = SW1…SW4 pressed |
 | 2 | `LED_MASK` | Bit 0…1 = status LED1…LED2 physical state |
 | 3 | `STATUS_FLAGS` | See bits below |
@@ -704,8 +704,8 @@ accent or the bus value.
 
 | Address | Meaning |
 |---:|---|
-| 300–302 | Enable input IO1 / IO2 / IO3 |
-| 320–322 | Disable input IO1 / IO2 / IO3 |
+| 300–302 | Enable input DI / IN1 / IN2 |
+| 320–322 | Disable input DI / IN1 / IN2 |
 | 330 | Save current output levels to flash (rate-limited 10 s) |
 | 331 | Release local override |
 | 332 | Enter panic — LED/raw/indicator to panic level; **heat stays closed** |
@@ -746,7 +746,7 @@ deliberately refused. Use WebConfig.
 - Poll **IR 0…31** in one FC 04 every second. Do not poll 200…204 in the main loop.
 - Cadence in the HomeMaster package is `update_interval: 1s`, `command_throttle: 0ms`.
 - Output levels written on the bus are not auto-saved; use coil 330 or WebConfig Save.
-- A disabled input reads 0. A heating DI role forces IO1 enabled.
+- A disabled input reads 0. A heating DI role forces DI enabled.
 
 ### 7.6 v0.1.0 → v0.2.0 replacements
 
@@ -780,7 +780,7 @@ packages:
 
 | Entity | Type | Source |
 |---|---|---|
-| `<prefix> IO1…IO3` | binary sensor | IR 0 bits 0–2 |
+| `<prefix> DI`, `IN1`, `IN2` | binary sensor | IR 0 bits 0–2 |
 | `<prefix> Button1…4` | binary sensor | IR 1 |
 | `<prefix> Status LED1…2` | binary sensor | IR 2 |
 | `<prefix> TLC ready`, `Link OK`, `Bus failsafe`, `Config dirty`, `Local override`, `Panic`, `Sequence running`, `Heat demand` | binary sensor | IR 3 bits 0–7 |
@@ -875,9 +875,9 @@ board diagrams.
 | **RS-485 TX / RX** | GPIO4 / GPIO5 | UART2 to **MAX485**, auto DE/RE (`TxenPin = -1`) |
 | **I²C SDA / SCL** | GPIO6 / GPIO7 | `Wire1` / I2C1 — 4× **TLC59208F** (U9–U12) |
 | **Status LED1 / LED2** | GPIO9 / GPIO8 | On-board indicators — driven directly, **not** through the TLC59208F |
-| **DI1 — 24 V discrete** | GPIO11 | **ISO1212**; idle 0 V, active HIGH |
-| **DI2 — SENS.B (IN2)** | GPIO12 | **SFH6156** U17; idle 3 V, active LOW |
-| **DI3 — SENS.A (IN1)** | GPIO10 | **SFH6156** U18; idle 3 V, active LOW |
+| **DI** | GPIO11 | **ISO1212**, terminal 9, module-wetted 24 V — idle 0 V, active HIGH |
+| **IN1** | GPIO10 | **SFH6156** U18, terminal 11, sensor supply from the SENS.A rail — idle 3 V, active LOW |
+| **IN2** | GPIO12 | **SFH6156** U17, terminal 14, sensor supply from the SENS.B rail — idle 3 V, active LOW |
 | **Button 1–4** | GPIO16–GPIO19 | Active-HIGH via CD4069 (pressed = HIGH) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
@@ -955,7 +955,7 @@ Status LEDs and reset combinations as in §4.3. Additions for v0.2.0:
 | Bus dead / failsafe | IR 3 bit 2, IR 7 link age. Failsafe is off until you set a timeout. |
 | Sequencer ignored a write | Expected while a run owns that channel. Wait for idle (IR 26 phase 0) or coil 342. |
 | 434/435 did not switch day/night | Those are levels. Write **HR 438**. |
-| All heat zones shut with the input “disabled” | A heating DI role enables IO1 itself. Check the role, not only the checkbox. |
+| All heat zones shut with the input “disabled” | A heating DI role enables DI itself. Check the role, not only the checkbox. |
 | Panic opened no valves | By design. Coil 332 keeps heat closed. |
 | Buttons do nothing | Factory SW3 is none. All ON/OFF/ramp/scene are blocked during failsafe or panic. |
 | Heat duty looks like 8-bit brightness | The HA `light` is 0–255. Use a `number` 0–100 on that channel (see §8). |
@@ -1018,6 +1018,19 @@ Holding registers 400–431, 480 and 481 keep their numbers. A system that only
 writes output levels still talks to the same addresses — but a write to a
 channel the sequencer currently owns is ignored until the run ends.
 
+### IN1 and IN2 were swapped on early v0.2.0 builds
+
+IR 0 bit 1 is IN1 (terminal 11, SENS.A rail), bit 2 is IN2 (terminal 14, SENS.B
+rail). Early v0.2.0 betas had those two bits reversed against the terminal map.
+Coils 301/302 and 321/322 follow the same order. ESPHome entity names are now
+`DI` / `IN1` / `IN2` (they were `IO1` / `IO2` / `IO3`); Home Assistant
+`entity_id`s change.
+
+Anyone who flashed an earlier v0.2.0 build must factory-reset after this
+update. Input settings are stored by index; indices 1 and 2 swapped meaning.
+`CFG_VERSION` stays `0x0005` — the struct did not change, only what the
+indices mean, and the migrator cannot see that.
+
 ### Configuration format
 
 `CFG_VERSION` is **0x0005**. Migration from **0x0003** and **0x0004** is
@@ -1051,7 +1064,7 @@ that already ran a previous **0x0005** beta keeps whatever it stored
    (0 = day, 1 = night). Writing 434 does not switch the staircase to night.
 
 6. **A heating DI role enables the input.** The “input enabled” checkbox can
-   no longer silently shut every zone by leaving IO1 disabled while the role
+   no longer silently shut every zone by leaving DI disabled while the role
    is Enable or Inhibit.
 
 7. **Failsafe ships disabled** (timeout 0). After the upgrade the module
