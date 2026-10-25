@@ -2491,61 +2491,81 @@ static void updateInputRegisters(uint32_t now) {
   setIregIfChanged(IREG_ZONE_MASK_HI, (uint16_t)((g_heatOpenMask >> 16) & 0xFFFFu));
 }
 
+// epsilonrt Modbus-Arduino 1.3.0: addCoil/addHreg/addIreg are void and
+// malloc a linked-list node without checking. set* returns false if the
+// node is not in the list — that is the only registration result we have.
+static uint8_t g_mapFailures = 0;
+static inline void mapCoil(uint16_t a) {
+  mb.addCoil(a);
+  if (!mb.setCoil(a, false)) { g_mapFailures++; wsLog("MAP FAIL: coil " + String(a)); }
+}
+static inline void mapHreg(uint16_t a) {
+  mb.addHreg(a);
+  if (!mb.setHreg(a, 0)) { g_mapFailures++; wsLog("MAP FAIL: hreg " + String(a)); }
+}
+static inline void mapIreg(uint16_t a) {
+  mb.addIreg(a);
+  if (!mb.setIreg(a, 0)) { g_mapFailures++; wsLog("MAP FAIL: ireg " + String(a)); }
+}
+
 static void buildModbusMap() {
   for (uint16_t i = 0; i < IREG_BLOCK_COUNT; i++) {
-    mb.addIreg(i);
-    mb.setIreg(i, 0);
+    mapIreg(i);
     iregCache[i] = 0xFFFF;
   }
   for (uint16_t i = 0; i < NUM_DI; i++) {
-    mb.addCoil(CMD_DI_EN_BASE + i);
-    mb.setCoil(CMD_DI_EN_BASE + i, false);
-    mb.addCoil(CMD_DI_DIS_BASE + i);
-    mb.setCoil(CMD_DI_DIS_BASE + i, false);
+    mapCoil(CMD_DI_EN_BASE + i);
+    mapCoil(CMD_DI_DIS_BASE + i);
   }
-  mb.addCoil(COIL_SAVE_PWM);
-  mb.setCoil(COIL_SAVE_PWM, false);
-  mb.addCoil(COIL_RELEASE_OVERRIDE);
-  mb.setCoil(COIL_RELEASE_OVERRIDE, false);
-  mb.addCoil(COIL_PANIC_ON);
-  mb.setCoil(COIL_PANIC_ON, false);
-  mb.addCoil(COIL_ALL_OFF);
-  mb.setCoil(COIL_ALL_OFF, false);
-  mb.addCoil(COIL_PANIC_OFF);
-  mb.setCoil(COIL_PANIC_OFF, false);
-  mb.addCoil(COIL_STAIR_UP);
-  mb.setCoil(COIL_STAIR_UP, false);
-  mb.addCoil(COIL_STAIR_DOWN);
-  mb.setCoil(COIL_STAIR_DOWN, false);
-  mb.addCoil(COIL_STAIR_STOP);
-  mb.setCoil(COIL_STAIR_STOP, false);
-  mb.addCoil(COIL_HEAT_EXERCISE);
-  mb.setCoil(COIL_HEAT_EXERCISE, false);
+  mapCoil(COIL_SAVE_PWM);
+  mapCoil(COIL_RELEASE_OVERRIDE);
+  mapCoil(COIL_PANIC_ON);
+  mapCoil(COIL_ALL_OFF);
+  mapCoil(COIL_PANIC_OFF);
+  mapCoil(COIL_STAIR_UP);
+  mapCoil(COIL_STAIR_DOWN);
+  mapCoil(COIL_STAIR_STOP);
+  mapCoil(COIL_HEAT_EXERCISE);
   for (uint16_t i = 0; i < NUM_PWM; i++) {
-    mb.addHreg(HR_PWM_BASE + i);
+    mapHreg(HR_PWM_BASE + i);
     mb.Hreg(HR_PWM_BASE + i, chRequest[i]);
     g_prevHrPwm[i] = chRequest[i];
   }
   g_prevHrPwmInit = true;
-  mb.addHreg(HR_MASTER);
+  mapHreg(HR_MASTER);
   mb.Hreg(HR_MASTER, g_masterLevel);
-  mb.addHreg(HR_INHIBIT);
+  mapHreg(HR_INHIBIT);
   mb.Hreg(HR_INHIBIT, g_seqInhibit ? 1 : 0);
-  mb.addHreg(HR_NIGHT);
+  mapHreg(HR_NIGHT);
   mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel);
-  mb.addHreg(HR_DAY);
+  mapHreg(HR_DAY);
   mb.Hreg(HR_DAY, g_stairCfg.dayLevel);
-  mb.addHreg(HR_SCENE);
+  mapHreg(HR_SCENE);
   mb.Hreg(HR_SCENE, 0);
-  mb.addHreg(HR_SUMMER);
+  mapHreg(HR_SUMMER);
   mb.Hreg(HR_SUMMER, g_heatCfg.summerMode ? 1 : 0);
-  mb.addHreg(HR_NIGHT_WINDOW);
+  mapHreg(HR_NIGHT_WINDOW);
   mb.Hreg(HR_NIGHT_WINDOW, g_seqNightWindow ? 1 : 0);
-  mb.addHreg(HR_MB_ADDR);
+  mapHreg(HR_MB_ADDR);
   mb.Hreg(HR_MB_ADDR, g_mb_address);
-  mb.addHreg(HR_MB_BAUD);
+  mapHreg(HR_MB_BAUD);
   mb.Hreg(HR_MB_BAUD, (g_mb_baud > 65535UL) ? (uint16_t)0 : (uint16_t)g_mb_baud);
-  hmRegisterIdentity(mb, HM_MODEL_ID, HM_FW_MAJOR, HM_FW_MINOR, HM_FW_PATCH, HM_MAP_VERSION);
+  mapIreg(HM_IDENT_BASE + 0); mb.Ireg(HM_IDENT_BASE + 0, HM_MODEL_ID);
+  mapIreg(HM_IDENT_BASE + 1); mb.Ireg(HM_IDENT_BASE + 1, HM_FW_MAJOR);
+  mapIreg(HM_IDENT_BASE + 2); mb.Ireg(HM_IDENT_BASE + 2, HM_FW_MINOR);
+  mapIreg(HM_IDENT_BASE + 3); mb.Ireg(HM_IDENT_BASE + 3, HM_FW_PATCH);
+  mapIreg(HM_IDENT_BASE + 4); mb.Ireg(HM_IDENT_BASE + 4, HM_MAP_VERSION);
+
+  static const uint16_t kCoils[] = {300,301,302,320,321,322,330,331,332,333,334,340,341,342,345};
+  String dead;
+  for (uint16_t a : kCoils) {
+    mb.setCoil(a, true);
+    if (!mb.Coil(a)) dead += String(a) + " ";
+    mb.setCoil(a, false);
+  }
+  if (dead.length()) wsLog("COIL MAP MISSING: " + dead);
+  else wsLog("Coil map complete (" + String(sizeof(kCoils)/sizeof(kCoils[0])) + " coils)");
+  if (g_mapFailures) wsLog("MAP FAIL count: " + String(g_mapFailures));
 }
 
 void sendWebIdentity() {
