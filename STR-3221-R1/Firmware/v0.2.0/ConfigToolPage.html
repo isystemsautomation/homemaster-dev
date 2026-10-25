@@ -49,31 +49,22 @@
   <header class="appbar">
     <div class="headLeft">
       <div class="moduleImage">
-        <img src="https://raw.githubusercontent.com/isystemsautomation/homemaster-dev/refs/heads/main/STR-3221-R1/Images/photo1.png" alt="STR-3221-R1">
+        <img src="../../Images/photo1.png" alt="STR-3221-R1">
       </div>
       <div class="title">
         <h1>STR-3221-R1 Module Configuration</h1>
-        <p>Configure Modbus, isolated inputs, and 32 stair-LED output channels via Web Serial.</p>
+        <p>Stair lighting and underfloor heating controller — 32 MOSFET channels, on-board sequencer, 3 field inputs; Modbus RTU over RS-485, setup via USB-C.</p>
       </div>
     </div>
     <div class="statusbar">
       <div class="pillrow">
         <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
         <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
-        <div class="pill"><span class="dot warn" id="fsDot"></span>Failsafe: <span id="fsText">—</span></div>
-        <div class="pill"><span class="dot warn" id="ovDot"></span>Override: <span id="ovText">—</span></div>
-        <div class="pill"><span class="dot warn" id="pkDot"></span>Panic: <span id="pkText">—</span></div>
-        <div class="pill">Scene: <span id="scText">—</span></div>
         <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
         <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
         <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
         <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
         <div class="pill">Baud: <span id="hm-baud">—</span></div>
-        <div class="pill"><span class="dot warn" id="i2cU9d"></span>U9 <span id="i2cU9t">—</span></div>
-        <div class="pill"><span class="dot warn" id="i2cU10d"></span>U10 <span id="i2cU10t">—</span></div>
-        <div class="pill"><span class="dot warn" id="i2cU11d"></span>U11 <span id="i2cU11t">—</span></div>
-        <div class="pill"><span class="dot warn" id="i2cU12d"></span>U12 <span id="i2cU12t">—</span></div>
-        <div class="pill">I2C errors: <span id="i2cErrT">—</span></div>
       </div>
       <div class="actions">
         <button class="btn primary" id="connect-button">Connect</button>
@@ -85,13 +76,16 @@
   <div id="hm-compat"></div>
   <div id="hm-tools"></div>
 
-  <section class="card">
-      <div class="cardheader">
-        <div>
-          <h2>Device Setup</h2>
-          <div class="sub">Modbus address and baud — first thing at commissioning.</div>
-        </div>
-      </div>
+  <div class="pillrow" id="str-state" style="justify-content:flex-start;margin-top:16px">
+    <div class="pill"><span class="dot warn" id="fsDot"></span>Failsafe: <span id="fsText">—</span></div>
+    <div class="pill"><span class="dot warn" id="ovDot"></span>Override: <span id="ovText">—</span></div>
+    <div class="pill"><span class="dot warn" id="pkDot"></span>Panic: <span id="pkText">—</span></div>
+    <div class="pill">Scene: <span id="scText">—</span></div>
+  </div>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader"><div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div><span class="tag">Step 1</span></div>
       <div class="cardbody">
         <div class="row">
           <div>
@@ -111,6 +105,11 @@
         </div>
       </div>
     </section>
+    <section class="card">
+      <div class="cardheader"><div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div></div>
+      <div class="cardbody"><div id="hm-log-box"><div id="hm-log"></div></div></div>
+    </section>
+  </div>
 
   <div class="sectiontitle">
     <h3>Stairs</h3>
@@ -295,7 +294,7 @@
 
   <div class="sectiontitle">
     <h3>Output Channels O1–O32 (0–255)</h3>
-    <p class="hint">Ручное управление выходами. Для наладки и проверки проводки; при работающем секвенсоре его каналы игнорируют записи.</p>
+    <p class="hint">For commissioning and wiring checks; while the sequencer runs, its channels ignore writes.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -310,7 +309,7 @@
 
   <div class="sectiontitle">
     <h3>Channel profiles</h3>
-    <p class="hint">Как трактуется уровень канала: LED, зона отопления, сырое значение, индикация. Профиль Heat передаёт канал медленному ШИМ. Per channel: how the holding-register value is read, the dimming curve, the output window and the ramp. Order of application is profile → min/max → curve → master level → ramp.</p>
+    <p class="hint">Per channel: how the holding-register value is read — LED, heating zone, raw value or indicator. A Heat profile hands the channel to the slow PWM loop. Order of application is profile → min/max → curve → master level → ramp.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -330,7 +329,7 @@
 
   <div class="sectiontitle">
     <h3>Master &amp; panic</h3>
-    <p class="hint">Общий множитель яркости и аварийный режим. Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
+    <p class="hint">Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
   </div>
   <section class="card">
     <div class="cardbody">
@@ -354,7 +353,7 @@
 
   <div class="sectiontitle">
     <h3>Groups</h3>
-    <p class="hint">Связать произвольные каналы, чтобы запись в один применялась ко всем. Для лестницы и отопления не нужны. Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins.</p>
+    <p class="hint">Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins. Not needed for stairs or heating.</p>
   </div>
   <section class="card">
     <div class="cardbody"><div id="grp-list"></div></div>
@@ -363,7 +362,7 @@
 
   <div class="sectiontitle">
     <h3>Scenes</h3>
-    <p class="hint">Восемь сохранённых наборов уровней всех 32 каналов. Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
+    <p class="hint">Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
   </div>
   <section class="card">
     <div class="cardbody"><div id="scn-list"></div></div>
@@ -373,7 +372,7 @@
   <div class="sectiontitle"><h3>Bus failsafe</h3></div>
   <section class="card">
     <div class="cardbody">
-      <p class="hint">Что делает каждый канал, если контроллер перестал опрашивать. У каналов Heat заменяется антизамерзанием. Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
+      <p class="hint">What each channel does if the controller stops polling. Heat channels are replaced by frost protection. Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
       <div class="row">
         <div>
           <label for="bus-timeout-s">Bus timeout (s)</label>
@@ -405,16 +404,6 @@
 
 
   </details>
-
-  <details class="adv-block" id="adv-log">
-    <summary>Serial Log</summary>
-    <section class="card" style="margin-top:8px">
-      <div class="cardbody">
-        <div id="hm-log-box"><div id="hm-log"></div></div>
-      </div>
-    </section>
-  </details>
-
 
   <script src="simple-web-serial.min.js"></script>
   <script src="../../../_shared/hm-webconfig.js"></script>
@@ -1024,7 +1013,6 @@
           $(id)?.addEventListener('change', updateStairRunEst);
         });
       rememberDetails($('adv-main'), 'str3221.adv-main');
-      rememberDetails($('adv-log'), 'str3221.adv-log');
       updateStairRunEst();
       $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
       $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
@@ -1386,14 +1374,6 @@
       return '0x' + Number(a).toString(16).toUpperCase().padStart(2, '0');
     }
 
-    function setChipPill(i, cls, text){
-      const id = TLC_SLOTS[i].name;
-      const d = $('i2c' + id + 'd');
-      const t = $('i2c' + id + 't');
-      if (d) d.className = 'dot ' + cls;
-      if (t) t.textContent = text;
-    }
-
     function renderI2cPanel(){
       const host = $('i2c-chips');
       if (!host) return;
@@ -1408,7 +1388,6 @@
         else if (known && onBus) { cls = 'warn'; st = 'on bus, driver failed'; }
         else if (known) { cls = 'bad'; st = 'no response'; }
         else if (onBus) { cls = 'warn'; st = 'seen on bus'; }
-        setChipPill(i, cls, known ? (drv ? 'OK' : 'fail') : '—');
         return '<div class="i2c-chip ' + cls + '">' +
           '<div class="nm">' + s.name + '</div>' +
           '<div class="outs">' + s.outs + '</div>' +
@@ -1431,8 +1410,6 @@
       if (missing.length) bits.push('no response: ' + missing.join(', '));
       const meta = $('i2c-meta');
       if (meta) meta.textContent = bits.length ? bits.join('. ') + '.' : 'Connect the module to see which drivers answer.';
-      const errEl = $('i2cErrT');
-      if (errEl && i2cState.err != null) errEl.textContent = String(i2cState.err);
     }
 
     function applyTlcLive(ext){
