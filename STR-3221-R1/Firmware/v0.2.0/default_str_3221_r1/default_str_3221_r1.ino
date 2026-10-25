@@ -1456,7 +1456,8 @@ static void processButtonActions() {
 
 static void processOverrideTimeout(uint32_t now) {
   if (!g_localOverride || g_overrideTimeoutS == 0 || g_busFailsafeActive) return;
-  if ((uint32_t)(now - g_overrideSinceMs) >= (uint32_t)g_overrideTimeoutS * 1000UL) {
+  const int32_t ovDt = (int32_t)(now - g_overrideSinceMs);
+  if (ovDt > 0 && (uint32_t)ovDt >= (uint32_t)g_overrideTimeoutS * 1000UL) {
     wsLog("Local override timed out");
     releaseLocalOverride();
   }
@@ -2002,13 +2003,13 @@ void handleCommand(JSONVar obj) {
     sendWebStatus();
     sendWebLevels();
   } else if (act == "stair.up") {
-    stairForce(SEQ_DIR_UP);
+    stairForce(SEQ_DIR_UP, millis());
     sendWebStatus();
   } else if (act == "stair.down") {
-    stairForce(SEQ_DIR_DOWN);
+    stairForce(SEQ_DIR_DOWN, millis());
     sendWebStatus();
   } else if (act == "stair.stop") {
-    stairForce(SEQ_DIR_NONE);
+    stairForce(SEQ_DIR_NONE, millis());
     sendWebStatus();
   } else if (act == "stair.night") {
     g_seqNightWindow = true;
@@ -2334,15 +2335,15 @@ void processModbusCommandPulses() {
   }
   if (mb.Coil(COIL_STAIR_UP)) {
     mb.setCoil(COIL_STAIR_UP, false);
-    stairForce(SEQ_DIR_UP);
+    stairForce(SEQ_DIR_UP, millis());
   }
   if (mb.Coil(COIL_STAIR_DOWN)) {
     mb.setCoil(COIL_STAIR_DOWN, false);
-    stairForce(SEQ_DIR_DOWN);
+    stairForce(SEQ_DIR_DOWN, millis());
   }
   if (mb.Coil(COIL_STAIR_STOP)) {
     mb.setCoil(COIL_STAIR_STOP, false);
-    stairForce(SEQ_DIR_NONE);
+    stairForce(SEQ_DIR_NONE, millis());
   }
   if (mb.Coil(COIL_HEAT_EXERCISE)) {
     mb.setCoil(COIL_HEAT_EXERCISE, false);

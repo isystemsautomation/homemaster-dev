@@ -102,6 +102,13 @@ static inline bool stairRunning() {
   return g_seqPhase != SEQ_IDLE;
 }
 
+// now may be a loop snapshot taken before the stamp was written. Unsigned
+// subtraction then wraps to ~4e9 and the run looks already finished.
+static inline uint32_t stairDt(uint32_t now, uint32_t then) {
+  const int32_t dt = (int32_t)(now - then);
+  return (dt > 0) ? (uint32_t)dt : 0u;
+}
+
 static inline uint16_t stairRampMs(uint8_t ch) {
   if (chCfg[ch].rampMs) return chCfg[ch].rampMs;
   if (stairRunning() && stairOwnsChannel(ch)) return stairStepFadeMs();
@@ -193,7 +200,7 @@ static void stairAbortToBase() {
   wsLog("Stair sequence aborted");
 }
 
-static void stairStart(uint8_t dir) {
+static void stairStart(uint8_t dir, uint32_t now) {
   if (!stairEnabled()) {
     wsLog("Stair: ignored — Steps in use is " + String(g_stairCfg.stepCount) + " (needs 2..32)");
     return;
@@ -204,35 +211,34 @@ static void stairStart(uint8_t dir) {
   stairBuildOrder(dir);
   g_seqDir = dir;
   g_seqPhase = (dir == SEQ_DIR_DOWN) ? SEQ_DOWN : SEQ_UP;
-  g_seqStartMs = millis();
+  g_seqStartMs = now;
   g_seqHoldEndMs = 0;
   g_seqStep = 1;
   wsLog(String("Stair sequence ") + ((dir == SEQ_DIR_DOWN) ? "DOWN" : "UP"));
 }
 
-static void stairOnTrigger(uint8_t dir) {
+static void stairOnTrigger(uint8_t dir, uint32_t now) {
   if (g_panicActive) { wsLog("Stair: ignored — panic is active"); return; }
   if (g_localOverride) {
     wsLog("Stair: trigger ignored — local override holds the outputs");
     return;
   }
   if (!stairEnabled()) {
-    stairStart(dir);                    // logs the step-count refusal
+    stairStart(dir, now);               // logs the step-count refusal
     return;
   }
 
-  const uint32_t now = millis();
   if (!stairRunning()) {
     if (g_seqEndedMs &&
-        (uint32_t)(now - g_seqEndedMs) < stairMinRepeatMs()) {
+        stairDt(now, g_seqEndedMs) < stairMinRepeatMs()) {
       static uint32_t lastRepeatLogMs = 0;
-      if (!lastRepeatLogMs || (uint32_t)(now - lastRepeatLogMs) >= 1000UL) {
+      if (!lastRepeatLogMs || stairDt(now, lastRepeatLogMs) >= 1000UL) {
         lastRepeatLogMs = now;
         wsLog("Stair: trigger ignored — min repeat window (" + String(stairMinRepeatMs()) + " ms)");
       }
       return;
     }
-    stairStart(dir);
+    stairStart(dir, now);
     return;
   }
   const bool same = (dir == g_seqDir);
@@ -242,7 +248,7 @@ static void stairOnTrigger(uint8_t dir) {
       g_seqHoldEndMs = now + (uint32_t)stairHoldS() * 1000UL;
       return;
     }
-    stairStart(dir);                    // restart
+    stairStart(dir, now);               // restart
     return;
   }
   if (g_stairCfg.oppose == 0) return;
@@ -254,13 +260,13 @@ static void stairOnTrigger(uint8_t dir) {
     if (stairRunning()) stairBuildOrder(g_seqDir);
     return;
   }
-  stairStart(dir);                      // oppose == 1: reverse
+  stairStart(dir, now);                 // oppose == 1: reverse
 }
 
-static void stairForce(uint8_t dir) {
+static void stairForce(uint8_t dir, uint32_t now) {
   if (g_panicActive) { wsLog("Stair: ignored — panic is active"); return; }
   if (dir == SEQ_DIR_NONE) { stairAbortToBase(); return; }
-  stairStart(dir);
+  stairStart(dir, now);
 }
 
 static inline bool stairAnyPresence() {
@@ -280,7 +286,7 @@ static void stairRender(uint32_t now) {
   if (g_stairCfg.overlapPct == 0) fadeStart = tLight + tHold;
   else fadeStart = (tLight * (uint32_t)(100 - g_stairCfg.overlapPct)) / 100u;
 
-  const uint32_t elapsed = now - g_seqStartMs;
+  const uint32_t elapsed = stairDt(now, g_seqStartMs);
   if (stairLaunchMode() == STAIR_MODE_HOLD && stairAnyPresence()) {
     fadeStart = elapsed + 1000UL;       // stay lit while presence is held
     g_seqHoldEndMs = now + tHold;
@@ -348,7 +354,7 @@ static void stairRender(uint32_t now) {
   } else if (elapsed < fadeStart) {
     g_seqPhase = SEQ_HOLD;
     if (!g_seqHoldEndMs) g_seqHoldEndMs = now + tHold;
-    if (g_stairCfg.overlapPct == 0 && now < g_seqHoldEndMs) return;
+    if (g_stairCfg.overlapPct == 0 && (int32_t)(now - g_seqHoldEndMs) < 0) return;
     if (g_stairCfg.overlapPct == 0) fadeStart = 0;
   } else if (!fadeDone || anyAboveAccent) {
     g_seqPhase = SEQ_FADE;
@@ -359,16 +365,19 @@ static void stairRender(uint32_t now) {
     g_seqForceAll = false;
     g_seqEndedMs = now;
     wsLog("Stair sequence finished");
+    if (elapsed < stairDelay()) {
+      wsLog("Stair: run ended after " + String(elapsed) + " ms — this is a bug, report it");
+    }
   }
 }
 
 // Second edge inside bothWindowMs. The first edge already started the run.
-static void stairApplyBothEnds(uint8_t firstDir) {
+static void stairApplyBothEnds(uint8_t firstDir, uint32_t now) {
   if (g_stairCfg.bothEnds == 2) return;          // ignore
   if (g_stairCfg.bothEnds == 1) {
     g_seqForceAll = true;
     if (stairRunning()) stairBuildOrder(g_seqDir ? g_seqDir : firstDir);
-    else stairOnTrigger(firstDir);
+    else stairOnTrigger(firstDir, now);
     return;
   }
   // bothEnds == 0: keep the direction of the first edge — already running
@@ -385,7 +394,7 @@ static void stairServicePresence(uint32_t now) {
   for (uint8_t i = 0; i < 2; i++) {
     if (raw[i] != g_seqDb[i]) {
       if (g_seqDbAt[i] == 0) g_seqDbAt[i] = now;
-      if ((uint32_t)(now - g_seqDbAt[i]) < dbMs) continue;
+      if (stairDt(now, g_seqDbAt[i]) < dbMs) continue;
       g_seqDb[i] = raw[i];
       g_seqDbAt[i] = 0;
       if (!raw[i]) continue;            // rising edge only
@@ -393,21 +402,21 @@ static void stairServicePresence(uint32_t now) {
       if (g_seqFirstDir == SEQ_DIR_NONE) {
         g_seqFirstDir = dir;
         g_seqFirstEdgeMs = now;
-        stairOnTrigger(dir);            // start on the first edge
-      } else if ((uint32_t)(now - g_seqFirstEdgeMs) <= win) {
-        stairApplyBothEnds(g_seqFirstDir);
+        stairOnTrigger(dir, now);        // start on the first edge
+      } else if (stairDt(now, g_seqFirstEdgeMs) <= win) {
+        stairApplyBothEnds(g_seqFirstDir, now);
         g_seqFirstDir = SEQ_DIR_NONE;
       } else {
         g_seqFirstDir = dir;
         g_seqFirstEdgeMs = now;
-        stairOnTrigger(dir);
+        stairOnTrigger(dir, now);
       }
     } else {
       g_seqDbAt[i] = 0;
     }
   }
   if (g_seqFirstDir != SEQ_DIR_NONE &&
-      (uint32_t)(now - g_seqFirstEdgeMs) > win) {
+      stairDt(now, g_seqFirstEdgeMs) > win) {
     g_seqFirstDir = SEQ_DIR_NONE;       // window expired — do not start again
   }
 }
