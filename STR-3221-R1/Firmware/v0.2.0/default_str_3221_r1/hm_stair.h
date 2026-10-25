@@ -133,6 +133,22 @@ static void stairApplyIdleBase() {
   }
 }
 
+// Accent is a floor, not a one-shot write. While idle, keep step-table
+// channels at stairAccent whenever the bus HR is 0. A non-zero HR from
+// HA / the master still wins. Write only on divergence so ramps and
+// recomputeChannelDriver are not kicked every loop.
+static void stairHoldIdleAccent() {
+  if (!stairEnabled() || stairRunning()) return;
+  for (uint8_t s = 0; s < g_stairCfg.stepCount; s++) {
+    const uint8_t ch = stairCh(s);
+    if (ch >= NUM_PWM) continue;
+    if (mb.Hreg(HR_PWM_BASE + ch) != 0) continue;
+    const uint8_t want = stairAccent(s);
+    if (chRequest[ch] == want) continue;
+    stairSetSource(ch, want);
+  }
+}
+
 static void stairBuildOrder(uint8_t dir) {
   const uint8_t n = g_stairCfg.stepCount;
   g_seqN = n;
@@ -409,6 +425,7 @@ static void stairService(uint32_t now) {
   }
   stairServicePresence(now);
   if (stairRunning()) stairRender(now);
+  else stairHoldIdleAccent();
 }
 
 static inline uint16_t stairIregState() {

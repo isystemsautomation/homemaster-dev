@@ -197,7 +197,11 @@
         </div>
         <div><label for="stair-sf">Standby first</label><input id="stair-sf" type="number" min="0" max="255" value="0"></div>
         <div><label for="stair-sl">Standby last</label><input id="stair-sl" type="number" min="0" max="255" value="0"></div>
-        <div><label for="stair-nn">Night-light level</label><input id="stair-nn" type="number" min="0" max="255" value="0"></div>
+        <div>
+          <label for="stair-nn">All-steps standby</label>
+          <input id="stair-nn" type="number" min="0" max="255" value="0">
+          <span class="hint">Lights every step at this level whenever the sequencer is idle. Non-zero overrides Standby first and Standby last. Not tied to the night window.</span>
+        </div>
       </div>
       <div class="row">
         <div><label for="stair-fd">Step fade (ms)</label><input id="stair-fd" type="number" min="0" max="60000" value="0"></div>
@@ -1065,12 +1069,14 @@
         im: clampInt($('stair-im')?.value, 0, 1),
         be: clampInt($('stair-be')?.value, 0, 2),
         bw: clampInt($('stair-bw')?.value, 0, 5000),
+        rt: clampInt($('stair-rt')?.value, 0, 2),
+        op: clampInt($('stair-op')?.value, 0, 2),
+      });
+      sendConfigQueued('stairs.lv', {
         d: clampInt($('stair-d')?.value, 0, 60000),
         h: clampInt($('stair-h')?.value, 0, 3600),
         f: clampInt($('stair-f')?.value, 0, 60000),
         ov: clampInt($('stair-ov')?.value, 0, 100),
-        rt: clampInt($('stair-rt')?.value, 0, 2),
-        op: clampInt($('stair-op')?.value, 0, 2),
         nl: clamp255($('stair-nl')?.value),
         dl: clamp255($('stair-dl')?.value),
         sf: clamp255($('stair-sf')?.value),
@@ -1079,8 +1085,8 @@
         fd: clampInt($('stair-fd')?.value, 0, 60000),
         db: clampInt($('stair-db')?.value, 0, 5000),
         mr: clampInt($('stair-mr')?.value, 0, 60000),
-        map,
       });
+      sendConfigQueued('stairs.map', { map });
     }
 
     function sendHeating(){

@@ -99,6 +99,8 @@
  *   7. Sequencer — owns step-table channels while a run is in progress.
  *      HR 400..431 writes to those channels are accepted but not applied
  *      until the run ends (then the channel returns to accent / the bus).
+ *      While idle, the same channels hold stairAccent as a floor whenever
+ *      the matching HR is 0; a non-zero HR write still wins.
  *   8. Slow PWM — owns profile=heat channels.
  *   9. Holding-register writes 400..431.
  *
@@ -2041,6 +2043,49 @@ void handleCommand(JSONVar obj) {
   }
 }
 
+// One applicator for "stairs", "stairs.lv" and "stairs.map". Partial
+// messages are allowed: only keys present in `list` are written.
+static void applyStairsConfig(JSONVar list) {
+  if (list.hasOwnProperty("n"))  g_stairCfg.stepCount = (uint8_t)constrain((int)list["n"], 0, 32);
+  if (list.hasOwnProperty("md")) g_stairCfg.mode = (uint8_t)constrain((int)list["md"], 0, STAIR_MODE_MAX);
+  if (list.hasOwnProperty("pt")) g_stairCfg.pattern = (uint8_t)constrain((int)list["pt"], 0, STAIR_PAT_MAX);
+  if (list.hasOwnProperty("ww")) g_stairCfg.waveWidth = (uint8_t)constrain((int)list["ww"], 0, 32);
+  if (list.hasOwnProperty("im")) g_stairCfg.inputEndMap = (uint8_t)constrain((int)list["im"], 0, 1);
+  if (list.hasOwnProperty("be")) g_stairCfg.bothEnds = (uint8_t)constrain((int)list["be"], 0, 2);
+  if (list.hasOwnProperty("bw")) g_stairCfg.bothWindowMs = (uint16_t)constrain((int)list["bw"], 0, 5000);
+  if (list.hasOwnProperty("d"))  g_stairCfg.stepDelayMs = (uint16_t)constrain((int)list["d"], 0, 60000);
+  if (list.hasOwnProperty("h"))  g_stairCfg.holdS = (uint16_t)constrain((int)list["h"], 0, 3600);
+  if (list.hasOwnProperty("f"))  g_stairCfg.fadeOutMs = (uint16_t)constrain((int)list["f"], 0, 60000);
+  if (list.hasOwnProperty("ov")) g_stairCfg.overlapPct = (uint8_t)constrain((int)list["ov"], 0, 100);
+  if (list.hasOwnProperty("rt")) g_stairCfg.retrigger = (uint8_t)constrain((int)list["rt"], 0, 2);
+  if (list.hasOwnProperty("op")) g_stairCfg.oppose = (uint8_t)constrain((int)list["op"], 0, 2);
+  if (list.hasOwnProperty("nl")) { g_stairCfg.nightLevel = (uint8_t)constrain((int)list["nl"], 0, 255); mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel); }
+  if (list.hasOwnProperty("dl")) { g_stairCfg.dayLevel = (uint8_t)constrain((int)list["dl"], 0, 255); mb.Hreg(HR_DAY, g_stairCfg.dayLevel); }
+  if (list.hasOwnProperty("sf")) g_stairCfg.standbyFirst = (uint8_t)constrain((int)list["sf"], 0, 255);
+  if (list.hasOwnProperty("sl")) g_stairCfg.standbyLast = (uint8_t)constrain((int)list["sl"], 0, 255);
+  if (list.hasOwnProperty("nn")) g_stairCfg.nightLightLevel = (uint8_t)constrain((int)list["nn"], 0, 255);
+  if (list.hasOwnProperty("fd")) g_stairCfg.stepFadeMs = (uint16_t)constrain((int)list["fd"], 0, 60000);
+  if (list.hasOwnProperty("db")) g_stairCfg.debounceMs = (uint16_t)constrain((int)list["db"], 0, 5000);
+  if (list.hasOwnProperty("mr")) g_stairCfg.minRepeatMs = (uint16_t)constrain((int)list["mr"], 0, 60000);
+  if (list.hasOwnProperty("map")) {
+    const char* hex = (const char*)list["map"];
+    if (hex) {
+      for (uint8_t s = 0; s < NUM_PWM; s++) {
+        const char a = hex[s * 2], b = hex[s * 2 + 1];
+        if (!a || !b) break;
+        auto nib = [](char c) -> uint8_t {
+          if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
+          if (c >= 'A' && c <= 'F') return (uint8_t)(c - 'A' + 10);
+          if (c >= 'a' && c <= 'f') return (uint8_t)(c - 'a' + 10);
+          return 0;
+        };
+        const uint8_t v = (uint8_t)((nib(a) << 4) | nib(b));
+        g_stairCfg.stepChannel[s] = (v > 31) ? 31 : v;
+      }
+    }
+  }
+}
+
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   JSONVar list = obj["list"];
@@ -2179,48 +2224,13 @@ void handleUnifiedConfig(JSONVar obj) {
     }
     wsLog("Output levels updated");
     sendWebLevels();  // brightness not auto-persisted
-  } else if (type == "stairs") {
-    if (list.hasOwnProperty("n"))  g_stairCfg.stepCount = (uint8_t)constrain((int)list["n"], 0, 32);
-    if (list.hasOwnProperty("md")) g_stairCfg.mode = (uint8_t)constrain((int)list["md"], 0, STAIR_MODE_MAX);
-    if (list.hasOwnProperty("pt")) g_stairCfg.pattern = (uint8_t)constrain((int)list["pt"], 0, STAIR_PAT_MAX);
-    if (list.hasOwnProperty("ww")) g_stairCfg.waveWidth = (uint8_t)constrain((int)list["ww"], 0, 32);
-    if (list.hasOwnProperty("im")) g_stairCfg.inputEndMap = (uint8_t)constrain((int)list["im"], 0, 1);
-    if (list.hasOwnProperty("be")) g_stairCfg.bothEnds = (uint8_t)constrain((int)list["be"], 0, 2);
-    if (list.hasOwnProperty("bw")) g_stairCfg.bothWindowMs = (uint16_t)constrain((int)list["bw"], 0, 5000);
-    if (list.hasOwnProperty("d"))  g_stairCfg.stepDelayMs = (uint16_t)constrain((int)list["d"], 0, 60000);
-    if (list.hasOwnProperty("h"))  g_stairCfg.holdS = (uint16_t)constrain((int)list["h"], 0, 3600);
-    if (list.hasOwnProperty("f"))  g_stairCfg.fadeOutMs = (uint16_t)constrain((int)list["f"], 0, 60000);
-    if (list.hasOwnProperty("ov")) g_stairCfg.overlapPct = (uint8_t)constrain((int)list["ov"], 0, 100);
-    if (list.hasOwnProperty("rt")) g_stairCfg.retrigger = (uint8_t)constrain((int)list["rt"], 0, 2);
-    if (list.hasOwnProperty("op")) g_stairCfg.oppose = (uint8_t)constrain((int)list["op"], 0, 2);
-    if (list.hasOwnProperty("nl")) { g_stairCfg.nightLevel = (uint8_t)constrain((int)list["nl"], 0, 255); mb.Hreg(HR_NIGHT, g_stairCfg.nightLevel); }
-    if (list.hasOwnProperty("dl")) { g_stairCfg.dayLevel = (uint8_t)constrain((int)list["dl"], 0, 255); mb.Hreg(HR_DAY, g_stairCfg.dayLevel); }
-    if (list.hasOwnProperty("sf")) g_stairCfg.standbyFirst = (uint8_t)constrain((int)list["sf"], 0, 255);
-    if (list.hasOwnProperty("sl")) g_stairCfg.standbyLast = (uint8_t)constrain((int)list["sl"], 0, 255);
-    if (list.hasOwnProperty("nn")) g_stairCfg.nightLightLevel = (uint8_t)constrain((int)list["nn"], 0, 255);
-    if (list.hasOwnProperty("fd")) g_stairCfg.stepFadeMs = (uint16_t)constrain((int)list["fd"], 0, 60000);
-    if (list.hasOwnProperty("db")) g_stairCfg.debounceMs = (uint16_t)constrain((int)list["db"], 0, 5000);
-    if (list.hasOwnProperty("mr")) g_stairCfg.minRepeatMs = (uint16_t)constrain((int)list["mr"], 0, 60000);
-    if (list.hasOwnProperty("map")) {
-      const char* hex = (const char*)list["map"];
-      if (hex) {
-        for (uint8_t s = 0; s < NUM_PWM; s++) {
-          const char a = hex[s * 2], b = hex[s * 2 + 1];
-          if (!a || !b) break;
-          auto nib = [](char c) -> uint8_t {
-            if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
-            if (c >= 'A' && c <= 'F') return (uint8_t)(c - 'A' + 10);
-            if (c >= 'a' && c <= 'f') return (uint8_t)(c - 'a' + 10);
-            return 0;
-          };
-          const uint8_t v = (uint8_t)((nib(a) << 4) | nib(b));
-          g_stairCfg.stepChannel[s] = (v > 31) ? 31 : v;
-        }
-      }
-    }
+  } else if (type == "stairs" || type == "stairs.lv" || type == "stairs.map") {
+    applyStairsConfig(list);
     stairRebuildMask();
     if (stairEnabled() && !stairRunning()) stairApplyIdleBase();
-    wsLog("Stairs config updated");
+    if (type == "stairs.lv") wsLog("Stairs: levels updated");
+    else if (type == "stairs.map") wsLog("Stairs: step map updated");
+    else wsLog("Stairs: geometry updated");
     changed = true;
   } else if (type == "heating") {
     if (list.hasOwnProperty("p"))  g_heatCfg.slowPwmPeriodS = (uint16_t)constrain((int)list["p"], 0, 3600);
