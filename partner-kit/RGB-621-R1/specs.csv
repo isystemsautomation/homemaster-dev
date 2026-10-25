@@ -3,7 +3,7 @@ Microcontroller,RP2350A dual-core microcontroller
 Storage,External QSPI Flash (32 Mbit)
 Power Input,24 V DC nominal
 Input Protection (24 V logic),"1 A fuse, reverse polarity diode (STPS340U), TVS surge suppression, EMI filtering"
-LED PS input protection,10 A fuse; ideal-diode reverse-polarity stage (LM74610 controller + N-channel MOSFET); TVS surge suppression
+LED PS input protection,"10 A fuse; TVS surge suppression; no reverse-polarity protection on this input"
 Main Logic Supply,"Buck regulator 24 V → 5 V, 3.3 V LDO regulator"
 Document revision,DS-RGB-621-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
 LED Outputs,"5 × low-side MOSFET outputs (AP9990GH-HF: R, G, B, CW, WW)"

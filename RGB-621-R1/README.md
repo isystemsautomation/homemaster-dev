@@ -48,6 +48,10 @@ New modules ship firmware **v0.3.0**. Add the ESPHome package to your **MicroPLC
 > 5 A total and ≤ 1000 mA per channel. Both figures belong to a superseded
 > board revision and no longer apply. The current limit is 10 A, shared.
 
+> **Hardware note (R1):** the LED PS input has no reverse-polarity protection.
+> The ideal-diode stage shown in earlier documentation is not fitted. The 24 V
+> logic input is unaffected and retains its own reverse-polarity protection.
+
 # Hardware notes (current revision)
 
 1. **I.1/I.2 panel indicators swapped** — silkscreen only (I.1 shows DI2's state, I.2 shows DI1's); logical inputs, Modbus registers, and WebConfig are unaffected.
@@ -210,7 +214,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Storage | External QSPI Flash (32 Mbit) |
 | Power Input | 24 V DC nominal |
 | Input Protection (24 V logic) | 1 A fuse, reverse polarity diode (STPS340U), TVS surge suppression, EMI filtering |
-| LED PS input protection | 10 A fuse; ideal-diode reverse-polarity stage (LM74610 controller + N-channel MOSFET); TVS surge suppression |
+| LED PS input protection | 10 A fuse; TVS surge suppression. **No reverse-polarity protection on this input** — see the warning in §5. |
 | Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
 | Document revision | DS-RGB-621-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
 | LED Outputs | 5 × low-side MOSFET outputs (AP9990GH-HF: R, G, B, CW, WW) |
@@ -445,6 +449,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 > ⚠️ **IMPORTANT — POWER**  
 > Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), **10 A** per module. Size for strip length and W/m — the module does not imply a fixed strip wattage. **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
+> **LED PS polarity is not protected.** Unlike the 24 V logic input, the LED PS input has no reverse-polarity protection. Reversing **+** and **−** on LED PS can destroy the channel outputs. Verify polarity before applying power.
 
 ## 5.1 What You Need
 
@@ -466,7 +471,7 @@ Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-
 
 - **LED path (LED PS → COM (LED+)):** the positive rail from the external LED PSU enters through:
   - **10 A fuse** on the LED PS path — this is the module's design limit  
-  - **Reverse-polarity protection** — ideal-diode stage (LM74610 controller driving an N-channel MOSFET), rated far above the fuse and contributing negligible forward drop  
+  - **No reverse-polarity protection.** The LED PS input is unprotected against reversed polarity; connecting the LED PSU backwards can destroy the channel outputs. Check polarity before powering up.  
   - **TVS surge suppression**  
   - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
 
@@ -961,6 +966,9 @@ For modifying or rebuilding the firmware.
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **Relay C / NO** (dry contact). Add snubber for inductive loads.
 - **LED channels do not light:**  
   Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (**10 A** at LED PS, shared across channels; strip length and W/m decide the load).
+- **LED strip dark, dim, or flickering while the module reports correct levels.**
+  Check LED PS polarity and voltage **at the module's LED PS terminals under load**, not at the PSU.
+  WebConfig shows the commanded level per channel; if those are correct and the strip does not follow, the fault is in the LED supply or wiring, not in the module logic.
 - **Inputs not detected:**  
   Wire the contact between **I1/I2** and the **GND** terminal of the **DI 24Vdc** block (not **0V** of the power input, not the LED **COM**, not the **RS-485 COM**). Use a potential-free contact — do not apply external voltage. In WebConfig check the input is **Enabled**, **Inverted** is off, and **Debounce** (default 25 ms) is not set too high.
 - **USB not detected:**  
