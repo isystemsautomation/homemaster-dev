@@ -520,6 +520,11 @@ packages:
 Entities appear in Home Assistant after the controller reboots. For a third-party Modbus master,
 use the register map in [§7](#7-modbus-register-map) instead.
 
+Flashing v0.2.0 on a module that still runs the v0.1.0 package is not enough. In the same
+step change the ESPHome `path:` from `Firmware/v0.1.0/…` to `Firmware/v0.2.0/…` and
+recompile the controller. The v0.1.0 package still reads Discrete Inputs 1–3 / 20–23 / 90–91,
+which this firmware no longer answers.
+
 ### 5.5 Verify
 
 - **PWR LED steady** — module powered and running.
@@ -911,7 +916,7 @@ manually erased via WebConfig or serial command.
 | **PWR LED – steady ON** | Module powered and running normally. |
 | **TX/RX LEDs – blink** | Active Modbus communication on RS-485. |
 | **No TX/RX blink** | Check A/B polarity, COM reference, and termination resistors. |
-| **Status LED1 / LED2** | Whatever source was assigned in WebConfig; also readable on discrete inputs 90–91. |
+| **Status LED1 / LED2** | Whatever source was assigned in WebConfig; also readable on IR 2 bits 0–1. |
 
 ### 10.2 Resets
 
@@ -921,6 +926,12 @@ manually erased via WebConfig or serial command.
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration (returns to address 3, 19200 baud). |
 
 ### 10.3 Common issues
+
+Anyone who flashes v0.2.0 must change the ESPHome package `path:` from
+`Firmware/v0.1.0/…` to `Firmware/v0.2.0/…` in the same step and recompile.
+Leaving the v0.1.0 package on a v0.2.0 module is the main way this release
+breaks a working installation: FC 02 addresses 1–3 / 20–23 / 90–91 no longer
+answer.
 
 | Symptom | Resolution |
 |---------------------|----------------------|
