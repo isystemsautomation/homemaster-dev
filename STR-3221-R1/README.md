@@ -402,7 +402,7 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **SFH6156** opto-coupled receivers supplied from the module (IN1 = U18, IN2 = U17) — not isolation; accept open-collector or dry-contact sensor outputs. |
+| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **SFH6156** opto-coupled receivers supplied from the module (IN1 = U17, IN2 = U18) — not isolation; accept open-collector or dry-contact sensor outputs. |
 | **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). |
 | **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
 
@@ -475,7 +475,7 @@ Connect **potential-free (dry) contacts** — wall switches, push buttons, or re
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **I** (9); module supplies wetting current — do not apply external voltage.*
 
-**PIR / presence sensors (IN1, IN2).** Two presence-sensor inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U18, IN2 = U17), supplied from the module **SENS** rails — not galvanically isolated) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+**PIR / presence sensors (IN1, IN2).** Two presence-sensor inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U17, IN2 = U18), supplied from the module **SENS** rails — not galvanically isolated) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
 
@@ -876,8 +876,8 @@ board diagrams.
 | **I²C SDA / SCL** | GPIO6 / GPIO7 | `Wire1` / I2C1 — 4× **TLC59208F** (U9–U12) |
 | **Status LED1 / LED2** | GPIO9 / GPIO8 | On-board indicators — driven directly, **not** through the TLC59208F |
 | **DI** | GPIO12 | **ISO1212** U23, net IO3 — module-wetted 24 V discrete input — idle 0 V, active HIGH |
-| **IN1** | GPIO10 | **SFH6156** U18, net IO2 — presence; sensor supply from the SENS.A rail — idle 3 V, active LOW |
-| **IN2** | GPIO11 | **SFH6156** U17, net IO1 — presence; sensor supply from the SENS.B rail — idle 3 V, active LOW |
+| **IN1** | GPIO11 | **SFH6156** U17, net IO1 — presence; SENS.A rail, terminal 11 — idle 3 V, active LOW |
+| **IN2** | GPIO10 | **SFH6156** U18, net IO2 — presence; SENS.B rail, terminal 14 — idle 3 V, active LOW |
 | **Button 1–4** | GPIO16–GPIO19 | Active-HIGH via CD4069 (pressed = HIGH) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
@@ -1018,18 +1018,19 @@ Holding registers 400–431, 480 and 481 keep their numbers. A system that only
 writes output levels still talks to the same addresses — but a write to a
 channel the sequencer currently owns is ignored until the run ends.
 
-### IN1 and IN2 were swapped on early v0.2.0 builds
+### IN1 and IN2 follow the SENS silk, not the MCU net names
 
-IR 0 bit 1 is IN1 (terminal 11, SENS.A rail), bit 2 is IN2 (terminal 14, SENS.B
-rail). Early v0.2.0 betas had those two bits reversed against the terminal map.
-Coils 301/302 and 321/322 follow the same order. ESPHome entity names are now
-`DI` / `IN1` / `IN2` (they were `IO1` / `IO2` / `IO3`); Home Assistant
-`entity_id`s change.
+IR 0 bit 1 is IN1 (terminal 11, SENS.A, **U17**, net IO1, GPIO11), bit 2 is
+IN2 (terminal 14, SENS.B, **U18**, net IO2, GPIO10). A v0.2.0 build that
+bound IN1 to GPIO10 / U18 had those two bits reversed against the terminal
+map — the MCU nets IO1/IO2 are numbered the other way around from SENS.A/B.
+Coils 301/302 and 321/322 follow the same order. ESPHome entity names stay
+`DI` / `IN1` / `IN2`.
 
 Anyone who flashed an earlier v0.2.0 build must factory-reset after this
 update. Input settings are stored by index; indices 1 and 2 swapped meaning.
-`CFG_VERSION` stays `0x0005` — the struct did not change, only what the
-indices mean, and the migrator cannot see that.
+`CFG_VERSION` stays `0x0005` — the struct did not change, only which GPIO
+each index reads, and the migrator cannot see that.
 
 ### Configuration format
 

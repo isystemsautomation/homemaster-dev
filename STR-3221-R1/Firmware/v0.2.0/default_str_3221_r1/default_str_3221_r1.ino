@@ -162,9 +162,9 @@
  *   Field inputs (index 0..2 → IR 0 bits 0..2):
  *     DI   GPIO12  ISO1212 U23, net IO3 — module-wetted 24 V discrete input
  *                  idle 0 V, active HIGH
- *     IN1  GPIO10  SFH6156 U18, net IO2 — presence; sensor supply from the SENS.A rail
+ *     IN1  GPIO11  SFH6156 U17, net IO1 — presence; SENS.A rail, terminal 11
  *                  idle 3 V, active LOW
- *     IN2  GPIO11  SFH6156 U17, net IO1 — presence; sensor supply from the SENS.B rail
+ *     IN2  GPIO10  SFH6156 U18, net IO2 — presence; SENS.B rail, terminal 14
  *                  idle 3 V, active LOW
  *   Verified against STR-3221-R1.eprj, sheets `di` and `mcu`.
  *   BUTTON1..4  GPIO16..19  active-HIGH via CD4069 (INPUT, pressed=HIGH)
@@ -215,11 +215,11 @@ int SlaveId = 3;   // constructor seed only — setup() overrides from g_mb_addr
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (STR MCU board) ==================
-// Modbus index 0 = DI GPIO12 (ISO1212, net IO3), 1 = IN1 GPIO10 (U18, IO2),
-// 2 = IN2 GPIO11 (U17, IO1). SENS.A / SENS.B are sensor-supply rails, not inputs.
+// Modbus index 0 = DI GPIO12 (ISO1212, net IO3), 1 = IN1 GPIO11 (U17, IO1, SENS.A),
+// 2 = IN2 GPIO10 (U18, IO2, SENS.B). Rails are supplies; the signal is the IN pin.
 #define PIN_DI      12   // ISO1212 U23, net IO3 — 24 V discrete input
-#define PIN_IN1     10   // SFH6156 U18, net IO2 — presence, sensor supply from the SENS.A rail
-#define PIN_IN2     11   // SFH6156 U17, net IO1 — presence, sensor supply from the SENS.B rail
+#define PIN_IN1     11   // SFH6156 U17, net IO1 — SENS.A / terminal 11
+#define PIN_IN2     10   // SFH6156 U18, net IO2 — SENS.B / terminal 14
 #define PIN_LED1  9
 #define PIN_LED2  8
 #define PIN_BTN1  16
