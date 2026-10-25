@@ -712,6 +712,12 @@
     HMWebConfig._compat.lastBlockedMsg = '';  // next user write clears sticky blocked notice
     if (HMWebConfig._suppressCfgSend) return Promise.resolve();
     const packet = Object.assign({ t, list }, extra || {});
+    const frame = JSON.stringify(['Config', packet]);
+    if (frame.length + 1 > 240) {
+      appendLog('Config NOT sent: "' + t + '" is ' + (frame.length + 1) +
+                ' bytes, the module accepts 256. This is a bug in the page — report it.');
+      return Promise.resolve();
+    }
     logTx('Config', packet);
     return HMWebConfig.conn.send('Config', packet).catch(err => {
       appendLog('Config send failed: ' + (err?.message || err));
