@@ -44,6 +44,8 @@
     details.adv-block>summary::before{content:'▸ ';color:var(--muted2)}
     details.adv-block[open]>summary::before{content:'▾ '}
     .stair-run-est{margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px;font-variant-numeric:tabular-nums;line-height:1.5;white-space:pre-line}
+    .pill.stair-off{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    button.btn:disabled{opacity:.45;cursor:not-allowed}
   </style>
 
   <header class="appbar">
@@ -121,6 +123,7 @@
         <div class="pill">Phase: <span id="stair-phase">—</span></div>
         <div class="pill">Step: <span id="stair-step">—</span></div>
         <div class="pill">Direction: <span id="stair-dir">—</span></div>
+        <div class="pill stair-off" id="stair-armed">Sequencer OFF — set “Steps in use” to the number of stairs</div>
       </div>
       <div class="ch-actions" style="margin-top:0">
         <button type="button" class="btn" id="stair-run-up">Run up</button>
@@ -202,7 +205,12 @@
         <div><label for="stair-mr">Min repeat (ms)</label><input id="stair-mr" type="number" min="0" max="60000" value="0"></div>
       </div>
       <h4 style="margin:16px 0 8px;font-size:13px">Step → channel</h4>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="stair-fill-map">Fill 1:1</button>
+      </div>
+      <p class="hint">Factory map is 1:1. If every step points at O1, this config predates that default — press Fill.</p>
       <div class="grp-boxes" id="stair-map"></div>
+      <p class="hint" id="stair-map-warn" style="display:none"></p>
     </div>
   </section>
 
@@ -1000,7 +1008,10 @@
         lab.className = 'check';
         lab.innerHTML = `<span>S${s + 1}</span><select id="stair-ch-${s}">${chOpts}</select>`;
         const sel = lab.querySelector('select');
-        if (sel) { sel.value = String(s); sel.addEventListener('change', sendStairs); }
+        if (sel) {
+          sel.value = String(s);
+          sel.addEventListener('change', () => { updateStairMapWarn(); sendStairs(); });
+        }
         root.appendChild(lab);
       }
       ['stair-n','stair-pt','stair-ww','stair-md','stair-d','stair-h','stair-f','stair-ov',
@@ -1014,6 +1025,8 @@
         });
       rememberDetails($('adv-main'), 'str3221.adv-main');
       updateStairRunEst();
+      $('stair-n')?.addEventListener('input', syncStairArmed);
+      $('stair-fill-map')?.addEventListener('click', fillStairMap1to1);
       $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
       $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
       $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
@@ -1275,6 +1288,53 @@
           + fmtSec(fadeStartMs / 1000) + ' s (during lighting), not after hold.';
       }
       el.textContent = line;
+      syncStairArmed();
+    }
+    function syncStairArmed(){
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const off = n < 2;
+      const pill = $('stair-armed');
+      if (pill){
+        pill.className = 'pill' + (off ? ' stair-off' : '');
+        pill.textContent = off
+          ? 'Sequencer OFF — set “Steps in use” to the number of stairs'
+          : ('Sequencer armed · ' + n + ' steps');
+      }
+      const why = 'Steps in use is ' + n + ' (needs 2..32)';
+      ['stair-run-up', 'stair-run-down'].forEach(id => {
+        const b = $(id);
+        if (!b) return;
+        b.disabled = off;
+        b.title = off ? why : '';
+      });
+      updateStairMapWarn();
+    }
+    function updateStairMapWarn(){
+      const el = $('stair-map-warn');
+      if (!el) return;
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const used = {};
+      for (let s = 0; s < n; s++){
+        const ch = parseInt($('stair-ch-' + s)?.value || '0', 10);
+        if (!used[ch]) used[ch] = [];
+        used[ch].push(s + 1);
+      }
+      const bits = [];
+      Object.keys(used).forEach(ch => {
+        const steps = used[ch];
+        if (steps.length > 1)
+          bits.push('Channel O' + (parseInt(ch, 10) + 1) + ' is used by steps ' + steps.join(' and ') + '.');
+      });
+      el.style.display = bits.length ? '' : 'none';
+      el.textContent = bits.join(' ');
+    }
+    function fillStairMap1to1(){
+      for (let s = 0; s < NUM_PWM; s++){
+        const el = $('stair-ch-' + s);
+        if (el) el.value = String(s);
+      }
+      updateStairMapWarn();
+      sendStairs();
     }
     function rememberDetails(el, key){
       if (!el) return;

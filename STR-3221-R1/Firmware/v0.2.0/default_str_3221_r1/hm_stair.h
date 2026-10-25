@@ -178,8 +178,12 @@ static void stairAbortToBase() {
 }
 
 static void stairStart(uint8_t dir) {
-  if (!stairEnabled() || g_panicActive) return;
-  if (g_seqInhibit && !stairRunning()) return;
+  if (!stairEnabled()) {
+    wsLog("Stair: ignored — Steps in use is " + String(g_stairCfg.stepCount) + " (needs 2..32)");
+    return;
+  }
+  if (g_panicActive) { wsLog("Stair: ignored — panic is active"); return; }
+  if (g_seqInhibit && !stairRunning()) { wsLog("Stair: ignored — inhibited (HR 433)"); return; }
   stairRebuildMask();
   stairBuildOrder(dir);
   g_seqDir = dir;
@@ -191,15 +195,27 @@ static void stairStart(uint8_t dir) {
 }
 
 static void stairOnTrigger(uint8_t dir) {
-  if (g_panicActive) return;
-  if (g_localOverride) return;          // 2f §3.2 — override deafens PIR
-  if (!stairEnabled()) return;
+  if (g_panicActive) { wsLog("Stair: ignored — panic is active"); return; }
+  if (g_localOverride) {
+    wsLog("Stair: trigger ignored — local override holds the outputs");
+    return;
+  }
+  if (!stairEnabled()) {
+    stairStart(dir);                    // logs the step-count refusal
+    return;
+  }
 
   const uint32_t now = millis();
   if (!stairRunning()) {
-    if (g_seqInhibit) return;
     if (g_seqEndedMs &&
-        (uint32_t)(now - g_seqEndedMs) < stairMinRepeatMs()) return;
+        (uint32_t)(now - g_seqEndedMs) < stairMinRepeatMs()) {
+      static uint32_t lastRepeatLogMs = 0;
+      if (!lastRepeatLogMs || (uint32_t)(now - lastRepeatLogMs) >= 1000UL) {
+        lastRepeatLogMs = now;
+        wsLog("Stair: trigger ignored — min repeat window (" + String(stairMinRepeatMs()) + " ms)");
+      }
+      return;
+    }
     stairStart(dir);
     return;
   }
@@ -226,7 +242,7 @@ static void stairOnTrigger(uint8_t dir) {
 }
 
 static void stairForce(uint8_t dir) {
-  if (g_panicActive) return;
+  if (g_panicActive) { wsLog("Stair: ignored — panic is active"); return; }
   if (dir == SEQ_DIR_NONE) { stairAbortToBase(); return; }
   stairStart(dir);
 }

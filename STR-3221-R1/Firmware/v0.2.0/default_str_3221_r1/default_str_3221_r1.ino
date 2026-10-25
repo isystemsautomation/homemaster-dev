@@ -1498,6 +1498,8 @@ static void fillStairHeatFactory(StairCfg &st, HeatCfg &ht) {
   st.stepFadeMs = 300;
   st.minRepeatMs = 2000;
   st.nightLevel = 40;
+  st.dayLevel = 255;
+  for (uint8_t s = 0; s < NUM_PWM; s++) st.stepChannel[s] = s;  // step N → channel ON
   memset(st._rsv, 0, sizeof(st._rsv));
   ht.minPulsePct = 10;
   ht.slowPwmPeriodS = 900;            // 15 min — heat opens; 0 would stay shut
