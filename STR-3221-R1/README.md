@@ -31,8 +31,8 @@ controller holds temperature, the pump/boiler relay and the schedule.
 - **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine physical groups of four, each with its own **+** rail
 - **On-module stair sequencer** — direction from the two presence inputs, six drawing patterns, day/night levels, accent and night-light; runs with no controller
 - **On-module heating loop** — slow PWM, phase spread, simultaneous-open cap, first-open delay, pump-demand flag, valve exercise, frost protection, NC/NO per channel
-- **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212** input receiver, supplied from the module; not galvanically isolated) and 2 × presence inputs **IN1 / IN2** (**SFH6156**, supplied from the module **SENS** rails; not galvanically isolated)
-- **2 fused +5 V sensor rails (SENS.A / SENS.B)** — for low-current PIR / presence sensors only
+- **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212** input receiver, supplied from the module; not galvanically isolated) and 2 × presence inputs **IN1 / IN2** (**SFH6156**, supplied from the module **SENS.A / SENS.B** groups; not galvanically isolated)
+- **2 fused +5 V sensor terminal groups (SENS.A / SENS.B)** — each group is `+`, `IN` and `Gnd`; for a dry contact or a 5 V sourcing sensor, powered from the module
 - **4 buttons** with local actions (factory: SW1 all on, SW2 all off, SW3 none, SW4 clear local override)
 - **2 configurable status LEDs**
 - **Local override** and **bus failsafe** (failsafe ships disabled)
@@ -71,7 +71,7 @@ Only behaviour confirmed in the v0.2.0 firmware.
 | **Scenes** | Eight stored sets of 32 levels. Recalled from HR 436, a button, an input, or WebConfig. |
 | **Save levels** | Coil 330 writes the current levels to flash as the power-up state (rate-limited 10 s). |
 | **Panic** | Coil 332 / button / WebConfig. LED/raw/indicator → panic level and held. Heat stays **closed**. Coil 334 clears. |
-| **Inputs** | Per input: enable, invert, action (none / toggle / pulse / recall scene), target, level. A heating DI role on DI enables that input itself. |
+| **Inputs** | **DI** is a module-wetted 24 V dry contact. **IN1 / IN2** are 5 V current-sourcing presence inputs on the **SENS.A / SENS.B** groups. Per input: enable, invert, action (none / toggle / pulse / recall scene), target, level. A heating DI role on DI enables that input itself. |
 | **Buttons** | None, All ON, All OFF, Ramp test, Clear override, Recall scene, Panic, Clear panic. |
 | **Local override** | A local action holds the outputs against the bus until released. |
 | **Status LEDs** | Two; solid or blink; source none / DI / IN1 / IN2. |
@@ -81,15 +81,35 @@ Only behaviour confirmed in the v0.2.0 firmware.
 | **Diagnostics** | TLC ready/mask, I²C errors, reset reason, link age, uptime, hours and cycles per heat channel (`heat.stats`). |
 | **Modbus RTU** | One merged FC 04 of IR 0…31. Identity at IR 200…204 is not polled. |
 
+### Digital inputs
+
+#### SENS.A / SENS.B — presence inputs IN1 and IN2
+
+Current-sourcing 5 V inputs, opto-coupled. The input is active when the IN terminal is pulled up to +5 V, and the source must supply about **4.3 mA at 5 V**. An open terminal reads inactive — a 10 kΩ pull-down holds it low, so a broken sensor wire cannot produce a false trigger. A 6.8 V TVS clamps the terminal: **never apply 12 V or 24 V to IN1 or IN2.** The group's `+` terminal supplies the sensor from the module's 5 V rail through a self-resetting fuse (1.5 A hold per group); the total draw is limited by the module's 5 V rail.
+
+**Works with**
+- a volt-free contact — bridge `+` to `IN` (reed switch, push button, relay contact, a PIR with a relay output);
+- a three-wire sensor powered from `+` and `Gnd` with a **PNP or push-pull (sourcing) output** wired to `IN`.
+
+**Does not work with**
+- an **NPN open-collector (sinking)** output — the field side has no pull-up, only a 10 kΩ pull-down. Add an external 1–2.2 kΩ resistor from `+` to `IN` if you must use one;
+- any sensor whose output swings to 12 V or 24 V.
+
+#### DI — 24 V discrete input
+
+An IEC 61131-2 24 V input through an ISO1212 receiver. The module supplies the wetting voltage itself, so the pair of terminals takes a **volt-free (dry) contact only — do not apply an external voltage.** Protected by a self-resetting fuse (0.16 A hold), a 26 V TVS and a common-mode choke. The field side is powered from the module's own supply, so it is not isolated from the module in the installed configuration.
+
 ### Applications
 
 #### Stair lighting
 
-Presence sensors on **IN1** (bottom) and **IN2** (top), powered from **SENS.A /
-SENS.B (+5 V)**. The first edge starts the sequence; which input fired first
-sets the direction. The whole run lives on the module: it continues with Home
-Assistant down, the controller off and the bus unplugged. Home Assistant still
-chooses the day/night **window** (HR 438) and can inhibit new runs (HR 433).
+Presence sensors on **IN1** (bottom) and **IN2** (top), powered from the **SENS.A /
+SENS.B** terminal groups (**+5 V**). Use a dry contact or a 5 V PNP / push-pull
+(sourcing) PIR — not an NPN open-collector, and not a 12 V or 24 V sensor. The
+first edge starts the sequence; which input fired first sets the direction. The
+whole run lives on the module: it continues with Home Assistant down, the
+controller off and the bus unplugged. Home Assistant still chooses the
+day/night **window** (HR 438) and can inhibit new runs (HR 433).
 
 #### Underfloor heating — who does what
 
@@ -183,9 +203,9 @@ USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the cav
 
 | Area | Provision |
 |---|---|
-| Digital input **DI** | **ISO1212** input receiver, module-wetted (field side supplied from the module; not galvanically isolated); PTC fuse (**F7**, **1206L016WR**), TVS, reverse protection |
-| Presence inputs **IN1/IN2** | **SFH6156** opto-coupled receiver, supplied from the module — not isolation; **SMAJ6.8CA** TVS clamps |
-| Sensor rails | Resettable PTC per rail (**F9**/**F10**) |
+| Digital input **DI** | **ISO1212** input receiver, module-wetted dry contact only (do not apply an external voltage; not galvanically isolated); PTC fuse (**F7**, **1206L016WR**, 0.16 A hold), 26 V TVS, common-mode choke |
+| Presence inputs **IN1/IN2** | **SFH6156** current-sourcing 5 V receivers on the **SENS.A / SENS.B** groups (~4.3 mA at 5 V; PNP / push-pull or a contact from `+`; no NPN sinking without an external pull-up); **SMAJ6.8CA** TVS (6.8 V ceiling) — not isolation |
+| Sensor groups | Resettable PTC per group (**F9**/**F10**, 1.5 A hold); total draw limited by the module's 5 V rail |
 | Outputs **O1…O32** | Gate RC + ferrite per channel (**BLM31PG601SN1L**); **not** isolated from logic ground |
 | Power input | Reverse-polarity protection, TVS surge suppression, EMI filtering, 1 A fuse (F8) |
 | RS-485 | TVS, PTC, common-mode choke, fail-safe biasing — transient protection, **not** isolation |
@@ -201,10 +221,10 @@ USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the cav
 | **IN1 / IN2** (presence inputs) | **No** — opto-coupled receiver, supplied from the module — not isolation |
 | **O1…O32** (MOSFET outputs) | **No** — low-side switches referenced to field ground |
 | **RS-485 A/B/COM** | **No** — the **MAX485** shares the device's logic ground |
-| **SENS.A / SENS.B** supply rails | **No** — derived from the module's own supply |
+| **SENS.A / SENS.B** terminal groups | **No** — derived from the module's own supply |
 
 None of the field interfaces is isolated. **ISO1212** and **SFH6156** are receivers on the
-module; their field sides are supplied from the module's own 24 V and **SENS** rails, so they
+module; their field sides are supplied from the module's own 24 V and **SENS.A / SENS.B** groups, so they
 share the module ground. That is normal and safe for SELV dry contacts and presence sensors,
 but it is not galvanic isolation.
 
@@ -249,7 +269,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | Diagrams & Descriptions |
 |--------------------------|
 | ![System Diagram](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS rails. |
+| ![FieldBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS.A / SENS.B groups. |
 | ![MCUBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
 | ![Terminal Map](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
 
@@ -268,14 +288,14 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 | 5 | COM | RS485 | RS-485 signal reference |
 | 6 | B | RS485 | RS-485 data - |
 | 7 | A | RS485 | RS-485 data + |
-| 8 | Gnd | DI | Discrete input return |
-| 9 | I | DI | Discrete input |
-| 10 | + | SENS_A | Presence sensor A supply |
-| 11 | IN1 | SENS_A | Presence input A |
-| 12 | Gnd | SENS_A | Presence A return |
-| 13 | + | SENS_B | Presence sensor B supply |
-| 14 | IN2 | SENS_B | Presence input B |
-| 15 | Gnd | SENS_B | Presence B return |
+| 8 | Gnd | DI | Discrete input return — dry contact only |
+| 9 | I | DI | Discrete input — module-wetted 24 V, no external voltage |
+| 10 | + | SENS_A | SENS.A group +5 V sensor supply |
+| 11 | IN1 | SENS_A | Presence input A — 5 V sourcing, ~4.3 mA, max 6.8 V |
+| 12 | Gnd | SENS_A | SENS.A group return |
+| 13 | + | SENS_B | SENS.B group +5 V sensor supply |
+| 14 | IN2 | SENS_B | Presence input B — 5 V sourcing, ~4.3 mA, max 6.8 V |
+| 15 | Gnd | SENS_B | SENS.B group return |
 | 16 | + | OUT_1_4 | Group rail for O.1-O.4 |
 | 17 | O.1 | OUT_1_4 | Output 1 |
 | 18 | O.2 | OUT_1_4 | Output 2 |
@@ -333,7 +353,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 - Outputs are nine groups, each with its own + rail: top row 4+4+2, bottom row 4+4+4+4+4+2
 - Low-side switching: load + to the group + rail, load - to O.n.
-- Two separate presence inputs IN1 and IN2, each with its own + and Gnd on the matching SENS rail.
+- Two separate presence inputs IN1 and IN2, each in its own SENS.A / SENS.B terminal group with + and Gnd.
+- IN1 / IN2 are current-sourcing 5 V inputs (~4.3 mA at 5 V, 6.8 V TVS). Use a contact from + or a PNP / push-pull sensor. An NPN open-collector needs an external 1–2.2 kΩ pull-up from + to IN. Never apply 12 V or 24 V.
+- DI (terminals 8–9) takes a volt-free contact only — do not apply an external voltage.
+- The group's + terminal is fused at 1.5 A hold per group; the total draw is limited by the module's 5 V rail.
 - Output path: per channel ≤1.5 A (ferrite BLM31PG601SN1L); module total ≤18 A.
 
 <!-- hm:terminal-map:end -->
@@ -353,6 +376,21 @@ Pressed state of SW1–SW4 is **IR 1** (bits 0–3), not the v0.1.0 discrete inp
 
 Hardware key combinations are unchanged: Buttons 1+2 BOOT, 3+4 reset, all four
 on power-up factory-reset (address 3, 19200).
+
+### 4.4 Wiring examples
+
+```
+Dry contact          3-wire PIR (PNP / push-pull)
+  + ──┐                + ──── V+  sensor
+      │ contact        Gnd ─── 0V  sensor
+  IN ─┘                IN ──── OUT sensor
+  Gnd
+```
+
+A dry contact bridges the group's `+` to `IN`. A three-wire PIR is powered from
+the same **SENS.A** or **SENS.B** group and must source current into `IN`.
+Do not wire an NPN open-collector to `IN` without an external pull-up, and do
+not apply 12 V or 24 V.
 
 ---
 
@@ -376,7 +414,7 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 - **DIN Mounting:** mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress. **DIN width: 9 modules (≈ 158 mm).**
 - **Power domains:** the module uses separate power domains — **Field Power (24 VDC_FUSED)** for outputs and inputs, **Logic Power (5 V / 3.3 V)** for the MCU. Never short or bridge **GND_FUSED** (field ground) with **logic ground** unless specifically required by system design.
-- **Sensor Power Connection:** power low-current PIR / presence sensors only from the fused **SENS.A** / **SENS.B** rails (**+5 V**, **F9**/**F10**). Check the sensor is rated for a 5 V supply before wiring it. The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** channel — do **not** backfeed or parallel SENS rails with other supplies.
+- **Sensor Power Connection:** power a dry contact or a 5 V sourcing PIR from the fused **SENS.A** / **SENS.B** terminal groups (**+5 V**, **F9**/**F10**). Check the sensor is rated for a 5 V supply and a sourcing (PNP / push-pull) output before wiring it. The **DI** input (terminals 8–9) is a separate **module-wetted 24 V** dry-contact channel — do **not** apply an external voltage, and do **not** backfeed or parallel the SENS groups with other supplies.
 - **Wiring Discipline:** use ferruled, properly sized conductors (0.25–1.5 mm²). Route communication (RS-485) and power lines separately to reduce noise coupling.
 - **Testing Before Power-Up:** verify all terminal polarities, check RS-485 A/B orientation, and confirm no shorts between supply rails.
 
@@ -388,7 +426,7 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 |-------|----------|
 | **24 VDC Power (V+ / 0V)** | Use only clean, regulated SELV 24 VDC. Reverse polarity is protected but repeated mistakes may damage fuses. |
 | **LED PS (+/–)** | Provides the external LED load voltage (typically 12–24 VDC). Do not short or exceed rated current capacity of field wiring. |
-| **Sensor Rails (SENS.A / SENS.B)** | For **+5 V** presence-sensor power only (**F9**/**F10** PTC). Never use to drive LED loads or feed back external power sources. |
+| **Sensor groups (SENS.A / SENS.B)** | Each group is `+` / `IN` / `Gnd` for a **+5 V** sourcing sensor or a dry contact (**F9**/**F10** PTC). Never use to drive LED loads or feed back external power sources. |
 
 **Digital input — module-wetted 24 V (DI)**
 
@@ -402,9 +440,9 @@ Improper wiring, power application, or grounding may cause malfunction or damage
 
 | Area | Warning |
 |-------|----------|
-| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **SFH6156** opto-coupled receivers supplied from the module (IN1 = U17, IN2 = U18) — not isolation; accept open-collector or dry-contact sensor outputs. |
-| **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). |
-| **Protection** | **SMAJ6.8CA** TVS clamps on presence input lines. |
+| **Input Type** | **IN1** / **IN2** (terminals 11, 14) are **SFH6156** current-sourcing 5 V receivers on the **SENS.A / SENS.B** groups (IN1 = U17, IN2 = U18) — not isolation. Active when `IN` is pulled to +5 V (~4.3 mA). Use a contact from `+` or a PNP / push-pull output. An NPN open-collector needs an external 1–2.2 kΩ pull-up. |
+| **Sensor Power** | Power sensors from **SENS.A** (+) / **SENS.B** (+) (**+5 V**, terminals 10, 13) with return to matching **Gnd** (terminals 12, 15). Total draw is limited by the module's 5 V rail. |
+| **Protection** | **SMAJ6.8CA** TVS clamps the `IN` terminals — **never apply 12 V or 24 V**. |
 
 **Outputs (O1…O32)**
 
@@ -449,9 +487,9 @@ The module needs **two separate supplies**, and mixing them up is the most commo
 | **Module logic** | **V+** / **0V** (1, 2) | MCU, inputs, RS-485, sensor rails | 24 V DC nominal SELV, typical 0.2–0.5 W, logic only — size for electronics only |
 | **LED load** | **LED PS +** / **−** (3, 4) | Feeds the nine output group rails | 12–24 V DC, sized for the total LED load |
 
-The **+5 V SENS.A / SENS.B** rails for presence sensors are derived internally from the module
-supply and individually fused (**F9** / **F10**, 1206L150THWR PTC). They are for sensor power
-only — never for LED segments.
+The **+5 V SENS.A / SENS.B** terminal groups for presence sensors are derived internally from the module
+supply and individually fused (**F9** / **F10**, 1206L150THWR PTC, 1.5 A hold per group). They are for a dry contact or a 5 V sourcing sensor
+only — never for LED segments. The total draw is limited by the module's 5 V rail.
 
 Both inputs are reverse-polarity and surge protected. Do not bridge **GND_FUSED** (field) and logic **GND** externally.
 
@@ -475,12 +513,12 @@ Connect **potential-free (dry) contacts** — wall switches, push buttons, or re
 ![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **I** (9); module supplies wetting current — do not apply external voltage.*
 
-**PIR / presence sensors (IN1, IN2).** Two presence-sensor inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U17, IN2 = U18), supplied from the module **SENS** rails — not galvanically isolated) accept PIR or motion detectors. Power low-current sensors from the fused **SENS.A** / **SENS.B** rails (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) — check the sensor is rated for a 5 V supply — and return sensor ground to the matching **Gnd** terminal (12 or 15). Wire the sensor output (open-collector or dry contact) between **IN1**/**IN2** (terminals 11/14) and the corresponding sensor ground.
+**PIR / presence sensors (IN1, IN2).** Two current-sourcing 5 V presence inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U17, IN2 = U18) on the **SENS.A / SENS.B** groups — not galvanically isolated). Power a dry contact or a 5 V **PNP / push-pull (sourcing)** sensor from the fused group `+` (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) and return sensor ground to the matching **Gnd** (12 or 15). Wire a sourcing `OUT` to **IN1**/**IN2** (terminals 11/14), or bridge `+` to `IN`. An NPN open-collector needs an external 1–2.2 kΩ pull-up from `+` to `IN`. **Never apply 12 V or 24 V to IN1 or IN2.**
 
-**Example (PIR on IN1):** **SENS.A** + (10) → sensor **+5 V**; sensor **GND** → **Gnd** (12); sensor **OUT** → **IN1** (11) (open-collector to Gnd when motion detected).
+**Example (PIR on IN1):** **SENS.A** + (10) → sensor **V+**; sensor **0 V** → **Gnd** (12); sensor **OUT** (PNP / push-pull) → **IN1** (11).
 
 ![PIR motion sensor wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_PIRSensors.png)
-*PIR sensors powered from **SENS** rail and signaling **IN1** / **IN2**.*
+*PIR sensors powered from the **SENS.A / SENS.B** groups, sourcing into **IN1** / **IN2**.*
 
 **RS-485 (Modbus RTU).** Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu). Fit 120 Ω at both ends of the bus only.
 
@@ -497,7 +535,7 @@ set a unique Modbus address and the baud rate used on your bus — the factory s
 check live I/O to confirm the wiring before the controller is involved. Full reference: [§6](#6-webconfig-reference).
 
 After wiring, set channel profiles (LED vs Heat), then fill the Stairs or Heating card.
-Presence sensors must be **5 V** parts on SENS.A / SENS.B.
+Presence sensors must be **5 V** sourcing parts (or a dry contact) on the SENS.A / SENS.B groups.
 
 #### Integrate
 
@@ -876,8 +914,8 @@ board diagrams.
 | **I²C SDA / SCL** | GPIO6 / GPIO7 | `Wire1` / I2C1 — 4× **TLC59208F** (U9–U12) |
 | **Status LED1 / LED2** | GPIO9 / GPIO8 | On-board indicators — driven directly, **not** through the TLC59208F |
 | **DI** | GPIO12 | **ISO1212** U23, net IO3 — module-wetted 24 V discrete input — idle 0 V, active HIGH |
-| **IN1** | GPIO11 | **SFH6156** U17, net IO1 — presence; SENS.A rail, terminal 11 — idle 3 V, active LOW |
-| **IN2** | GPIO10 | **SFH6156** U18, net IO2 — presence; SENS.B rail, terminal 14 — idle 3 V, active LOW |
+| **IN1** | GPIO11 | **SFH6156** U17, net IO1 — presence; SENS.A group, terminal 11 — idle 3 V, active LOW |
+| **IN2** | GPIO10 | **SFH6156** U18, net IO2 — presence; SENS.B group, terminal 14 — idle 3 V, active LOW |
 | **Button 1–4** | GPIO16–GPIO19 | Active-HIGH via CD4069 (pressed = HIGH) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
@@ -940,7 +978,8 @@ answer.
 | **HR 481 reads 0** | Expected at 115200 — the raw value does not fit a 16-bit register. Not a fault. |
 | **Outputs not responding** | Check the LED PS supply and the output **+** group rail; then check TLC status in WebConfig live view. |
 | **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and use **Scan I2C bus** in WebConfig (idle SDA/SCL should both read H; bound addresses should be `0x20–0x23`). |
-| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **I** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
+| **Digital inputs not changing** | **DI:** wire a potential-free contact between **Gnd** (8) and **I** (9); do not apply external voltage. **IN1 / IN2:** the source must pull `IN` up to +5 V (a contact from `+`, or a PNP / push-pull output). An NPN open-collector needs an external pull-up. Check enable / invert in WebConfig — a disabled input always reads 0. |
+| **Open IN1 / IN2 reads inactive** | Expected. A 10 kΩ pull-down holds the terminal low, so a broken sensor wire cannot produce a false trigger. In WebConfig the Digital Inputs card shows a **grey** (off) dot on an unconnected terminal. |
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
 | **Pressing a button does nothing** | Factory SW3 is none. SW1 All ON / SW2 All OFF skip heat channels. All ON/OFF/ramp/scene are blocked during failsafe or panic. |
 | **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |

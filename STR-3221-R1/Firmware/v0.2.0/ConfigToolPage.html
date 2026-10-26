@@ -643,9 +643,9 @@
       if (!c) return;
       const ioNames = ['DI', 'IN1', 'IN2'];
       const ioHints = [
-        'Module-wetted 24 V discrete input. Dry contact only — do not apply external voltage.',
-        'Presence input. Power the sensor from the SENS.A rail (+5 V).',
-        'Presence input. Power the sensor from the SENS.B rail (+5 V).',
+        'Module-wetted 24 V input. Dry contact only — do not apply an external voltage.',
+        'Presence input, SENS.A group. Active when IN is pulled to +5 V — needs a sourcing output or a contact from +. Max 6.8 V. An NPN open-collector sensor needs an external pull-up.',
+        'Presence input, SENS.B group. Active when IN is pulled to +5 V — needs a sourcing output or a contact from +. Max 6.8 V. An NPN open-collector sensor needs an external pull-up.',
       ];
       const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'},{v:3,l:'Recall scene'}]
         .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
