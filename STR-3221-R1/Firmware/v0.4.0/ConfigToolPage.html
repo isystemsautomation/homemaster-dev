@@ -1252,7 +1252,11 @@
       },
     });
     HMWebConfig.connect({ requestElement: 'connect-button' });
-    HMWebConfig.mountTools('hm-tools', { identify: true });
+    HMWebConfig.mountTools('hm-tools', { identify: true, bootloader: true });
+    const uf2Slot = $('hm-tools_bootloader_extra');
+    if (uf2Slot) {
+      uf2Slot.innerHTML = '<a href="STR-3221-R1.uf2">Download STR-3221-R1 v0.4.0 firmware (.uf2)</a>';
+    }
     HMWebConfig.conn.on('ext', ext => {
       if (ext && ext.pwm) applyPwmFromDevice(ext.pwm);
       if (ext && (ext.tlc_chip != null || ext.tlc_ready != null)) applyTlcLive(ext);

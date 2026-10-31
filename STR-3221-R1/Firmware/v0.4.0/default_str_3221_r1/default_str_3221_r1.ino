@@ -1874,6 +1874,7 @@ void handleValues(JSONVar values);
 void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void performReset();
+void performBootloader();
 void processModbusCommandPulses();
 void sendWebStatus();
 void sendWebIdentity();
@@ -1989,6 +1990,8 @@ void handleCommand(JSONVar obj) {
     wsLog(ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
     delay(400);
     performReset();
+  } else if (act == "bootloader") {
+    performBootloader();
   } else if (act == "save") {
     if (saveConfigFS()) wsLog("Configuration saved");
     else wsLog("ERROR: Save failed");
@@ -2356,6 +2359,23 @@ void performReset() {
   if (Serial) Serial.flush();
   delay(50);
   watchdog_reboot(0, 0, 0);
+  while (true) { __asm__("wfi"); }
+}
+
+void performBootloader() {
+  // Same contract as the reboot command: a dirty blob is written and
+  // verified before the chip leaves this firmware. performReset() itself
+  // only flushes CDC; the save sits in its caller. Here the save lives
+  // in the leave path so a future caller cannot skip it.
+  if (cfgDirty) {
+    if (!saveConfigFS())
+      wsLog("WARNING: Save verify FAILED. Entering bootloader anyway…");
+    cfgDirty = false;
+  }
+  wsLog("Entering bootloader — the module will disconnect and appear as a USB drive");
+  if (Serial) Serial.flush();
+  delay(400);
+  rp2040.rebootToBootloader();
   while (true) { __asm__("wfi"); }
 }
 
