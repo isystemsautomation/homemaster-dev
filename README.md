@@ -203,7 +203,7 @@ Controllers and modules support flashing and auto-reset via **USB‑C**, without
 
 ### Build environment (reproducible)
 
-RP2350 module firmware (**v0.2.0** sketches) is built with the **arduino-pico** core (Earle Philhower). Each sketch folder includes a `sketch.yaml` manifest; GitHub Actions compiles all seven modules and publishes `.uf2` artifacts.
+RP2350 module firmware is built with the **arduino-pico** core (Earle Philhower). Each sketch folder includes a `sketch.yaml` manifest.
 
 #### Core & board
 
