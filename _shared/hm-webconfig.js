@@ -32,10 +32,11 @@
     _suppressCfgSend: false,
     _compat: { level: 'idle', blocked: false, factoryBlocked: false, lastBlockedMsg: '' },
     _statusIdentityTimer: null,
-    _toolsIds: { identify: null, factory: null, reboot: null },
+    _toolsIds: { identify: null, factory: null, reboot: null, bootloader: null },
     _localLogic: false,
     _portOpen: false,
     _helloSent: false,
+    _quietDisconnect: false,
     _identity: { model: null, fw: null, map: null, addr: null, baud: null },
   };
 
@@ -454,6 +455,37 @@
     updateConnectionStatus();
   }
 
+  // Same teardown as conn.on('close') / a lost device, plus a best-effort
+  // port.close() so we do not wait for the I/O error after USB re-enumerates.
+  function closeConnection() {
+    const conn = HMWebConfig.conn;
+    if (conn) {
+      try {
+        const writer = (typeof conn.getWriter === 'function') ? conn.getWriter() : null;
+        if (writer) {
+          try { writer.releaseLock(); } catch (_) { /* already released */ }
+          try { conn.setWriter(null); } catch (_) { /* optional on this build */ }
+        }
+        const port = (typeof conn.getPort === 'function') ? conn.getPort() : null;
+        if (port) {
+          const readable = port.readable;
+          if (readable && !readable.locked) {
+            try {
+              const reader = readable.getReader();
+              reader.cancel().catch(() => {});
+              reader.releaseLock();
+            } catch (_) { /* reader already gone */ }
+          }
+          try { port.close().catch(() => {}); } catch (_) { /* already closing */ }
+        }
+      } catch (_) { /* port already gone */ }
+    }
+    HMWebConfig._portOpen = false;
+    stopConnectionMonitoring();
+    setDisconnectedUI();
+    appendLog('port: close');
+  }
+
   function setDot(sec, idx, on) {
     const el = $(`state-${sec}${idx}`);
     if (el) el.className = 'state-dot ' + (on ? 'dot-on' : 'dot-off');
@@ -587,6 +619,7 @@
       HMWebConfig._portOpen = true;
       HMWebConfig._lastDataMs = 0;
       HMWebConfig._helloSent = false;
+      HMWebConfig._quietDisconnect = false;
       HMWebConfig._compat.blocked = true;
       document.body.classList.add('hm-compat-blocked');
       clearIdentity();
@@ -697,6 +730,7 @@
       if (errMsg.includes('NetworkError') || errMsg.includes('device has been lost')) {
         HMWebConfig._lastDataMs = 0;
         setDisconnectedUI();
+        if (HMWebConfig._quietDisconnect) return;
       }
       appendLog('Unhandled Rejection: ' + errMsg);
     });
@@ -751,6 +785,7 @@
     const packet = { action };
     logTx('command', packet);
     return HMWebConfig.conn.send('command', packet).catch(err => {
+      if (act === 'bootloader' && HMWebConfig._quietDisconnect) return;
       appendLog('Command failed: ' + (err?.message || err));
     });
   };
@@ -758,16 +793,22 @@
   /**
    * Mount standard Tools panel (Identify / Factory reset / Reboot).
    * @param {string} targetId - container element id (e.g. 'hm-tools')
-   * @param {{ identify?: boolean }} [opts] - show Identify when module has user LEDs
+   * @param {{ identify?: boolean, bootloader?: boolean }} [opts]
+   *        identify — show Identify when module has user LEDs
+   *        bootloader — show Bootloader (USB); off unless a page asks
    */
   HMWebConfig.mountTools = function mountTools(targetId, opts) {
     const el = $(targetId);
     if (!el) return;
     const identify = !!(opts && opts.identify);
+    const bootloader = !!(opts && opts.bootloader);
     const uid = targetId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const idIdentify = uid + '_btn_identify';
     const idFactory = uid + '_btn_factory';
     const idReboot = uid + '_btn_reboot';
+    const idBootloader = uid + '_btn_bootloader';
+    const idHint = uid + '_bootloader_hint';
+    const idHintExtra = uid + '_bootloader_extra';
     el.innerHTML =
       '<div class="sectiontitle"><h3>Tools</h3></div>' +
       '<section class="card">' +
@@ -775,15 +816,26 @@
       (identify ? '<button type="button" class="btn hm-tools-allow" id="' + idIdentify + '">Identify (~5 s)</button>' : '') +
       '<button type="button" class="btn hm-tools-allow" id="' + idFactory + '">Factory reset</button>' +
       '<button type="button" class="btn danger hm-tools-allow" id="' + idReboot + '">Reboot</button>' +
+      (bootloader ? '<button type="button" class="btn danger hm-tools-allow" id="' + idBootloader + '">Bootloader (USB)</button>' : '') +
       '<span class="hint" style="flex:1 1 100%;margin:0">Changes are saved automatically.</span>' +
+      (bootloader ? '<p class="hint" id="' + idHint + '" style="flex:1 1 100%;margin:0;display:none">The module is now a USB drive named RP2350. Copy the .uf2 onto it; the module will reboot by itself. <span id="' + idHintExtra + '"></span></p>' : '') +
       '</div></section>';
-    HMWebConfig._toolsIds = { identify: idIdentify, factory: idFactory, reboot: idReboot };
+    HMWebConfig._toolsIds = { identify: idIdentify, factory: idFactory, reboot: idReboot, bootloader: bootloader ? idBootloader : null };
     $(idIdentify)?.addEventListener('click', () => HMWebConfig.sendCommand('identify'));
     $(idFactory)?.addEventListener('click', () => {
       if (confirm('Factory reset?')) HMWebConfig.sendCommand('factory');
     });
     $(idReboot)?.addEventListener('click', () => {
       if (confirm('Reboot module?')) HMWebConfig.sendCommand('reboot');
+    });
+    $(idBootloader)?.addEventListener('click', () => {
+      if (!confirm('The module will disconnect from this page and appear as a USB drive. Drag a .uf2 firmware file onto that drive. Continue?')) return;
+      HMWebConfig._quietDisconnect = true;
+      HMWebConfig.sendCommand('bootloader').finally(() => {
+        closeConnection();
+        const hint = $(idHint);
+        if (hint) hint.style.display = '';
+      });
     });
   };
 
