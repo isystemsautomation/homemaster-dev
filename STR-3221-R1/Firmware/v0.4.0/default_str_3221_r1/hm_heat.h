@@ -5,7 +5,7 @@
 // write path, so it covers PWM, exercise, frost and DI-close alike.
 //
 // HeatCfg.minPulsePct 0..50, 0 reads as 10. Counters live in a separate
-// LittleFS file so PersistConfigV5 / CFG_VERSION do not move.
+// LittleFS file so PersistConfigV6 / CFG_VERSION do not move.
 
 enum : uint8_t {
   HEAT_DI_OFF = 0, HEAT_DI_ENABLE = 1, HEAT_DI_INHIBIT = 2, HEAT_DI_ECHO = 3

@@ -195,12 +195,35 @@
           <input id="stair-nw" type="checkbox">
           <span class="hint">Runtime — HR 438. Not saved in the stairs section.</span>
         </div>
-        <div><label for="stair-sf">Standby first</label><input id="stair-sf" type="number" min="0" max="255" value="0"></div>
-        <div><label for="stair-sl">Standby last</label><input id="stair-sl" type="number" min="0" max="255" value="0"></div>
+        <div>
+          <label for="stair-sf">Standby first level</label>
+          <input id="stair-sf" type="number" min="0" max="255" value="0">
+          <span class="hint">Level on the chosen first channel. Overrides All-steps standby, including zero.</span>
+        </div>
+        <div>
+          <label for="stair-sl">Standby last level</label>
+          <input id="stair-sl" type="number" min="0" max="255" value="0">
+          <span class="hint">Level on the chosen last channel. Overrides All-steps standby, including zero.</span>
+        </div>
+        <div>
+          <label for="stair-sfc">Standby first — channel</label>
+          <select id="stair-sfc"></select>
+        </div>
+        <div>
+          <label for="stair-slc">Standby last — channel</label>
+          <select id="stair-slc"></select>
+        </div>
+        <div>
+          <label for="stair-sw">Standby when</label>
+          <select id="stair-sw">
+            <option value="0">Always</option>
+            <option value="1">Night window only</option>
+          </select>
+        </div>
         <div>
           <label for="stair-nn">All-steps standby</label>
           <input id="stair-nn" type="number" min="0" max="255" value="0">
-          <span class="hint">Lights every step at this level whenever the sequencer is idle. Non-zero overrides Standby first and Standby last. Not tied to the night window.</span>
+          <span class="hint">Lights every step-table channel at this level while idle. First and last may use their own level. Standby when chooses day-and-night or the night window only.</span>
         </div>
       </div>
       <div class="row">
@@ -211,8 +234,11 @@
       <h4 style="margin:16px 0 8px;font-size:13px">Step → channel</h4>
       <div class="ch-actions" style="margin-top:0">
         <button type="button" class="btn" id="stair-fill-map">Fill 1:1</button>
+        <label for="stair-fill-from" style="margin-left:12px">Start channel</label>
+        <select id="stair-fill-from"></select>
+        <button type="button" class="btn" id="stair-fill-from-btn">Fill from</button>
       </div>
-      <p class="hint">Factory map is 1:1. If every step points at O1, this config predates that default — press Fill.</p>
+      <p class="hint">Factory map is 1:1. Fill from writes Steps-in-use rows in a run starting at the chosen channel; the rest of the table is left alone.</p>
       <div class="grp-boxes" id="stair-map"></div>
       <p class="hint" id="stair-map-warn" style="display:none"></p>
     </div>
@@ -1018,9 +1044,19 @@
         }
         root.appendChild(lab);
       }
+      const stbyChOpts = `<option value="255">Follow step table</option><option value="254">Off</option>` +
+        Array.from({length: NUM_PWM}, (_, i) => `<option value="${i}">O${i + 1}</option>`).join('');
+      if ($('stair-sfc')) $('stair-sfc').innerHTML = stbyChOpts;
+      if ($('stair-slc')) $('stair-slc').innerHTML = stbyChOpts;
+      if ($('stair-sfc')) $('stair-sfc').value = '255';
+      if ($('stair-slc')) $('stair-slc').value = '255';
+      if ($('stair-fill-from')) {
+        $('stair-fill-from').innerHTML = Array.from({length: NUM_PWM}, (_, i) => `<option value="${i}">O${i + 1}</option>`).join('');
+      }
       ['stair-n','stair-pt','stair-ww','stair-md','stair-d','stair-h','stair-f','stair-ov',
        'stair-rt','stair-op','stair-im','stair-be','stair-bw','stair-dl','stair-nl',
-       'stair-sf','stair-sl','stair-nn','stair-fd','stair-db','stair-mr']
+       'stair-sf','stair-sl','stair-nn','stair-sfc','stair-slc','stair-sw',
+       'stair-fd','stair-db','stair-mr']
         .forEach(id => $(id)?.addEventListener('change', sendStairs));
       ['stair-n','stair-d','stair-h','stair-f','stair-ov']
         .forEach(id => {
@@ -1031,6 +1067,7 @@
       updateStairRunEst();
       $('stair-n')?.addEventListener('input', syncStairArmed);
       $('stair-fill-map')?.addEventListener('click', fillStairMap1to1);
+      $('stair-fill-from-btn')?.addEventListener('click', fillStairMapFrom);
       $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
       $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
       $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
@@ -1082,6 +1119,9 @@
         sf: clamp255($('stair-sf')?.value),
         sl: clamp255($('stair-sl')?.value),
         nn: clamp255($('stair-nn')?.value),
+        sfc: clampInt($('stair-sfc')?.value, 0, 255),
+        slc: clampInt($('stair-slc')?.value, 0, 255),
+        sw: clampInt($('stair-sw')?.value, 0, 1),
         fd: clampInt($('stair-fd')?.value, 0, 60000),
         db: clampInt($('stair-db')?.value, 0, 5000),
         mr: clampInt($('stair-mr')?.value, 0, 60000),
@@ -1132,6 +1172,9 @@
       if (cfg.sf != null) setIfIdle('stair-sf', cfg.sf);
       if (cfg.sl != null) setIfIdle('stair-sl', cfg.sl);
       if (cfg.nn != null) setIfIdle('stair-nn', cfg.nn);
+      if (cfg.sfc != null) setIfIdle('stair-sfc', cfg.sfc);
+      if (cfg.slc != null) setIfIdle('stair-slc', cfg.slc);
+      if (cfg.sw != null) setIfIdle('stair-sw', cfg.sw);
       if (cfg.fd != null) setIfIdle('stair-fd', cfg.fd);
       if (cfg.db != null) setIfIdle('stair-db', cfg.db);
       if (cfg.mr != null) setIfIdle('stair-mr', cfg.mr);
@@ -1338,6 +1381,18 @@
       for (let s = 0; s < NUM_PWM; s++){
         const el = $('stair-ch-' + s);
         if (el) el.value = String(s);
+      }
+      updateStairMapWarn();
+      sendStairs();
+    }
+    function fillStairMapFrom(){
+      const start = clampInt($('stair-fill-from')?.value, 0, 31);
+      const n = clampInt($('stair-n')?.value, 0, 32);
+      for (let s = 0; s < n; s++){
+        const ch = start + s;
+        if (ch > 31) break;
+        const el = $('stair-ch-' + s);
+        if (el) el.value = String(ch);
       }
       updateStairMapWarn();
       sendStairs();

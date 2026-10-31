@@ -121,9 +121,13 @@
  *   uint8_t  oppose               opposite end triggers: 0 ignore · 1 reverse · 2 hold both
  *   uint8_t  nightLevel           level used in the night window
  *   uint8_t  dayLevel             level used in the day window
- *   uint8_t  standbyFirst         standby backlight level, first step
- *   uint8_t  standbyLast          standby backlight level, last step
- *   uint8_t  nightLightLevel      standby level while the night window is active
+ *   uint8_t  standbyFirst         standby backlight level, first channel
+ *   uint8_t  standbyLast          standby backlight level, last channel
+ *   uint8_t  standbyAllLevel      standby level on every step-table channel
+ *                                 (was nightLightLevel; not tied to the name)
+ *   uint8_t  standbyFirstCh       0..31 channel · 0xFF follow table · 0xFE off
+ *   uint8_t  standbyLastCh        same encoding
+ *   uint8_t  standbyWhen          0 always · 1 night window only (HR 438)
  *   uint16_t stepFadeMs           per-step fade
  *   uint16_t debounceMs           sensor debounce
  *   uint16_t minRepeatMs          minimum interval between two runs
@@ -134,7 +138,8 @@
  *   uint8_t  inputEndMap          bit0: 0 = IN1 bottom, 1 = IN1 top
  *   uint8_t  bothEnds             both-in-window: 0 default dir · 1 all at once · 2 ignore
  *   uint16_t bothWindowMs         dual-trigger window
- *   uint8_t  _rsv[6]
+ *   uint8_t  _rsv[3]              leftover of the six reserved bytes; first
+ *                                 three became standbyFirstCh/LastCh/When
  * HeatCfg (2g — underfloor heating), all zero = disabled:
  *   uint16_t slowPwmPeriodS       slow-PWM cycle length (factory 900 = 15 min)
  *   uint8_t  phaseSpreadPct       phase spread between zones, 0..100 %
@@ -152,7 +157,8 @@
  * Per channel, ChCfg.flags bit0 is the NC/NO inversion 2g fills in.
  *
  * Packed sizes (static_assert in this file): ChCfg 10, StairCfg 66, HeatCfg 23,
- * PersistConfigV5 886. CFG_VERSION stays 0x0005.
+ * PersistConfigV6 886 (same as V5 — new StairCfg fields ate _rsv).
+ * CFG_VERSION is 0x0006. V5 blobs migrate in place.
  *
  * Input registers (FC=04, identity block base 0x00C8 = 200):
  *   200..204  MODEL_ID, FW_MAJOR, FW_MINOR, FW_PATCH, MAP_VERSION
@@ -359,7 +365,7 @@ struct StairCfg {
   uint8_t  dayLevel;
   uint8_t  standbyFirst;
   uint8_t  standbyLast;
-  uint8_t  nightLightLevel;
+  uint8_t  standbyAllLevel;       // was nightLightLevel — same byte
   uint16_t stepFadeMs;
   uint16_t debounceMs;
   uint16_t minRepeatMs;
@@ -368,7 +374,10 @@ struct StairCfg {
   uint8_t  inputEndMap;           // bit0: 0 IN1=bottom, 1 IN1=top
   uint8_t  bothEnds;              // 0 default dir · 1 all at once · 2 ignore
   uint16_t bothWindowMs;
-  uint8_t  _rsv[6];
+  uint8_t  standbyFirstCh;        // 0..31 · 0xFF follow table · 0xFE off
+  uint8_t  standbyLastCh;
+  uint8_t  standbyWhen;           // 0 always · 1 night window only
+  uint8_t  _rsv[3];
 } __attribute__((packed));
 
 // ---- Declared now, used by step 2g. Zero = disabled. See the header contract.
@@ -511,15 +520,20 @@ struct PersistConfigV5 {
   uint32_t crc32;
 } __attribute__((packed));
 
+// V6 is V5's layout: the three new StairCfg bytes lived in _rsv[6].
+typedef PersistConfigV5 PersistConfigV6;
+
 static_assert(sizeof(ChCfg) == 10, "ChCfg is 10 bytes packed");
 static_assert(sizeof(StairCfg) == 66, "StairCfg is 66 bytes — 2f contract");
 static_assert(sizeof(HeatCfg) == 23, "HeatCfg is 23 bytes — 2g contract");
 static_assert(sizeof(PersistConfigV5) == 886, "PersistConfigV5 is 886 bytes packed");
+static_assert(sizeof(PersistConfigV6) == 886, "PersistConfigV6 is 886 bytes packed");
 
 static const uint32_t CFG_MAGIC      = 0x53545231UL; // '1RTS'
 static const uint16_t CFG_VERSION_V3 = 0x0003;
 static const uint16_t CFG_VERSION_V4 = 0x0004;
-static const uint16_t CFG_VERSION    = 0x0005;
+static const uint16_t CFG_VERSION_V5 = 0x0005;
+static const uint16_t CFG_VERSION    = 0x0006;
 
 // MCU board: CD4069 inverts button signals — pressed reads HIGH (same as ENM/WLD/DIM).
 static constexpr bool BUTTON_PRESSED_LOW = false;
@@ -1502,6 +1516,10 @@ static void fillStairHeatFactory(StairCfg &st, HeatCfg &ht) {
   st.minRepeatMs = 2000;
   st.nightLevel = 40;
   st.dayLevel = 255;
+  st.standbyAllLevel = 0;
+  st.standbyFirstCh = 0xFF;
+  st.standbyLastCh = 0xFF;
+  st.standbyWhen = 0;
   for (uint8_t s = 0; s < NUM_PWM; s++) st.stepChannel[s] = s;  // step N → channel ON
   memset(st._rsv, 0, sizeof(st._rsv));
   ht.minPulsePct = 10;
@@ -1610,7 +1628,7 @@ static void fillV5Defaults(PersistConfigV5 &pc) {
   fillStairHeatFactory(pc.stair, pc.heat);
 }
 
-static bool applyFromPersistV5(const PersistConfigV5 &pc) {
+static bool applyFromPersist(const PersistConfigV5 &pc) {
   if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV5)) return false;
   if (!verifyPersistCrcV5(pc)) return false;
   if (pc.version != CFG_VERSION) return false;
@@ -1692,7 +1710,7 @@ static bool migrateV4ToV5(const PersistConfigV4 &pc4, PersistConfigV5 &pc5) {
 
   memset(&pc5, 0, sizeof(pc5));
   pc5.magic = CFG_MAGIC;
-  pc5.version = CFG_VERSION;
+  pc5.version = CFG_VERSION_V5;
   pc5.size = sizeof(PersistConfigV5);
   for (int i = 0; i < NUM_DI; i++) {
     pc5.diCfg[i].enabled  = pc4.diCfg[i].enabled;
@@ -1717,6 +1735,25 @@ static bool migrateV4ToV5(const PersistConfigV4 &pc4, PersistConfigV5 &pc5) {
   fillV5Defaults(pc5);
   pc5.crc32 = 0;
   pc5.crc32 = crc32_update(0, (const uint8_t*)&pc5, sizeof(PersistConfigV5));
+  return true;
+}
+
+// 0x0005 → 0x0006. Same blob size. nightLightLevel is already standbyAllLevel
+// at the same offset. The three new fields lived in _rsv and read as 0, which
+// would mean "channel O1" — so they must be rewritten to Follow (0xFF).
+static bool migrateV5ToV6(PersistConfigV5 &pc) {
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV5)) return false;
+  if (!verifyPersistCrcV5(pc)) return false;
+  if (pc.version != CFG_VERSION_V5) return false;
+
+  pc.stair.standbyFirstCh = 0xFF;
+  pc.stair.standbyLastCh = 0xFF;
+  pc.stair.standbyWhen = 0;
+  memset(pc.stair._rsv, 0, sizeof(pc.stair._rsv));
+  pc.version = CFG_VERSION;
+  pc.size = sizeof(PersistConfigV5);
+  pc.crc32 = 0;
+  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV5));
   return true;
 }
 
@@ -1777,11 +1814,18 @@ bool loadConfigFS() {
   const size_t fsz = f.size();
 
   if (fsz == sizeof(PersistConfigV5)) {
-    PersistConfigV5 pc5{};
-    const size_t n = f.read((uint8_t*)&pc5, sizeof(pc5));
+    PersistConfigV5 pc{};
+    const size_t n = f.read((uint8_t*)&pc, sizeof(pc));
     f.close();
-    if (n != sizeof(pc5)) { wsLog("load: short read"); return false; }
-    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 magic/version/crc mismatch"); return false; }
+    if (n != sizeof(pc)) { wsLog("load: short read"); return false; }
+    if (pc.version == CFG_VERSION_V5) {
+      if (!migrateV5ToV6(pc)) { wsLog("load: v5 migrate failed"); return false; }
+      if (!applyFromPersist(pc)) { wsLog("load: v6 apply after v5 migrate failed"); return false; }
+      wsLog("Config migrated 0x0005 -> 0x0006");
+      if (!saveConfigFS()) { wsLog("ERROR: migrate re-save failed"); return false; }
+      return true;
+    }
+    if (!applyFromPersist(pc)) { wsLog("load: v6 magic/version/crc mismatch"); return false; }
     return true;
   }
 
@@ -1792,8 +1836,9 @@ bool loadConfigFS() {
     if (n != sizeof(pc4)) { wsLog("load: short read"); return false; }
     PersistConfigV5 pc5{};
     if (!migrateV4ToV5(pc4, pc5)) { wsLog("load: v4 migrate failed"); return false; }
-    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 apply after migrate failed"); return false; }
-    wsLog("Config migrated 0x0004 -> 0x0005");
+    if (!migrateV5ToV6(pc5)) { wsLog("load: v4->v5->v6 migrate failed"); return false; }
+    if (!applyFromPersist(pc5)) { wsLog("load: v6 apply after migrate failed"); return false; }
+    wsLog("Config migrated 0x0004 -> 0x0005 -> 0x0006");
     if (!saveConfigFS()) { wsLog("ERROR: migrate re-save failed"); return false; }
     return true;
   }
@@ -1807,8 +1852,9 @@ bool loadConfigFS() {
     if (!migrateV3ToV4(pc3, pc4)) { wsLog("load: v3 migrate failed"); return false; }
     PersistConfigV5 pc5{};
     if (!migrateV4ToV5(pc4, pc5)) { wsLog("load: v3->v4->v5 migrate failed"); return false; }
-    if (!applyFromPersistV5(pc5)) { wsLog("load: v5 apply after migrate failed"); return false; }
-    wsLog("Config migrated 0x0003 -> 0x0004 -> 0x0005");
+    if (!migrateV5ToV6(pc5)) { wsLog("load: v3->v6 migrate failed"); return false; }
+    if (!applyFromPersist(pc5)) { wsLog("load: v6 apply after migrate failed"); return false; }
+    wsLog("Config migrated 0x0003 -> 0x0004 -> 0x0005 -> 0x0006");
     if (!saveConfigFS()) {
       wsLog("ERROR: migrate re-save failed");
       return false;
@@ -2014,10 +2060,12 @@ void handleCommand(JSONVar obj) {
   } else if (act == "stair.night") {
     g_seqNightWindow = true;
     mb.Hreg(HR_NIGHT_WINDOW, 1);
+    stairRecalcStandby();
     sendWebStatus();
   } else if (act == "stair.day") {
     g_seqNightWindow = false;
     mb.Hreg(HR_NIGHT_WINDOW, 0);
+    stairRecalcStandby();
     sendWebStatus();
   } else if (act == "heat.exercise") {
     heatQueueExerciseAll();
@@ -2064,7 +2112,16 @@ static void applyStairsConfig(JSONVar list) {
   if (list.hasOwnProperty("dl")) { g_stairCfg.dayLevel = (uint8_t)constrain((int)list["dl"], 0, 255); mb.Hreg(HR_DAY, g_stairCfg.dayLevel); }
   if (list.hasOwnProperty("sf")) g_stairCfg.standbyFirst = (uint8_t)constrain((int)list["sf"], 0, 255);
   if (list.hasOwnProperty("sl")) g_stairCfg.standbyLast = (uint8_t)constrain((int)list["sl"], 0, 255);
-  if (list.hasOwnProperty("nn")) g_stairCfg.nightLightLevel = (uint8_t)constrain((int)list["nn"], 0, 255);
+  if (list.hasOwnProperty("nn")) g_stairCfg.standbyAllLevel = (uint8_t)constrain((int)list["nn"], 0, 255);
+  if (list.hasOwnProperty("sfc")) {
+    const int v = (int)list["sfc"];
+    g_stairCfg.standbyFirstCh = (v == 0xFE || v == 0xFF || (v >= 0 && v <= 31)) ? (uint8_t)v : 0xFF;
+  }
+  if (list.hasOwnProperty("slc")) {
+    const int v = (int)list["slc"];
+    g_stairCfg.standbyLastCh = (v == 0xFE || v == 0xFF || (v >= 0 && v <= 31)) ? (uint8_t)v : 0xFF;
+  }
+  if (list.hasOwnProperty("sw")) g_stairCfg.standbyWhen = (uint8_t)constrain((int)list["sw"], 0, 1);
   if (list.hasOwnProperty("fd")) g_stairCfg.stepFadeMs = (uint16_t)constrain((int)list["fd"], 0, 60000);
   if (list.hasOwnProperty("db")) g_stairCfg.debounceMs = (uint16_t)constrain((int)list["db"], 0, 5000);
   if (list.hasOwnProperty("mr")) g_stairCfg.minRepeatMs = (uint16_t)constrain((int)list["mr"], 0, 60000);
@@ -2228,7 +2285,7 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "stairs" || type == "stairs.lv" || type == "stairs.map") {
     applyStairsConfig(list);
     stairRebuildMask();
-    if (stairEnabled() && !stairRunning()) stairApplyIdleBase();
+    stairRecalcStandby();
     if (type == "stairs.lv") wsLog("Stairs: levels updated");
     else if (type == "stairs.map") wsLog("Stairs: step map updated");
     else wsLog("Stairs: geometry updated");
@@ -2394,6 +2451,7 @@ static void processModbusHoldingWrites() {
   if (nightWin != g_seqNightWindow) {
     g_seqNightWindow = nightWin;
     mb.Hreg(HR_NIGHT_WINDOW, nightWin ? 1 : 0);
+    stairRecalcStandby();
   }
 
   const uint16_t sum = (uint16_t)mb.Hreg(HR_SUMMER);
@@ -2830,7 +2888,10 @@ static void sendCfgChunkNow(uint8_t sec, uint8_t part) {
         cfg["dl"] = (int)g_stairCfg.dayLevel;
         cfg["sf"] = (int)g_stairCfg.standbyFirst;
         cfg["sl"] = (int)g_stairCfg.standbyLast;
-        cfg["nn"] = (int)g_stairCfg.nightLightLevel;
+        cfg["nn"] = (int)g_stairCfg.standbyAllLevel;
+        cfg["sfc"] = (int)g_stairCfg.standbyFirstCh;
+        cfg["slc"] = (int)g_stairCfg.standbyLastCh;
+        cfg["sw"] = (int)g_stairCfg.standbyWhen;
         cfg["fd"] = (int)g_stairCfg.stepFadeMs;
         cfg["db"] = (int)g_stairCfg.debounceMs;
         cfg["mr"] = (int)g_stairCfg.minRepeatMs;
@@ -2979,7 +3040,7 @@ void setup() {
   if (!initFilesystemAndConfig()) wsLog("FATAL: Filesystem/config init failed");
   heatLoadStats();
   stairRebuildMask();
-  if (stairEnabled()) stairApplyIdleBase();
+  stairRecalcStandby();
 
   // Restored levels re-enter the pipeline; boot does not ramp, it lands.
   recomputeAllDrivers();

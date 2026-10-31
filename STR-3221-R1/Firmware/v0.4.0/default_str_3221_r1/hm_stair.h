@@ -1,4 +1,5 @@
 #pragma once
+#include <string.h>
 // STR-3221-R1 v0.4.0 — on-board stair sequencer (step 2f).
 // Sets the SOURCE value for channels in the step table; the 2e pipeline
 // (profile → min/max → curve → master → ramp → block I2C) does the rest.
@@ -35,7 +36,17 @@ static bool     g_seqDb[2] = {false, false};
 static uint32_t g_seqFirstEdgeMs = 0;
 static uint8_t  g_seqFirstDir = SEQ_DIR_NONE;
 static uint32_t g_stairChMask = 0;
+static uint32_t g_stairStandbyMask = 0;
 static bool     g_seqForceAll = false;
+
+enum : uint8_t {
+  STAIR_STBY_CH_OFF = 0xFE,
+  STAIR_STBY_CH_FOLLOW = 0xFF
+};
+enum : uint8_t {
+  STAIR_STBY_ALWAYS = 0,
+  STAIR_STBY_NIGHT = 1
+};
 
 static inline bool stairEnabled() {
   return g_stairCfg.stepCount >= 2 && g_stairCfg.stepCount <= NUM_PWM;
@@ -120,11 +131,47 @@ static inline uint8_t stairRunLevel() {
   return g_stairCfg.dayLevel ? g_stairCfg.dayLevel : 255;
 }
 
+// 0xFF = no channel. Follow-table needs a live step map; Off is never a channel.
+static uint8_t stairResolveStandbyCh(uint8_t coded, bool last) {
+  if (coded == STAIR_STBY_CH_OFF) return 0xFF;
+  if (coded == STAIR_STBY_CH_FOLLOW) {
+    if (!stairEnabled()) return 0xFF;
+    const uint8_t step = last ? (uint8_t)(g_stairCfg.stepCount - 1) : 0;
+    const uint8_t ch = stairCh(step);
+    return (ch < NUM_PWM) ? ch : 0xFF;
+  }
+  return (coded < NUM_PWM) ? coded : 0xFF;
+}
+
+static uint32_t stairStandbySetMask() {
+  uint32_t m = 0;
+  if (stairEnabled()) {
+    for (uint8_t s = 0; s < g_stairCfg.stepCount; s++) {
+      const uint8_t ch = stairCh(s);
+      if (ch < NUM_PWM) m |= (1UL << ch);
+    }
+  }
+  const uint8_t first = stairResolveStandbyCh(g_stairCfg.standbyFirstCh, false);
+  const uint8_t last  = stairResolveStandbyCh(g_stairCfg.standbyLastCh, true);
+  if (first < NUM_PWM) m |= (1UL << first);
+  if (last < NUM_PWM) m |= (1UL << last);
+  return m;
+}
+
+// Level for a channel that is in the standby set. Last wins if first == last.
+// Zero is a real level: all=32, first=0 means "everything on, first dark".
+static uint8_t stairStandbyLevelForChannel(uint8_t ch) {
+  if (ch >= NUM_PWM) return 0;
+  if (g_stairCfg.standbyWhen == STAIR_STBY_NIGHT && !g_seqNightWindow) return 0;
+  const uint8_t first = stairResolveStandbyCh(g_stairCfg.standbyFirstCh, false);
+  const uint8_t last  = stairResolveStandbyCh(g_stairCfg.standbyLastCh, true);
+  if (ch == last) return g_stairCfg.standbyLast;
+  if (ch == first) return g_stairCfg.standbyFirst;
+  return g_stairCfg.standbyAllLevel;
+}
+
 static uint8_t stairAccent(uint8_t step) {
-  if (g_stairCfg.nightLightLevel) return g_stairCfg.nightLightLevel;
-  if (step == 0) return g_stairCfg.standbyFirst;
-  if (stairEnabled() && step == (uint8_t)(g_stairCfg.stepCount - 1)) return g_stairCfg.standbyLast;
-  return 0;
+  return stairStandbyLevelForChannel(stairCh(step));
 }
 
 // Sequencer writes the source only — never the driver, never HR.
@@ -133,27 +180,106 @@ static void stairSetSource(uint8_t ch, uint8_t val) {
   setChannelRequestOne(ch, val);
 }
 
-static void stairApplyIdleBase() {
-  if (!stairEnabled()) return;
-  for (uint8_t s = 0; s < g_stairCfg.stepCount; s++) {
-    stairSetSource(stairCh(s), stairAccent(s));
-  }
-}
-
-// Accent is a floor, not a one-shot write. While idle, keep step-table
-// channels at stairAccent whenever the bus HR is 0. A non-zero HR from
-// HA / the master still wins. Write only on divergence so ramps and
-// recomputeChannelDriver are not kicked every loop.
-static void stairHoldIdleAccent() {
-  if (!stairEnabled() || stairRunning()) return;
-  for (uint8_t s = 0; s < g_stairCfg.stepCount; s++) {
-    const uint8_t ch = stairCh(s);
-    if (ch >= NUM_PWM) continue;
+static void stairApplyStandbyMask(uint32_t mask) {
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (!(mask & (1UL << ch))) continue;
+    if (stairRunning() && stairOwnsChannel(ch)) continue;
     if (mb.Hreg(HR_PWM_BASE + ch) != 0) continue;
-    const uint8_t want = stairAccent(s);
+    const uint8_t want = stairStandbyLevelForChannel(ch);
     if (chRequest[ch] == want) continue;
     stairSetSource(ch, want);
   }
+}
+
+static void stairLogStandby(uint32_t mask) {
+  uint8_t table[NUM_PWM];
+  uint8_t n = 0;
+  if (stairEnabled()) {
+    for (uint8_t s = 0; s < g_stairCfg.stepCount; s++) {
+      const uint8_t ch = stairCh(s);
+      if (ch >= NUM_PWM) continue;
+      bool seen = false;
+      for (uint8_t i = 0; i < n; i++) if (table[i] == ch) { seen = true; break; }
+      if (!seen) table[n++] = ch;
+    }
+  }
+  String chs = "—";
+  if (n) {
+    bool contig = true;
+    uint8_t lo = table[0], hi = table[0];
+    for (uint8_t i = 1; i < n; i++) {
+      if (table[i] < lo) lo = table[i];
+      if (table[i] > hi) hi = table[i];
+    }
+    if ((uint8_t)(hi - lo + 1) != n) contig = false;
+    if (contig) {
+      chs = "O" + String(lo + 1) + "..O" + String(hi + 1);
+    } else {
+      chs = "";
+      for (uint8_t i = 0; i < n; i++) {
+        if (i) chs += ",";
+        chs += "O" + String(table[i] + 1);
+      }
+    }
+  }
+  const uint8_t first = stairResolveStandbyCh(g_stairCfg.standbyFirstCh, false);
+  const uint8_t last  = stairResolveStandbyCh(g_stairCfg.standbyLastCh, true);
+  const uint8_t all = (g_stairCfg.standbyWhen == STAIR_STBY_NIGHT && !g_seqNightWindow)
+                      ? 0 : g_stairCfg.standbyAllLevel;
+  String line = "Stair standby: all " + String(all) + " on " + chs;
+  if (g_stairCfg.standbyFirstCh == STAIR_STBY_CH_OFF) line += " · first off";
+  else if (first < NUM_PWM) line += " · first O" + String(first + 1) + "=" + String(stairStandbyLevelForChannel(first));
+  else line += " · first —";
+  if (g_stairCfg.standbyLastCh == STAIR_STBY_CH_OFF) line += " · last off";
+  else if (last < NUM_PWM) line += " · last O" + String(last + 1) + "=" + String(stairStandbyLevelForChannel(last));
+  else line += " · last —";
+  line += (g_stairCfg.standbyWhen == STAIR_STBY_NIGHT) ? " · window: night" : " · window: always";
+  (void)mask;
+  wsLog(line);
+}
+
+// Rebuild the occupied-channel mask, turn off anything that dropped out
+// (HR==0 only), apply the new levels. Call on config or night-window change
+// — not every loop. The log fires only when the set or the levels change.
+static void stairRecalcStandby() {
+  const uint32_t next = stairStandbySetMask();
+  const uint32_t dropped = g_stairStandbyMask & ~next;
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    if (!(dropped & (1UL << ch))) continue;
+    if (mb.Hreg(HR_PWM_BASE + ch) != 0) continue;
+    stairSetSource(ch, 0);
+  }
+  const uint8_t first = stairResolveStandbyCh(g_stairCfg.standbyFirstCh, false);
+  const uint8_t last  = stairResolveStandbyCh(g_stairCfg.standbyLastCh, true);
+  static uint32_t prevMask = 0xFFFFFFFFUL;
+  static uint8_t prevFp[7] = {0};
+  uint8_t fp[7] = {
+    first, last,
+    g_stairCfg.standbyAllLevel, g_stairCfg.standbyFirst, g_stairCfg.standbyLast,
+    g_stairCfg.standbyWhen, g_seqNightWindow ? (uint8_t)1 : (uint8_t)0
+  };
+  const bool changed = (next != prevMask) || memcmp(fp, prevFp, sizeof(fp));
+  g_stairStandbyMask = next;
+  stairApplyStandbyMask(next);
+  if (changed) {
+    prevMask = next;
+    memcpy(prevFp, fp, sizeof(fp));
+    stairLogStandby(next);
+  }
+}
+
+static void stairApplyIdleBase() {
+  stairRecalcStandby();
+}
+
+// Hold the current set at its standby levels whenever the bus HR is 0.
+// Does not rebuild the set — that is stairRecalcStandby.
+static void stairHoldIdleAccent() {
+  if (stairRunning()) {
+    stairApplyStandbyMask(g_stairStandbyMask);
+    return;
+  }
+  stairApplyStandbyMask(g_stairStandbyMask);
 }
 
 static void stairBuildOrder(uint8_t dir) {
