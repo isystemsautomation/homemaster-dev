@@ -1,0 +1,1060 @@
+##
+## STR-3221-R1 — ESPHome Modbus package (v0.4.0)
+##
+## Include from your ESPHome YAML (requires global modbus: id modbus_bus):
+##   packages:
+##     str1:
+##       url: https://github.com/isystemsautomation/homemaster-dev
+##       ref: main
+##       files:
+##         - path: STR-3221-R1/Firmware/v0.4.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+##           vars:
+##             str_prefix: "STR#1"
+##             str_id: str_1
+##             str_address: 3
+##
+## Input Registers (FC=04, read) — contiguous 0..31 (one merged poll per cycle):
+##   0 DI_MASK (bit0 DI, bit1 IN1, bit2 IN2) · 1 BTN_MASK · 2 LED_MASK · 3 STATUS_FLAGS
+##      (bit0=tlcReady, bit1=linkOk, bit2=busFailsafe, bit3=cfgDirty,
+##       bit4=localOverride, bit5=panic, bit6=seqRunning, bit7=heatDemand)
+##   4 TLC_MASK · 5 I2C_ERRORS · 6 RESET_REASON · 7 LINK_AGE_S · 8 UPTIME_MIN
+##   9 ACTIVE_SCENE (0=none, 1..8=last recalled)
+##  10..25 OUT readback (2 channels per reg, low=even high=odd)
+##  26 SEQ_STATE · 27 SEQ_STEP · 28 HEAT_FLAGS · 29 ZONES_OPEN
+##  30 ZONE_MASK_LO · 31 ZONE_MASK_HI
+##     HEAT_FLAGS: bit2=DI closed · bit3=frost · bit4=valve exercise
+##
+## Holding (FC=03/06/16): 400..431 O1..O32 · 432 master 0..255 · 433 inhibit
+##   · 434 night level · 435 day level · 436 scene recall (write 1..8, reads back 0)
+##   · 437 summer mode · 438 night window (0=day, 1=night).
+## 434/435 are levels only. The day/night window is selected by 438.
+##
+##   automation:
+##     - alias: STR night window from sun.sun
+##       trigger:
+##         - platform: state
+##           entity_id: sun.sun
+##       action:
+##         - choose:
+##             - conditions:
+##                 - condition: state
+##                   entity_id: sun.sun
+##                   state: below_horizon
+##               sequence:
+##                 - service: switch.turn_on
+##                   target:
+##                     entity_id: switch.str_1_night_window
+##           default:
+##             - service: switch.turn_off
+##               target:
+##                 entity_id: switch.str_1_night_window
+## Coils: 330 save levels · 331 release override · 332 panic · 333 all-off · 334 clear panic
+##   · 340 run up · 341 run down · 342 stop · 345 exercise valves now.
+## IR 200..204: firmware identity (not polled).
+##
+## Heat channels: this package exposes O1..O32 as monochromatic lights (0–255)
+## because one YAML covers every profile. For a zone that is profile=heat, the
+## firmware reads HR 400..431 as 0–100 % duty. To show those zones as sliders
+## in HA, comment the matching `light:` entry and add a 0–100 % `number:`
+## item to the existing `number:` section (template at the bottom of this
+## file). Do not add a second `number:` key. Mixing light and number for the
+## same register double-writes it — pick one per channel.
+##
+## Output readback @ IR 10..25 is registered and polled (internal sensors below);
+## monochromatic lights are driven by HR 400..431 writes. Wiring readback into
+## light entity state is deferred (RGB v0.3.0 needed a dedicated fix for that).
+## HR 400..431 are driven by `output` + `light: monochromatic`. The light gives the
+## output a 0.0..1.0 float, so each output MUST carry `multiply: 255.0` — without it
+## full brightness writes 1 and the channel looks dead. Write-only: skip_updates.
+
+substitutions:
+  str_id: str
+  str_address: "3"
+  str_prefix: "STR"
+  str_update_interval: 1s
+  str_command_throttle: 0ms
+  str_pwm_skip_updates: "65535"
+  str_offline_skip_updates: "10"
+  str_max_cmd_retries: "2"
+
+modbus_controller:
+  - id: ${str_id}
+    address: ${str_address}
+    modbus_id: modbus_bus
+    update_interval: ${str_update_interval}
+    command_throttle: ${str_command_throttle}
+    offline_skip_updates: ${str_offline_skip_updates}
+    max_cmd_retries: ${str_max_cmd_retries}
+
+binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} DI"
+    register_type: read
+    address: 0
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} IN1"
+    register_type: read
+    address: 0
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} IN2"
+    register_type: read
+    address: 0
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button1"
+    register_type: read
+    address: 1
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button2"
+    register_type: read
+    address: 1
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button3"
+    register_type: read
+    address: 1
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Button4"
+    register_type: read
+    address: 1
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Status LED1"
+    register_type: read
+    address: 2
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Status LED2"
+    register_type: read
+    address: 2
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC ready"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Link OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Config dirty"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Bus failsafe"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Local override"
+    entity_category: diagnostic
+    register_type: read
+    address: 3
+    bitmask: 0x0010
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Panic"
+    register_type: read
+    address: 3
+    bitmask: 0x0020
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Sequence running"
+    register_type: read
+    address: 3
+    bitmask: 0x0040
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Heat demand"
+    register_type: read
+    address: 3
+    bitmask: 0x0080
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Heating enable input"
+    register_type: read
+    address: 28
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Frost protection active"
+    register_type: read
+    address: 28
+    bitmask: 0x0008
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Valve exercise active"
+    register_type: read
+    address: 28
+    bitmask: 0x0010
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 1 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0001
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 2 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0002
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 3 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0004
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} TLC chip 4 OK"
+    entity_category: diagnostic
+    register_type: read
+    address: 4
+    bitmask: 0x0008
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} I2C error count"
+    entity_category: diagnostic
+    register_type: read
+    address: 5
+    accuracy_decimals: 0
+    unit_of_measurement: "errors"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Reset reason"
+    entity_category: diagnostic
+    register_type: read
+    address: 6
+    accuracy_decimals: 0
+    # 0=unknown/POR, 1=watchdog stall, 2=commanded reboot
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Link age"
+    entity_category: diagnostic
+    register_type: read
+    address: 7
+    accuracy_decimals: 0
+    unit_of_measurement: "s"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Uptime"
+    entity_category: diagnostic
+    register_type: read
+    address: 8
+    accuracy_decimals: 0
+    unit_of_measurement: "min"
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir9_block
+    name: "${str_prefix} Active scene"
+    register_type: read
+    address: 9
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir10_block
+    name: "${str_prefix} IR10 block"
+    internal: true
+    register_type: read
+    address: 10
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir11_block
+    name: "${str_prefix} IR11 block"
+    internal: true
+    register_type: read
+    address: 11
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir12_block
+    name: "${str_prefix} IR12 block"
+    internal: true
+    register_type: read
+    address: 12
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir13_block
+    name: "${str_prefix} IR13 block"
+    internal: true
+    register_type: read
+    address: 13
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir14_block
+    name: "${str_prefix} IR14 block"
+    internal: true
+    register_type: read
+    address: 14
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir15_block
+    name: "${str_prefix} IR15 block"
+    internal: true
+    register_type: read
+    address: 15
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir16_block
+    name: "${str_prefix} IR16 block"
+    internal: true
+    register_type: read
+    address: 16
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir17_block
+    name: "${str_prefix} IR17 block"
+    internal: true
+    register_type: read
+    address: 17
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir18_block
+    name: "${str_prefix} IR18 block"
+    internal: true
+    register_type: read
+    address: 18
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir19_block
+    name: "${str_prefix} IR19 block"
+    internal: true
+    register_type: read
+    address: 19
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir20_block
+    name: "${str_prefix} IR20 block"
+    internal: true
+    register_type: read
+    address: 20
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir21_block
+    name: "${str_prefix} IR21 block"
+    internal: true
+    register_type: read
+    address: 21
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir22_block
+    name: "${str_prefix} IR22 block"
+    internal: true
+    register_type: read
+    address: 22
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir23_block
+    name: "${str_prefix} IR23 block"
+    internal: true
+    register_type: read
+    address: 23
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir24_block
+    name: "${str_prefix} IR24 block"
+    internal: true
+    register_type: read
+    address: 24
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir25_block
+    name: "${str_prefix} IR25 block"
+    internal: true
+    register_type: read
+    address: 25
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir26_block
+    name: "${str_prefix} Sequence state"
+    register_type: read
+    address: 26
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir27_block
+    name: "${str_prefix} Current step"
+    register_type: read
+    address: 27
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir28_block
+    name: "${str_prefix} IR28 block"
+    internal: true
+    register_type: read
+    address: 28
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir29_block
+    name: "${str_prefix} Open zones"
+    register_type: read
+    address: 29
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir30_block
+    name: "${str_prefix} IR30 block"
+    internal: true
+    register_type: read
+    address: 30
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_ir31_block
+    name: "${str_prefix} IR31 block"
+    internal: true
+    register_type: read
+    address: 31
+    accuracy_decimals: 0
+
+output:
+  - platform: modbus_controller
+    id: ${str_id}_out_o1
+    modbus_controller_id: ${str_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o2
+    modbus_controller_id: ${str_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o3
+    modbus_controller_id: ${str_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o4
+    modbus_controller_id: ${str_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o5
+    modbus_controller_id: ${str_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o6
+    modbus_controller_id: ${str_id}
+    address: 405
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o7
+    modbus_controller_id: ${str_id}
+    address: 406
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o8
+    modbus_controller_id: ${str_id}
+    address: 407
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o9
+    modbus_controller_id: ${str_id}
+    address: 408
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o10
+    modbus_controller_id: ${str_id}
+    address: 409
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o11
+    modbus_controller_id: ${str_id}
+    address: 410
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o12
+    modbus_controller_id: ${str_id}
+    address: 411
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o13
+    modbus_controller_id: ${str_id}
+    address: 412
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o14
+    modbus_controller_id: ${str_id}
+    address: 413
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o15
+    modbus_controller_id: ${str_id}
+    address: 414
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o16
+    modbus_controller_id: ${str_id}
+    address: 415
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o17
+    modbus_controller_id: ${str_id}
+    address: 416
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o18
+    modbus_controller_id: ${str_id}
+    address: 417
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o19
+    modbus_controller_id: ${str_id}
+    address: 418
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o20
+    modbus_controller_id: ${str_id}
+    address: 419
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o21
+    modbus_controller_id: ${str_id}
+    address: 420
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o22
+    modbus_controller_id: ${str_id}
+    address: 421
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o23
+    modbus_controller_id: ${str_id}
+    address: 422
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o24
+    modbus_controller_id: ${str_id}
+    address: 423
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o25
+    modbus_controller_id: ${str_id}
+    address: 424
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o26
+    modbus_controller_id: ${str_id}
+    address: 425
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o27
+    modbus_controller_id: ${str_id}
+    address: 426
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o28
+    modbus_controller_id: ${str_id}
+    address: 427
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o29
+    modbus_controller_id: ${str_id}
+    address: 428
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o30
+    modbus_controller_id: ${str_id}
+    address: 429
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o31
+    modbus_controller_id: ${str_id}
+    address: 430
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+  - platform: modbus_controller
+    id: ${str_id}_out_o32
+    modbus_controller_id: ${str_id}
+    address: 431
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
+    skip_updates: ${str_pwm_skip_updates}
+
+light:
+  - platform: monochromatic
+    name: "${str_prefix} O1 Light"
+    output: ${str_id}_out_o1
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O2 Light"
+    output: ${str_id}_out_o2
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O3 Light"
+    output: ${str_id}_out_o3
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O4 Light"
+    output: ${str_id}_out_o4
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O5 Light"
+    output: ${str_id}_out_o5
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O6 Light"
+    output: ${str_id}_out_o6
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O7 Light"
+    output: ${str_id}_out_o7
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O8 Light"
+    output: ${str_id}_out_o8
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O9 Light"
+    output: ${str_id}_out_o9
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O10 Light"
+    output: ${str_id}_out_o10
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O11 Light"
+    output: ${str_id}_out_o11
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O12 Light"
+    output: ${str_id}_out_o12
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O13 Light"
+    output: ${str_id}_out_o13
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O14 Light"
+    output: ${str_id}_out_o14
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O15 Light"
+    output: ${str_id}_out_o15
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O16 Light"
+    output: ${str_id}_out_o16
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O17 Light"
+    output: ${str_id}_out_o17
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O18 Light"
+    output: ${str_id}_out_o18
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O19 Light"
+    output: ${str_id}_out_o19
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O20 Light"
+    output: ${str_id}_out_o20
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O21 Light"
+    output: ${str_id}_out_o21
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O22 Light"
+    output: ${str_id}_out_o22
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O23 Light"
+    output: ${str_id}_out_o23
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O24 Light"
+    output: ${str_id}_out_o24
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O25 Light"
+    output: ${str_id}_out_o25
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O26 Light"
+    output: ${str_id}_out_o26
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O27 Light"
+    output: ${str_id}_out_o27
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O28 Light"
+    output: ${str_id}_out_o28
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O29 Light"
+    output: ${str_id}_out_o29
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O30 Light"
+    output: ${str_id}_out_o30
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O31 Light"
+    output: ${str_id}_out_o31
+    gamma_correct: 0.0
+    default_transition_length: 0s
+  - platform: monochromatic
+    name: "${str_prefix} O32 Light"
+    output: ${str_id}_out_o32
+    gamma_correct: 0.0
+    default_transition_length: 0s
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_save_pwm
+    register_type: coil
+    address: 330
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_release_override
+    register_type: coil
+    address: 331
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_panic
+    register_type: coil
+    address: 332
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_all_off
+    register_type: coil
+    address: 333
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_panic_clear
+    register_type: coil
+    address: 334
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_up
+    register_type: coil
+    address: 340
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_down
+    register_type: coil
+    address: 341
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_stair_stop
+    register_type: coil
+    address: 342
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_coil_heat_exercise
+    register_type: coil
+    address: 345
+    internal: true
+    assumed_state: true
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    id: ${str_id}_night_window
+    name: "${str_prefix} Night window"
+    register_type: holding
+    address: 438
+
+number:
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Master level"
+    address: 432
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+    entity_category: config
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Inhibit"
+    address: 433
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Night level"
+    address: 434
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Day level"
+    address: 435
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Recall scene"
+    address: 436
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 8
+    step: 1
+  - platform: modbus_controller
+    modbus_controller_id: ${str_id}
+    name: "${str_prefix} Summer mode"
+    address: 437
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 1
+    step: 1
+
+button:
+  - platform: template
+    name: "${str_prefix} Save output levels"
+    entity_category: config
+    on_press:
+      - switch.turn_on: ${str_id}_coil_save_pwm
+  - platform: template
+    name: "${str_prefix} Release local override"
+    entity_category: config
+    on_press:
+      - switch.turn_on: ${str_id}_coil_release_override
+  - platform: template
+    name: "${str_prefix} Panic"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_panic
+  - platform: template
+    name: "${str_prefix} Clear panic"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_panic_clear
+  - platform: template
+    name: "${str_prefix} All off"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_all_off
+  - platform: template
+    name: "${str_prefix} Run up"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_up
+  - platform: template
+    name: "${str_prefix} Run down"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_down
+  - platform: template
+    name: "${str_prefix} Stop"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_stair_stop
+  - platform: template
+    name: "${str_prefix} Exercise valves now"
+    on_press:
+      - switch.turn_on: ${str_id}_coil_heat_exercise
+
+# Heat-profile channels as 0–100 % numbers. Add each item to the existing
+# `number:` section above (do not introduce a second `number:` key) and
+# comment the matching `light:` entry. Mixing both for the same register
+# double-writes it — pick one per channel.
+#   - platform: modbus_controller
+#     modbus_controller_id: ${str_id}
+#     name: "${str_prefix} O1 duty"
+#     address: 400
+#     register_type: holding
+#     value_type: U_WORD
+#     min_value: 0
+#     max_value: 100
+#     step: 1
+#     unit_of_measurement: "%"
+#   # …repeat address 401..431 for O2..O32 as needed

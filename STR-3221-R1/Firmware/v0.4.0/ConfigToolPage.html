@@ -1,0 +1,1605 @@
+<!-- HM_WEBCONFIG_BASE: {{HM_WEBCONFIG_BASE}} e.g. https://www.home-master.eu/webconfig -->
+<link rel="stylesheet" href="../../../_shared/hm-webconfig.css">
+<!-- Production: <link rel="stylesheet" href="{{HM_WEBCONFIG_BASE}}/hm-webconfig.css"> -->
+
+<section style="font-family:var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial);padding:2rem;max-width:1160px;margin:auto;">
+  <style>
+    .ch-slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:999px;background:#e5e7eb;outline:none;cursor:pointer}
+    .ch-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#1f2937;border:2px solid #f9fafb}
+    .ch-slider::-webkit-slider-runnable-track{background:linear-gradient(90deg,#cbd5e1,#fbbf24)}
+    .pwm-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-top:12px}
+    .pwm-group{margin-top:18px}
+    .pwm-group h4{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--muted2)}
+    .pwm-ch label{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;gap:6px}
+    .pwm-ch .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
+    .ch-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .i2c-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+    .i2c-chip{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+    .i2c-chip .nm{font-size:13px;font-weight:850}
+    .i2c-chip .outs{font-size:11px;color:var(--muted2);margin-top:2px}
+    .i2c-chip .addr{font-family:ui-monospace,Consolas,monospace;font-size:12px;margin-top:8px}
+    .i2c-chip .st{margin-top:8px;font-size:13px;font-weight:750}
+    .i2c-chip.ok{border-color:#bbf7d0;background:#f0fdf4}
+    .i2c-chip.ok .st{color:var(--ok)}
+    .i2c-chip.warn{border-color:#fde68a;background:#fffbeb}
+    .i2c-chip.warn .st{color:#b45309}
+    .i2c-chip.bad{border-color:#fecaca;background:#fef2f2}
+    .i2c-chip.bad .st{color:var(--bad)}
+    .i2c-meta{margin:12px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+    .iohint{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+    @media(max-width:980px){.i2c-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .prof-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+    .prof-cell select,.prof-cell input{width:100%}
+    .prof-cell select{margin-bottom:4px}
+    .prof-cell label{font-size:11px}
+    .grp-boxes{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:8px}
+    .grp-boxes .check{font-size:11px}
+    @media(max-width:980px){.prof-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grp-boxes{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media(max-width:560px){.prof-grid{grid-template-columns:1fr}.grp-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:980px){.pwm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    @media(max-width:560px){.pwm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    details.adv-block{margin:24px 0;border:1px solid var(--border);border-radius:16px;background:#fff;padding:4px 16px 16px}
+    details.adv-block>summary{cursor:pointer;font-weight:800;font-size:16px;padding:14px 0;list-style:none}
+    details.adv-block>summary::-webkit-details-marker{display:none}
+    details.adv-block>summary::before{content:'▸ ';color:var(--muted2)}
+    details.adv-block[open]>summary::before{content:'▾ '}
+    .stair-run-est{margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px;font-variant-numeric:tabular-nums;line-height:1.5;white-space:pre-line}
+    .pill.stair-off{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    button.btn:disabled{opacity:.45;cursor:not-allowed}
+  </style>
+
+  <header class="appbar">
+    <div class="headLeft">
+      <div class="moduleImage">
+        <img src="../../Images/photo1.png" alt="STR-3221-R1">
+      </div>
+      <div class="title">
+        <h1>STR-3221-R1 Module Configuration</h1>
+        <p>Stair lighting and underfloor heating controller — 32 MOSFET channels, on-board sequencer, 3 field inputs; Modbus RTU over RS-485, setup via USB-C.</p>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="pillrow">
+        <div class="pill"><span class="dot warn" id="connDot"></span>Connection: <span id="connText">Disconnected</span></div>
+        <div class="pill"><span class="dot warn" id="linkDot"></span>Bus: <span id="linkText">—</span></div>
+        <div class="pill">Model: <span id="hm-model" class="mono">—</span></div>
+        <div class="pill">FW: <span id="hm-fw" class="mono">—</span></div>
+        <div class="pill">WebConfig: <span id="hm-wc">—</span></div>
+        <div class="pill">Modbus ID: <span id="hm-addr">—</span></div>
+        <div class="pill">Baud: <span id="hm-baud">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="connect-button">Connect</button>
+      </div>
+      <div id="hm-links" class="mini"></div>
+    </div>
+  </header>
+
+  <div id="hm-compat"></div>
+  <div id="hm-tools"></div>
+
+  <div class="pillrow" id="str-state" style="justify-content:flex-start;margin-top:16px">
+    <div class="pill"><span class="dot warn" id="fsDot"></span>Failsafe: <span id="fsText">—</span></div>
+    <div class="pill"><span class="dot warn" id="ovDot"></span>Override: <span id="ovText">—</span></div>
+    <div class="pill"><span class="dot warn" id="pkDot"></span>Panic: <span id="pkText">—</span></div>
+    <div class="pill">Scene: <span id="scText">—</span></div>
+  </div>
+
+  <div class="grid two">
+    <section class="card">
+      <div class="cardheader"><div><h2>Device Setup</h2><div class="sub">Serial connection and Modbus addressing.</div></div><span class="tag">Step 1</span></div>
+      <div class="cardbody">
+        <div class="row">
+          <div>
+            <label for="modbus-address">Modbus Address</label>
+            <select id="modbus-address"></select>
+          </div>
+          <div>
+            <label for="modbus-baud">Baud Rate</label>
+            <select id="modbus-baud">
+              <option value="9600">9600</option>
+              <option value="19200" selected>19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200">115200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="cardheader"><div><h2>Serial Log</h2><div class="sub">Communication messages and status updates.</div></div></div>
+      <div class="cardbody"><div id="hm-log-box"><div id="hm-log"></div></div></div>
+    </section>
+  </div>
+
+  <div class="sectiontitle">
+    <h3>Stairs</h3>
+    <p class="hint">On-board sequencer. Mode is how a run starts (one-shot or hold while presence). Pattern is the drawing — sequential, all, wave, comet, center, random. Hydrates only after the <code>stairs</code> section arrives.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="margin-bottom:12px">
+        <div class="pill">Phase: <span id="stair-phase">—</span></div>
+        <div class="pill">Step: <span id="stair-step">—</span></div>
+        <div class="pill">Direction: <span id="stair-dir">—</span></div>
+        <div class="pill stair-off" id="stair-armed">Sequencer OFF — set “Steps in use” to the number of stairs</div>
+      </div>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="stair-run-up">Run up</button>
+        <button type="button" class="btn" id="stair-run-down">Run down</button>
+        <button type="button" class="btn" id="stair-stop">Stop</button>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div><label for="stair-n">Steps in use (0 = off)</label><input id="stair-n" type="number" min="0" max="32" value="0"></div>
+        <div><label for="stair-pt">Pattern</label>
+          <select id="stair-pt">
+            <option value="0">Sequential</option>
+            <option value="1">All at once</option>
+            <option value="2">Wave</option>
+            <option value="3">Comet</option>
+            <option value="4">Center</option>
+            <option value="5">Random</option>
+          </select>
+        </div>
+        <div><label for="stair-ww">Wave / comet width</label><input id="stair-ww" type="number" min="1" max="32" value="3"></div>
+        <div><label for="stair-md">Launch mode</label>
+          <select id="stair-md">
+            <option value="0">One-shot</option>
+            <option value="1">Hold while presence</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="stair-d">Step delay (ms)</label><input id="stair-d" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-h">Hold (s)</label><input id="stair-h" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="stair-f">Fade-out (ms)</label><input id="stair-f" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-ov">Overlap (%)</label><input id="stair-ov" type="number" min="0" max="100" value="0"></div>
+      </div>
+      <p class="stair-run-est" id="stair-run-est">Run: —</p>
+      <div class="row">
+        <div><label for="stair-rt">Retrigger</label>
+          <select id="stair-rt">
+            <option value="0">Ignore</option>
+            <option value="1">Restart</option>
+            <option value="2">Extend hold</option>
+          </select>
+        </div>
+        <div><label for="stair-op">Opposite end</label>
+          <select id="stair-op">
+            <option value="0">Ignore</option>
+            <option value="1">Reverse</option>
+            <option value="2">Hold both</option>
+          </select>
+        </div>
+        <div><label for="stair-im">IN1 is</label>
+          <select id="stair-im">
+            <option value="0">Bottom (up)</option>
+            <option value="1">Top (down)</option>
+          </select>
+        </div>
+        <div><label for="stair-be">Both ends in window</label>
+          <select id="stair-be">
+            <option value="0">Default direction</option>
+            <option value="1">All at once</option>
+            <option value="2">Ignore</option>
+          </select>
+        </div>
+        <div><label for="stair-bw">Both-ends window (ms)</label><input id="stair-bw" type="number" min="0" max="5000" value="300"></div>
+      </div>
+      <div class="row">
+        <div><label for="stair-dl">Day level</label><input id="stair-dl" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-nl">Night level</label><input id="stair-nl" type="number" min="0" max="255" value="0"></div>
+        <div>
+          <label for="stair-nw">Night window</label>
+          <input id="stair-nw" type="checkbox">
+          <span class="hint">Runtime — HR 438. Not saved in the stairs section.</span>
+        </div>
+        <div><label for="stair-sf">Standby first</label><input id="stair-sf" type="number" min="0" max="255" value="0"></div>
+        <div><label for="stair-sl">Standby last</label><input id="stair-sl" type="number" min="0" max="255" value="0"></div>
+        <div>
+          <label for="stair-nn">All-steps standby</label>
+          <input id="stair-nn" type="number" min="0" max="255" value="0">
+          <span class="hint">Lights every step at this level whenever the sequencer is idle. Non-zero overrides Standby first and Standby last. Not tied to the night window.</span>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="stair-fd">Step fade (ms)</label><input id="stair-fd" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="stair-db">Debounce (ms)</label><input id="stair-db" type="number" min="0" max="5000" value="0"></div>
+        <div><label for="stair-mr">Min repeat (ms)</label><input id="stair-mr" type="number" min="0" max="60000" value="0"></div>
+      </div>
+      <h4 style="margin:16px 0 8px;font-size:13px">Step → channel</h4>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="stair-fill-map">Fill 1:1</button>
+      </div>
+      <p class="hint">Factory map is 1:1. If every step points at O1, this config predates that default — press Fill.</p>
+      <div class="grp-boxes" id="stair-map"></div>
+      <p class="hint" id="stair-map-warn" style="display:none"></p>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Heating</h3>
+    <p class="hint">Underfloor zone loop. Slow PWM owns every channel with profile Heat; that channel’s failsafe row is ignored — frost protection replaces it. Hydrates only after the <code>heating</code> section arrives.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="margin-bottom:12px">
+        <div class="pill">Open zones: <span id="heat-zones">—</span></div>
+        <div class="pill">Heat demand: <span id="heat-demand">—</span></div>
+        <div class="pill">Role: <span id="heat-di-role-live">—</span></div>
+        <div class="pill">DI: <span id="heat-di">—</span></div>
+        <div class="pill">Summer: <span id="heat-summer">—</span></div>
+        <div class="pill">Frost: <span id="heat-frost">—</span></div>
+        <div class="pill">Exercise: <span id="heat-ex">—</span></div>
+        <div class="pill" id="heat-pwm-off" style="display:none">Slow PWM off — zones will not open</div>
+      </div>
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="heat-exercise">Exercise valves now</button>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div><label for="heat-p">Slow PWM period (s, 0 = off)</label><input id="heat-p" type="number" min="0" max="3600" value="900"></div>
+        <div><label for="heat-mp">Min pulse (%)</label><input id="heat-mp" type="number" min="0" max="50" value="10"></div>
+        <div><label for="heat-ph">Phase spread (%)</label><input id="heat-ph" type="number" min="0" max="100" value="0"></div>
+        <div><label for="heat-mx">Max open zones (0 = none)</label><input id="heat-mx" type="number" min="0" max="32" value="0"></div>
+      </div>
+      <div class="row">
+        <div><label for="heat-di-role">DI role</label>
+          <select id="heat-di-role">
+            <option value="0">None</option>
+            <option value="1">Enable (open when DI closed)</option>
+            <option value="2">Inhibit (close when DI closed)</option>
+            <option value="3">Demand echo</option>
+          </select>
+        </div>
+        <div><label for="heat-fo">First-open delay (s)</label><input id="heat-fo" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-ov">Overrun (s)</label><input id="heat-ov" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-sm">Summer mode</label>
+          <select id="heat-sm">
+            <option value="0">Heating allowed</option>
+            <option value="1">Summer — heating off</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="heat-eh">Exercise interval (h)</label><input id="heat-eh" type="number" min="0" max="8760" value="0"></div>
+        <div><label for="heat-ed">Exercise duration (s)</label><input id="heat-ed" type="number" min="0" max="3600" value="0"></div>
+        <div><label for="heat-af">Antifreeze after (h silent)</label><input id="heat-af" type="number" min="0" max="168" value="0"></div>
+      </div>
+      <h4 style="margin:16px 0 8px;font-size:13px">NC / NO per channel (checked = invert / NC)</h4>
+      <div class="grp-boxes" id="heat-nc"></div>
+      <p class="hint" id="heat-stats" style="margin-top:12px">Hours / cycles: —</p>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Digital Inputs · Buttons · Status LEDs</h3>
+    <p class="hint">Commissioning — wire sensors and check the dots move.</p>
+  </div>
+  <div class="sectiontitle"><h3>Digital Inputs (3)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols3" id="io-inputs"></div></div></section>
+
+  <div class="sectiontitle"><h3>Buttons (4)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-buttons"></div></div></section>
+
+  <div class="sectiontitle"><h3>Status LEDs (2)</h3></div>
+  <section class="card"><div class="cardbody"><div class="iogroup cols2" id="io-leds"></div></div></section>
+
+  <details class="adv-block" id="adv-main">
+    <summary>Advanced</summary>
+  <div class="sectiontitle">
+    <h3>I2C / TLC59208F</h3>
+    <p class="hint">Four LED drivers on the MCU board. U9 always 0x20, U10 0x21, U11 0x22, U12 0x23. Connect to see live status; Scan re-probes the bus.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="ch-actions" style="margin-top:0">
+        <button type="button" class="btn" id="btn-i2c-scan">Scan I2C bus</button>
+      </div>
+      <div id="i2c-chips" class="i2c-chips"></div>
+      <div id="i2c-meta" class="i2c-meta">Connect the module to see which drivers answer.</div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Output Channels O1–O32 (0–255)</h3>
+    <p class="hint">For commissioning and wiring checks; while the sequencer runs, its channels ignore writes.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div id="pwm-groups"></div>
+      <div class="ch-actions">
+        <button id="btn-all-off" type="button" class="btn">All OFF</button>
+        <button id="btn-ramp-test" type="button" class="btn">Ramp test (O1→O32)</button>
+      </div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Channel profiles</h3>
+    <p class="hint">Per channel: how the holding-register value is read — LED, heating zone, raw value or indicator. A Heat profile hands the channel to the slow PWM loop. Order of application is profile → min/max → curve → master level → ramp.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row" style="align-items:flex-end">
+        <div><label for="ch-all-prof">Set all — profile</label><select id="ch-all-prof"></select></div>
+        <div><label for="ch-all-curve">Set all — curve</label><select id="ch-all-curve"></select></div>
+        <div><label for="ch-all-min">Min</label><input id="ch-all-min" type="number" min="0" max="255" value="0"></div>
+        <div><label for="ch-all-max">Max</label><input id="ch-all-max" type="number" min="0" max="255" value="255"></div>
+        <div><label for="ch-all-ramp">Ramp (ms)</label><input id="ch-all-ramp" type="number" min="0" max="60000" value="0"></div>
+        <div><label for="ch-all-aoff">Auto-off (s)</label><input id="ch-all-aoff" type="number" min="0" max="65535" value="0"></div>
+        <div><button type="button" class="btn" id="ch-all-apply">Apply to all channels</button></div>
+      </div>
+      <div id="ch-groups" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Master &amp; panic</h3>
+    <p class="hint">Master level multiplies every channel and is applied last — after the profile, the output window and the curve. Panic drives every channel to the panic level and holds it there, ignoring the bus, until it is cleared.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody">
+      <div class="row">
+        <div>
+          <label for="master-level">Master level (0–255)</label>
+          <input id="master-level" type="number" min="0" max="255" value="255">
+        </div>
+        <div>
+          <label for="panic-level">Panic level (0–255)</label>
+          <input id="panic-level" type="number" min="0" max="255" value="255">
+        </div>
+      </div>
+      <div class="ch-actions">
+        <button id="btn-panic" type="button" class="btn danger">Panic — hold all channels</button>
+        <button id="btn-panic-clear" type="button" class="btn">Clear panic</button>
+      </div>
+    </div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Groups</h3>
+    <p class="hint">Eight logical groups, each a free selection of channels — they need not follow the four physical driver rails. A level written to any member is mirrored once to every channel sharing a group with it; overlapping groups do not loop, and the last write wins. Not needed for stairs or heating.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="grp-list"></div></div>
+  </section>
+
+
+  <div class="sectiontitle">
+    <h3>Scenes</h3>
+    <p class="hint">Eight scenes of 32 levels. Save captures the levels the channels are commanded to right now; recall applies them. A scene can also be recalled from holding register 436, from a button or from an input.</p>
+  </div>
+  <section class="card">
+    <div class="cardbody"><div id="scn-list"></div></div>
+  </section>
+
+
+  <div class="sectiontitle"><h3>Bus failsafe</h3></div>
+  <section class="card">
+    <div class="cardbody">
+      <p class="hint">What each channel does if the controller stops polling. Heat channels are replaced by frost protection. Timeout 0 disables bus failsafe (factory default). Per-driver rows match the PWM groups; use Set all to apply one action to every channel.</p>
+      <div class="row">
+        <div>
+          <label for="bus-timeout-s">Bus timeout (s)</label>
+          <input id="bus-timeout-s" type="number" min="0" max="65535" value="0">
+        </div>
+        <div>
+          <label for="override-timeout-s">Override timeout (s, 0=never)</label>
+          <input id="override-timeout-s" type="number" min="0" max="65535" value="0">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <div>
+          <label for="fs-all-act">Set all — action</label>
+          <select id="fs-all-act">
+            <option value="0">Hold</option>
+            <option value="1">OFF</option>
+            <option value="2">Level</option>
+          </select>
+        </div>
+        <div>
+          <label for="fs-all-lvl">Set all — level</label>
+          <input id="fs-all-lvl" type="number" min="0" max="255" value="0">
+        </div>
+        <div><button type="button" class="btn" id="fs-all-apply">Apply to all channels</button></div>
+      </div>
+      <div id="fs-groups" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+
+  </details>
+
+  <script src="simple-web-serial.min.js"></script>
+  <script src="../../../_shared/hm-webconfig.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    const NUM_DI = 3, NUM_BTN = 4, NUM_LED = 2, NUM_PWM = 32;
+    const NUM_GROUPS = 8, NUM_SCENES = 8;
+    const FS_PER_PART = 8;   // matches CFG_FS_PER_PART in the firmware
+    const PWM_GROUPS = [
+      { title: 'O1–O8 (U9 · silk 0x40 · bus 0x20)', start: 1 },
+      { title: 'O9–O16 (U10 · silk 0x42 · bus 0x21)', start: 9 },
+      { title: 'O17–O24 (U11 · silk 0x44 · bus 0x22)', start: 17 },
+      { title: 'O25–O32 (U12 · silk 0x46 · bus 0x23)', start: 25 },
+    ];
+    const pwmSliders = [];
+    const pwmVals = [];
+    const fsActions = new Array(NUM_PWM).fill(0);
+    const fsLevels = new Array(NUM_PWM).fill(0);
+    const grpMasks = new Array(NUM_GROUPS).fill(0);
+    let pwmSyncLock = false;
+    let pwmSendTimer = null;
+    let fsSendTimer = null;
+
+    // A card is hydrated only once its own config section has arrived. Until
+    // then its senders refuse to fire, so the page can never write the values
+    // it happens to be showing back into the module.
+    const cfgHydrated = {
+      base: false, inputs: false, buttons: false, leds: false,
+      failsafe: false, channels: false, groups: false, scenes: false,
+      stairs: false, heating: false,
+    };
+
+    const fsActOptsHtml = [{v:0,l:'Hold'},{v:1,l:'OFF'},{v:2,l:'Level'}]
+      .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+    const PROFILE_OPTS = [
+      {v:0,l:'LED (curve + window)'},
+      {v:1,l:'Heat (duty 0–100)'},
+      {v:2,l:'Raw (straight to driver)'},
+      {v:3,l:'Indicator (off / max)'},
+    ];
+    const CURVE_OPTS = [{v:0,l:'Linear'},{v:1,l:'Gamma 2.2'},{v:2,l:'CIE 1931'}];
+    const profOptsHtml = PROFILE_OPTS.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+    const curveOptsHtml = CURVE_OPTS.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+
+    function clamp255(v){ return Math.max(0, Math.min(255, Number(v)||0)); }
+
+    function readPwmLevels(){
+      const out = [];
+      for (let i = 0; i < NUM_PWM; i++) out.push(clamp255(pwmSliders[i]?.value));
+      return out;
+    }
+
+    function applyPwmFromDevice(pwm){
+      if (!pwm || pwmSyncLock) return;
+      pwmSyncLock = true;
+      const arr = HMWebConfig.toArray(pwm);
+      for (let i = 0; i < NUM_PWM; i++){
+        const v = clamp255(arr[i]);
+        if (pwmSliders[i] && pwmSliders[i] !== document.activeElement) pwmSliders[i].value = String(v);
+        if (pwmVals[i]) pwmVals[i].textContent = String(v);
+      }
+      pwmSyncLock = false;
+    }
+
+    function sendPwmLevels(){
+      if (HMWebConfig._compat.blocked) return;
+      const pwm = readPwmLevels();
+      for (let i = 0; i < NUM_PWM; i++) if (pwmVals[i]) pwmVals[i].textContent = String(pwm[i]);
+      HMWebConfig.conn.send('values', { pwm }).catch(() => {
+        HMWebConfig.appendLog('Failed to send PWM levels');
+      });
+    }
+
+    function debouncedSendPwm(){
+      clearTimeout(pwmSendTimer);
+      pwmSendTimer = setTimeout(sendPwmLevels, 40);
+    }
+
+    // Writes leave the page one at a time, spaced apart. The module's serial
+    // line buffer is 256 bytes and it parses one line per main-loop pass, so a
+    // burst of chunks sent back to back would overrun the USB receive FIFO.
+    let txChain = Promise.resolve();
+    function sendConfigQueued(t, list){
+      txChain = txChain
+        .then(() => HMWebConfig.sendConfig(t, list))
+        .then(() => new Promise(resolve => setTimeout(resolve, 40)));
+      return txChain;
+    }
+
+    function loadFailsafeSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      if (cfg.timeout != null && $('bus-timeout-s') && $('bus-timeout-s') !== document.activeElement) {
+        $('bus-timeout-s').value = String(cfg.timeout);
+      }
+      if (cfg.ovTimeout != null && $('override-timeout-s') && $('override-timeout-s') !== document.activeElement) {
+        $('override-timeout-s').value = String(cfg.ovTimeout);
+      }
+      const actions = HMWebConfig.toArray(cfg.a);
+      const levels = HMWebConfig.toArray(cfg.l);
+      for (let k = 0; k < actions.length; k++){
+        const i = base + k;
+        if (i >= NUM_PWM) break;
+        fsActions[i] = parseInt(actions[k] ?? 0, 10);
+        fsLevels[i] = clamp255(levels[k] ?? 0);
+        const actEl = $('fs-act-o' + (i + 1));
+        const lvlEl = $('fs-lvl-o' + (i + 1));
+        if (actEl && actEl !== document.activeElement) actEl.value = String(fsActions[i]);
+        if (lvlEl && lvlEl !== document.activeElement) lvlEl.value = String(fsLevels[i]);
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.failsafe = true;
+    }
+
+    function sendBusTimeout(){
+      if (!cfgHydrated.failsafe) return;
+      sendConfigQueued('bus.timeout', parseInt($('bus-timeout-s')?.value || '0', 10));
+    }
+
+    function sendOverrideTimeout(){
+      if (!cfgHydrated.failsafe) return;
+      sendConfigQueued('override.timeout', parseInt($('override-timeout-s')?.value || '0', 10));
+    }
+
+    function sendFailsafeChannels(){
+      if (!cfgHydrated.failsafe) return;
+      for (let i = 0; i < NUM_PWM; i++){
+        fsActions[i] = parseInt($('fs-act-o' + (i + 1))?.value || '0', 10);
+        fsLevels[i] = clamp255($('fs-lvl-o' + (i + 1))?.value);
+      }
+      for (let off = 0; off < NUM_PWM; off += FS_PER_PART){
+        sendConfigQueued('bus.failsafe', {
+          o: off,
+          a: fsActions.slice(off, off + FS_PER_PART),
+          l: fsLevels.slice(off, off + FS_PER_PART),
+        });
+      }
+    }
+
+    function debouncedSendFailsafe(){
+      clearTimeout(fsSendTimer);
+      fsSendTimer = setTimeout(sendFailsafeChannels, 120);
+    }
+
+    (function buildFailsafeGrid(){
+      const root = $('fs-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="pwm-grid" id="fs-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.pwm-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const idx = ch - 1;
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch';
+          cell.innerHTML = `
+            <label for="fs-act-o${ch}"><span>O${ch}</span></label>
+            <select id="fs-act-o${ch}">${fsActOptsHtml}</select>
+            <input id="fs-lvl-o${ch}" type="number" min="0" max="255" value="0" style="margin-top:4px;width:100%">
+            <p class="hint" id="fs-heat-note-o${ch}" style="display:none;margin:6px 0 0">Unused on heat — frost protection owns this channel.</p>`;
+          grid.appendChild(cell);
+          cell.querySelector('select')?.addEventListener('change', debouncedSendFailsafe);
+          cell.querySelector('input[type="number"]')?.addEventListener('change', debouncedSendFailsafe);
+        }
+      });
+      $('bus-timeout-s')?.addEventListener('change', sendBusTimeout);
+      $('override-timeout-s')?.addEventListener('change', sendOverrideTimeout);
+      $('fs-all-apply')?.addEventListener('click', () => {
+        if (!cfgHydrated.failsafe) return;
+        const act = parseInt($('fs-all-act')?.value || '0', 10);
+        const lvl = clamp255($('fs-all-lvl')?.value);
+        for (let i = 0; i < NUM_PWM; i++){
+          fsActions[i] = act;
+          fsLevels[i] = lvl;
+          const actEl = $('fs-act-o' + (i + 1));
+          const lvlEl = $('fs-lvl-o' + (i + 1));
+          if (actEl) actEl.value = String(act);
+          if (lvlEl) lvlEl.value = String(lvl);
+        }
+        sendFailsafeChannels();
+      });
+    })();
+
+    (function buildModbusAddress(){
+      const sel = $('modbus-address');
+      if (!sel) return;
+      for (let i = 1; i <= 247; i++){
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = i;
+        sel.appendChild(o);
+      }
+      sel.value = '3';
+    })();
+
+    (function buildPwmGrid(){
+      const root = $('pwm-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="pwm-grid" id="pwm-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.pwm-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const idx = ch - 1;
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch';
+          cell.innerHTML = `
+            <label for="pwm-o${ch}"><span>O${ch}</span><span class="val" id="val-o${ch}">0</span></label>
+            <input id="pwm-o${ch}" class="ch-slider" type="range" min="0" max="255" value="0">`;
+          grid.appendChild(cell);
+          const slider = cell.querySelector('input');
+          const valEl = cell.querySelector('.val');
+          pwmSliders[idx] = slider;
+          pwmVals[idx] = valEl;
+          slider.addEventListener('input', debouncedSendPwm);
+        }
+      });
+    })();
+
+    (function buildInputs(){
+      const c = $('io-inputs');
+      if (!c) return;
+      const ioNames = ['DI', 'IN1', 'IN2'];
+      const ioHints = [
+        'Module-wetted 24 V input. Dry contact only — do not apply an external voltage.',
+        'Presence input, SENS.A group. Active when IN is pulled to +5 V — needs a sourcing output or a contact from +. Max 6.8 V. An NPN open-collector sensor needs an external pull-up.',
+        'Presence input, SENS.B group. Active when IN is pulled to +5 V — needs a sourcing output or a contact from +. Max 6.8 V. An NPN open-collector sensor needs an external pull-up.',
+      ];
+      const actionOpts = [{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'},{v:3,l:'Recall scene'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const sceneOpts = ['<option value="0">—</option>']
+        .concat(Array.from({length: NUM_SCENES}, (_, k) => `<option value="${k+1}">Scene ${k+1}</option>`)).join('');
+      const targetOpts = [{v:4,l:'None'},{v:0,l:'All (reserved)'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      for (let i = 1; i <= NUM_DI; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-input';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">${ioNames[i-1]}</span><span class="ioBadge badgeState"><span id="state-in${i}" class="state-dot dot-off"></span></span></div>
+          ${ioHints[i-1] ? `<p class="iohint">${ioHints[i-1]}</p>` : ''}
+          <div class="checkRow">
+            <label class="check"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+            <label class="check"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+          </div>
+          <div class="split">
+            <div><label for="action-in${i}">Action</label><select id="action-in${i}">${actionOpts}</select></div>
+            <div><label for="target-in${i}">Control Target</label><select id="target-in${i}">${targetOpts}</select></div>
+          </div>
+          <div class="split" style="margin-top:10px">
+            <div>
+              <label for="level-in${i}">On level (0–255)</label>
+              <input id="level-in${i}" type="number" min="0" max="255" value="255">
+            </div>
+            <div>
+              <label for="param-in${i}">Scene (for Recall scene)</label>
+              <select id="param-in${i}">${sceneOpts}</select>
+            </div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildButtons(){
+      const c = $('io-buttons');
+      if (!c) return;
+      const btnActOpts = [
+        {v:0,l:'None'},{v:1,l:'All ON'},{v:2,l:'All OFF'},
+        {v:3,l:'Ramp test'},{v:4,l:'Clear override'},
+        {v:5,l:'Recall scene'},{v:6,l:'Panic'},{v:7,l:'Clear panic'},
+      ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const btnSceneOpts = ['<option value="0">—</option>']
+        .concat(Array.from({length: NUM_SCENES}, (_, k) => `<option value="${k+1}">Scene ${k+1}</option>`)).join('');
+      for (let i = 1; i <= NUM_BTN; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-button';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">Button ${i}</span><span class="ioBadge badgeState"><span id="state-btn${i}" class="state-dot dot-off"></span></span></div>
+          <div class="split">
+            <div><label for="action-btn${i}">Action (on press)</label><select id="action-btn${i}">${btnActOpts}</select></div>
+            <div><label for="param-btn${i}">Scene (for Recall scene)</label><select id="param-btn${i}">${btnSceneOpts}</select></div>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    (function buildLEDs(){
+      const c = $('io-leds');
+      if (!c) return;
+      const ledModeOpts = [{v:0,l:'Solid'},{v:1,l:'Blink'}]
+        .map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      const ledSrcOpts = [
+        {v:0,l:'(none)'},
+        {v:11,l:'Follow IN1'},
+        {v:10,l:'Follow IN2'},
+        {v:12,l:'Follow DI'},
+      ].map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+      for (let i = 1; i <= NUM_LED; i++){
+        const d = document.createElement('div');
+        d.className = 'iocard tint-led';
+        d.innerHTML = `
+          <div class="iotop"><span class="ioid">Status LED ${i}</span><span class="ioBadge badgeState"><span id="state-led${i}" class="state-dot dot-off"></span></span></div>
+          <div><label for="mode-led${i}">Mode</label><select id="mode-led${i}">${ledModeOpts}</select></div>
+          <div style="margin-top:10px;"><label for="source-led${i}">Source</label><select id="source-led${i}">${ledSrcOpts}</select></div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    function setIfIdle(id, v){
+      const el = $(id);
+      if (el && el !== document.activeElement) el.value = String(v);
+    }
+
+    (function buildChannelProfiles(){
+      const allProf = $('ch-all-prof'), allCurve = $('ch-all-curve');
+      if (allProf) allProf.innerHTML = profOptsHtml;
+      if (allCurve) allCurve.innerHTML = curveOptsHtml;
+      const root = $('ch-groups');
+      if (!root) return;
+      PWM_GROUPS.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        wrap.innerHTML = `<h4>${g.title}</h4><div class="prof-grid" id="ch-grid-${g.start}"></div>`;
+        root.appendChild(wrap);
+        const grid = wrap.querySelector('.prof-grid');
+        for (let ch = g.start; ch < g.start + 8; ch++){
+          const cell = document.createElement('div');
+          cell.className = 'pwm-ch prof-cell';
+          cell.innerHTML = `
+            <label><span>O${ch}</span></label>
+            <select id="ch-prof-o${ch}">${profOptsHtml}</select>
+            <select id="ch-curve-o${ch}">${curveOptsHtml}</select>
+            <div class="split">
+              <div><label for="ch-min-o${ch}">Min</label><input id="ch-min-o${ch}" type="number" min="0" max="255" value="0"></div>
+              <div><label for="ch-max-o${ch}">Max</label><input id="ch-max-o${ch}" type="number" min="0" max="255" value="255"></div>
+            </div>
+            <div class="split">
+              <div><label for="ch-ramp-o${ch}">Ramp ms</label><input id="ch-ramp-o${ch}" type="number" min="0" max="60000" value="0"></div>
+              <div><label for="ch-aoff-o${ch}">Auto-off s</label><input id="ch-aoff-o${ch}" type="number" min="0" max="65535" value="0"></div>
+            </div>
+            <p class="hint" id="ch-heat-note-o${ch}" style="display:none;margin:6px 0 0">Heat: failsafe is replaced by frost protection; auto-off is ignored.</p>`;
+          grid.appendChild(cell);
+          cell.querySelectorAll('select,input').forEach(el =>
+            el.addEventListener('change', () => { sendChannelCfg(ch - 1); updateHeatNotes(); }));
+        }
+      });
+      $('ch-all-apply')?.addEventListener('click', () => {
+        if (!cfgHydrated.channels) return;
+        const all = {
+          p: parseInt($('ch-all-prof')?.value || '0', 10),
+          c: parseInt($('ch-all-curve')?.value || '0', 10),
+          mn: clamp255($('ch-all-min')?.value),
+          mx: clamp255($('ch-all-max')?.value),
+          r: clampInt($('ch-all-ramp')?.value, 0, 60000),
+          ao: clampInt($('ch-all-aoff')?.value, 0, 65535),
+        };
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          setIfIdle('ch-prof-o' + ch, all.p);
+          setIfIdle('ch-curve-o' + ch, all.c);
+          setIfIdle('ch-min-o' + ch, all.mn);
+          setIfIdle('ch-max-o' + ch, all.mx);
+          setIfIdle('ch-ramp-o' + ch, all.r);
+          setIfIdle('ch-aoff-o' + ch, all.ao);
+        }
+        sendConfigQueued('ch.all', all);
+        updateHeatNotes();
+      });
+    })();
+
+    (function buildGroupsCard(){
+      const root = $('grp-list');
+      if (!root) return;
+      for (let g = 0; g < NUM_GROUPS; g++){
+        const wrap = document.createElement('div');
+        wrap.className = 'pwm-group';
+        let boxes = '';
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          boxes += `<label class="check"><input type="checkbox" id="grp${g}-ch${ch}"> O${ch}</label>`;
+        }
+        wrap.innerHTML = `<h4>Group ${g + 1}</h4><div class="grp-boxes">${boxes}</div>`;
+        root.appendChild(wrap);
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          $(`grp${g}-ch${ch}`)?.addEventListener('change', () => sendGroup(g));
+        }
+      }
+    })();
+
+    (function buildScenesCard(){
+      const root = $('scn-list');
+      if (!root) return;
+      for (let s = 1; s <= NUM_SCENES; s++){
+        const d = document.createElement('div');
+        d.className = 'pwm-group';
+        d.innerHTML = `
+          <h4>Scene ${s} — <span class="val" id="scn-state-${s}">empty</span></h4>
+          <div class="ch-actions">
+            <button type="button" class="btn" id="scn-save-${s}">Save current levels</button>
+            <button type="button" class="btn" id="scn-recall-${s}">Recall</button>
+            <button type="button" class="btn" id="scn-clear-${s}">Clear</button>
+          </div>`;
+        root.appendChild(d);
+        // The scene number travels inside the action string so the write still
+        // passes through the shared compatibility gate.
+        $(`scn-save-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.save.' + s);
+        });
+        $(`scn-recall-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.recall.' + s);
+        });
+        $(`scn-clear-${s}`)?.addEventListener('click', () => {
+          if (cfgHydrated.scenes) HMWebConfig.sendCommand('scene.clear.' + s);
+        });
+      }
+    })();
+
+    function clampInt(v, lo, hi){
+      const n = parseInt(v || '0', 10);
+      return Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
+    }
+
+    function sendChannelCfg(idx){
+      if (!cfgHydrated.channels) return;
+      const ch = idx + 1;
+      sendConfigQueued('ch.set', {
+        i: idx,
+        p: parseInt($('ch-prof-o' + ch)?.value || '0', 10),
+        c: parseInt($('ch-curve-o' + ch)?.value || '0', 10),
+        mn: clamp255($('ch-min-o' + ch)?.value),
+        mx: clamp255($('ch-max-o' + ch)?.value),
+        r: clampInt($('ch-ramp-o' + ch)?.value, 0, 60000),
+        ao: clampInt($('ch-aoff-o' + ch)?.value, 0, 65535),
+      });
+    }
+
+    function sendGroup(g){
+      if (!cfgHydrated.groups) return;
+      let mask = 0;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        // 2**31 stays positive here; a bitwise shift would wrap to negative.
+        if ($(`grp${g}-ch${ch}`)?.checked) mask += Math.pow(2, ch - 1);
+      }
+      grpMasks[g] = mask;
+      sendConfigQueued('grp.set', { i: g, m: mask });
+    }
+
+    function sendGlobal(){
+      if (!cfgHydrated.base) return;
+      sendConfigQueued('global', {
+        master: clamp255($('master-level')?.value),
+        panic: clamp255($('panic-level')?.value),
+      });
+    }
+
+    function loadBaseSection(cfg){
+      if (cfg.master != null) setIfIdle('master-level', clamp255(cfg.master));
+      if (cfg.panic != null) setIfIdle('panic-level', clamp255(cfg.panic));
+      cfgHydrated.base = true;
+    }
+
+    function loadInputsSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      const inArr = HMWebConfig.toArray(cfg.in);
+      for (let k = 0; k < inArr.length; k++){
+        const i = base + k;
+        if (i >= NUM_DI) break;
+        const o = inArr[k];
+        if (!o) continue;
+        const n = i + 1;
+        if (o.enabled != null) {
+          const el = $('enable-in' + n);
+          if (el && el !== document.activeElement) el.checked = !!parseInt(o.enabled, 10);
+        }
+        if (o.invert != null) {
+          const el = $('invert-in' + n);
+          if (el && el !== document.activeElement) el.checked = !!parseInt(o.invert, 10);
+        }
+        if (o.action != null) setIfIdle('action-in' + n, o.action);
+        if (o.target != null) setIfIdle('target-in' + n, o.target);
+        if (o.level != null) setIfIdle('level-in' + n, o.level);
+        if (o.param != null) setIfIdle('param-in' + n, o.param);
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.inputs = true;
+    }
+
+    function loadButtonsSection(cfg){
+      const arr = HMWebConfig.toArray(cfg.btn);
+      for (let i = 0; i < NUM_BTN; i++){
+        const o = arr[i];
+        if (o && o.param != null) setIfIdle('param-btn' + (i + 1), o.param);
+      }
+      cfgHydrated.buttons = true;
+    }
+
+    function loadChannelsSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      const p = HMWebConfig.toArray(cfg.p), c = HMWebConfig.toArray(cfg.c);
+      const mn = HMWebConfig.toArray(cfg.mn), mx = HMWebConfig.toArray(cfg.mx);
+      const r = HMWebConfig.toArray(cfg.r), ao = HMWebConfig.toArray(cfg.ao);
+      for (let k = 0; k < p.length; k++){
+        const ch = base + k + 1;
+        if (ch > NUM_PWM) break;
+        setIfIdle('ch-prof-o' + ch, p[k] ?? 0);
+        setIfIdle('ch-curve-o' + ch, c[k] ?? 0);
+        setIfIdle('ch-min-o' + ch, mn[k] ?? 0);
+        setIfIdle('ch-max-o' + ch, mx[k] ?? 255);
+        setIfIdle('ch-ramp-o' + ch, r[k] ?? 0);
+        setIfIdle('ch-aoff-o' + ch, ao[k] ?? 0);
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) {
+        cfgHydrated.channels = true;
+        updateHeatNotes();
+      }
+    }
+
+    function parseGroupMask(v){
+      if (typeof v === 'number' && Number.isFinite(v)) return v >>> 0;
+      const s = String(v || '0').trim();
+      if (/^0x/i.test(s) || /^[0-9A-Fa-f]{8}$/.test(s)) return (parseInt(s, 16) >>> 0);
+      const n = Number(s);
+      return Number.isFinite(n) ? (n >>> 0) : 0;
+    }
+
+    function loadGroupsSection(cfg){
+      const arr = HMWebConfig.toArray(cfg.grp);
+      for (let g = 0; g < NUM_GROUPS; g++){
+        const mask = parseGroupMask(arr[g]);
+        grpMasks[g] = mask;
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          const el = $(`grp${g}-ch${ch}`);
+          if (el && el !== document.activeElement) {
+            el.checked = Math.floor(mask / Math.pow(2, ch - 1)) % 2 === 1;
+          }
+        }
+      }
+      cfgHydrated.groups = true;
+    }
+
+    function loadScenesSection(cfg){
+      const base = parseInt(cfg.o ?? 0, 10);
+      const used = HMWebConfig.toArray(cfg.used);
+      const hexes = HMWebConfig.toArray(cfg.scn);
+      for (let k = 0; k < hexes.length; k++){
+        const s = base + k + 1;
+        if (s > NUM_SCENES) break;
+        const el = $('scn-state-' + s);
+        if (!el) continue;
+        if (!used[k]) { el.textContent = 'empty'; continue; }
+        const hex = String(hexes[k] || '');
+        let on = 0;
+        for (let ch = 0; ch < NUM_PWM; ch++){
+          if (parseInt(hex.substr(ch * 2, 2), 16) > 0) on++;
+        }
+        el.textContent = `${on} of ${NUM_PWM} channels on`;
+      }
+      if (parseInt(cfg.part ?? 0, 10) + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.scenes = true;
+    }
+
+    function updateHeatNotes(){
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        const heat = parseInt($('ch-prof-o' + ch)?.value || '0', 10) === 1;
+        const note = $('ch-heat-note-o' + ch);
+        const fs = $('fs-heat-note-o' + ch);
+        if (note) note.style.display = heat ? 'block' : 'none';
+        if (fs) fs.style.display = heat ? 'block' : 'none';
+      }
+    }
+
+    function hexByte(v){ return ('0' + (v & 255).toString(16).toUpperCase()).slice(-2); }
+
+    function parseHexBytes(hex, n){
+      const s = String(hex || '');
+      const out = new Array(n).fill(0);
+      for (let i = 0; i < n; i++){
+        const v = parseInt(s.substr(i * 2, 2), 16);
+        out[i] = Number.isFinite(v) ? v : 0;
+      }
+      return out;
+    }
+
+    function parseHexMask32(hex){
+      const s = String(hex || '00000000').replace(/^0x/i, '');
+      const n = parseInt(s, 16);
+      return Number.isFinite(n) ? (n >>> 0) : 0;
+    }
+
+    (function buildStairMap(){
+      const root = $('stair-map');
+      if (!root) return;
+      const chOpts = Array.from({length: NUM_PWM}, (_, i) => `<option value="${i}">O${i + 1}</option>`).join('');
+      for (let s = 0; s < NUM_PWM; s++){
+        const lab = document.createElement('label');
+        lab.className = 'check';
+        lab.innerHTML = `<span>S${s + 1}</span><select id="stair-ch-${s}">${chOpts}</select>`;
+        const sel = lab.querySelector('select');
+        if (sel) {
+          sel.value = String(s);
+          sel.addEventListener('change', () => { updateStairMapWarn(); sendStairs(); });
+        }
+        root.appendChild(lab);
+      }
+      ['stair-n','stair-pt','stair-ww','stair-md','stair-d','stair-h','stair-f','stair-ov',
+       'stair-rt','stair-op','stair-im','stair-be','stair-bw','stair-dl','stair-nl',
+       'stair-sf','stair-sl','stair-nn','stair-fd','stair-db','stair-mr']
+        .forEach(id => $(id)?.addEventListener('change', sendStairs));
+      ['stair-n','stair-d','stair-h','stair-f','stair-ov']
+        .forEach(id => {
+          $(id)?.addEventListener('input', updateStairRunEst);
+          $(id)?.addEventListener('change', updateStairRunEst);
+        });
+      rememberDetails($('adv-main'), 'str3221.adv-main');
+      updateStairRunEst();
+      $('stair-n')?.addEventListener('input', syncStairArmed);
+      $('stair-fill-map')?.addEventListener('click', fillStairMap1to1);
+      $('stair-run-up')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.up'));
+      $('stair-run-down')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.down'));
+      $('stair-stop')?.addEventListener('click', () => HMWebConfig.sendCommand('stair.stop'));
+      $('stair-nw')?.addEventListener('change', () => {
+        HMWebConfig.sendCommand($('stair-nw').checked ? 'stair.night' : 'stair.day');
+      });
+      const heatP = $('heat-p');
+      if (heatP) heatP.addEventListener('input', syncHeatPwmPill);
+    })();
+
+    (function buildHeatNc(){
+      const root = $('heat-nc');
+      if (!root) return;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        const lab = document.createElement('label');
+        lab.className = 'check';
+        lab.innerHTML = `<input type="checkbox" id="heat-nc-${ch}"> O${ch} NC`;
+        lab.querySelector('input')?.addEventListener('change', sendHeating);
+        root.appendChild(lab);
+      }
+      ['heat-p','heat-mp','heat-ph','heat-mx','heat-di-role','heat-fo','heat-ov',
+       'heat-sm','heat-eh','heat-ed','heat-af']
+        .forEach(id => $(id)?.addEventListener('change', sendHeating));
+      $('heat-exercise')?.addEventListener('click', () => HMWebConfig.sendCommand('heat.exercise'));
+    })();
+
+    function sendStairs(){
+      if (!cfgHydrated.stairs) return;
+      let map = '';
+      for (let s = 0; s < NUM_PWM; s++) map += hexByte(clampInt($('stair-ch-' + s)?.value, 0, 31));
+      sendConfigQueued('stairs', {
+        n: clampInt($('stair-n')?.value, 0, 32),
+        md: clampInt($('stair-md')?.value, 0, 1),
+        pt: clampInt($('stair-pt')?.value, 0, 5),
+        ww: clampInt($('stair-ww')?.value, 0, 32),
+        im: clampInt($('stair-im')?.value, 0, 1),
+        be: clampInt($('stair-be')?.value, 0, 2),
+        bw: clampInt($('stair-bw')?.value, 0, 5000),
+        rt: clampInt($('stair-rt')?.value, 0, 2),
+        op: clampInt($('stair-op')?.value, 0, 2),
+      });
+      sendConfigQueued('stairs.lv', {
+        d: clampInt($('stair-d')?.value, 0, 60000),
+        h: clampInt($('stair-h')?.value, 0, 3600),
+        f: clampInt($('stair-f')?.value, 0, 60000),
+        ov: clampInt($('stair-ov')?.value, 0, 100),
+        nl: clamp255($('stair-nl')?.value),
+        dl: clamp255($('stair-dl')?.value),
+        sf: clamp255($('stair-sf')?.value),
+        sl: clamp255($('stair-sl')?.value),
+        nn: clamp255($('stair-nn')?.value),
+        fd: clampInt($('stair-fd')?.value, 0, 60000),
+        db: clampInt($('stair-db')?.value, 0, 5000),
+        mr: clampInt($('stair-mr')?.value, 0, 60000),
+      });
+      sendConfigQueued('stairs.map', { map });
+    }
+
+    function sendHeating(){
+      if (!cfgHydrated.heating) return;
+      let mask = 0;
+      for (let ch = 1; ch <= NUM_PWM; ch++){
+        if ($('heat-nc-' + ch)?.checked) mask += Math.pow(2, ch - 1);
+      }
+      const nc = ('00000000' + (mask >>> 0).toString(16).toUpperCase()).slice(-8);
+      sendConfigQueued('heating', {
+        p: clampInt($('heat-p')?.value, 0, 3600),
+        mp: clampInt($('heat-mp')?.value, 0, 50),
+        ph: clampInt($('heat-ph')?.value, 0, 100),
+        mx: clampInt($('heat-mx')?.value, 0, 32),
+        di: clampInt($('heat-di-role')?.value, 0, 3),
+        fo: clampInt($('heat-fo')?.value, 0, 3600),
+        ov: clampInt($('heat-ov')?.value, 0, 3600),
+        eh: clampInt($('heat-eh')?.value, 0, 8760),
+        ed: clampInt($('heat-ed')?.value, 0, 3600),
+        af: clampInt($('heat-af')?.value, 0, 168),
+        sm: clampInt($('heat-sm')?.value, 0, 1),
+        nc,
+      });
+    }
+
+    function loadStairsSection(cfg){
+      const part = parseInt(cfg.part ?? 0, 10);
+      if (cfg.n != null) setIfIdle('stair-n', cfg.n);
+      if (cfg.md != null) setIfIdle('stair-md', cfg.md);
+      if (cfg.pt != null) setIfIdle('stair-pt', cfg.pt);
+      if (cfg.ww != null) setIfIdle('stair-ww', cfg.ww);
+      if (cfg.im != null) setIfIdle('stair-im', cfg.im);
+      if (cfg.be != null) setIfIdle('stair-be', cfg.be);
+      if (cfg.bw != null) setIfIdle('stair-bw', cfg.bw);
+      if (cfg.d != null) setIfIdle('stair-d', cfg.d);
+      if (cfg.h != null) setIfIdle('stair-h', cfg.h);
+      if (cfg.f != null) setIfIdle('stair-f', cfg.f);
+      if (cfg.ov != null) setIfIdle('stair-ov', cfg.ov);
+      if (cfg.rt != null) setIfIdle('stair-rt', cfg.rt);
+      if (cfg.op != null) setIfIdle('stair-op', cfg.op);
+      if (cfg.nl != null) setIfIdle('stair-nl', cfg.nl);
+      if (cfg.dl != null) setIfIdle('stair-dl', cfg.dl);
+      if (cfg.sf != null) setIfIdle('stair-sf', cfg.sf);
+      if (cfg.sl != null) setIfIdle('stair-sl', cfg.sl);
+      if (cfg.nn != null) setIfIdle('stair-nn', cfg.nn);
+      if (cfg.fd != null) setIfIdle('stair-fd', cfg.fd);
+      if (cfg.db != null) setIfIdle('stair-db', cfg.db);
+      if (cfg.mr != null) setIfIdle('stair-mr', cfg.mr);
+      if (cfg.map){
+        const bytes = parseHexBytes(cfg.map, NUM_PWM);
+        for (let s = 0; s < NUM_PWM; s++) setIfIdle('stair-ch-' + s, bytes[s] > 31 ? 31 : bytes[s]);
+      }
+      if (part + 1 >= parseInt(cfg.parts ?? 1, 10)) cfgHydrated.stairs = true;
+      updateStairRunEst();
+    }
+
+    function loadHeatingSection(cfg){
+      if (cfg.p != null) setIfIdle('heat-p', cfg.p);
+      if (cfg.mp != null) setIfIdle('heat-mp', cfg.mp);
+      if (cfg.ph != null) setIfIdle('heat-ph', cfg.ph);
+      if (cfg.mx != null) setIfIdle('heat-mx', cfg.mx);
+      if (cfg.di != null) setIfIdle('heat-di-role', cfg.di);
+      if (cfg.fo != null) setIfIdle('heat-fo', cfg.fo);
+      if (cfg.ov != null) setIfIdle('heat-ov', cfg.ov);
+      if (cfg.eh != null) setIfIdle('heat-eh', cfg.eh);
+      if (cfg.ed != null) setIfIdle('heat-ed', cfg.ed);
+      if (cfg.af != null) setIfIdle('heat-af', cfg.af);
+      if (cfg.sm != null) setIfIdle('heat-sm', cfg.sm);
+      if (cfg.nc){
+        const mask = parseHexMask32(cfg.nc);
+        for (let ch = 1; ch <= NUM_PWM; ch++){
+          const el = $('heat-nc-' + ch);
+          if (el && el !== document.activeElement)
+            el.checked = Math.floor(mask / Math.pow(2, ch - 1)) % 2 === 1;
+        }
+      }
+      cfgHydrated.heating = true;
+      syncHeatPwmPill();
+      requestHeatStats();
+    }
+
+    // Acknowledge a config section. This is not a write, so it deliberately
+    // bypasses the shared compatibility gate: gating it would stall the
+    // sequence exactly when the identity check is still in flight.
+    function ackSection(cfg){
+      const conn = HMWebConfig.conn;
+      if (!conn || !cfg || !cfg.sec) return;
+      conn.send('command', {
+        action: 'cfgack',
+        sec: String(cfg.sec),
+        part: parseInt(cfg.part ?? 0, 10),
+      }).catch(() => {});
+    }
+
+    HMWebConfig.register({
+      model: 8,
+      modelName: 'STR-3221-R1',
+      fw: '0.4.0',
+      webconfigVersion: '0.4.0',
+      readmeUrl: 'https://github.com/isystemsautomation/homemaster-dev/blob/main/STR-3221-R1/README.md',
+      channels: { in: NUM_DI, relay: 0, btn: NUM_BTN, led: NUM_LED },
+      onCfg: (ext, cfg) => {
+        applyPwmFromDevice(ext && ext.pwm);
+        const sec = cfg && cfg.sec;
+        if (!sec) return;
+        switch (String(sec)){
+          case 'base':     loadBaseSection(cfg); break;
+          case 'inputs':   loadInputsSection(cfg); break;
+          case 'buttons':  loadButtonsSection(cfg); break;
+          case 'leds':     cfgHydrated.leds = true; break;
+          case 'failsafe': loadFailsafeSection(cfg); break;
+          case 'channels': loadChannelsSection(cfg); break;
+          case 'groups':   loadGroupsSection(cfg); break;
+          case 'scenes':   loadScenesSection(cfg); break;
+          case 'stairs':   loadStairsSection(cfg); break;
+          case 'heating':  loadHeatingSection(cfg); break;
+          default: break;
+        }
+        ackSection(cfg);
+      },
+    });
+    HMWebConfig.connect({ requestElement: 'connect-button' });
+    HMWebConfig.mountTools('hm-tools', { identify: true });
+    HMWebConfig.conn.on('ext', ext => {
+      if (ext && ext.pwm) applyPwmFromDevice(ext.pwm);
+      if (ext && (ext.tlc_chip != null || ext.tlc_ready != null)) applyTlcLive(ext);
+    });
+    HMWebConfig.conn.on('status', st => {
+      const fsDot = $('fsDot'), fsText = $('fsText');
+      const ovDot = $('ovDot'), ovText = $('ovText');
+      if (st.busFailsafe != null && fsDot && fsText){
+        const on = !!st.busFailsafe;
+        fsDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        fsText.textContent = on ? 'Active' : 'Idle';
+      }
+      if (st.localOverride != null && ovDot && ovText){
+        const on = !!st.localOverride;
+        ovDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        ovText.textContent = on ? 'Active' : 'Idle';
+      }
+      const pkDot = $('pkDot'), pkText = $('pkText');
+      if (st.panic != null && pkDot && pkText){
+        const on = !!st.panic;
+        pkDot.className = 'dot ' + (on ? 'warn' : 'ok');
+        pkText.textContent = on ? 'HELD' : 'Idle';
+      }
+      const scEl = $('scText');
+      if (st.scene != null && scEl) scEl.textContent = st.scene ? ('Scene ' + st.scene) : '—';
+      const SEQ = ['idle','up','down','hold','fade'];
+      const DIR = ['none','up','down'];
+      if ($('stair-phase')) $('stair-phase').textContent = SEQ[st.seq] || String(st.seq ?? '—');
+      if ($('stair-step')) $('stair-step').textContent = (st.seqStep != null) ? String(st.seqStep) : '—';
+      if ($('stair-dir')) $('stair-dir').textContent = DIR[st.seqDir] || String(st.seqDir ?? '—');
+      if ($('heat-zones')) $('heat-zones').textContent = (st.zones != null) ? String(st.zones) : '—';
+      if ($('heat-demand')) $('heat-demand').textContent = st.heatDemand ? 'yes' : 'no';
+      const diRoles = ['none','enable','inhibit','echo'];
+      const role = (st.heatDiRole != null) ? parseInt(st.heatDiRole, 10) : parseInt($('heat-di-role')?.value || '0', 10);
+      if ($('heat-di-role-live')) $('heat-di-role-live').textContent = diRoles[role] || String(role);
+      if ($('heat-di')) {
+        const closed = !!st.heatDi;
+        const force = !!st.heatDiForce;
+        let why = closed ? 'closed' : 'open';
+        if (role === 1) why = force ? 'closed — DI open (enable)' : 'allowed — DI closed (enable)';
+        else if (role === 2) why = force ? 'closed — DI closed (inhibit)' : 'allowed — DI open (inhibit)';
+        else if (role === 3) why = closed ? 'echo: DI closed' : 'echo: DI open';
+        else if (role === 0) why = 'role off';
+        $('heat-di').textContent = why;
+      }
+      if ($('heat-summer')) $('heat-summer').textContent = st.summer ? 'on' : 'off';
+      if ($('heat-frost')) $('heat-frost').textContent = st.frost ? 'active' : 'off';
+      if ($('heat-ex')) $('heat-ex').textContent = st.heatEx ? 'active' : 'off';
+      const nw = $('stair-nw');
+      if (nw && st.night != null && document.activeElement !== nw) nw.checked = !!st.night;
+      syncHeatPwmPill();
+    });
+
+    function stairOr(v, fallback){
+      const n = parseInt(v, 10);
+      return (Number.isFinite(n) && n > 0) ? n : fallback;
+    }
+    function fmtSec(sec){
+      const r = Math.round(sec * 10) / 10;
+      return (Math.abs(r - Math.round(r)) < 1e-9) ? String(Math.round(r)) : r.toFixed(1);
+    }
+    function updateStairRunEst(){
+      const el = $('stair-run-est');
+      if (!el) return;
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const delay = stairOr($('stair-d')?.value, 120);
+      const holdS = stairOr($('stair-h')?.value, 20);
+      const fadeMs = stairOr($('stair-f')?.value, 1500);
+      const ov = Math.max(0, Math.min(100, parseInt($('stair-ov')?.value || '0', 10) || 0));
+      const lightingMs = (n > 1) ? (n - 1) * delay : 0;
+      const totalMs = lightingMs + holdS * 1000 + fadeMs;
+      if (n < 1){
+        el.textContent = 'Run: sequencer off (0 steps).';
+        return;
+      }
+      let line = 'Run: lighting ' + fmtSec(lightingMs / 1000) + ' s → hold '
+        + fmtSec(holdS) + ' s → fade-out ' + fmtSec(fadeMs / 1000)
+        + ' s = ' + fmtSec(totalMs / 1000) + ' s total';
+      if (ov > 0){
+        const fadeStartMs = (lightingMs * (100 - ov)) / 100;
+        line += '\nOverlap ' + ov + ' % — fade-out starts at '
+          + fmtSec(fadeStartMs / 1000) + ' s (during lighting), not after hold.';
+      }
+      el.textContent = line;
+      syncStairArmed();
+    }
+    function syncStairArmed(){
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const off = n < 2;
+      const pill = $('stair-armed');
+      if (pill){
+        pill.className = 'pill' + (off ? ' stair-off' : '');
+        pill.textContent = off
+          ? 'Sequencer OFF — set “Steps in use” to the number of stairs'
+          : ('Sequencer armed · ' + n + ' steps');
+      }
+      const why = 'Steps in use is ' + n + ' (needs 2..32)';
+      ['stair-run-up', 'stair-run-down'].forEach(id => {
+        const b = $(id);
+        if (!b) return;
+        b.disabled = off;
+        b.title = off ? why : '';
+      });
+      updateStairMapWarn();
+    }
+    function updateStairMapWarn(){
+      const el = $('stair-map-warn');
+      if (!el) return;
+      const n = Math.max(0, parseInt($('stair-n')?.value || '0', 10) || 0);
+      const used = {};
+      for (let s = 0; s < n; s++){
+        const ch = parseInt($('stair-ch-' + s)?.value || '0', 10);
+        if (!used[ch]) used[ch] = [];
+        used[ch].push(s + 1);
+      }
+      const bits = [];
+      Object.keys(used).forEach(ch => {
+        const steps = used[ch];
+        if (steps.length > 1)
+          bits.push('Channel O' + (parseInt(ch, 10) + 1) + ' is used by steps ' + steps.join(' and ') + '.');
+      });
+      el.style.display = bits.length ? '' : 'none';
+      el.textContent = bits.join(' ');
+    }
+    function fillStairMap1to1(){
+      for (let s = 0; s < NUM_PWM; s++){
+        const el = $('stair-ch-' + s);
+        if (el) el.value = String(s);
+      }
+      updateStairMapWarn();
+      sendStairs();
+    }
+    function rememberDetails(el, key){
+      if (!el) return;
+      try {
+        const v = localStorage.getItem(key);
+        if (v === '1') el.open = true;
+        else if (v === '0') el.open = false;
+      } catch (e) {}
+      el.addEventListener('toggle', () => {
+        try { localStorage.setItem(key, el.open ? '1' : '0'); } catch (e) {}
+      });
+    }
+
+    function syncHeatPwmPill(){
+      const pill = $('heat-pwm-off');
+      if (!pill) return;
+      const p = parseInt($('heat-p')?.value ?? '0', 10);
+      pill.style.display = (p === 0) ? '' : 'none';
+    }
+
+    const heatHours = new Array(NUM_PWM).fill(0);
+    const heatCycles = new Array(NUM_PWM).fill(0);
+    let heatStatsTimer = null;
+
+    function renderHeatStats(){
+      const el = $('heat-stats');
+      if (!el) return;
+      const bits = [];
+      for (let i = 0; i < NUM_PWM; i++){
+        if (heatHours[i] || heatCycles[i])
+          bits.push('O' + (i + 1) + ': ' + heatHours[i] + ' h / ' + heatCycles[i] + ' cyc');
+      }
+      el.textContent = bits.length
+        ? ('Hours / cycles: ' + bits.join(', '))
+        : 'Hours / cycles: none yet';
+    }
+
+    function applyHeatStats(msg){
+      if (!msg) return;
+      const base = parseInt(msg.o ?? 0, 10);
+      const hrs = parseHexBytes(msg.hrs, 32);
+      const cyc = parseHexBytes(msg.cyc, 32);
+      for (let k = 0; k < 16; k++){
+        const i = base + k;
+        if (i >= NUM_PWM) break;
+        heatHours[i] = (hrs[k * 2] << 8) | hrs[k * 2 + 1];
+        heatCycles[i] = (cyc[k * 2] << 8) | cyc[k * 2 + 1];
+      }
+      renderHeatStats();
+    }
+
+    function requestHeatStats(){
+      if (!cfgHydrated.heating) return;
+      HMWebConfig.sendCommand('heat.stats');
+    }
+
+    function startHeatStatsPoll(){
+      requestHeatStats();
+      if (heatStatsTimer) return;
+      heatStatsTimer = setInterval(requestHeatStats, 30000);
+    }
+
+    function stopHeatStatsPoll(){
+      if (!heatStatsTimer) return;
+      clearInterval(heatStatsTimer);
+      heatStatsTimer = null;
+    }
+
+    HMWebConfig.conn.on('heatStats', applyHeatStats);
+
+    const TLC_SLOTS = [
+      { name: 'U9',  outs: 'O1–O8',   addr: 0x20 },
+      { name: 'U10', outs: 'O9–O16',  addr: 0x21 },
+      { name: 'U11', outs: 'O17–O24', addr: 0x22 },
+      { name: 'U12', outs: 'O25–O32', addr: 0x23 },
+    ];
+    const i2cState = {
+      found: [],
+      ok: [null, null, null, null],
+      err: null,
+      idle: '',
+      clk: null,
+      ready: null,
+    };
+
+    function parseHexPairs(s){
+      const t = String(s || '');
+      const out = [];
+      for (let i = 0; i + 1 < t.length; i += 2) {
+        const v = parseInt(t.slice(i, i + 2), 16);
+        if (!Number.isNaN(v)) out.push(v);
+      }
+      return out;
+    }
+
+    function hex2(a){
+      return '0x' + Number(a).toString(16).toUpperCase().padStart(2, '0');
+    }
+
+    function renderI2cPanel(){
+      const host = $('i2c-chips');
+      if (!host) return;
+      const foundSet = new Set(i2cState.found);
+      host.innerHTML = TLC_SLOTS.map((s, i) => {
+        const onBus = foundSet.has(s.addr);
+        const drv = i2cState.ok[i] === true;
+        const known = i2cState.ok[i] !== null;
+        let cls = 'warn';
+        let st = 'waiting';
+        if (known && drv) { cls = 'ok'; st = 'online'; }
+        else if (known && onBus) { cls = 'warn'; st = 'on bus, driver failed'; }
+        else if (known) { cls = 'bad'; st = 'no response'; }
+        else if (onBus) { cls = 'warn'; st = 'seen on bus'; }
+        return '<div class="i2c-chip ' + cls + '">' +
+          '<div class="nm">' + s.name + '</div>' +
+          '<div class="outs">' + s.outs + '</div>' +
+          '<div class="addr">' + hex2(s.addr) + '</div>' +
+          '<div class="st">' + st + '</div></div>';
+      }).join('');
+      const expected = new Set(TLC_SLOTS.map(s => s.addr));
+      const extras = i2cState.found.filter(a => !expected.has(a)).map(hex2);
+      const bits = [];
+      if (i2cState.idle) {
+        const sda = i2cState.idle[0] === 'H' ? 'SDA idle High' : 'SDA idle Low (open/short)';
+        const scl = i2cState.idle[1] === 'H' ? 'SCL High' : 'SCL Low (open/short)';
+        bits.push(sda + ', ' + scl);
+      }
+      if (i2cState.clk) bits.push('clock ' + i2cState.clk + ' kHz');
+      if (i2cState.ready != null) bits.push(i2cState.ready ? 'at least one driver initialised' : 'no driver initialised');
+      if (i2cState.err != null) bits.push('I2C errors: ' + i2cState.err);
+      if (extras.length) bits.push('also on the bus (not U9–U12): ' + extras.join(' '));
+      const missing = TLC_SLOTS.filter(s => i2cState.found.length && !foundSet.has(s.addr)).map(s => s.name);
+      if (missing.length) bits.push('no response: ' + missing.join(', '));
+      const meta = $('i2c-meta');
+      if (meta) meta.textContent = bits.length ? bits.join('. ') + '.' : 'Connect the module to see which drivers answer.';
+    }
+
+    function applyTlcLive(ext){
+      const chips = ext.tlc_chip;
+      if (chips && typeof chips === 'object') {
+        for (let i = 0; i < 4; i++) {
+          const v = chips[i];
+          if (v == null) continue;
+          i2cState.ok[i] = !!Number(v);
+        }
+      }
+      if (ext.tlc_ready != null) i2cState.ready = !!Number(ext.tlc_ready);
+      renderI2cPanel();
+    }
+
+    function applyI2cDiag(msg){
+      if (!msg) return;
+      i2cState.found = parseHexPairs(msg.found);
+      const ok = String(msg.ok || '');
+      for (let i = 0; i < 4; i++) i2cState.ok[i] = ok[i] === '1';
+      if (msg.err != null) i2cState.err = parseInt(msg.err, 10);
+      i2cState.idle = String(msg.idle || '');
+      if (msg.clk != null) i2cState.clk = parseInt(msg.clk, 10);
+      if (msg.rdy != null) i2cState.ready = !!Number(msg.rdy);
+      renderI2cPanel();
+    }
+
+    renderI2cPanel();
+    HMWebConfig.conn.on('i2c', applyI2cDiag);
+    $('btn-i2c-scan')?.addEventListener('click', () => HMWebConfig.sendCommand('i2c_scan'));
+    HMWebConfig.conn.on('open', () => HMWebConfig.sendCommand('i2c'));
+
+    (function watchI2cCard(){
+      const card = $('i2c-chips')?.closest('section');
+      const ask = () => HMWebConfig.sendCommand('i2c');
+      if (!card || typeof IntersectionObserver !== 'function') return;
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) ask();
+      }, { threshold: 0.15 });
+      io.observe(card);
+    })();
+
+    (function watchHeatingCard(){
+      const card = $('heat-stats')?.closest('section');
+      if (!card || typeof IntersectionObserver !== 'function') {
+        startHeatStatsPoll();
+        return;
+      }
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) startHeatStatsPoll();
+        else stopHeatStatsPoll();
+      }, { threshold: 0.15 });
+      io.observe(card);
+    })();
+
+    $('master-level')?.addEventListener('change', sendGlobal);
+    $('panic-level')?.addEventListener('change', sendGlobal);
+    $('btn-panic')?.addEventListener('click', () => HMWebConfig.sendCommand('panic'));
+    $('btn-panic-clear')?.addEventListener('click', () => HMWebConfig.sendCommand('panic.clear'));
+
+    $('modbus-address')?.addEventListener('input', () =>
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
+    $('modbus-baud')?.addEventListener('input', () =>
+      HMWebConfig.sendValues(parseInt($('modbus-address').value || '3', 10), parseInt($('modbus-baud').value || '19200', 10)));
+
+    function sendInputEnable(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('enable-in'+i).checked); sendConfigQueued('in.enabled', l); }
+    function sendInputInvert(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(!!$('invert-in'+i).checked); sendConfigQueued('in.invert', l); }
+    function sendInputAction(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('action-in'+i).value||'0',10)); sendConfigQueued('in.action', l); }
+    function sendInputTarget(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('target-in'+i).value||'4',10)); sendConfigQueued('in.target', l); }
+    function sendInputLevel(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('level-in'+i).value||'255',10)); sendConfigQueued('in.level', l); }
+    function sendInputParam(){ if (!cfgHydrated.inputs) return; const l=[]; for (let i=1;i<=NUM_DI;i++) l.push(parseInt($('param-in'+i).value||'0',10)); sendConfigQueued('in.param', l); }
+    for (let i=1;i<=NUM_DI;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('action-in'+i)?.addEventListener('change', sendInputAction);
+      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+      $('level-in'+i)?.addEventListener('change', sendInputLevel);
+      $('param-in'+i)?.addEventListener('change', sendInputParam);
+    }
+
+    function sendBtnCfg(){
+      if (!cfgHydrated.buttons) return;
+      const l=[];
+      for (let i=1;i<=NUM_BTN;i++) l.push({
+        action: parseInt($('action-btn'+i).value||'0',10),
+        param: parseInt($('param-btn'+i)?.value||'0',10),
+      });
+      sendConfigQueued('btn', l);
+    }
+    for (let i=1;i<=NUM_BTN;i++){
+      $('action-btn'+i)?.addEventListener('change', sendBtnCfg);
+      $('param-btn'+i)?.addEventListener('change', sendBtnCfg);
+    }
+
+    function sendLedCfg(){
+      if (!cfgHydrated.leds) return;
+      const l=[];
+      for (let i=1;i<=NUM_LED;i++) l.push({
+        mode: parseInt($('mode-led'+i)?.value||'0',10),
+        source: parseInt($('source-led'+i)?.value||'0',10),
+      });
+      sendConfigQueued('led', l);
+    }
+    for (let i=1;i<=NUM_LED;i++){
+      $('mode-led'+i)?.addEventListener('change', sendLedCfg);
+      $('source-led'+i)?.addEventListener('change', sendLedCfg);
+    }
+
+    $('btn-all-off')?.addEventListener('click', async () => {
+      for (let i = 0; i < NUM_PWM; i++){
+        if (pwmSliders[i]) pwmSliders[i].value = '0';
+        if (pwmVals[i]) pwmVals[i].textContent = '0';
+      }
+      await HMWebConfig.sendCommand('off');
+    });
+
+    $('btn-ramp-test')?.addEventListener('click', async () => {
+      for (let i = 0; i < NUM_PWM; i++){
+        const v = Math.round((i / (NUM_PWM - 1)) * 255);
+        if (pwmSliders[i]) pwmSliders[i].value = String(v);
+        if (pwmVals[i]) pwmVals[i].textContent = String(v);
+      }
+      sendPwmLevels();
+    });
+  })();
+  </script>
+</section>
