@@ -247,7 +247,7 @@ Pinned versions are listed in each sketch’s **`sketch.yaml`** (aligned with CI
 
 1. **Arduino IDE** — install core and libraries at the versions listed in the module’s `sketch.yaml`, open the `.ino` sketch, set board/FQBN and **Flash Size** as above, then **Sketch → Export Compiled Binary** (UF2 appears under `build/<fqbn>/`).
 
-2. **arduino-cli / CI (recommended)** — reproducible, isolated build from the manifest:
+2. **arduino-cli (recommended)** — reproducible, isolated build from the manifest:
 
 ```bash
 cd DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1   # example
@@ -256,9 +256,7 @@ arduino-cli compile --profile default .
 arduino-cli compile --fqbn rp2040:rp2040:generic_rp2350 --export-binaries .
 ```
 
-CI workflow: [`.github/workflows/build-firmware.yml`](.github/workflows/build-firmware.yml) — runs on changes under `*/Firmware/v0.2.0/**`, uploads artifact `firmware-<sketch>` containing `*.ino.uf2` per module.
-
-> **Note:** Arduino IDE 2.x does **not** compile from `sketch.yaml` today; the manifest is for **arduino-cli** and CI, and as the version reference for IDE users (install matching library/core versions manually).
+> **Note:** Arduino IDE 2.x does **not** compile from `sketch.yaml` today; the manifest is for **arduino-cli**, and as the version reference for IDE users (install matching library/core versions manually).
 
 ### Home Assistant Example (ESPHome)
 ```yaml
