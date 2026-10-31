@@ -1,3 +1,5 @@
+Legacy. Current firmware is v0.3.0.
+
 # STR-3221-R1 Firmware v0.2.0 (beta)
 
 Beta of the 32-channel stair LED controller firmware set. The first public release was v0.1.0.

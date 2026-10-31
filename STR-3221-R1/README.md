@@ -1,4 +1,4 @@
-![Firmware Version](https://img.shields.io/badge/Firmware-v0.2.0-blue)
+![Firmware Version](https://img.shields.io/badge/Firmware-v0.3.0-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
@@ -58,7 +58,7 @@ and **keeps heat channels closed**. A fire alarm must not open the valves.
 
 ## 2. Features
 
-Only behaviour confirmed in the v0.2.0 firmware.
+Only behaviour confirmed in the v0.3.0 firmware.
 
 | Area | Detail |
 |---|---|
@@ -363,7 +363,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.3 Front panel — buttons & LEDs
 
-| Control | Function in firmware v0.2.0 |
+| Control | Function in firmware v0.3.0 |
 |---|---|
 | **SW1** | Factory **All ON** (skips heat channels). Configurable. Engages local override. |
 | **SW2** | Factory **All OFF**. Configurable. Engages local override. |
@@ -529,7 +529,7 @@ Connect **potential-free (dry) contacts** — wall switches, push buttons, or re
 
 #### Configure
 
-Connect USB-C, open [WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.2.0/ConfigToolPage.html),
+Connect USB-C, open [WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html),
 set a unique Modbus address and the baud rate used on your bus — the factory setting is address
 **3** at **19200**. Enable the inputs you wired, invert where the sensor is normally-closed, and
 check live I/O to confirm the wiring before the controller is involved. Full reference: [§6](#6-webconfig-reference).
@@ -548,7 +548,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: STR-3221-R1/Firmware/v0.2.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+      - path: STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
         vars:
           str_prefix: "STR#1"
           str_id: str_1
@@ -558,10 +558,10 @@ packages:
 Entities appear in Home Assistant after the controller reboots. For a third-party Modbus master,
 use the register map in [§7](#7-modbus-register-map) instead.
 
-Flashing v0.2.0 on a module that still runs the v0.1.0 package is not enough. In the same
-step change the ESPHome `path:` from `Firmware/v0.1.0/…` to `Firmware/v0.2.0/…` and
-recompile the controller. The v0.1.0 package still reads Discrete Inputs 1–3 / 20–23 / 90–91,
-which this firmware no longer answers.
+The v0.3.0 register map is the same as v0.2.0, so a v0.2.0 package still talks to
+this firmware. Point `path:` at `Firmware/v0.3.0/…` so later fixes arrive. A
+v0.1.0 package still reads Discrete Inputs 1–3 / 20–23 / 90–91, which this
+firmware no longer answers — that break was the v0.1.0 → v0.2.0 cut.
 
 ### 5.5 Verify
 
@@ -576,7 +576,7 @@ which this firmware no longer answers.
 ## 6. WebConfig Reference
 
 Open
-[WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.2.0/ConfigToolPage.html)
+[WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html)
 in a Chromium-based browser. The config arrives in named, acknowledged
 sections; a card hydrates only after its own section has arrived. Shared tools:
 Identify (pulses O1–O8 and both status LEDs for 5 s), save / load / factory /
@@ -730,13 +730,13 @@ accent or the bus value.
 
 ### 7.2b Identity (FC 04) — IR 200…204, not polled
 
-| Address | Field | v0.2.0 |
+| Address | Field | v0.3.0 |
 |---:|---|---|
 | 200 | `MODEL_ID` | `8` |
 | 201 | `FW_MAJOR` | `0` |
-| 202 | `FW_MINOR` | `2` |
+| 202 | `FW_MINOR` | `3` |
 | 203 | `FW_PATCH` | `0` |
-| 204 | `MAP_VERSION` | `0x0020` |
+| 204 | `MAP_VERSION` | `0x0030` |
 
 ### 7.3 Coils (FC 05 / 15) — 15 commands, self-clearing
 
@@ -807,7 +807,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: STR-3221-R1/Firmware/v0.2.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+      - path: STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
         vars:
           str_prefix: "STR#1"
           str_id: str_1
@@ -928,7 +928,7 @@ board diagrams.
 
 1. Connect via **USB-C** to a PC.
 2. Press **Buttons 1 + 2** to enter **BOOT mode**.
-3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.2.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
+3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.3.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
    - **Arduino IDE** → "Upload"
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
@@ -965,11 +965,11 @@ manually erased via WebConfig or serial command.
 
 ### 10.3 Common issues
 
-Anyone who flashes v0.2.0 must change the ESPHome package `path:` from
-`Firmware/v0.1.0/…` to `Firmware/v0.2.0/…` in the same step and recompile.
-Leaving the v0.1.0 package on a v0.2.0 module is the main way this release
-breaks a working installation: FC 02 addresses 1–3 / 20–23 / 90–91 no longer
-answer.
+Anyone coming from v0.1.0 must change the ESPHome package `path:` from
+`Firmware/v0.1.0/…` to `Firmware/v0.3.0/…` and recompile. The v0.1.0 package
+reads Discrete Inputs that this firmware no longer answers. A v0.2.0 package
+still works — the map did not change — but the `path:` should move to
+`Firmware/v0.3.0/…`.
 
 | Symptom | Resolution |
 |---------------------|----------------------|
@@ -983,7 +983,7 @@ answer.
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
 | **Pressing a button does nothing** | Factory SW3 is none. SW1 All ON / SW2 All OFF skip heat channels. All ON/OFF/ramp/scene are blocked during failsafe or panic. |
 | **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
-| **Entities unavailable in Home Assistant, other modules fine** | Point the package `path:` at `Firmware/v0.2.0/…` and recompile. An old v0.1.0 package reads the wrong addresses. |
+| **Entities unavailable in Home Assistant, other modules fine** | Point the package `path:` at `Firmware/v0.3.0/…` and recompile. An old v0.1.0 package reads the wrong addresses. |
 | **Which module is this?** | Use **Identify** in WebConfig — the first output group pulses for 5 s. |
 
 
@@ -1019,17 +1019,27 @@ chattering actuator). Compare neighbouring zones on the same manifold.
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.2.0** (current) | `STR-3221-R1/Firmware/v0.2.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-09-24 | Stair sequencer, heating loop, channel engine, merged FC 04 map, WebConfig sections |
+| **v0.3.0** (current) | `STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-10-31 | Stair commands from the bus run for their full duration; Stairs config fits the inbound buffer; step accent stays lit. Map unchanged from v0.2.0 |
+| v0.2.0 (legacy) | `STR-3221-R1/Firmware/v0.2.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-09-24 | Stair sequencer, heating loop, channel engine, merged FC 04 map, WebConfig sections |
 | v0.1.0 (legacy) | `STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-07-05 | First release — 32ch TLC59208F, unified WebConfig |
 
 ### Files
 
 | Resource | Path |
 |---|---|
-| Firmware sketch | `Firmware/v0.2.0/default_str_3221_r1/` |
-| Pre-built UF2 | `Firmware/v0.2.0/STR-3221-R1.uf2` |
-| ESPHome package | `Firmware/v0.2.0/default_str_3221_r1_plc/` |
-| WebConfig | `Firmware/v0.2.0/ConfigToolPage.html` |
+| Firmware sketch | `Firmware/v0.3.0/default_str_3221_r1/` |
+| Pre-built UF2 | `Firmware/v0.3.0/STR-3221-R1.uf2` |
+| ESPHome package | `Firmware/v0.3.0/default_str_3221_r1_plc/` |
+| WebConfig | `Firmware/v0.3.0/ConfigToolPage.html` |
+
+### v0.3.0 notes
+
+Stair commands from Modbus now run for their full duration. The Stairs config
+section is split so it fits the 256-byte inbound buffer. Idle accent stays lit
+until the bus writes a non-zero level. The Modbus map is unchanged from v0.2.0:
+a v0.2.0 ESPHome package still works. Open only the v0.3.0 WebConfig page —
+the v0.2.0 page will refuse writes. `CFG_VERSION` stays `0x0005`; a factory
+reset is not required.
 
 ---
 
@@ -1210,7 +1220,7 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 If you need help using or configuring the **STR-3221-R1**, visit:
 
 - 🌐 **[Official Support Portal](https://www.home-master.eu/support)** – knowledge base, ticketing, and FAQs.
-- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.2.0/ConfigToolPage.html)** – in-browser setup and diagnostics.
+- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html)** – in-browser setup and diagnostics.
 - ▶️ **[YouTube Channel](https://youtube.com/@HomeMaster)** – setup videos and feature walkthroughs.
 - 💡 **[Hackster.io](https://hackster.io/homemaster)** – integration examples and community projects.
 - 💬 **[Reddit](https://reddit.com/r/HomeMaster)** – discussion and troubleshooting community.
