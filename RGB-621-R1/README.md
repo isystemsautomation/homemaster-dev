@@ -80,14 +80,14 @@ The **RGB-621-R1** is an **RGB + tunable-white (CCT)** LED controller with **5 P
 |-------------------|-----|-------------|
 | **Digital Inputs** | 2 | IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end), **dry-contact (module-wetted)**, with PTC fuse, TVS surge and reverse-polarity protection |
 | **PWM Outputs** | 5 | N-channel MOSFET drivers (AP9990GH-HF), 12 V / 24 V LED channels for R / G / B / CW / WW |
-| **Relay Output** | 1 | SPST-NO relay (HF115F/005-1ZS3), 5 V coil; 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
+| **Relay Output** | 1 | 1 × relay, NO and C only (SPST-NO); 3 A @ 250 VAC / 30 VDC (module/PCB limit) |
 | **Buttons** | 2 | Local control or configuration triggers (SW1 / SW2) |
 | **LED Indicators** | 8 | PWR, TX, RX, I.1, I.2, O.1, and two user LEDs (LED1/LED2) |
 | **Modbus RTU** | Yes | RS-485 via MAX485CSA+T (non-isolated; see [RS-485 / Modbus RTU](#rs-485--modbus-rtu)) |
 | **USB-C** | Yes | WebConfig & firmware flashing with PRTR5V0U2X ESD protection |
 | **Power Input** | 24 V DC ±10 % (SELV/PELV) | Protected by resettable fuses (1206L series), TVS (SMBJ33A), and reverse-blocking (STPS340U) |
 | **Logic Supply** | — | AP64501SP-13 buck (5 V) + AMS1117-3.3 LDO chain |
-| **MCU** | RP2350A | Dual-core Arm Cortex-M33 @ 133 MHz with 32 Mbit QSPI Flash (W25Q32JVUUIQ) |
+| **MCU** | RP2350A | Dual-core Arm Cortex-M33 @ 150 MHz with 32 Mbit QSPI Flash (W25Q32JVUUIQ) |
 | **Protection** | — | Digital-input front-end per IEC 61131-2 (ISO1212); surge/EMI protected; TVS diodes, PTC fuses, transient suppression on field I/O |
 
 **Architecture summary:**  
@@ -214,7 +214,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Storage | External QSPI Flash (32 Mbit) |
 | Power Input | 24 V DC nominal |
 | Input Protection (24 V logic) | 1 A fuse, reverse polarity diode (STPS340U), TVS surge suppression, EMI filtering |
-| LED PS input protection | 10 A fuse; TVS surge suppression. **No reverse-polarity protection on this input** — see the warning in §5. |
+| LED PS input protection | 10 A fuse; TVS surge suppression; no reverse-polarity protection on this input |
 | Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
 | Document revision | DS-RGB-621-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
 | LED Outputs | 5 × low-side MOSFET outputs (AP9990GH-HF: R, G, B, CW, WW) |
@@ -372,7 +372,7 @@ Safety practices for qualified installers. Field wiring map: [§5.4](#54-install
 
 | Parameter | Specification |
 |------------|---------------|
-| Type | SPST-NO mechanical relay (HF115F/005-1ZS3) |
+| Type | 1 × relay, NO and C only (SPST-NO) |
 | Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
 | Contact Rating | 3 A @ 250 VAC / 30 VDC (module/PCB limit, resistive) |
 | Insulation | Basic insulation between SELV coil drive and contacts; external contactor for reinforced isolation or heavy/inductive loads |

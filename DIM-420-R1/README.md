@@ -28,6 +28,8 @@ packages:
 
 # DIM-420-R1 — Module for Dual-Channel AC Dimming
 
+> **Not released.** This module is not for sale.
+
 **HOMEMASTER – Modular control. Custom logic.**
 
 <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
@@ -35,7 +37,7 @@ packages:
 ### Module Description
 
 The **DIM-420-R1** is a configurable smart I/O module designed for **dimming AC loads via leading/trailing edge phase control**.  
-It includes **4 digital inputs**, **2 dimming outputs**, **4 user buttons**, and **4 LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
+It includes **4 digital inputs**, **2 dimming outputs**, **4 user buttons**, and **9 LEDs** (4 user-assignable), with configuration via **WebConfig** using **USB-C (Web Serial)**.  
 It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **smart lighting, scene control, and automation of resistive or LED loads**.
 
 ---
@@ -100,7 +102,7 @@ Typical use: wall switches on the DIs, **Leading/Trailing** and thresholds per l
 | **Config UI**      | Web Serial | **WebConfig** in any Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+) over **USB‑C**; edit Modbus addr/baud, thresholds, cut mode, presets; live log & JSON snapshot.  |
 | **Modbus RTU**     | RS‑485 | Multi‑drop slave; **FC01/05/02/03/06/16** with discrete inputs, coils, and holding registers. Defaults **ID=3, 19200, 8N1**.  |
 | **MCU**            | RP2350A | Dual‑core MCU; **QSPI flash** for firmware/config; Arduino/PlatformIO supported.  |
-| **Power**          | 24 VDC | Protected 24 V input; on‑board **isolated 5 V rails** for power stages (B2405S‑2WR3) and local 3.3 V regulation.  |
+| **Power**          | 24 VDC | Protected 24 V input; on‑board **isolated 5 V rails** for power stages (H2405S-1WR3, 1 W) and local 3.3 V regulation.  |
 | **Protection**     | TVS, PTC | Surge/ESD protection and resettable fuses on field I/O and RS‑485/USB/power paths.  |
 
 ---
@@ -239,7 +241,7 @@ The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and on
 
 | Category            | Item            | Details |
 |---------------------|------------------|---------|
-| **Hardware**         | DIM‑420‑R1       | DIN-rail dimmer with **2 AC outputs**, **4 DIs**, **4 buttons**, **4 LEDs**, **USB‑C**, **RS‑485** |
+| **Hardware**         | DIM‑420‑R1       | DIN-rail dimmer with **2 AC outputs**, **4 DIs**, **4 buttons**, **9 LEDs** (4 user-assignable), **USB‑C**, **RS‑485** |
 |                     | Controller (master) | HomeMaster MiniPLC / MicroPLC or any Modbus RTU master |
 |                     | 24 VDC PSU (SELV) | Regulated 24 VDC to `V+ / 0V` (logic + UI). AC loads powered separately. |
 |                     | RS‑485 Cable     | Twisted pair (shielded). Use `A/B/COM`, terminate with 120 Ω if needed. |
@@ -271,7 +273,7 @@ AC power is handled separately by the dimming channels (see §4.4).
 ### Current
 
 - ~50 mA idle (logic + UI only)
-- Add budget if using all 4 LEDs, buttons, and rapid RS‑485 comms.
+- Add budget if using all 4 user LEDs, buttons, and rapid RS‑485 comms.
 - AC loads pull from **separate mains lines** — never through the 24 V rail.
 
 ---
@@ -542,9 +544,9 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 | Power Input | 24 V DC nominal |
 | File system | LittleFS persistent configuration storage |
 | Document revision | DS-DIM-420-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
-| Digital Inputs | 4 × isolated 24 V DC discrete inputs (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
+| Digital Inputs | 4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering |
 | Dimmer outputs | 2 × MOSFET phase-cut dimmer channels (leading / trailing edge, selectable); 1 A RMS per channel continuous, Ta ≤ 40 °C |
-| User Interface | 4 buttons, 9 LEDs (LED1–LED9) |
+| User Interface | 4 buttons, 9 LEDs (power, RX, TX, 4 user; 2 fitted, not assigned) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
 | USB | USB-C (ESD protected, configuration and firmware upload) |
 | Modbus defaults | Address 3, 19200 baud, 8N1 |
@@ -634,20 +636,20 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **Logic rails**          | –      | 5 V / 3.3 V | –  | Buck + LDO derived |
 | **Isolated rails**       | +5V_ISO1/2 | –     | –     | Internal use for dimmer stage only |
 | **Digital inputs**       | –      | –       | 24 VDC | ISO1212 front-end, protected |
-| **AC dimmer outputs**    | –      | –       | 110/230 VAC | 2× WMM36N65C4 (MOSFET) |
+| **AC dimmer outputs**    | –      | –       | 110/230 VAC | 4× WMM36N65C4 (MOSFET; two per channel) |
 | **RS-485 Interface**     | –      | –       | 115.2 kbps | TVS/ESD + fail-safe |
 | **USB-C (setup only)**   | 5 V    | –       | –     |  |
 | **Ambient temperature**  | 0 °C   | –       | +40 °C | 32–104 °F |
-| **Humidity (operating)** | –      | –       | 95 %RH | Non-condensing |
+| **Humidity (operating)** | –      | –       | 90 %RH | Non-condensing |
 
 ---
 
 ## 5.6 Protection Features
 
 - **24 V Input**
-  - Diode reversed path
+  - Reverse-polarity diode **STPS340U** (D5)
   - TVS: **SMBJ33A**
-  - High-side P-MOS + fuse (**F1206HI8000V024TM**)
+  - Fuse **0451001.MRL** 1 A (F5)
 
 - **DI Channels**
   - ISO1212 IEC 61131-2 digital-input front-end
@@ -655,9 +657,9 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
   - TVS: **SMBJ26CA**
 
 - **Dimmer Stage**
-  - Power switches: **WMM36N65C4**, 650 V
+  - Power switches: **4 × WMM36N65C4** (Q1–Q4, two per channel), 650 V
   - Isolation: **SFH6156‑3T** optocouplers
-  - Input bridge: **MB6S**
+  - Input bridge: **MB10S**
   - Zero-cross & snubber integrated
 
 - **RS‑485**
@@ -682,7 +684,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Color / Finish        | Light Gray / Smoke, Matte         |
 | Dimensions (L×W×H)    | 70 × 90.6 × 67.3 mm              |
 | DIN width | 4 modules (≈ 70 mm) |
-| Terminal Specs        | 26–12 AWG, 0.5–0.6 Nm torque       |
+| Terminal Specs        | 24–12 AWG, 0.4–0.6 Nm torque       |
 
 ![DIM-420-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIM-420-R1/Images/Dimension.png)
 
@@ -695,7 +697,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | Parameter              | Value                             |
 |------------------------|-----------------------------------|
 | Operating Temp         | 0 °C … +40 °C                      |
-| Operating Humidity     | ≤ 95 % RH, non-condensing         |
+| Operating Humidity     | 0–90 % RH, non-condensing         |
 | Ingress Protection     | IP20                              |
 | Pollution Degree       | 2                                 |
 | Impulse Voltage        | 2.5 kV                            |
@@ -999,7 +1001,8 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 | **PWR** | Steady = Power OK          |
 | **TX**  | Blinks = Sending Modbus    |
 | **RX**  | Blinks = Receiving Modbus  |
-| **U.1–U.4** | Firmware-controlled    |
+| **U.1–U.4** | Firmware-controlled (4 user-assignable) |
+| *(2 further LEDs)* | Fitted on the MCU board, not assigned |
 
 ---
 

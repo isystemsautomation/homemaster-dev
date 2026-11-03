@@ -127,7 +127,6 @@ The table below lists boilers users have successfully run with this hardware (or
 |---|---|
 | Microcontroller | ESP32-WROOM-32U-N16 (dual-core) |
 | Power Input | 24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N) |
-| RTC | RTC (PCF8563); backup battery holder, battery not fitted |
 | Document revision | DS-OpenthermGateway Rev. B · 2026-09 · Hardware V1.0 |
 | Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC per contact (module limit) |
 | Temperature Inputs | 2 × 1-Wire (DS18B20 compatible) |

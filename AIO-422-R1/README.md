@@ -83,7 +83,7 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 | Max Output Current | 10 mA recommended per channel |
 | RTD Channels | 2 × PT100/PT1000 (2/3/4-wire) |
 | RTD Interface | MAX31865, 15-bit temperature resolution |
-| User Interface | 4 buttons; 4 user LEDs plus power, RX, TX status LEDs |
+| User Interface | 4 buttons; 9 LEDs (power, RX, TX, 4 user; 2 unassigned — MCU board shared with ENM-223-R1 / WLD-521-R1, where those two indicate relays) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
 | USB | USB-C, 5 V logic, ESD protected |
 | Typical Power Consumption | 0.2–0.4 W typical, approx. 1 W maximum (logic only) |

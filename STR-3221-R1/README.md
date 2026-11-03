@@ -28,7 +28,7 @@ controller holds temperature, the pump/boiler relay and the schedule.
 
 **Key capabilities at a glance:**
 
-- **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine physical groups of four, each with its own **+** rail
+- **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; seven groups of four and two groups of two (nine **+** rails)
 - **On-module stair sequencer** — direction from the two presence inputs, six drawing patterns, day/night levels, accent and night-light; runs with no controller
 - **On-module heating loop** — slow PWM, phase spread, simultaneous-open cap, first-open delay, pump-demand flag, valve exercise, frost protection, NC/NO per channel
 - **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212** input receiver, supplied from the module; not galvanically isolated) and 2 × presence inputs **IN1 / IN2** (**SFH6156**, supplied from the module **SENS.A / SENS.B** groups; not galvanically isolated)
