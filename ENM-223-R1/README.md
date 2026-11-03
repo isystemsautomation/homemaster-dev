@@ -72,7 +72,7 @@ The **ENM‑223‑R1** is a **smart Modbus RTU slave**. It executes local alarm 
 | Config UI       | Web Serial | In‑browser **WebConfig** over **USB‑C** (Chromium); live meter, CT/PGA, calibration, alarms, relays, LEDs, buttons |
 | Modbus RTU      | RS‑485 | Slave; address 1…247; baud 9600–115200; first-boot **ID 3 @ 19200 8N1**; FC04 **`0..85`** one-sweep; **no FC02** |
 | MCU             | RP2350 + QSPI | Dual‑core MCU, native USB, external W25Q32 flash; RS‑485 via MAX485 transceiver |
-| Power           | 24 VDC | Buck to 5 V → 3.3 V LDO; **isolated analog domain** via B0505S DC‑DC + ISO7761 |
+| Power           | 24 VDC | Buck to 5 V → 3.3 V LDO; **isolated analog domain** via H2405S-1WR3 DC‑DC + ISO7761 |
 | Protection      | TVS, PTC, fuses | Surge/ESD on USB & RS‑485; resettable fuses on field I/O; reverse‑polarity protection |
 
 ### Firmware / functional overview (v0.2.0)
@@ -173,7 +173,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 </div>
 
-> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4 Nm max).
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4–0.6 Nm).
 
 ### 4.2 Connectors & terminal map
 
@@ -376,7 +376,7 @@ The ENM‑223‑R1 uses **24 V DC** input for its interface domain and interna
 
 - **Metering IC** (ATM90E32AS) is powered from an isolated 5 V rail
 - Analog domain uses **GND_ISO**, fully isolated from GND
-- Do not connect **GND_ISO ↔ GND**; isolation via **B0505S + ISO7761**
+- Do not connect **GND_ISO ↔ GND**; isolation via **H2405S-1WR3 + ISO7761**
 
 > Only voltage inputs (Lx-N) and CTs connect to the isolated domain.
 

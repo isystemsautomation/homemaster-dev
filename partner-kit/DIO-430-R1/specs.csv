@@ -4,7 +4,7 @@ Storage,External QSPI Flash (W25Q32JV)
 Power Input,24 V DC nominal
 File system,LittleFS persistent configuration storage
 Document revision,DS-DIO-430-R1 Rev. B · 2026-09 · Hardware R1 (V1.0)
-Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted); per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering"
+Digital Inputs,"4 × IEC 61131-2 compliant 24 V digital inputs (ISO1212 front-end) (DIx + GNDx), dry-contact (module-wetted), not galvanically isolated; per-channel PTC fuse, TVS surge suppression, reverse-polarity protection, EMI filtering"
 Relay outputs,3 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit)
 User Interface,"3 buttons (2 user-configurable), 13 LEDs (power, 3 user, RX, TX, 3× relay, 4× DI)"
 RS-485,"half-duplex Modbus RTU, not galvanically isolated"
