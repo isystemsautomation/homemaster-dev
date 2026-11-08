@@ -1,4 +1,4 @@
-![Firmware Version](https://img.shields.io/badge/Firmware-v0.3.0-blue)
+![Firmware Version](https://img.shields.io/badge/Firmware-v0.4.0-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
 
@@ -29,7 +29,7 @@ controller holds temperature, the pump/boiler relay and the schedule.
 **Key capabilities at a glance:**
 
 - **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine physical groups of four, each with its own **+** rail
-- **On-module stair sequencer** — direction from the two presence inputs, six drawing patterns, day/night levels, accent and night-light; runs with no controller
+- **On-module stair sequencer** — direction from the two presence inputs, six drawing patterns, day/night levels, accent and configurable standby lighting; runs with no controller
 - **On-module heating loop** — slow PWM, phase spread, simultaneous-open cap, first-open delay, pump-demand flag, valve exercise, frost protection, NC/NO per channel
 - **3 digital inputs** — 1 × IEC 61131-2 module-wetted 24 V discrete input (**ISO1212** input receiver, supplied from the module; not galvanically isolated) and 2 × presence inputs **IN1 / IN2** (**SFH6156**, supplied from the module **SENS.A / SENS.B** groups; not galvanically isolated)
 - **2 fused +5 V sensor terminal groups (SENS.A / SENS.B)** — each group is `+`, `IN` and `Gnd`; for a dry contact or a 5 V sourcing sensor, powered from the module
@@ -37,7 +37,7 @@ controller holds temperature, the pump/boiler relay and the schedule.
 - **2 configurable status LEDs**
 - **Local override** and **bus failsafe** (failsafe ships disabled)
 - **Driverless WebConfig** over USB-C
-- **Persistent settings** in LittleFS, migrated across `CFG_VERSION` 0x0003 → 0x0004 → 0x0005
+- **Persistent settings** in LittleFS, migrated across `CFG_VERSION` 0x0003 → 0x0004 → 0x0005 → 0x0006
 
 ### How local and remote control coexist
 
@@ -58,7 +58,7 @@ and **keeps heat channels closed**. A fire alarm must not open the valves.
 
 ## 2. Features
 
-Only behaviour confirmed in the v0.3.0 firmware.
+Only behaviour confirmed in the v0.4.0 firmware.
 
 | Area | Detail |
 |---|---|
@@ -75,7 +75,7 @@ Only behaviour confirmed in the v0.3.0 firmware.
 | **Buttons** | None, All ON, All OFF, Ramp test, Clear override, Recall scene, Panic, Clear panic. |
 | **Local override** | A local action holds the outputs against the bus until released. |
 | **Status LEDs** | Two; solid or blink; source none / DI / IN1 / IN2. |
-| **Stair sequencer** | Step count 2–32, free channel map, six patterns (sequential, all, wave, comet, centre, random), launch one-shot or hold-while-presence, timings, overlap, retrigger, opposite-end reverse, both-ends window, day/night levels, accent, night light, inhibit. Debounce and minimum-repeat are **stair** settings, not general input settings. |
+| **Stair sequencer** | Step count 2–32, free channel map, six patterns (sequential, all, wave, comet, centre, random), launch one-shot or hold-while-presence, timings, overlap, retrigger, opposite-end reverse, both-ends window, day/night levels, accent, inhibit. Standby lighting: first and last channels chosen explicitly (`Follow step table` / `Off` / `O1`…`O32`), All-steps standby, Standby when Always or Night window only. Debounce and minimum-repeat are **stair** settings, not general input settings. |
 | **Heating loop** | Slow PWM 300–3600 s (factory **900 s / 15 minutes**), phase spread, max open zones (0 = no limit), first-open delay, overrun, DI role (none / enable / inhibit / demand echo), valve exercise, frost (15 min on / 45 min off after T silent hours), summer mode, NC/NO, min-pulse hysteresis. A period of 0 (user-set) leaves every heat channel closed. |
 | **Bus failsafe** | Timeout 0 = disabled. Per-channel Hold / Off / Level for LED/raw/indicator. Heat uses frost instead. Stair-table channels keep running. |
 | **Diagnostics** | TLC ready/mask, I²C errors, reset reason, link age, uptime, hours and cycles per heat channel (`heat.stats`). |
@@ -363,7 +363,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.3 Front panel — buttons & LEDs
 
-| Control | Function in firmware v0.3.0 |
+| Control | Function in firmware v0.4.0 |
 |---|---|
 | **SW1** | Factory **All ON** (skips heat channels). Configurable. Engages local override. |
 | **SW2** | Factory **All OFF**. Configurable. Engages local override. |
@@ -529,7 +529,7 @@ Connect **potential-free (dry) contacts** — wall switches, push buttons, or re
 
 #### Configure
 
-Connect USB-C, open [WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html),
+Connect USB-C, open [WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.4.0/ConfigToolPage.html),
 set a unique Modbus address and the baud rate used on your bus — the factory setting is address
 **3** at **19200**. Enable the inputs you wired, invert where the sensor is normally-closed, and
 check live I/O to confirm the wiring before the controller is involved. Full reference: [§6](#6-webconfig-reference).
@@ -548,7 +548,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+      - path: STR-3221-R1/Firmware/v0.4.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
         vars:
           str_prefix: "STR#1"
           str_id: str_1
@@ -558,8 +558,8 @@ packages:
 Entities appear in Home Assistant after the controller reboots. For a third-party Modbus master,
 use the register map in [§7](#7-modbus-register-map) instead.
 
-The v0.3.0 register map is the same as v0.2.0, so a v0.2.0 package still talks to
-this firmware. Point `path:` at `Firmware/v0.3.0/…` so later fixes arrive. A
+The v0.4.0 register map is the same as v0.3.0 and v0.2.0, so a v0.3.0 package still talks to
+this firmware. Point `path:` at `Firmware/v0.4.0/…` so later fixes arrive. A
 v0.1.0 package still reads Discrete Inputs 1–3 / 20–23 / 90–91, which this
 firmware no longer answers — that break was the v0.1.0 → v0.2.0 cut.
 
@@ -576,7 +576,7 @@ firmware no longer answers — that break was the v0.1.0 → v0.2.0 cut.
 ## 6. WebConfig Reference
 
 Open
-[WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html)
+[WebConfig](https://config.home-master.eu/STR-3221-R1/Firmware/v0.4.0/ConfigToolPage.html)
 in a Chromium-based browser. The config arrives in named, acknowledged
 sections; a card hydrates only after its own section has arrived. Shared tools:
 Identify (pulses O1–O8 and both status LEDs for 5 s), save / load / factory /
@@ -619,12 +619,17 @@ Live phase / step / direction. Run up, run down, stop. Step count; pattern;
 wave width; launch mode (one-shot / hold while presence); step delay; hold;
 fade-out; overlap; retrigger (ignore / restart / extend hold); opposite end
 (ignore / reverse / hold both); IN1 is bottom or top; both-ends behaviour and window;
-day level and night level; standby first / last; night-light level; step fade;
-debounce; minimum repeat; step→channel map.
+day level and night level; standby first / last channel (`Follow step table` /
+`Off` / `O1`…`O32`); All-steps standby level; Standby when (`Always` / `Night
+window only`); Fill from; step fade; debounce; minimum repeat; step→channel map.
+
+Channels that leave the standby set (map change, fewer steps, first/last moved)
+are turned off. First and last override All-steps standby, including zero.
 
 **Night window** toggle on this card — runtime, from status, not stored in
 the `stairs` config section. Same state as HR 438. Day and night **levels**
-are on the card and in HR 434/435.
+are on the card and in HR 434/435. Standby when decides whether the idle
+accent runs always or only while that window is on.
 
 ### Heating
 
@@ -657,6 +662,14 @@ SW3 none, SW4 Clear override.
 ### Status LEDs
 
 Per LED: solid / blink; source none / DI / IN1 / IN2.
+
+### Tools
+
+**Bootloader (USB)** — the module writes unsaved settings, disconnects and
+appears as an `RP2350` drive so a `.uf2` can be copied onto it. USB-only;
+there is no Modbus coil for it. First flash onto a module still on v0.3.0
+uses the buttons (1 + 2 for BOOT, 3 + 4 to reset): that firmware does not
+have the command.
 
 ---
 
@@ -730,13 +743,13 @@ accent or the bus value.
 
 ### 7.2b Identity (FC 04) — IR 200…204, not polled
 
-| Address | Field | v0.3.0 |
+| Address | Field | v0.4.0 |
 |---:|---|---|
 | 200 | `MODEL_ID` | `8` |
 | 201 | `FW_MAJOR` | `0` |
-| 202 | `FW_MINOR` | `3` |
+| 202 | `FW_MINOR` | `4` |
 | 203 | `FW_PATCH` | `0` |
-| 204 | `MAP_VERSION` | `0x0030` |
+| 204 | `MAP_VERSION` | `0x0040` |
 
 ### 7.3 Coils (FC 05 / 15) — 15 commands, self-clearing
 
@@ -807,7 +820,7 @@ packages:
     url: https://github.com/isystemsautomation/homemaster-dev
     ref: main
     files:
-      - path: STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+      - path: STR-3221-R1/Firmware/v0.4.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
         vars:
           str_prefix: "STR#1"
           str_id: str_1
@@ -927,8 +940,10 @@ board diagrams.
 **How to update**
 
 1. Connect via **USB-C** to a PC.
-2. Press **Buttons 1 + 2** to enter **BOOT mode**.
-3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.3.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
+2. On v0.4.0, **Bootloader (USB)** in WebConfig Tools writes unsaved settings
+   and mounts the module as an `RP2350` drive. On earlier firmware, press
+   **Buttons 1 + 2** to enter **BOOT mode**.
+3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.4.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
    - **Arduino IDE** → "Upload"
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
@@ -966,10 +981,10 @@ manually erased via WebConfig or serial command.
 ### 10.3 Common issues
 
 Anyone coming from v0.1.0 must change the ESPHome package `path:` from
-`Firmware/v0.1.0/…` to `Firmware/v0.3.0/…` and recompile. The v0.1.0 package
-reads Discrete Inputs that this firmware no longer answers. A v0.2.0 package
-still works — the map did not change — but the `path:` should move to
-`Firmware/v0.3.0/…`.
+`Firmware/v0.1.0/…` to `Firmware/v0.4.0/…` and recompile. The v0.1.0 package
+reads Discrete Inputs that this firmware no longer answers. A v0.2.0 or v0.3.0
+package still works — the map did not change — but the `path:` should move to
+`Firmware/v0.4.0/…`.
 
 | Symptom | Resolution |
 |---------------------|----------------------|
@@ -983,7 +998,7 @@ still works — the map did not change — but the `path:` should move to
 | **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
 | **Pressing a button does nothing** | Factory SW3 is none. SW1 All ON / SW2 All OFF skip heat channels. All ON/OFF/ramp/scene are blocked during failsafe or panic. |
 | **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
-| **Entities unavailable in Home Assistant, other modules fine** | Point the package `path:` at `Firmware/v0.3.0/…` and recompile. An old v0.1.0 package reads the wrong addresses. |
+| **Entities unavailable in Home Assistant, other modules fine** | Point the package `path:` at `Firmware/v0.4.0/…` and recompile. An old v0.1.0 package reads the wrong addresses. |
 | **Which module is this?** | Use **Identify** in WebConfig — the first output group pulses for 5 s. |
 
 
@@ -1019,7 +1034,8 @@ chattering actuator). Compare neighbouring zones on the same manifold.
 
 | Version | Config path (`path:`) | Date | Changes |
 |--------|------------------------|------|-----------|
-| **v0.3.0** (current) | `STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-10-31 | Stair commands from the bus run for their full duration; Stairs config fits the inbound buffer; step accent stays lit. Map unchanged from v0.2.0 |
+| **v0.4.0** (current) | `STR-3221-R1/Firmware/v0.4.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-11-08 | Standby lighting gets its own first/last channels, All-steps level and Always / Night-window-only; dropped channels turn off; WebConfig Fill from and Bootloader (USB). Settings migrate from 0x0005 without a factory reset. Map unchanged |
+| v0.3.0 (legacy) | `STR-3221-R1/Firmware/v0.3.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-10-31 | Stair commands from the bus run for their full duration; Stairs config fits the inbound buffer; step accent stays lit. Map unchanged from v0.2.0 |
 | v0.2.0 (legacy) | `STR-3221-R1/Firmware/v0.2.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-09-24 | Stair sequencer, heating loop, channel engine, merged FC 04 map, WebConfig sections |
 | v0.1.0 (legacy) | `STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml` | 2026-07-05 | First release — 32ch TLC59208F, unified WebConfig |
 
@@ -1027,10 +1043,27 @@ chattering actuator). Compare neighbouring zones on the same manifold.
 
 | Resource | Path |
 |---|---|
-| Firmware sketch | `Firmware/v0.3.0/default_str_3221_r1/` |
-| Pre-built UF2 | `Firmware/v0.3.0/STR-3221-R1.uf2` |
-| ESPHome package | `Firmware/v0.3.0/default_str_3221_r1_plc/` |
-| WebConfig | `Firmware/v0.3.0/ConfigToolPage.html` |
+| Firmware sketch | `Firmware/v0.4.0/default_str_3221_r1/` |
+| Pre-built UF2 | `Firmware/v0.4.0/STR-3221-R1.uf2` |
+| ESPHome package | `Firmware/v0.4.0/default_str_3221_r1_plc/` |
+| WebConfig | `Firmware/v0.4.0/ConfigToolPage.html` |
+
+### v0.4.0 notes
+
+Standby lighting is no longer derived from the first and last step numbers.
+Each end has its own channel (`Follow step table` / `Off` / `O1`…`O32`) and
+its own level. All-steps standby lights every channel in the step table; first
+and last override that level, including zero. Standby when is `Always` or
+`Night window only` (HR 438). Channels that drop out of the set are turned
+off. WebConfig **Fill from** writes a run of step-map rows from a start
+channel. WebConfig Tools has **Bootloader (USB)**: unsaved settings are
+written, then the module appears as an `RP2350` drive.
+
+The Modbus map is unchanged from v0.3.0: a v0.3.0 ESPHome package still
+works. Open only the v0.4.0 WebConfig page — the v0.3.0 page will refuse
+writes (`MAP_VERSION` is `0x0040`). `CFG_VERSION` is `0x0006`; a factory
+reset is not required. The migrator copies the old night-light byte onto
+All-steps standby and sets first/last channels to Follow step table.
 
 ### v0.3.0 notes
 
@@ -1220,7 +1253,7 @@ EUTM No. 019082911, registered with EUIPO on 15 January 2025.
 If you need help using or configuring the **STR-3221-R1**, visit:
 
 - 🌐 **[Official Support Portal](https://www.home-master.eu/support)** – knowledge base, ticketing, and FAQs.
-- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.3.0/ConfigToolPage.html)** – in-browser setup and diagnostics.
+- 🧰 **[WebConfig Tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.4.0/ConfigToolPage.html)** – in-browser setup and diagnostics.
 - ▶️ **[YouTube Channel](https://youtube.com/@HomeMaster)** – setup videos and feature walkthroughs.
 - 💡 **[Hackster.io](https://hackster.io/homemaster)** – integration examples and community projects.
 - 💬 **[Reddit](https://reddit.com/r/HomeMaster)** – discussion and troubleshooting community.

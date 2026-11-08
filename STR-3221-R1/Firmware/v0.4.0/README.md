@@ -1,7 +1,7 @@
 # STR-3221-R1 Firmware v0.4.0
 
-Beta. Current released firmware remains v0.3.0.
-Copied from v0.3.0 to open the next work tree. The Modbus register map is unchanged.
+Current released firmware for the 32-channel stair LED / heating-zone module.
+v0.3.0 is Legacy. The Modbus register map is unchanged.
 
 | Path | Purpose |
 |------|---------|
