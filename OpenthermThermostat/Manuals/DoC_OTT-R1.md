@@ -4,12 +4,13 @@ in accordance with Regulation (EC) No 765/2008 and Decision No 768/2008/EC
 
 **Document No.: DoC-OTT-R1-V1.0**
 
-> **STATUS: DRAFT — NOT TO BE SIGNED OR ISSUED YET.**
-> Every field is complete except the conformity evidence in Section 8, which
-> does not exist for this product yet. The sections marked **PENDING** must be
-> replaced with the real report identifiers before this declaration is signed.
-> A declaration signed over evidence that has not been produced is a false
-> declaration. See `CE_Technical_File_OTT-R1.md` for what has to be done first.
+> **STATUS: DRAFT — NOT YET SIGNED.**
+> The radio evidence is complete: the ESP32 carries a notified-body type
+> examination and the LD2410C's full test set was supplied by Hi-Link on
+> 09/11/2026 (Section 6). What remains is the manufacturer's own work under
+> Module A — the EMC and safety assessments for the finished product, marked
+> **PENDING** in Section 8. Those must carry real identifiers before this
+> declaration is signed. See `CE_Technical_File_OTT-R1.md`, section D.3.
 
 ---
 
@@ -105,28 +106,21 @@ the technical file maintained by ISYSTEMS AUTOMATION S.R.L.
 |---|---|
 | Module model | HLK-LD2410C |
 | Module manufacturer | Shenzhen Hi-Link Electronic Co., Ltd. |
-| Frequency band | 24.00–24.25 GHz ISM |
-| Maximum radiated power | **PENDING** — take the figure from the module supplier's test report |
-| Supplier conformity evidence | **PENDING** — obtain the module's CE test report against EN 300 440 and EN 301 489-3 and file it |
+| Occupied frequency band, measured | 24 155.36 – 24 244.97 MHz (occupied bandwidth 84.7 MHz) |
+| Maximum radiated power, measured | −5.70 dBm e.i.r.p. (limit 20 dBm, margin 25.7 dB) |
+| Supplier Declaration of Conformity | Shenzhen Hi-Link Electronic Co., Ltd., 09/11/2026, covering HLK-LD2410C and HLK-LD2410C-P |
+| Verification of Conformity | No. LGT25B077C01, 06/03/2025, Shenzhen LGT Test Service Co., Ltd. |
+| Radio spectrum test report | LGT25B077RF03, EN 300 440 V2.2.1, issued 03/03/2025 — PASS |
+| EMC test report | LGT25B077EM01, EN 301 489-1 / -3 / -17 — PASS |
+| RF exposure test report | LGT25B077HA01, EN 50663:2017 — PASS |
+| Safety test report | LGT25B077SA01, EN IEC 62368-1:2020+A11:2020 — PASS |
+| Testing performed at | Bay Area Compliance Laboratories Corp. (Dongguan), No. 12 Pulong East 1st Road, Tangxia Town, Dongguan, Guangdong, China |
 
-> ⚠ The 24 GHz radar is the part of this product most likely to fail a market
-> surveillance check. Unlike the ESP32, it carries no notified-body type
-> examination. Either obtain the supplier's full test evidence and reference it
-> here, or have the finished product tested against EN 300 440 and
-> EN 301 489-3. Do not sign this declaration on the strength of a supplier CE
-> logo alone.
->
-> Checked 09/11/2026: Hi-Link publishes no CE certificate, no test report and
-> no declaration for the LD2410C. The product page carries one line — "24GHz
-> ISM band, compliant with FCC and CE spectrum regulations" — and names no
-> standard, no report number and no laboratory. Request the documents from
-> sales@hlktech.com; if they do not arrive, the finished product has to be
-> tested.
->
-> Also have the laboratory confirm the occupied band. The module is specified
-> 24.00–24.25 GHz; in the EU, radiodetermination under ERC/REC 70-03 Annex 6
-> is allocated 24.05–24.25 GHz. If the sweep starts below 24.05 GHz the device
-> is operating outside the allocation.
+The module's band lies entirely within the 24.05–24.25 GHz radiodetermination
+allocation of ERC/REC 70-03 Annex 6, and within entry 11 of EN 300 440
+clause 4.2.2.4 (24.00–24.25 GHz, 100 mW e.i.r.p.).
+
+Copies of all of the above are held in the technical file.
 
 ## 7. Conformity Assessment Procedure
 
@@ -151,12 +145,13 @@ Technical documentation supporting this declaration is held by ISYSTEMS
 AUTOMATION S.R.L. at the address listed in Section 1 and is available to the
 relevant authorities on request.
 
-**EMC conformity** is supported by test report **PENDING** — issue number, date
-and laboratory. Tests required: radiated and conducted RF emissions, RF field,
-conducted RF, EFT/burst and ESD immunity, per EN 301 489-1 and EN 301 489-17.
-(The gateway's EMC testing was carried out by Idvorsky Laboratories Ltd.,
-Volgina 15, 11060 Belgrade, Serbia; the same laboratory is the obvious route for
-this product.)
+**EMC conformity** is supported by in-house assessment report **PENDING**,
+carried out by ISYSTEMS AUTOMATION S.R.L. under the internal production control
+procedure, as for the gateway. Scope: radiated emissions, RF field, conducted
+RF, EFT/burst and ESD immunity, per EN 301 489-1 with parts -3 and -17. The
+mains-port tests of the gateway's programme do not apply — this product has no
+mains circuit. The module-level reports listed in Section 6 support, but do not
+replace, the assessment of the finished product.
 
 **Safety conformity under Article 3.1(a)** is supported by in-house assessment
 report **PENDING**. The product has no mains circuit and no hazardous voltage;
@@ -165,7 +160,9 @@ temperature of the enclosure front, and the single-fault behaviour of the 24 V
 input. The dielectric-withstand programme applied to the gateway does not apply
 here — there is no insulation barrier to test.
 
-**RF exposure** is addressed by EN 62479 low-power exemption. Record the
+**RF exposure.** The radar is covered by the module's own EN 50663 report
+(LGT25B077HA01) — at −5.7 dBm e.i.r.p. it is far below any exemption threshold.
+The Wi-Fi section is addressed by EN 62479 low-power exemption; record that
 calculation in the technical file.
 
 **Cybersecurity** risk assessment and verification records per EN 18031-1 are
