@@ -484,7 +484,7 @@ number DoC-OTT-R1-V1.0).
 | EMC — wideband data | EN 301 489-17 V3.2.4 |
 | EMC — short-range devices | EN 301 489-3 V2.3.2 |
 | Radio spectrum — 2.4 GHz | EN 300 328 V2.2.2 |
-| Radio spectrum — 24 GHz SRD | EN 305 550-2 V1.2.1 |
+| Radio spectrum — 24 GHz SRD | EN 300 440 V2.2.1 |
 | Cybersecurity — Art. 3(3)(d) | EN 18031-1:2024 |
 | RoHS technical documentation | EN IEC 63000 |
 
