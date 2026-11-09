@@ -21,6 +21,16 @@ substitutions:
   device_name: homemaster-thermostat
   friendly_name: HomeMaster Thermostat
 
+  # Left and right margins from the edge of the frame buffer, deliberately
+  # NOT equal. The panel's visible window sits off-centre within the
+  # controller's 320-pixel line: it cuts more on the left. These two numbers
+  # were measured on the assembled unit — do not "tidy" them to one value, or
+  # the first character of every left-aligned line goes off the glass.
+  # Cut off on the left: increase margin_left.
+  # Empty band on the right: decrease margin_right.
+  margin_left: "42"
+  margin_right: "14"
+
   # Backlight level while the screen is awake.
   bl_active: "0.85"
   # Screen blanks this long after the radar stops seeing anyone.
@@ -859,7 +869,7 @@ display:
     update_interval: 2s
     lambda: |-
       const int W = 320, H = 240;
-      const int PAD_L = 14, PAD_R = 14;
+      const int PAD_L = ${margin_left}, PAD_R = ${margin_right};
       const int CX = (PAD_L + (W - 1 - PAD_R)) / 2;
 
       const char *I_FIRE  = "\U000F0238";
