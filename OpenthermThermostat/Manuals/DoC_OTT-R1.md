@@ -76,7 +76,7 @@ through the application of the following harmonised standards:
 | EMC — RED Art. 3.1(b), wideband data | EN 301 489-17 V3.2.4 |
 | EMC — RED Art. 3.1(b), short-range devices | EN 301 489-3 V2.3.2 |
 | Radio spectrum — RED Art. 3.2, 2.4 GHz | EN 300 328 V2.2.2 |
-| Radio spectrum — RED Art. 3.2, 24 GHz SRD | EN 305 550-2 V1.2.1 |
+| Radio spectrum — RED Art. 3.2, 24 GHz SRD | EN 300 440 V2.2.1 |
 | Cybersecurity — RED Art. 3(3)(d) | EN 18031-1:2024 |
 | RoHS technical documentation | EN IEC 63000 |
 
@@ -107,14 +107,26 @@ the technical file maintained by ISYSTEMS AUTOMATION S.R.L.
 | Module manufacturer | Shenzhen Hi-Link Electronic Co., Ltd. |
 | Frequency band | 24.00–24.25 GHz ISM |
 | Maximum radiated power | **PENDING** — take the figure from the module supplier's test report |
-| Supplier conformity evidence | **PENDING** — obtain the module's CE test report against EN 305 550-2 and EN 301 489-3 and file it |
+| Supplier conformity evidence | **PENDING** — obtain the module's CE test report against EN 300 440 and EN 301 489-3 and file it |
 
 > ⚠ The 24 GHz radar is the part of this product most likely to fail a market
 > surveillance check. Unlike the ESP32, it carries no notified-body type
 > examination. Either obtain the supplier's full test evidence and reference it
-> here, or have the finished product tested against EN 305 550-2 and
+> here, or have the finished product tested against EN 300 440 and
 > EN 301 489-3. Do not sign this declaration on the strength of a supplier CE
 > logo alone.
+>
+> Checked 09/11/2026: Hi-Link publishes no CE certificate, no test report and
+> no declaration for the LD2410C. The product page carries one line — "24GHz
+> ISM band, compliant with FCC and CE spectrum regulations" — and names no
+> standard, no report number and no laboratory. Request the documents from
+> sales@hlktech.com; if they do not arrive, the finished product has to be
+> tested.
+>
+> Also have the laboratory confirm the occupied band. The module is specified
+> 24.00–24.25 GHz; in the EU, radiodetermination under ERC/REC 70-03 Annex 6
+> is allocated 24.05–24.25 GHz. If the sweep starts below 24.05 GHz the device
+> is operating outside the allocation.
 
 ## 7. Conformity Assessment Procedure
 
