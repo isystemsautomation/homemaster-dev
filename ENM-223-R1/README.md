@@ -5,7 +5,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![MODULE photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/photo1.png)
+![MODULE photo](https://config.home-master.eu/ENM-223-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
@@ -152,21 +152,21 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 <tr>
 <td align="center">
 <strong>System Diagram</strong><br>
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
 </td>
 <td align="center">
 <strong>MCU Pinout</strong><br>
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
 </td>
 </tr>
 <tr>
 <td align="center">
 <strong>Field Board Terminal Map</strong><br>
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
 </td>
 <td align="center">
 <strong>MCU Board Layout</strong><br>
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
 </td>
 </tr>
 </table>
@@ -243,7 +243,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 **🧭 Button layout reference:**
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
+<img src="https://config.home-master.eu/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
 
 ---
 
@@ -410,7 +410,7 @@ Mount the module on a **35 mm DIN rail** inside a suitable enclosure; only quali
 
 Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relays, and status LEDs (reverse-polarity protected; typical 50–150 mA).
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
 
 *Regulated **24 V DC** to **V+** / **0V** — fuse the feed upstream per local rules.*
 
@@ -418,7 +418,7 @@ Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485
 
 Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals for your **3P4W** or **3P3W** installation — these terminals can carry hazardous mains voltage.
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_PhaseConnection.png" width="440" alt="3-phase voltage input wiring L1/L2/L3-N/PE">
 
 *Phase and neutral sensing inputs per terminal map; set wiring scheme and phase mapping in WebConfig.*
 
@@ -426,7 +426,7 @@ Wire **L1**, **L2**, **L3**, **N**, and **PE** to the voltage-sensing terminals 
 
 Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correct polarity. Use **current-output** CTs whose secondary is **≤ 60 mA RMS** at the maximum primary current you intend to measure; enter the CT primary (A) and secondary (mA) in WebConfig.
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_CTConnection.png" width="440" alt="Current transformer CT1/CT2/CT3 wiring">
 
 *Shielded CT leads recommended; observe arrow polarity for correct signed power readings. **Never open a CT secondary while the primary is energised.***
 
@@ -434,7 +434,7 @@ Connect external CT secondary pairs to **CT1**, **CT2**, and **CT3** with correc
 
 Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external loads at up to **3 A @ 250 VAC** (module/PCB limit); provide external fusing and RC snubbers on inductive circuits. Capacitor motors: see §5.1.
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_RelayConnection.png" width="440" alt="Relay NO/COM/NC wiring">
 
 *Dry contacts only — external load supply and overcurrent protection are mandatory.*
 
@@ -442,7 +442,7 @@ Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch external load
 
 Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
+<img src="https://config.home-master.eu/ENM-223-R1/Images/ENM_RS485.png" width="440" alt="RS-485 A/B/COM Modbus wiring">
 
 ***A** → A, **B** → B, **COM** → reference ground as required by the network.*
 
@@ -523,7 +523,7 @@ Field names and dropdown options below match `Firmware/v0.2.0/ConfigToolPage.htm
 
 ### Status & Tools
 
-![ENM-223-R1 WebConfig — status pills and Tools](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig1.png)
+![ENM-223-R1 WebConfig — status pills and Tools](https://config.home-master.eu/ENM-223-R1/Images/webconfig1.png)
 
 Status pills (read-only): **Connection** (USB), **Bus** (RS-485 link), **Model**, **FW**, **WebConfig**, **Modbus ID**, **Baud**. A compatibility banner (`hm-compat`) blocks writes if the connected firmware/model does not match this configurator.
 
@@ -546,7 +546,7 @@ Live USB serial log (communication messages and status). **Copy log** copies the
 
 ### Meter Options
 
-![ENM-223-R1 WebConfig — Meter Options and Calibration](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig2.png)
+![ENM-223-R1 WebConfig — Meter Options and Calibration](https://config.home-master.eu/ENM-223-R1/Images/webconfig2.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -573,7 +573,7 @@ Live refresh pauses while a calibration field is being edited.
 
 ### Alarms (L1, L2, L3, Totals)
 
-![ENM-223-R1 WebConfig — Alarms](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig3.png)
+![ENM-223-R1 WebConfig — Alarms](https://config.home-master.eu/ENM-223-R1/Images/webconfig3.png)
 
 Four channels (**L1**, **L2**, **L3**, **Totals**), each with three rule slots (**Alarm** / **Warning** / **Event**).
 
@@ -594,7 +594,7 @@ Ack is also available from front-panel **Buttons** (Ack All / Ack L1–L3 / Ack 
 
 ### Relays (2)
 
-![ENM-223-R1 WebConfig — Relays and Live Meter](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig4.png)
+![ENM-223-R1 WebConfig — Relays and Live Meter](https://config.home-master.eu/ENM-223-R1/Images/webconfig4.png)
 
 Each relay is configured **independently** (including invert).
 
@@ -621,7 +621,7 @@ P and Q are **signed**. Peaks, THD and neutral current are on the next screen �
 
 ### Peaks & Quality
 
-![ENM-223-R1 WebConfig — Peaks, Chip Events, Energies](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig5.png)
+![ENM-223-R1 WebConfig — Peaks, Chip Events, Energies](https://config.home-master.eu/ENM-223-R1/Images/webconfig5.png)
 
 Dedicated screen (ATM90 peak registers F1–F3 / F5–F7; computed active-power THD, **not** THD+N):
 
@@ -655,7 +655,7 @@ Accumulators from `ENM_Sync` / `ext.energy` (saved in flash), cards **Phase A / 
 
 ### Buttons (4)
 
-![ENM-223-R1 WebConfig — Buttons and User LEDs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/webconfig6.png)
+![ENM-223-R1 WebConfig — Buttons and User LEDs](https://config.home-master.eu/ENM-223-R1/Images/webconfig6.png)
 
 Each button has a live state indicator and one **Action**:
 
@@ -913,7 +913,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 **🧭 Button layout reference:**
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
+<img src="https://config.home-master.eu/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
 
 ---
 
@@ -1064,8 +1064,8 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_ENM-223-R1.pdf](./Manuals/DoC_ENM-223-R1.pdf) |
-| Datasheet | [ENM-223-R1_Datasheet.pdf](./Manuals/ENM-223-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_ENM-223-R1.pdf](https://config.home-master.eu/ENM-223-R1/Manuals/DoC_ENM-223-R1.pdf) |
+| Datasheet | [ENM-223-R1_Datasheet.pdf](https://config.home-master.eu/ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf) |
 
 ### Trademark
 

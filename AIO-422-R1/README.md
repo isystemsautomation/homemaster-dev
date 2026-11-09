@@ -5,7 +5,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![MODULE photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/photo1.png)
+![MODULE photo](https://config.home-master.eu/AIO-422-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
@@ -107,7 +107,7 @@ Analog outputs and LED/button behaviour can be driven from **WebConfig**, **fron
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![AIO-422-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/Dimensions.png)
+![AIO-422-R1 mechanical drawing](https://config.home-master.eu/AIO-422-R1/Images/Dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -168,10 +168,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.1 Diagrams & pinouts
 
-![System block diagram](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/AIO_SystemBlockDiagram.png)
+![System block diagram](https://config.home-master.eu/AIO-422-R1/Images/AIO_SystemBlockDiagram.png)
 
-![MCU board](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/AIO-MCUBoard.png)
-![Field board](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/AIO-FieldBoard.png)
+![MCU board](https://config.home-master.eu/AIO-422-R1/Images/AIO-MCUBoard.png)
+![Field board](https://config.home-master.eu/AIO-422-R1/Images/AIO-FieldBoard.png)
 
 ### 4.2 Connectors
 
@@ -302,7 +302,7 @@ Open **[AIO-422-R1 WebConfig v0.2.0](https://config.home-master.eu/AIO-422-R1/Fi
 
 ### Connection, status & tools
 
-![AIO-422-R1 WebConfig — connection, Modbus address/baud, tools and serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig1.png)
+![AIO-422-R1 WebConfig — connection, Modbus address/baud, tools and serial log](https://config.home-master.eu/AIO-422-R1/Images/webconfig1.png)
 
 | Control | Meaning |
 |---------|---------|
@@ -313,7 +313,7 @@ Open **[AIO-422-R1 WebConfig v0.2.0](https://config.home-master.eu/AIO-422-R1/Fi
 
 ### Analog inputs, outputs & RTD
 
-![AIO-422-R1 WebConfig — live AI/AO values and RTD channels](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig2.png)
+![AIO-422-R1 WebConfig — live AI/AO values and RTD channels](https://config.home-master.eu/AIO-422-R1/Images/webconfig2.png)
 
 | Area | Notes |
 |------|--------|
@@ -323,7 +323,7 @@ Open **[AIO-422-R1 WebConfig v0.2.0](https://config.home-master.eu/AIO-422-R1/Fi
 
 ### Buttons & user LEDs
 
-![AIO-422-R1 WebConfig — button actions and LED sources](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/AIO-422-R1/Images/webconfig3.png)
+![AIO-422-R1 WebConfig — button actions and LED sources](https://config.home-master.eu/AIO-422-R1/Images/webconfig3.png)
 
 **Button actions (0–9):** Toggle flag (LED + Modbus ISTS); AO1/AO2 on/off; AO1/AO2 on/off restore last level; AO1/AO2 ±10 %; All AO off.
 
@@ -461,7 +461,7 @@ Buttons 1–4, LEDs 1–4, Link OK, Config dirty, RTD1/2 fault, ADS/DAC/RTD chip
 
 ### Files
 
-- **Firmware v0.2.0 (UF2):** [`AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2)
+- **Firmware v0.2.0 (UF2):** [`AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2`](https://config.home-master.eu/AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2)
 - **ESPHome package (v0.2.0):** [`default_aio_422_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc)
 - **WebConfig (v0.2.0):** [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html)
 - **Sketch source (v0.2.0):** [`default_aio_422_r1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1)
@@ -495,8 +495,8 @@ The AIO-422-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster®
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_AIO-422-R1.pdf](./Manuals/DoC_AIO-422-R1.pdf) |
-| Datasheet | [AIO-422-R1_Datasheet.pdf](./Manuals/AIO-422-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_AIO-422-R1.pdf](https://config.home-master.eu/AIO-422-R1/Manuals/DoC_AIO-422-R1.pdf) |
+| Datasheet | [AIO-422-R1_Datasheet.pdf](https://config.home-master.eu/AIO-422-R1/Manuals/AIO-422-R1_Datasheet.pdf) |
 
 ### Trademark
 

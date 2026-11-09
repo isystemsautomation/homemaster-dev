@@ -2,7 +2,7 @@
 
 <a href="https://devices.esphome.io/devices/homemaster-openthermthermostat/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
 
-![Device](./Images/thermostat-front.jpg)
+![Device](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg)
 
 **Part No.:** OTT-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
@@ -37,7 +37,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/) |
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat) |
 | ⚙️ Default Firmware (YAML) | [thermostat.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermThermostat/Firmware/thermostat.yaml) |
-| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat/Schematics) |
+| 🔧 Schematics | [Schematics/](https://config.home-master.eu/OpenthermThermostat/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents
@@ -230,10 +230,10 @@ OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster®
 
 | | |
 |---|---|
-| ![Front, screen on](./Images/thermostat-front.jpg) | ![Three-quarter view, screen on](./Images/thermostat-angle.jpg) |
-| ![Three-quarter view, screen off](./Images/thermostat-angle-2.jpg) | ![Three-quarter view from below](./Images/thermostat-angle-3.jpg) |
-| ![Front, screen off](./Images/thermostat-front-off.jpg) | ![Side profile](./Images/thermostat-side.jpg) |
-| ![Wall plate](./Images/thermostat-back.jpg) | |
+| ![Front, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg) | ![Three-quarter view, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle.jpg) |
+| ![Three-quarter view, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-2.jpg) | ![Three-quarter view from below](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-3.jpg) |
+| ![Front, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front-off.jpg) | ![Side profile](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-side.jpg) |
+| ![Wall plate](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-back.jpg) | |
 
 ## License
 

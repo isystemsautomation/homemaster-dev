@@ -58,9 +58,9 @@ Commit **source files** and the **released UF2** at `Firmware/v0.2.0/ENM-223-R1.
 | WebConfig | `ConfigToolPage.html`, `simple-web-serial.min.js` |
 | ESPHome package | `default_enm_223_r1_plc/default_enm_223_r1_plc.yaml` |
 
-Public download URL (on `main`):
+Public download URL:
 
-`https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ENM-223-R1/Firmware/v0.2.0/ENM-223-R1.uf2`
+`https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ENM-223-R1.uf2`
 
 ---
 

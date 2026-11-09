@@ -960,7 +960,7 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 - **Enclosure:** PC/ABS, V‑0, light gray/black, matte  
 - **Terminals:** 5.08 mm pitch; 26–12 AWG (to 2.5 mm²); **0.5–0.6 Nm** torque
 
-![WLD-521-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/WLD-521-R1/Images/WLDDimensions.png)
+![WLD-521-R1 mechanical drawing](https://config.home-master.eu/WLD-521-R1/Images/WLDDimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -1396,8 +1396,8 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_WLD-521-R1.pdf](./Manuals/DoC_WLD-521-R1.pdf) |
-| Datasheet | [WLD-521-R1_Datasheet.pdf](./Manuals/WLD-521-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_WLD-521-R1.pdf](https://config.home-master.eu/WLD-521-R1/Manuals/DoC_WLD-521-R1.pdf) |
+| Datasheet | [WLD-521-R1_Datasheet.pdf](https://config.home-master.eu/WLD-521-R1/Manuals/WLD-521-R1_Datasheet.pdf) |
 
 ### Trademark
 

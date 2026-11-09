@@ -5,7 +5,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![17-input wired sensor hub, DIN-rail module for Home Assistant and Modbus](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
+![17-input wired sensor hub, DIN-rail module for Home Assistant and Modbus](https://config.home-master.eu/ALM-173-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§2 Features](#2-features--applications) · [What You Can Connect](#what-you-can-connect) · [§3 Alarm logic](#3-alarm-logic--how-it-works) · [§4 Specifications](#4-specifications) · [§5 Hardware](#5-hardware--interface) · [§6 Getting Started](#6-installation--getting-started) · [§7 WebConfig](#7-webconfig-reference) · [§8 Modbus map](#8-modbus-register-map) · [§9 ESPHome](#9-esphome--home-assistant-integration) · [§10 Programming](#10-programming--build) · [§11 Maintenance](#11-maintenance--troubleshooting) · [§12 Downloads](#12-downloads--resources) · [Licensing](#open-source--licensing) · [§13 Compliance](#13-compliance--certifications) · [FAQ](#faq) · [§14 Support](#14-support)
 
@@ -226,7 +226,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 | Pack size | 230 × 140 × 87 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![ALM-173-R1 DIN-rail wired sensor hub dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALMMDimensions.png)
+![ALM-173-R1 DIN-rail wired sensor hub dimensions](https://config.home-master.eu/ALM-173-R1/Images/ALMMDimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -240,10 +240,10 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
     <th>System block</th><th>MCU pinout</th><th>Field board</th><th>MCU board</th>
   </tr>
   <tr>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_MCU_Pinouts.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/FieldBoard-Diagram.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/MCUBoard-Diagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/ALM-173-R1/Images/ALM_SystemBlockDiagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/ALM-173-R1/Images/ALM_MCU_Pinouts.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/ALM-173-R1/Images/FieldBoard-Diagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/ALM-173-R1/Images/MCUBoard-Diagram.png"></td>
   </tr>
 </table>
 
@@ -333,7 +333,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 
 <!-- hm:terminal-map:end -->
 
-![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and isolated 12 V / 5 V sensor rails](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/photo1.png)
+![ALM-173-R1 terminal labeling — 17 wired sensor inputs, relays and isolated 12 V / 5 V sensor rails](https://config.home-master.eu/ALM-173-R1/Images/photo1.png)
 
 **Digital inputs.** Each input is **opto-isolated** (5 V DC signalling, **5300 VRMS** optocoupler isolation test voltage). Wire a dry contact between **INx** and **GND I.x**. Do not apply mains or non-SELV voltages.
 
@@ -353,7 +353,7 @@ Full alarm-panel features — **Home / Away / Night** modes, codes, keypads, sch
 
 ### 5.4 Front panel — buttons & LEDs
 
-![ALM-173-R1 front-panel buttons and LEDs for alarm acknowledge and relay override](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/buttons1.png)
+![ALM-173-R1 front-panel buttons and LEDs for alarm acknowledge and relay override](https://config.home-master.eu/ALM-173-R1/Images/buttons1.png)
 
 | Control | Function |
 |---------|----------|
@@ -424,7 +424,7 @@ The module uses **24 V DC** primary (24 V DC nominal). Onboard regulation provid
 
 | 24 V DC | Digital inputs | Relays | RS-485 |
 |:---:|:---:|:---:|:---:|
-| ![24 V DC power wiring for ALM-173-R1 wired sensor hub](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![Wiring dry-contact and powered detectors to ALM-173-R1 digital inputs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![ALM-173-R1 relay output wiring for sirens, valves and summary loads](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485 Modbus wiring from ALM-173-R1 to MiniPLC or MicroPLC](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/ALM_RS485Connection.png) |
+| ![24 V DC power wiring for ALM-173-R1 wired sensor hub](https://config.home-master.eu/ALM-173-R1/Images/ALM_24Vdc_PowerSupply.png) | ![Wiring dry-contact and powered detectors to ALM-173-R1 digital inputs](https://config.home-master.eu/ALM-173-R1/Images/ALM_DigitalInputs.png) | ![ALM-173-R1 relay output wiring for sirens, valves and summary loads](https://config.home-master.eu/ALM-173-R1/Images/ALM_RelayConnection.png) | ![RS-485 Modbus wiring from ALM-173-R1 to MiniPLC or MicroPLC](https://config.home-master.eu/ALM-173-R1/Images/ALM_RS485Connection.png) |
 
 **Phase 2 — Configure (WebConfig)**
 
@@ -459,7 +459,7 @@ See [§3 Alarm Logic](#3-alarm-logic--how-it-works) for zone types, local arming
 
 ### Status & Tools
 
-![WebConfig — overview, connection & status (Armed/Entry/Exit/Tamper)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig1.png)
+![WebConfig — overview, connection & status (Armed/Entry/Exit/Tamper)](https://config.home-master.eu/ALM-173-R1/Images/webconfig1.png)
 
 Status pills (read-only): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**, **WebConfig**, **Modbus ID**, **Baud**. When local arming is enabled: **Armed**, **Entry**, **Exit**, **Tamper**.
 
@@ -471,7 +471,7 @@ Status pills (read-only): **Connection** (USB), **Bus** (RS-485), **Model**, **F
 
 ### Device Setup
 
-![Device setup — Modbus address & baud, serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig2.png)
+![Device setup — Modbus address & baud, serial log](https://config.home-master.eu/ALM-173-R1/Images/webconfig2.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -482,7 +482,7 @@ Changed over **USB-C** only (not writable via Modbus holding registers).
 
 ### Alarm Status & Modes
 
-![Alarm status & per-group latch modes](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig3.png)
+![Alarm status & per-group latch modes](https://config.home-master.eu/ALM-173-R1/Images/webconfig3.png)
 
 Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
@@ -492,7 +492,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 ### Digital Inputs (17)
 
-![WebConfig — 17 wired sensor inputs: enable, invert, alarm group, zone type](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig4.png)
+![WebConfig — 17 wired sensor inputs: enable, invert, alarm group, zone type](https://config.home-master.eu/ALM-173-R1/Images/webconfig4.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -535,7 +535,7 @@ Live indicators: **Any Alarm**, **Alarm Group 1–3**.
 
 > Full **Home / Away / Night** modes, alarm codes, and keypads belong in the **Home Assistant Alarm Control Panel** — not on the module. See [§3](#3-alarm-logic--how-it-works).
 
-![Relays (bell cut-off), buttons & user LEDs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/ALM-173-R1/Images/webconfig5.png)
+![Relays (bell cut-off), buttons & user LEDs](https://config.home-master.eu/ALM-173-R1/Images/webconfig5.png)
 
 ---
 
@@ -829,7 +829,7 @@ See [§10.2 Flashing](#102-flashing-usb-c) and [§12 Downloads](#12-downloads--r
 | Resource | Link |
 |----------|------|
 | **Firmware source** | [`Firmware/v0.2.0/default_alm_173_r1/`](Firmware/v0.2.0/default_alm_173_r1/) |
-| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) |
+| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) |
 | **ESPHome YAML** | [`default_alm_173_r1_plc.yaml`](Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml) |
 | **WebConfig** | [config.home-master.eu v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
 | **Schematics** | [`Schematics/`](Schematics/) |

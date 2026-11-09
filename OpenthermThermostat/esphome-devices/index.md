@@ -11,7 +11,7 @@ difficulty: 1
 
 ## HomeMaster OpenTherm Thermostat
 
-![Device](../Images/thermostat-front.jpg)
+![Device](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg)
 
 ## Description
 
@@ -34,7 +34,7 @@ schematics), see:
 - Product page: [home-master.eu](https://www.home-master.eu/)
 - Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat)
 - Schematics (PDF):
-  [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat/Schematics)
+  [Schematics/](https://config.home-master.eu/OpenthermThermostat/Schematics)
 - Maker: [home-master.eu](https://www.home-master.eu/)
 
 ## Hardware Details

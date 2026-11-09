@@ -5,7 +5,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![MODULE photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/photo1.png)
+![MODULE photo](https://config.home-master.eu/DIO-430-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
@@ -99,7 +99,7 @@ Typical uses for the DIO-430-R1:
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![DIO-430-R1 Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIODimensions.png)
+![DIO-430-R1 Dimensions](https://config.home-master.eu/DIO-430-R1/Images/DIODimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -172,10 +172,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
     <th>Block Diagram</th><th>Control Board</th><th>Relay / Field Board</th><th>RP2350A Pinout</th>
   </tr>
   <tr>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/ControlBoard_Diagram.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/RelayBoard_Diagram.png"></td>
-    <td><img width="240" src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_MCU_Pinouts.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/DIO-430-R1/Images/DIO_SystemBlockDiagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/DIO-430-R1/Images/ControlBoard_Diagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/DIO-430-R1/Images/RelayBoard_Diagram.png"></td>
+    <td><img width="240" src="https://config.home-master.eu/DIO-430-R1/Images/DIO_MCU_Pinouts.png"></td>
   </tr>
 </table>
 
@@ -238,7 +238,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ### 4.3 Front panel — buttons & LEDs
 
-![Button Layout 1‑2‑3](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/buttons1.png)
+![Button Layout 1‑2‑3](https://config.home-master.eu/DIO-430-R1/Images/buttons1.png)
 
 | Control | Function |
 |---------|----------|
@@ -356,7 +356,7 @@ The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V*
 
 | 24 V DC Power | Digital Inputs | Relay Output | RS-485 (120 Ω) |
 |:---:|:---:|:---:|:---:|
-| ![24 Vdc wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_24Vdc.png) | ![Digital inputs](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_DIInputs.png) | ![Relay wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_RelayConnection.png) | ![RS-485 connection](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/DIO_RS485Connection.png) |
+| ![24 Vdc wiring](https://config.home-master.eu/DIO-430-R1/Images/DIO_24Vdc.png) | ![Digital inputs](https://config.home-master.eu/DIO-430-R1/Images/DIO_DIInputs.png) | ![Relay wiring](https://config.home-master.eu/DIO-430-R1/Images/DIO_RelayConnection.png) | ![RS-485 connection](https://config.home-master.eu/DIO-430-R1/Images/DIO_RS485Connection.png) |
 
 - **24 VDC** → **V+ / 0V** (top POWER terminals). Regulated SELV; keep pairs twisted.
 - **Digital inputs** → **INx / GNDx** (field side; do not bridge logic GND ↔ **GNDx**). See [§4.2](#42-connectors--terminal-map) for wetting and front-end details.
@@ -411,7 +411,7 @@ Open **https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.h
 
 ### Status & Tools
 
-![DIO-430-R1 WebConfig — Module status (Model, FW, Modbus ID, Baud) and Tools — Identify / Factory reset / Reboot](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig1.png)
+![DIO-430-R1 WebConfig — Module status (Model, FW, Modbus ID, Baud) and Tools — Identify / Factory reset / Reboot](https://config.home-master.eu/DIO-430-R1/Images/webconfig1.png)
 
 Status pills (read-only, not settings): **Connection** (USB), **Bus** (RS-485), **Model**, **FW**. A banner warns if model/firmware mismatches this configurator.
 
@@ -423,7 +423,7 @@ Status pills (read-only, not settings): **Connection** (USB), **Bus** (RS-485), 
 
 ### Device Setup
 
-![DIO-430-R1 WebConfig — Serial connection & Modbus addressing (address, baud) with serial log](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig2.png)
+![DIO-430-R1 WebConfig — Serial connection & Modbus addressing (address, baud) with serial log](https://config.home-master.eu/DIO-430-R1/Images/webconfig2.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -432,7 +432,7 @@ Status pills (read-only, not settings): **Connection** (USB), **Bus** (RS-485), 
 
 ### Digital Inputs
 
-![DIO-430-R1 WebConfig — Per-input setup: Enabled / Inverted / Child-lock, Type (Maintained/Momentary), Short-Long actions & target](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig3.png)
+![DIO-430-R1 WebConfig — Per-input setup: Enabled / Inverted / Child-lock, Type (Maintained/Momentary), Short-Long actions & target](https://config.home-master.eu/DIO-430-R1/Images/webconfig3.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -466,7 +466,7 @@ To turn off all relays from Momentary logic, use action **Off** with target **Al
 
 ### Relays & Interlock
 
-![DIO-430-R1 WebConfig — Relay enable / invert / power-on / auto-off, and relay interlock (Relay A/B, pause)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig4.png)
+![DIO-430-R1 WebConfig — Relay enable / invert / power-on / auto-off, and relay interlock (Relay A/B, pause)](https://config.home-master.eu/DIO-430-R1/Images/webconfig4.png)
 
 **Relays (Relay 1–3)**
 
@@ -489,7 +489,7 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 
 ### Timing
 
-![DIO-430-R1 WebConfig — Press timing, debounce and bus watchdog (long-press, multi-click gap, debounce, link timeout)](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig6.png)
+![DIO-430-R1 WebConfig — Press timing, debounce and bus watchdog (long-press, multi-click gap, debounce, link timeout)](https://config.home-master.eu/DIO-430-R1/Images/webconfig6.png)
 
 | Field | Values | Meaning |
 |-------|--------|---------|
@@ -500,7 +500,7 @@ Defaults: enabled, not inverted, OFF at power-on, auto-off 0.
 
 ### Buttons & User LEDs
 
-![DIO-430-R1 WebConfig — Button short/long actions and user-LED source / mode](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/DIO-430-R1/Images/webconfig5.png)
+![DIO-430-R1 WebConfig — Button short/long actions and user-LED source / mode](https://config.home-master.eu/DIO-430-R1/Images/webconfig5.png)
 
 **Buttons (Button 1–2; GPIO2 / GPIO3)**
 
@@ -894,7 +894,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 ### Files
 
 - **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**
-  - [`default_DIO_430_R1.ino.uf2`](https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2)
+  - [`default_DIO_430_R1.ino.uf2`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2)
 - **Firmware publishing (maintainers)**
   - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
 - **Firmware source (Arduino, v0.2.0)**
@@ -902,18 +902,18 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 - **YAML configs (ESPHome, v0.2.0)**
   - [`DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS, v0.2.0)**
-  - [`DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html)
+  - [`DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html)
 - **Firmware source (Arduino, v0.1.0 — legacy)**
   - [`DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1)
 - **YAML configs (ESPHome, v0.1.0 — legacy)**
   - [`DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS, v0.1.0 — legacy)**
-  - [`DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html)
+  - [`DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - **Schematics (PDF)**
-  - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)
-  - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
+  - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://config.home-master.eu/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)
+  - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://config.home-master.eu/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
 - **Images & diagrams**
-  - [`DIO-430-R1/Images/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Images)
+  - [`DIO-430-R1/Images/`](https://config.home-master.eu/DIO-430-R1/Images)
 - **Datasheets**
   - Refer to `Schematics/` BOM notes for part numbers (e.g., ISO1212, MAX485, HF115F).
 
@@ -951,8 +951,8 @@ The DIO-430-R1 module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster®
 
 | Document | File |
 |----------|------|
-| EU Declaration of Conformity (DoC) | [DoC_DIO-430-R1.pdf](./Manuals/DoC_DIO-430-R1.pdf) |
-| Datasheet | [DIO-430-R1_Datasheet.pdf](./Manuals/DIO-430-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_DIO-430-R1.pdf](https://config.home-master.eu/DIO-430-R1/Manuals/DoC_DIO-430-R1.pdf) |
+| Datasheet | [DIO-430-R1_Datasheet.pdf](https://config.home-master.eu/DIO-430-R1/Manuals/DIO-430-R1_Datasheet.pdf) |
 
 ### Trademark
 

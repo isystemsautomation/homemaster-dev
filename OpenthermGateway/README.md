@@ -2,7 +2,7 @@
 
 <a href="https://devices.esphome.io/devices/homemaster-openthermgateway/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
 
-![Device](./Images/opentherm.png)
+![Device](https://config.home-master.eu/OpenthermGateway/Images/opentherm.png)
 
 **Part No.:** OTGW-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
@@ -34,11 +34,11 @@ This repository includes the full ESPHome configuration used on shipped devices 
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/opentherm-gateway-59) |
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev) |
-| 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
-| 📄 UK PSTI statement (PDF) | [PSTI_OpenthermGateway.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/PSTI_OpenthermGateway.pdf) |
+| 📄 Datasheet (PDF) | [OpenTherm_Datasheet.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
+| 📄 UK PSTI statement (PDF) | [PSTI_OpenthermGateway.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/PSTI_OpenthermGateway.pdf) |
 | ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
-| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway/Schematics) |
+| 🔧 Schematics | [Schematics/](https://config.home-master.eu/OpenthermGateway/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents
@@ -155,7 +155,7 @@ The table below lists boilers users have successfully run with this hardware (or
 | Pack size | 140 × 96 × 95 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![Opentherm Gateway mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/OpenthermGateway/Images/OTGWDimensions.png)
+![Opentherm Gateway mechanical drawing](https://config.home-master.eu/OpenthermGateway/Images/OTGWDimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -211,7 +211,7 @@ The table below lists boilers users have successfully run with this hardware (or
 
 | 24 V DC Input | 230 V AC Input |
 |:---:|:---:|
-| ![24V DC wiring](./Images/OpenTherm_24Vdc.png)<br>*Connect +V to positive (24 V DC), 0V to negative. Use only one power input at a time.* | ![230V AC wiring](./Images/OpenTherm_230Vac.png)<br>*Connect L to line (live), N to neutral. Include external fuse on the L conductor.* |
+| ![24V DC wiring](https://config.home-master.eu/OpenthermGateway/Images/OpenTherm_24Vdc.png)<br>*Connect +V to positive (24 V DC), 0V to negative. Use only one power input at a time.* | ![230V AC wiring](https://config.home-master.eu/OpenthermGateway/Images/OpenTherm_230Vac.png)<br>*Connect L to line (live), N to neutral. Include external fuse on the L conductor.* |
 | Connect + to V+, − to 0V | Connect Live to L, Neutral to N |
 
 ### OpenTherm Bus Wiring
@@ -243,7 +243,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 | OpenTherm Bus | Relay Output | 1-Wire Sensors |
 |:---:|:---:|:---:|
-| ![OT wiring](./Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals.* | ![Relay wiring](./Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](./Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
+| ![OT wiring](https://config.home-master.eu/OpenthermGateway/Images/OpenTherm_OTConnection.png)<br>*Connect OT+ and OT− to the boiler OpenTherm terminals.* | ![Relay wiring](https://config.home-master.eu/OpenthermGateway/Images/OpenTherm_RelayConnection.png)<br>*NC contact is closed when relay is de-energised — load is powered by default. Add external fuse on the load circuit.* | ![1-Wire wiring](https://config.home-master.eu/OpenthermGateway/Images/OpenTherm_1WireConnection.png)<br>*Use daisy-chain topology only. Connect +5V, DATA (D1 or D2), and Gnd. Keep stubs ≤ 0.5 m.* |
 | Connect OT+ and OT− to boiler | C and NC contacts only | Daisy-chain only · stubs ≤ 0.5 m |
 
 #### 1-Wire Bus Notes
@@ -257,7 +257,7 @@ Two independent 1-Wire channels support DS18B20-compatible temperature sensors.
 
 ## Pinout
 
-![Pinout](./Images/pinout.png)
+![Pinout](https://config.home-master.eu/OpenthermGateway/Images/pinout.png)
 
 <!-- hm:relay-nc:begin -->
 > ⚠️ **NC relay (reserve):** The onboard relay exposes **C and NC only** (no NO
@@ -408,7 +408,7 @@ access.
 
 ### 3. Take control / adoption
 
-![ESPHome Device Builder discovery with Take control](./Images/take-control-discovery.png)
+![ESPHome Device Builder discovery with Take control](https://config.home-master.eu/OpenthermGateway/Images/take-control-discovery.png)
 
 The device appears in ESPHome Device Builder as `homemaster-opentherm-<mac>`
 running `homemaster.opentherm_gateway 1.1.0`. Press **Take control** to import the
@@ -417,9 +417,9 @@ key** and **OTA password** for this device.
 
 ### 4. Encryption key — save it
 
-![ESPHome Encryption Key dialog](./Images/encryption-key-dialog.png)
+![ESPHome Encryption Key dialog](https://config.home-master.eu/OpenthermGateway/Images/encryption-key-dialog.png)
 
-![Device info showing firmware 1.1.0 and Show encryption key](./Images/device-info-firmware-1.1.0.png)
+![Device info showing firmware 1.1.0 and Show encryption key](https://config.home-master.eu/OpenthermGateway/Images/device-info-firmware-1.1.0.png)
 
 Each device gets its own key at commissioning. Save it — you need it when moving
 the device to another Home Assistant instance or re-adding it after removal. You
@@ -1009,9 +1009,9 @@ and a signed UK PSTI statement of compliance for Great Britain.
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_OTGW-R1.pdf](./Manuals/DoC_OTGW-R1.pdf) |
-| UK PSTI Statement of Compliance | [PSTI_OpenthermGateway.pdf](./Manuals/PSTI_OpenthermGateway.pdf) |
-| Datasheet | [OpenTherm_Datasheet.pdf](./Manuals/OpenTherm_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_OTGW-R1.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/DoC_OTGW-R1.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_OpenthermGateway.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/PSTI_OpenthermGateway.pdf) |
+| Datasheet | [OpenTherm_Datasheet.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf) |
 
 ### Trademarks
 

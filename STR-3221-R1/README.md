@@ -6,7 +6,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![Image](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/photo1.png)
+![Image](https://config.home-master.eu/STR-3221-R1/Images/photo1.png)
 
 **Document map:** [§1 Overview](#1-overview) · [§3 Specifications](#3-specifications) · [§4 Hardware](#4-hardware--interface) · [§5 Getting Started](#5-getting-started) · [§6 WebConfig](#6-webconfig-reference) · [§7 Modbus map](#7-modbus-register-map) · [§8 ESPHome](#8-esphome--home-assistant-integration) · [§9 Programming](#9-programming--build) · [§11 Downloads](#11-downloads--resources)
 
@@ -178,7 +178,7 @@ software only if you have accepted that a dead controller leaves the pump on.
 | Pack size | 230 × 140 × 87 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![STR-3221-R1 mechanical drawing](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR-3221-R1%20Dimensions.png)
+![STR-3221-R1 mechanical drawing](https://config.home-master.eu/STR-3221-R1/Images/STR-3221-R1%20Dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -268,10 +268,10 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Diagrams & Descriptions |
 |--------------------------|
-| ![System Diagram](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS.A / SENS.B groups. |
-| ![MCUBoard Layout](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
-| ![Terminal Map](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
+| ![System Diagram](https://config.home-master.eu/STR-3221-R1/Images/STR_SystemBlockDiagram_New.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
+| ![FieldBoard Layout](https://config.home-master.eu/STR-3221-R1/Images/FieldBoard_Diagram.png)**FieldBoard Layout** — 32 **AO4882** low-side outputs, **ISO1212** DI, **SFH6156** presence inputs, fused **+5 V** SENS.A / SENS.B groups. |
+| ![MCUBoard Layout](https://config.home-master.eu/STR-3221-R1/Images/MCUBoard_Diagram.png)**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
+| ![Terminal Map](https://config.home-master.eu/STR-3221-R1/Images/STR_MCU_Pinouts.png)**PinOut** — Field wiring view with power, DI, outputs, and RS-485. |
 
 ### 4.2 Connectors & terminal map
 
@@ -501,7 +501,7 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 **Power (24 V DC).** Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for module logic, inputs, and RS-485 (reverse-polarity and surge protected; typical 0.2–0.5 W, logic only).
 
-![24 V DC power supply wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
+![24 V DC power supply wiring](https://config.home-master.eu/STR-3221-R1/Images/STR_24Vdc_PowerSupply.png)
 *Module **V+** / **0V** (24 V DC logic) — size for electronics only. LED / actuator loads use the separate **LED PS** input.*
 
 **Outputs (32 channels).** Thirty-two low-side MOSFET sinks (**O1…O32**, FieldBoard **AO4882** stages) switch **12–24 V DC** loads: tie each load **+** to its **+** group rail (from the LED PSU) and load **−** to the channel terminal (max **1.5 A** per channel, **18 A** total module load).
@@ -510,19 +510,19 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 Connect **potential-free (dry) contacts** — wall switches, push buttons, or relay outputs — between **Gnd** (terminal 8) and **I** (terminal 9). The module supplies wetting current via **ISO1212**; **do not feed external voltage into these terminals**.
 
-![Digital trigger input wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_DigitalInput.png)
+![Digital trigger input wiring](https://config.home-master.eu/STR-3221-R1/Images/STR_DigitalInput.png)
 *Potential-free (dry) contact between **Gnd** (8) and **I** (9); module supplies wetting current — do not apply external voltage.*
 
 **PIR / presence sensors (IN1, IN2).** Two current-sourcing 5 V presence inputs (**IN1**, **IN2**, **SFH6156** (IN1 = U17, IN2 = U18) on the **SENS.A / SENS.B** groups — not galvanically isolated). Power a dry contact or a 5 V **PNP / push-pull (sourcing)** sensor from the fused group `+` (**+5 V**, terminals 10 and 13, **F9**/**F10** **1206L150THWR**) and return sensor ground to the matching **Gnd** (12 or 15). Wire a sourcing `OUT` to **IN1**/**IN2** (terminals 11/14), or bridge `+` to `IN`. An NPN open-collector needs an external 1–2.2 kΩ pull-up from `+` to `IN`. **Never apply 12 V or 24 V to IN1 or IN2.**
 
 **Example (PIR on IN1):** **SENS.A** + (10) → sensor **V+**; sensor **0 V** → **Gnd** (12); sensor **OUT** (PNP / push-pull) → **IN1** (11).
 
-![PIR motion sensor wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_PIRSensors.png)
+![PIR motion sensor wiring](https://config.home-master.eu/STR-3221-R1/Images/STR_PIRSensors.png)
 *PIR sensors powered from the **SENS.A / SENS.B** groups, sourcing into **IN1** / **IN2**.*
 
 **RS-485 (Modbus RTU).** Bus hardware and wiring rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu). Fit 120 Ω at both ends of the bus only.
 
-![RS-485 bus wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/STR-3221-R1/Images/STR_RS485_Connection.png)
+![RS-485 bus wiring](https://config.home-master.eu/STR-3221-R1/Images/STR_RS485_Connection.png)
 ***A**, **B**, and **COM** to the controller or next module; external 120 Ω at both bus ends.*
 
 **USB-C.** The **USB-C** port is for **WebConfig** setup and firmware update only; it is **not** a field power or runtime data bus — disconnect USB before energising the installation.
@@ -1238,8 +1238,8 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_STR-3221-R1.pdf](./Manuals/DoC_STR-3221-R1.pdf) |
-| Datasheet | [STR-3221-R1_Datasheet.pdf](./Manuals/STR-3221-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_STR-3221-R1.pdf](https://config.home-master.eu/STR-3221-R1/Manuals/DoC_STR-3221-R1.pdf) |
+| Datasheet | [STR-3221-R1_Datasheet.pdf](https://config.home-master.eu/STR-3221-R1/Manuals/STR-3221-R1_Datasheet.pdf) |
 
 ### Trademark
 

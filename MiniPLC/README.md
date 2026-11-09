@@ -2,7 +2,7 @@
 
 <a href="https://devices.esphome.io/devices/homemaster-miniplc/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
 
-![Device](./Images/MiniPLC.png)
+![Device](https://config.home-master.eu/MiniPLC/Images/MiniPLC.png)
 
 **Part No.:** MiniPLC-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
@@ -33,12 +33,12 @@ This repository includes the full ESPHome configuration used on shipped devices 
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/esp32-miniplc-55) |
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC) |
-| 📄 Datasheet (PDF) | [MiniPLC_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/MiniPLC_Datasheet.pdf) |
-| 📘 User Manual (PDF) | [User Manual.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/User%20Manual.pdf) |
-| 📄 UK PSTI statement (PDF) | [PSTI_MiniPLC.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
+| 📄 Datasheet (PDF) | [MiniPLC_Datasheet.pdf](https://config.home-master.eu/MiniPLC/Manuals/MiniPLC_Datasheet.pdf) |
+| 📘 User Manual (PDF) | [User Manual.pdf](https://config.home-master.eu/MiniPLC/Manuals/User%20Manual.pdf) |
+| 📄 UK PSTI statement (PDF) | [PSTI_MiniPLC.pdf](https://config.home-master.eu/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
 | ⚙️ Default Firmware (YAML) | [miniplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Firmware/miniplc.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
-| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC/Schematics) |
+| 🔧 Schematics | [Schematics/](https://config.home-master.eu/MiniPLC/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents
@@ -185,7 +185,7 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 | Pack size | 230 × 140 × 87 mm (L × W × H) |
 <!-- hm:specs:end -->
 
-![Mechanical Drawing](./Images/dimension.png)
+![Mechanical Drawing](https://config.home-master.eu/MiniPLC/Images/dimension.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -263,7 +263,7 @@ This section applies to **Analog (0–10 V)**, **Temperature (RTD / 1-Wire)**, a
 
 | 24 V DC Input | 230 V AC Input |
 |:---:|:---:|
-| ![24V DC wiring](./Images/wiring_ps_dc.png)<br>*Connect + to V+, − to 0V.* | ![230V AC wiring](./Images/wiring_ps_ac1.png)<br>*Connect Live to L, Neutral to N.* |
+| ![24V DC wiring](https://config.home-master.eu/MiniPLC/Images/wiring_ps_dc.png)<br>*Connect + to V+, − to 0V.* | ![230V AC wiring](https://config.home-master.eu/MiniPLC/Images/wiring_ps_ac1.png)<br>*Connect Live to L, Neutral to N.* |
 
 Typical operating current: 150 mA @ 24 V DC (≈ 3.6 W), measured.
 Upstream protection: external T0.5 A fuse or 0.5 A breaker on V+.
@@ -275,7 +275,7 @@ Upstream protection: external T0.5 A fuse or 0.5 A breaker on V+.
 
 | Dry contact | Shared common |
 |:---:|:---:|
-| ![DI wiring 1](./Images/wiring_DI_2.png)<br>*Dry-contact wiring to DI inputs.* | ![DI wiring 2](./Images/wiring_DI_3.png)<br>*Shared common wiring approach.* |
+| ![DI wiring 1](https://config.home-master.eu/MiniPLC/Images/wiring_DI_2.png)<br>*Dry-contact wiring to DI inputs.* | ![DI wiring 2](https://config.home-master.eu/MiniPLC/Images/wiring_DI_3.png)<br>*Shared common wiring approach.* |
 
 ### Relay Output Wiring
 
@@ -287,7 +287,7 @@ Upstream protection: external T0.5 A fuse or 0.5 A breaker on V+.
 >
 > Capacitor motors: see [Electrical and Safety Notes](#electrical-and-safety-notes).
 
-![Relay wiring](./Images/wiring_relays1.png)
+![Relay wiring](https://config.home-master.eu/MiniPLC/Images/wiring_relays1.png)
 
 *Example wiring using NO and NC relay contacts. Each relay exposes COM / NO / NC.*
 
@@ -295,7 +295,7 @@ For inductive or DC loads, use appropriate suppression (RC snubbers, MOVs, or fl
 
 ### Analog Input Wiring (0–10 V)
 
-![AI wiring](./Images/wiring_ai1.png)
+![AI wiring](https://config.home-master.eu/MiniPLC/Images/wiring_ai1.png)
 
 *Multiple 0–10 V sensors with shared 0 V/GND reference.*
 
@@ -305,7 +305,7 @@ For inductive or DC loads, use appropriate suppression (RC snubbers, MOVs, or fl
 
 ### Analog Output Wiring (0–10 V)
 
-![AO wiring](./Images/wiring_ao1.png)
+![AO wiring](https://config.home-master.eu/MiniPLC/Images/wiring_ao1.png)
 
 *0–10 V analog output to external device (VFD, valve actuator, controller).*
 
@@ -316,13 +316,13 @@ For inductive or DC loads, use appropriate suppression (RC snubbers, MOVs, or fl
 
 | 2-wire | 3-wire | 4-wire |
 |:---:|:---:|:---:|
-| ![RTD 2-wire](./Images/wiring_rtd1.png) | ![RTD 3-wire](./Images/wiring_rtd2.png) | ![RTD 4-wire](./Images/wiring_rtd4.png) |
+| ![RTD 2-wire](https://config.home-master.eu/MiniPLC/Images/wiring_rtd1.png) | ![RTD 3-wire](https://config.home-master.eu/MiniPLC/Images/wiring_rtd2.png) | ![RTD 4-wire](https://config.home-master.eu/MiniPLC/Images/wiring_rtd4.png) |
 
 The sensor type (PT100 vs PT1000) and wiring mode (2/3/4-wire) are selected by on-board jumpers J-RTD/1 and J-RTD/2 — see [RTD Jumper Configuration](#rtd-jumper-configuration) below.
 
 ### 1-Wire Sensor Wiring
 
-![1-Wire wiring](./Images/wiring_1wire2.png)
+![1-Wire wiring](https://config.home-master.eu/MiniPLC/Images/wiring_1wire2.png)
 
 *Daisy-chain DS18B20 sensors with +5 V / DATA / GND. Stubs ≤ 0.5 m.*
 
@@ -362,14 +362,14 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 | Two-wire bus | Termination |
 |:---:|:---:|
-| ![RS-485 wiring 1](./Images/wiring_rs485_1.png)<br>*Connect A, B, and COM to the bus.* | ![RS-485 wiring 2](./Images/wiring_rs485_2.png)<br>*120 Ω termination only at the two physical ends.* |
+| ![RS-485 wiring 1](https://config.home-master.eu/MiniPLC/Images/wiring_rs485_1.png)<br>*Connect A, B, and COM to the bus.* | ![RS-485 wiring 2](https://config.home-master.eu/MiniPLC/Images/wiring_rs485_2.png)<br>*120 Ω termination only at the two physical ends.* |
 
 
 ## Pinout
 
-![Pinout](./pinout.png)
+![Pinout](https://config.home-master.eu/MiniPLC/pinout.png)
 
-![MiniPLC system block diagram](./system_block_diagram.png)
+![MiniPLC system block diagram](https://config.home-master.eu/MiniPLC/system_block_diagram.png)
 
 *MiniPLC system block diagram — MCU, power, I/O and bus interfaces.*
 
@@ -565,7 +565,7 @@ The MiniPLC includes **two MAX31865 RTD interface ICs** for direct connection of
 
 RTD configuration jumpers sit on the **field/RTD front-end** for each channel (**J - RTD/1**, **J - RTD/2**). Each block has eight positions **J1–J8**. Factory default is **PT100** and **2-wire** on both channels. Use the table below when changing sensor type or wiring topology.
 
-![RTD jumper blocks](./Images/jumpers.png)
+![RTD jumper blocks](https://config.home-master.eu/MiniPLC/Images/jumpers.png)
 
 *RTD jumper blocks.*
 
@@ -968,10 +968,10 @@ The MiniPLC module is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® br
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_MiniPLC.pdf](./Manuals/DoC_MiniPLC.pdf) |
-| UK PSTI Statement of Compliance | [PSTI_MiniPLC.pdf](./Manuals/PSTI_MiniPLC.pdf) |
-| Datasheet | [MiniPLC_Datasheet.pdf](./Manuals/MiniPLC_Datasheet.pdf) |
-| User Manual | [User Manual.pdf](./Manuals/User%20Manual.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_MiniPLC.pdf](https://config.home-master.eu/MiniPLC/Manuals/DoC_MiniPLC.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_MiniPLC.pdf](https://config.home-master.eu/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
+| Datasheet | [MiniPLC_Datasheet.pdf](https://config.home-master.eu/MiniPLC/Manuals/MiniPLC_Datasheet.pdf) |
+| User Manual | [User Manual.pdf](https://config.home-master.eu/MiniPLC/Manuals/User%20Manual.pdf) |
 
 ### Trademark
 

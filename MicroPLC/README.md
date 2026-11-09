@@ -1,6 +1,6 @@
 # HomeMaster MicroPLC
 
-![HomeMaster MicroPLC](./Images/MicroPLC.png)
+![HomeMaster MicroPLC](https://config.home-master.eu/MicroPLC/Images/MicroPLC.png)
 
 > **Firmware:** Firmware is updated per module; see each module’s `Firmware/` folder (and [config.home-master.eu](https://config.home-master.eu/)) for the current version.
 
@@ -14,7 +14,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 | 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC) |
 | ⚙️ Default Firmware (YAML) | [microplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
-| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC/Schematics) |
+| 🔧 Schematics | [Schematics/](https://config.home-master.eu/MicroPLC/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Key advantages
@@ -239,7 +239,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Pack size | TBD |
 <!-- hm:specs:end -->
 
-![MicroPLC mechanical drawing](./Images/dimensions.png)
+![MicroPLC mechanical drawing](https://config.home-master.eu/MicroPLC/Images/dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -309,7 +309,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ## Pinout
 
-![MicroPLC Pinout](./Images/pinout.png)
+![MicroPLC Pinout](https://config.home-master.eu/MicroPLC/Images/pinout.png)
 
 
 ### 4.2 Connectors & terminal map
@@ -355,7 +355,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ## MicroPLC Functional Block Diagram
 
-![MicroPLC Block Diagram](./Images/diagram.png)
+![MicroPLC Block Diagram](https://config.home-master.eu/MicroPLC/Images/diagram.png)
 
 ## License
 
@@ -397,9 +397,9 @@ and a signed UK PSTI statement of compliance for Great Britain.
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_MicroPLC.pdf](./Manuals/DoC_MicroPLC.pdf) |
-| UK PSTI Statement of Compliance | [PSTI_MicroPLC.pdf](./Manuals/PSTI_MicroPLC.pdf) |
-| Datasheet | [MicroPLC_Datasheet.pdf](./Manuals/MicroPLC_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_MicroPLC.pdf](https://config.home-master.eu/MicroPLC/Manuals/DoC_MicroPLC.pdf) |
+| UK PSTI Statement of Compliance | [PSTI_MicroPLC.pdf](https://config.home-master.eu/MicroPLC/Manuals/PSTI_MicroPLC.pdf) |
+| Datasheet | [MicroPLC_Datasheet.pdf](https://config.home-master.eu/MicroPLC/Manuals/MicroPLC_Datasheet.pdf) |
 
 ### Trademark
 

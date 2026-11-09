@@ -4,7 +4,7 @@
 
 The **RGB-621-R1** is an **RGB + tunable-white (CCT) LED controller** with **5 PWM channels**, **2 digital inputs**, **1 relay**, **Modbus RTU / Home Assistant** integration, and **USB-C WebConfig** setup.
 
-![RGB-621-R1 photo](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/photo1.png)
+![RGB-621-R1 photo](https://config.home-master.eu/RGB-621-R1/Images/photo1.png)
 
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT%20%2F%20CERN--OHL--W-blue)
@@ -124,7 +124,7 @@ WebConfig enables users to modify address, baud rate, test I/O, calibrate channe
 
 | System Block | RP2350A Pinout | Field Board | MCU Board |
 |:---:|:---:|:---:|:---:|
-| <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_SystemBlock.png" width="200"> | <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_MCU_Pinouts.png" width="200"> | <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RelayBoard_Diagram.png" width="200"> | <img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/MCUBoard_Diagram.png" width="200"> |
+| <img src="https://config.home-master.eu/RGB-621-R1/Images/RGB_SystemBlock.png" width="200"> | <img src="https://config.home-master.eu/RGB-621-R1/Images/RGB_MCU_Pinouts.png" width="200"> | <img src="https://config.home-master.eu/RGB-621-R1/Images/RelayBoard_Diagram.png" width="200"> | <img src="https://config.home-master.eu/RGB-621-R1/Images/MCUBoard_Diagram.png" width="200"> |
 
 ---
 
@@ -197,7 +197,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 - The LED strip needs its own PSU on LED PS. The module supply cannot power it.
 
 <!-- hm:terminal-map:end -->
-![Front Terminals](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/photo1.png)
+![Front Terminals](https://config.home-master.eu/RGB-621-R1/Images/photo1.png)
 
 **Top:** V+/0 V (24 V DC input), Relay C / NO, Inputs I1/I2 (+ GND)  
 **Bottom:** PWM R/G/B/CW/WW, **COM (LED+)**, RS-485 A/B/COM
@@ -257,7 +257,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 - **Dimensions:** 52.5 × 90.6 × 67.3 mm · Net weight 150 g
 - **DIN width:** 3 modules (≈ 52.5 mm)
 
-![Dimensions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB-621-R1Dimensions.png)
+![Dimensions](https://config.home-master.eu/RGB-621-R1/Images/RGB-621-R1Dimensions.png)
 
 *Mechanical drawing: front and side view, dimensions in mm*
 
@@ -526,34 +526,34 @@ Diagram-first wiring map. Power details: [§5.2](#52-power). RS-485: [§5.3](#53
 
 ### Power
 
-![Power supply wiring — module V+/0V and LED PS](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_PowerSupply.png)
+![Power supply wiring — module V+/0V and LED PS](https://config.home-master.eu/RGB-621-R1/Images/RGB_PowerSupply.png)
 *Wire **V+** / **0V** and **LED PS** (+/−) per [⚠️ IMPORTANT — POWER](#important-power); protection detail in [§5.2](#52-power).*
 
 ### LED outputs (5× PWM)
 
 | RGB (3 colour) | RGB + CW |
 |:---:|:---:|
-| ![RGB LED strip wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RGB_Connection.png) | ![RGB + Cool White wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RGBCW_Connection.png) |
+| ![RGB LED strip wiring](https://config.home-master.eu/RGB-621-R1/Images/RGB_RGB_Connection.png) | ![RGB + Cool White wiring](https://config.home-master.eu/RGB-621-R1/Images/RGB_RGBCW_Connection.png) |
 | *Strip **+** on **COM (LED+)**; cathodes on **R** / **G** / **B**.* | *Adds **CW** for RGB + cool-white mixes.* |
 
 | Tunable white (CWWW) | Full RGBCCT (RGB + CCT) |
 |:---:|:---:|
-| ![CCT / tunable white wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_CWWW_Connection.png) | ![Full RGBCCT wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RGBCWWW_Connection.png) |
+| ![CCT / tunable white wiring](https://config.home-master.eu/RGB-621-R1/Images/RGB_CWWW_Connection.png) | ![Full RGBCCT wiring](https://config.home-master.eu/RGB-621-R1/Images/RGB_RGBCWWW_Connection.png) |
 | ***CW** and **WW** only.* | *All five channels — native operating mode.* |
 
 ### Digital inputs
 
-![Digital inputs — dry-contact wiring to I1 and I2](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_DigitalInputs.png)
+![Digital inputs — dry-contact wiring to I1 and I2](https://config.home-master.eu/RGB-621-R1/Images/RGB_DigitalInputs.png)
 *Potential-free (dry) contacts between **I1** / **I2** and **GND** — module supplies wetting current from its 24 V rail; do **not** apply external voltage to I1/I2. Three-wire sensors: power from your own supply, switching output to the input only. Shielded cable for runs > 10 m ([§5.2](#52-power) protection: PTC F5/F6, TVS, reverse diodes).*
 
 ### Relay
 
-![Relay output — NO and C to external load](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RelayConnectioin.png)
+![Relay output — NO and C to external load](https://config.home-master.eu/RGB-621-R1/Images/RGB_RelayConnectioin.png)
 *External load on **Relay C** / **NO** — independent of **COM (LED+)**; FOLLOW PSU cut: external series wiring ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving), [§5.2](#52-power)). Capacitor motors: see §4.3.*
 
 ### RS-485 (Modbus RTU)
 
-![RS-485 A/B/COM Modbus RTU wiring](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/RGB_RS485Connection.png)
+![RS-485 A/B/COM Modbus RTU wiring](https://config.home-master.eu/RGB-621-R1/Images/RGB_RS485Connection.png)
 ***A** / **B** / **RS-485 COM** — daisy-chain to controller; COM required on every node — see [RS-485 / Modbus RTU](#rs-485--modbus-rtu).*
 
 ### USB-C
@@ -566,7 +566,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 ### 1) Connection, light levels & presets
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig1.png" width="720">
+<img src="https://config.home-master.eu/RGB-621-R1/Images/webconfig1.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
@@ -578,7 +578,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 ### 2) Wall-switch inputs & onboard button
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig2.png" width="720">
+<img src="https://config.home-master.eu/RGB-621-R1/Images/webconfig2.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
@@ -594,7 +594,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 ### 3) PWM channels — Red/Green/Blue/Warm White/Cool White
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig3.png" width="720">
+<img src="https://config.home-master.eu/RGB-621-R1/Images/webconfig3.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
@@ -605,7 +605,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 ### 4) Dimming & scenes
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig4.png" width="720">
+<img src="https://config.home-master.eu/RGB-621-R1/Images/webconfig4.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
@@ -614,7 +614,7 @@ Configure over USB-C in a browser with **Web Serial API** support: open [https:/
 
 ### 5) Relay, user LEDs & output quality
 
-<img src="https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/webconfig5.png" width="720">
+<img src="https://config.home-master.eu/RGB-621-R1/Images/webconfig5.png" width="720">
 
 | Setting | What it does | Set to |
 |---|---|---|
@@ -918,7 +918,7 @@ No IDE or build tools required — RP2350 uses **UF2 drag-and-drop**.
 4. Settings (Modbus address/baud, trims, scenes, input mappings, relay mode, gamma) are stored in flash and preserved across updates.
 5. **Recovery:** if it doesn't enumerate, power-cycle and retry BOOT.
 
-![Button 1 and Button 2 positions](https://cdn.jsdelivr.net/gh/isystemsautomation/homemaster-dev@main/RGB-621-R1/Images/buttons1.png)
+![Button 1 and Button 2 positions](https://config.home-master.eu/RGB-621-R1/Images/buttons1.png)
 
 ## 8.2 Building & flashing from source (advanced / developers)
 
@@ -1037,8 +1037,8 @@ maintains the technical documentation and a signed EU Declaration of Conformity 
 
 | Document | File |
 |---|---|
-| EU Declaration of Conformity (DoC) | [DoC_RGB-621-R1.pdf](./Manuals/DoC_RGB-621-R1.pdf) |
-| Datasheet | [RGB-621-R1_Datasheet.pdf](./Manuals/RGB-621-R1_Datasheet.pdf) |
+| EU Declaration of Conformity (DoC) | [DoC_RGB-621-R1.pdf](https://config.home-master.eu/RGB-621-R1/Manuals/DoC_RGB-621-R1.pdf) |
+| Datasheet | [RGB-621-R1_Datasheet.pdf](https://config.home-master.eu/RGB-621-R1/Manuals/RGB-621-R1_Datasheet.pdf) |
 
 ### Trademark
 

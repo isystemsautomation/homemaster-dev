@@ -11,7 +11,7 @@ difficulty: 1
 
 ## HomeMaster OpenTherm Gateway
 
-![Device](../Images/opentherm.png)
+![Device](https://config.home-master.eu/OpenthermGateway/Images/opentherm.png)
 
 ## Description
 
@@ -29,12 +29,12 @@ For complete product documentation (connections, compliance/certifications, wiri
 - Product page: [home-master.eu shop](https://www.home-master.eu/shop/esp32-opentherm-gateway-59)
 - Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway)
 - Datasheet (PDF):
-  [OpenTherm_Datasheet.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
+  [OpenTherm_Datasheet.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
 - Schematics (PDF):
   - MCU Board:
-    [MCUBoard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematics/MCUBoard.pdf)
+    [MCUBoard.pdf](https://config.home-master.eu/OpenthermGateway/Schematics/MCUBoard.pdf)
   - Relay Board:
-    [RelayBorard.pdf](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Schematics/RelayBorard.pdf)
+    [RelayBorard.pdf](https://config.home-master.eu/OpenthermGateway/Schematics/RelayBorard.pdf)
 
 - Maker: [home-master.eu](https://www.home-master.eu/)
 
@@ -134,7 +134,7 @@ EN 301 489-1, EN 301 489-17, EN IEC 63000
 
 ## Pinout
 
-![Pinout](../Images/pinout.png)
+![Pinout](https://config.home-master.eu/OpenthermGateway/Images/pinout.png)
 
 ## Getting Started
 

@@ -30,9 +30,9 @@ Do **not** copy the UF2 next to the sketch — Arduino does not update that path
 
 The UF2 path follows the **board/FQBN** folder Arduino creates under `build/`. If you change the board target, update links in README/product page to match.
 
-Public download URL (on `main`, current board folder):
+Public download URL (current board folder):
 
-`https://github.com/isystemsautomation/homemaster-dev/raw/refs/heads/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2`
+`https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2`
 
 ### Do **not** commit
 
