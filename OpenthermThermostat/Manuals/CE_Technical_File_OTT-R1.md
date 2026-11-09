@@ -39,7 +39,7 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 | C2 | ESP32 EU type-examination certificate 172141367/AA/02, Kiwa NB 0063 | HAVE | Already in the gateway's file; copy it in |
 | C3 | ESP32 module integration conditions and antenna specification | GET | Espressif integration guide; the external antenna used must be within the module's certified antenna list, or the product needs its own EN 300 328 testing |
 | C4 | HLK-LD2410C datasheet | GET | Hi-Link |
-| C5 | HLK-LD2410C CE test reports — EN 305 550-2, EN 301 489-3 | **GET — blocking** | Supplier declarations alone are not evidence. If the supplier cannot produce full reports, the finished product must be tested |
+| C5 | HLK-LD2410C CE test reports — EN 300 440, EN 301 489-3 | **GET — blocking** | Supplier declarations alone are not evidence. If the supplier cannot produce full reports, the finished product must be tested |
 | C6 | Antenna specification and gain, 2.4 GHz external antenna | MAKE | |
 | C7 | EN 300 328 assessment for the finished product | MAKE | Needed if the external antenna differs from the module's certified one |
 
@@ -47,10 +47,62 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 
 | # | Document | Status | Note |
 |---|---|---|---|
-| D1 | EMC test report — EN 301 489-1, EN 301 489-17, EN 301 489-3 | **GET — blocking** | Accredited laboratory. The gateway used Idvorsky Laboratories Ltd., Belgrade |
+| D1 | EMC test report — EN 301 489-1, EN 301 489-17, EN 301 489-3 | **GET — blocking** | Accredited laboratory. The gateway used Idvorsky Laboratories Ltd., Belgrade. See D.0 for the scope |
 | D2 | Safety assessment — EN IEC 62368-1 | MAKE | Energy-source classification, touch temperature of the front panel, single-fault behaviour of the 24 V input. No mains circuit, so no dielectric programme |
 | D3 | RF exposure assessment — EN 62479 | MAKE | Low-power exemption calculation for both radios |
 | D4 | Thermal measurements at 40 °C ambient | MAKE | Also validates the room-temperature sensor offset claimed in the manual |
+
+### D.0 Reusing the gateway's test reports — what carries across and what does not
+
+The thermostat shares the MCU section with the OpenTherm Gateway, so the
+question of reusing the gateway's reports is a fair one. Read-across between
+variants of a product family is normal practice and laboratories accept it. It
+is bounded by one rule: the tested sample must represent the worst case. What
+is **removed** from a tested configuration carries across without argument.
+What is **added** does not.
+
+| Change vs. the gateway | Carries across? |
+|---|---|
+| Relay board removed | Yes — removal only |
+| Mains PSU removed, 24 V DC only | Yes — removal only, and it drops the mains conducted-emission path entirely |
+| 1-Wire inputs removed | Yes |
+| ESP32 section, OpenTherm interface | Yes, if the board section is electrically identical |
+| **Display board added** — ST7789V on SPI at 20 MHz, 320×240 panel, ribbon cable, 25 kHz PWM backlight | **No** |
+| **24 GHz radar added** — an active transmitter | **No** |
+
+The display is the practical problem. A 20 MHz SPI clock driving a ribbon
+cable to a panel is the classic source of radiated-emission failures across
+30–1000 MHz; nothing in the gateway's sample produced it, so the gateway's
+report says nothing about it. The radar is worse: it is a radio function the
+gateway does not have at all, so there is nothing to read across from.
+
+There is a second problem with the gateway's reports taken on their own terms.
+They were issued against EN 55032 and EN 55035. Once equipment contains a radio
+transmitter it is assessed under the RED, and the EMC standard set is
+EN 301 489-1 with the relevant part (-17 for the Wi-Fi, -3 for the radar), not
+EN 55032/55035. The gateway's declaration inherits EN 301 489 "via the
+integrated module"; EN 301 489 applies to finished equipment, so that argument
+is thin even for the gateway, and with a second transmitter and a display
+added it does not hold.
+
+**What this is worth.** The gateway's reports still belong in this technical
+file as supporting evidence for the unchanged MCU section, and they legitimately
+narrow the test scope. What is needed is a delta campaign, not a full one:
+
+- radiated emissions, 30 MHz to the upper limit the radar's carrier requires;
+- EN 300 440 spectrum parameters for the 24 GHz radar — unless Hi-Link
+  produces its own reports;
+- EN 301 489-3 immunity for the radar;
+- EN 301 489-17 for the Wi-Fi, on the finished product.
+
+Conducted mains emissions and the whole mains-related part of the gateway's
+programme drop out, because there is no mains circuit.
+
+Send the laboratory: an assembled unit in its enclosure, the 24 V supply that
+will be sold or recommended with it, the antenna that will be fitted, the
+firmware that will ship, and the gateway's reports with a note of what is
+shared. Ask them to quote a delta against those reports rather than a full
+campaign.
 
 ## E. RoHS — Directive 2011/65/EU
 
@@ -92,8 +144,13 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 Three things block the CE mark, in this order:
 
 1. **The 24 GHz radar's conformity evidence.** No notified-body certificate
-   exists. Get the supplier's reports or test the product.
-2. **An accredited EMC test report** for the finished product.
+   exists, and as of 09/11/2026 Hi-Link publishes none — no certificate, no
+   report, no declaration, only the words "compliant with FCC and CE spectrum
+   regulations" on the product page. Ask sales@hlktech.com for the reports; if
+   they do not come, the finished product has to be tested.
+2. **An accredited EMC test report** for the finished product — a delta
+   against the gateway's reports, not a full campaign. See section D.0 for why
+   the gateway's reports do not cover this product on their own.
 3. **The EN IEC 62368-1 and EN 62479 assessments**, which can be done in-house.
 
 Everything else on this list is paperwork that can be written in parallel.
