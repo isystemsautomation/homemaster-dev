@@ -39,9 +39,61 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 | C2 | ESP32 EU type-examination certificate 172141367/AA/02, Kiwa NB 0063 | HAVE | Already in the gateway's file; copy it in |
 | C3 | ESP32 module integration conditions and antenna specification | GET | Espressif integration guide; the external antenna used must be within the module's certified antenna list, or the product needs its own EN 300 328 testing |
 | C4 | HLK-LD2410C datasheet | GET | Hi-Link |
-| C5 | HLK-LD2410C CE test reports — EN 300 440, EN 301 489-3 | **GET — blocking** | Supplier declarations alone are not evidence. If the supplier cannot produce full reports, the finished product must be tested |
+| C5 | HLK-LD2410C CE test reports — EN 300 440, EN 301 489-3 | **GET — blocking** | See C5 note below. Supplier declarations alone are not evidence |
 | C6 | Antenna specification and gain, 2.4 GHz external antenna | MAKE | |
 | C7 | EN 300 328 assessment for the finished product | MAKE | Needed if the external antenna differs from the module's certified one |
+
+### C5 note — what exists for the LD2410 family, checked 09/11/2026
+
+**Hi-Link publishes nothing usable.** The LD2410C product page carries one
+sentence, "24GHz ISM band, compliant with FCC and CE spectrum regulations", and
+names no standard, no report number and no laboratory. The company's
+Certification page is a single image with no readable text and no linked
+documents. The documents link for the LD2410C is a Google Drive folder whose
+listing could not be read.
+
+**FCC filings exist for the family, under grantee code 2AD56:**
+
+| FCC ID | Variant |
+|---|---|
+| 2AD56HLK-LD2410-P | LD2410 |
+| 2AD56HLK-LD2410B-P | LD2410B |
+
+No filing for the **LD2410C** surfaced. If the C variant has no FCC grant of its
+own, that is worth knowing before relying on anything said about the family.
+
+The FCC filings are public and include the full test reports — measured field
+strength, occupied band, the test laboratory. Open them at
+`fccid.io/2AD56HLK-LD2410-P` and `fccid.io/2AD56HLK-LD2410B-P`. Those sites
+refuse automated retrieval but open normally in a browser.
+
+**What the FCC data is and is not worth.** It cannot be cited in an EU
+declaration — different regime, different limits, different standard. It is
+worth pulling anyway, as engineering input before paying for a test:
+
+- it gives the **measured lower band edge**, which settles whether the module
+  transmits below 24.05 GHz and therefore outside the EU radiodetermination
+  allocation — the single question most likely to sink the product;
+- it gives the measured field strength, from which the EN 300 440 margin can be
+  estimated;
+- it names a laboratory that has already measured this module at 24 GHz.
+
+**What to ask Hi-Link for** (sales@hlktech.com) — ask for reports, not
+declarations, and say so:
+
+1. EU Declaration of Conformity for the LD2410C.
+2. Test report against EN 300 440 (radio spectrum).
+3. Test report against EN 301 489-3 (EMC).
+4. Test report against EN 62479 or EN 62311 (RF exposure).
+5. Module integration conditions: antenna, keep-out, ground plane, supply
+   filtering — the conditions under which any of the above remains valid.
+6. Confirmation of the actual transmitted band, lower edge included.
+
+**If they do not produce reports**, there are two routes and they should be
+weighed before the PCB is frozen: test the finished thermostat against
+EN 300 440 and EN 301 489-3, or change to a 24 GHz module whose supplier
+publishes EU evidence. The second is cheaper if it is decided early and much
+more expensive if it is decided late.
 
 ## D. EMC and safety — RED Articles 3.1(a) and 3.1(b)
 
@@ -51,58 +103,69 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 | D2 | Safety assessment — EN IEC 62368-1 | MAKE | Energy-source classification, touch temperature of the front panel, single-fault behaviour of the 24 V input. No mains circuit, so no dielectric programme |
 | D3 | RF exposure assessment — EN 62479 | MAKE | Low-power exemption calculation for both radios |
 | D4 | Thermal measurements at 40 °C ambient | MAKE | Also validates the room-temperature sensor offset claimed in the manual |
+| D5 | MiniPLC system campaign — configuration list, emission plots, EUT photographs | GET | From the existing campaign. See D.0; this is what carries the display across |
+| D6 | Equivalence note — MiniPLC display section and 24 V converter vs. this board | MAKE | One page. See D.0 |
 
-### D.0 Reusing the gateway's test reports — what carries across and what does not
+### D.0 Reusing the existing test reports — what carries across and what does not
 
-The thermostat shares the MCU section with the OpenTherm Gateway, so the
-question of reusing the gateway's reports is a fair one. Read-across between
-variants of a product family is normal practice and laboratories accept it. It
-is bounded by one rule: the tested sample must represent the worst case. What
-is **removed** from a tested configuration carries across without argument.
-What is **added** does not.
+Two existing campaigns are relevant: the OpenTherm Gateway's reports, and the
+MiniPLC system campaign, in which a complete installation — MiniPLC with its
+display plus the expansion modules — was tested as one assembly and passed.
 
-| Change vs. the gateway | Carries across? |
-|---|---|
-| Relay board removed | Yes — removal only |
-| Mains PSU removed, 24 V DC only | Yes — removal only, and it drops the mains conducted-emission path entirely |
-| 1-Wire inputs removed | Yes |
-| ESP32 section, OpenTherm interface | Yes, if the board section is electrically identical |
-| **Display board added** — ST7789V on SPI at 20 MHz, 320×240 panel, ribbon cable, 25 kHz PWM backlight | **No** |
-| **24 GHz radar added** — an active transmitter | **No** |
+Read-across between variants of a product family is normal practice and
+laboratories accept it. It is bounded by one rule: the tested sample must
+represent the worst case. What is **removed** from a tested configuration
+carries across without argument. What is **added** carries across only if an
+equivalent was present in some tested configuration.
 
-The display is the practical problem. A 20 MHz SPI clock driving a ribbon
-cable to a panel is the classic source of radiated-emission failures across
-30–1000 MHz; nothing in the gateway's sample produced it, so the gateway's
-report says nothing about it. The radar is worse: it is a radio function the
-gateway does not have at all, so there is nothing to read across from.
+| Feature of the thermostat | Covered by | Carries across? |
+|---|---|---|
+| Relay board, mains PSU, 1-Wire — all absent | Gateway, by removal | Yes. Removal only, and it drops the mains conducted-emission path entirely |
+| ESP32 section, OpenTherm interface | Gateway | Yes, if the board section is electrically identical |
+| Colour display and its SPI bus | MiniPLC system campaign — near-identical panel, same bus architecture, measured clean | Yes |
+| 24 V DC-DC converter | MiniPLC system campaign — **this was the one emitting part**; everything else was quiet | Only if the same converter, the same switching frequency and an equivalent layout and filter are used here |
+| 24 GHz presence radar | Nothing | **No.** A radio function neither tested assembly has |
 
-There is a second problem with the gateway's reports taken on their own terms.
-They were issued against EN 55032 and EN 55035. Once equipment contains a radio
-transmitter it is assessed under the RED, and the EMC standard set is
-EN 301 489-1 with the relevant part (-17 for the Wi-Fi, -3 for the radar), not
-EN 55032/55035. The gateway's declaration inherits EN 301 489 "via the
-integrated module"; EN 301 489 applies to finished equipment, so that argument
-is thin even for the gateway, and with a second transmitter and a display
-added it does not hold.
+**What this leaves.** The display is not a risk and should not be treated as
+one: the MiniPLC campaign covers that architecture and the measurements put the
+emissions elsewhere. The real delta is two items:
 
-**What this is worth.** The gateway's reports still belong in this technical
-file as supporting evidence for the unchanged MCU section, and they legitimately
-narrow the test scope. What is needed is a delta campaign, not a full one:
+1. **The 24 V DC-DC converter on this board.** It is the known emitter from the
+   MiniPLC work. If the thermostat uses the same part at the same switching
+   frequency with an equivalent input filter and layout, the read-across holds
+   and the technical file should say so explicitly, with the schematic
+   comparison attached. If the converter, its frequency or its filtering
+   differ, this is the item to measure.
+2. **The radar.** See C5.
 
-- radiated emissions, 30 MHz to the upper limit the radar's carrier requires;
-- EN 300 440 spectrum parameters for the 24 GHz radar — unless Hi-Link
-  produces its own reports;
-- EN 301 489-3 immunity for the radar;
-- EN 301 489-17 for the Wi-Fi, on the finished product.
+**What the technical file needs to make the read-across stick on paper.** An
+auditor will not accept "the display was tested" as a sentence; they will ask
+for the document. Pull from the MiniPLC campaign:
 
-Conducted mains emissions and the whole mains-related part of the gateway's
-programme drop out, because there is no mains circuit.
+- the **test configuration list** or EUT description page, showing the display
+  was present, powered and active during the emission runs;
+- the **radiated emission plots**, which are what support the claim that the
+  SPI bus and panel are quiet;
+- the EUT photographs.
 
-Send the laboratory: an assembled unit in its enclosure, the 24 V supply that
-will be sold or recommended with it, the antenna that will be fitted, the
-firmware that will ship, and the gateway's reports with a note of what is
-shared. Ask them to quote a delta against those reports rather than a full
-campaign.
+File those alongside a one-page equivalence note comparing the MiniPLC display
+section and this one — panel, controller, clock rate, cable length, routing —
+and the same for the 24 V converter. That note is the whole argument, and it is
+cheap to write.
+
+**One honest caveat about the standard.** The existing reports were issued
+against EN 55032 and EN 55035. Equipment containing a radio transmitter is
+assessed under the RED, where the EMC set is EN 301 489-1 with the relevant
+part (-17 for Wi-Fi, -3 for the radar). The measurements largely overlap, and
+a laboratory can usually map existing 55032/55035 data onto 301 489 rather than
+repeat it — but ask them to confirm that in writing, and get the mapping into
+the file.
+
+**What to send the laboratory.** An assembled unit in its enclosure, the 24 V
+supply that will ship or be recommended with it, the antenna that will be
+fitted, the firmware that will ship, and both existing campaigns' reports with
+the equivalence note. Ask them to quote a delta: the radar, and the 24 V
+converter if it is not the MiniPLC's.
 
 ## E. RoHS — Directive 2011/65/EU
 
@@ -141,16 +204,15 @@ campaign.
 
 ## The short version
 
-Three things block the CE mark, in this order:
-
-1. **The 24 GHz radar's conformity evidence.** No notified-body certificate
-   exists, and as of 09/11/2026 Hi-Link publishes none — no certificate, no
-   report, no declaration, only the words "compliant with FCC and CE spectrum
-   regulations" on the product page. Ask sales@hlktech.com for the reports; if
-   they do not come, the finished product has to be tested.
-2. **An accredited EMC test report** for the finished product — a delta
-   against the gateway's reports, not a full campaign. See section D.0 for why
-   the gateway's reports do not cover this product on their own.
+1. **The 24 GHz radar's conformity evidence.** The only genuinely open item.
+   No notified-body certificate exists and Hi-Link publishes nothing. See the
+   C5 note for what to request and what the public FCC filings are worth.
+2. **A delta EMC campaign** — the radar, plus the 24 V converter if it is not
+   the one already measured on the MiniPLC. The display and the SPI bus are
+   covered; see D.0.
 3. **The EN IEC 62368-1 and EN 62479 assessments**, which can be done in-house.
+4. **The equivalence note and the MiniPLC configuration documents** that make
+   item 2 small instead of large. Cheap to write, and nothing else in this
+   file saves as much.
 
 Everything else on this list is paperwork that can be written in parallel.
