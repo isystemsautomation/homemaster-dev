@@ -37,7 +37,7 @@ for node in graph['@graph']:
                 "name": "OpenTherm Thermostat (OTT-R1)",
                 "description": "Wall-mounted OpenTherm master thermostat with colour display, encoder and presence radar.",
                 "url": "https://config.home-master.eu/#OpenThermThermostat",
-                "image": "https://config.home-master.eu/OpenthermThermostat/Images/thermostat_512kb.png",
+                "image": "https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg",
                 "isPartOf": {"@id": "https://config.home-master.eu/#webpage"},
             },
         })

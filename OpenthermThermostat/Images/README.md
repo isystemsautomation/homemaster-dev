@@ -2,10 +2,14 @@
 
 Filenames referenced elsewhere in the repository. Use exactly these names.
 
-| File | Referenced by | Notes |
-|---|---|---|
-| `thermostat.png` | `OpenthermThermostat/README.md` | Hero image at the top of the README |
-| `thermostat_512kb.png` | `site/thermostat_card.html`, JSON-LD | Card thumbnail on config.home-master.eu — keep under 512 kB |
+| File | What it shows |
+|---|---|
+| `thermostat-front.jpg` | Front, screen on. Hero image in the README, the device page and the site card |
+| `thermostat-front-off.jpg` | Front, screen off |
+| `thermostat-angle.jpg` | Three-quarter view, screen on |
+| `thermostat-angle-2.jpg` | Three-quarter view, screen off |
+| `thermostat-angle-3.jpg` | Three-quarter view from below, screen off |
+| `thermostat-side.jpg` | Side profile |
+| `thermostat-back.jpg` | Wall plate |
 
-The other product folders also carry wiring and installation photos; add
-whatever the manual references under names of your own choosing.
+Full-size photographs. Do not recompress them.

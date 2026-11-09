@@ -2,7 +2,7 @@
 
 <a href="https://devices.esphome.io/devices/homemaster-openthermthermostat/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
 
-![Device](./Images/thermostat.png)
+![Device](./Images/thermostat-front.jpg)
 
 **Part No.:** OTT-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
 
@@ -58,6 +58,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 - [Firmware Updates](#firmware-updates)
 - [Troubleshooting](#troubleshooting)
 - [Compliance & Certifications](#compliance--certifications)
+- [Photographs](#photographs)
 - [License](#license)
 
 ## Features
@@ -224,6 +225,15 @@ The shipped configuration carries an `update` entity backed by a vendor JSON man
 ### Trademarks
 
 OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster® is a registered EU trademark of ISYSTEMS AUTOMATION S.R.L. (EUTM 019082911). ESPHome and the Made for ESPHome logo are used under permission from the Open Home Foundation.
+
+## Photographs
+
+| | |
+|---|---|
+| ![Front, screen on](./Images/thermostat-front.jpg) | ![Three-quarter view, screen on](./Images/thermostat-angle.jpg) |
+| ![Three-quarter view, screen off](./Images/thermostat-angle-2.jpg) | ![Three-quarter view from below](./Images/thermostat-angle-3.jpg) |
+| ![Front, screen off](./Images/thermostat-front-off.jpg) | ![Side profile](./Images/thermostat-side.jpg) |
+| ![Wall plate](./Images/thermostat-back.jpg) | |
 
 ## License
 
