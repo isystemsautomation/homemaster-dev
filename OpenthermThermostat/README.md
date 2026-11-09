@@ -1,0 +1,236 @@
+# HomeMaster OpenTherm Thermostat
+
+<a href="https://devices.esphome.io/devices/homemaster-openthermthermostat/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
+
+![Device](./Images/thermostat.png)
+
+**Part No.:** OTT-R1 · **Hardware Version:** V1.0 · **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
+
+## Description
+
+The HomeMaster OpenTherm Thermostat is a wall-mounted ESP32 **OpenTherm master** with a 2.8″ colour display, a rotary encoder, four keys and a 24 GHz presence radar. It regulates a modulating boiler directly over OpenTherm — weather-compensated flow temperature, room setpoint with hysteresis, comfort/eco schedule — and reports everything to Home Assistant through the native ESPHome API.
+
+The device initiates all OpenTherm communication with the boiler (the boiler must be an OpenTherm slave — standard on every OT-capable boiler). Heating control runs on the device itself: if Home Assistant or the network is unavailable, the room keeps being heated to the stored schedule. The display, the encoder and the keys continue to work offline.
+
+This repository includes the full ESPHome configuration used on shipped devices (including vendor OTA update settings).
+
+## Key advantages
+
+- ESP32 **OpenTherm master** with an on-board room sensor — a complete thermostat, not a remote display for someone else's controller.
+- **Control loop runs locally.** No Home Assistant, no cloud, no internet required for heating.
+- **2.8″ 320×240 colour display**, rotary encoder and four keys — room temperature, setpoint, boiler modulation, flow and system pressure are readable and adjustable from the wall, with no phone involved.
+- **24 GHz presence radar** wakes the screen on approach and blanks it when the room is empty.
+- **ESPHome pre-installed**; native Home Assistant API — no MQTT, no register mapping.
+- **Improv** Wi-Fi onboarding over Bluetooth and USB serial.
+- Open hardware (**CERN-OHL-W v2**) and firmware (**MIT**) — no vendor lock-in.
+
+## Quick Start
+
+1. Fix the back plate to the wall and clip the body onto it.
+2. Connect 24 V DC to the +V / 0V terminals.
+3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
+4. Power on, open https://improv-wifi.com and provision Wi-Fi over Bluetooth.
+5. Within **15 minutes** of power-on, open ESPHome Device Builder → **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant (Settings → Devices & Services → ESPHome).
+
+| Resource | Link |
+|---|---|
+| 🛒 Product page | [home-master.eu](https://www.home-master.eu/) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat) |
+| ⚙️ Default Firmware (YAML) | [thermostat.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermThermostat/Firmware/thermostat.yaml) |
+| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat/Schematics) |
+| 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
+
+## Table of Contents
+
+- [Description](#description)
+- [Key advantages](#key-advantages)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Electrical and Safety Notes](#electrical-and-safety-notes)
+- [Mechanical and Environmental](#mechanical-and-environmental)
+- [Installation](#installation)
+- [Wiring](#wiring)
+- [GPIO Map](#gpio-map)
+- [User Interface](#user-interface)
+- [Network Requirements](#network-requirements)
+- [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup)
+- [Home Assistant Integration](#home-assistant-integration)
+- [Firmware Updates](#firmware-updates)
+- [Troubleshooting](#troubleshooting)
+- [Compliance & Certifications](#compliance--certifications)
+- [License](#license)
+
+## Features
+
+- ESP32-WROOM-32U (16 MB flash, external antenna connector)
+- OpenTherm master interface (OT+ / OT−)
+- 2.8″ IPS colour display, 320 × 240, ST7789V over SPI
+- Rotary encoder with four perimeter keys
+- HLK-LD2410C 24 GHz presence radar, UART plus instant GPIO output
+- SHT40 temperature and humidity sensor
+- BH1750 ambient light sensor
+- Power input: 24 V DC
+- USB Type-C for serial flashing and Improv provisioning
+- Wi-Fi 2.4 GHz (pre-certified radio module) and Bluetooth
+- ESPHome pre-installed
+- OTA updates (ESPHome + HTTP)
+- Improv provisioning over BLE and serial
+- Wall mounting on a separate back plate
+- Modular architecture: MCU Board + Display Board
+
+## Electrical and Safety Notes
+
+> ⚠️ **Safety — read before installation:**
+> - The device is supplied from **24 V DC only**. Do not connect mains voltage to any terminal.
+> - **Disconnect power before wiring changes.**
+> - The OpenTherm bus is a low-voltage, polarity-insensitive two-wire interface. Do not run it in the same bundle as mains cabling.
+> - Installation by qualified personnel, in accordance with local wiring regulations.
+
+## Mechanical and Environmental
+
+Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
+
+| Dimension | Value | Italtronic part |
+|---|---|---|
+| Body outer diameter | Ø 94.6 mm | P61610001G frame ring |
+| Front aperture (visible glass) | Ø 82.2 mm | P61610001G |
+| Ring height | 20.5 mm | P61610001G |
+| Wall base, round | Ø 88.7 mm, 10.5 mm deep, keyhole centres 58 mm | P61610002B |
+| Wall plate, rectangular | 140 × 80 mm (149.9 mm over the tabs), 9 mm thick, cable aperture 45 × 30 mm, fixing centres 83.5 / 60 mm | P61610014A |
+| PCB carrier | Ø 90.3 mm, 7.5 mm deep; PCB fixing pattern 58 × 36 mm, Ø 2.4 mm | P61610001V |
+
+- Two-part construction: wall base or plate fixed to the wall, body clipped on
+- Front: round glass with a printed brand arc and a rectangular display aperture
+- Mounting: screws into the wall, or onto a flush-mount box
+- Indoor use only, dry locations
+- Operating temperature: 0 … 40 °C, non-condensing
+
+> **Note on room temperature accuracy.** The display backlight and the ESP32 raise the temperature inside the enclosure. The SHT40 is mounted on a thermally isolated tab at the bottom of the board, below all heat sources, and the firmware exposes both the raw and the corrected reading so the offset can be verified on site.
+
+## Installation
+
+1. Choose a position about 1.5 m above the floor, on an internal wall, away from direct sunlight, draughts, radiators and door openings.
+2. Fix the back plate with two screws, or mount it on a flush box.
+3. Bring the 24 V DC supply and the OpenTherm pair through the opening in the back plate.
+4. Terminate the wires, clip the body onto the back plate.
+
+The radar looks straight out of the front face. Keep the area in front of the device clear of large metal surfaces; they reflect 24 GHz and cause false presence.
+
+## Wiring
+
+### Power input
+
+| Terminal | Function |
+|---|---|
+| +V | 24 V DC |
+| 0V | 0 V |
+
+### OpenTherm bus
+
+| Terminal | Function |
+|---|---|
+| OT+ | OpenTherm, boiler terminal 1 |
+| OT− | OpenTherm, boiler terminal 2 |
+
+The OpenTherm interface is polarity-insensitive. Use a twisted pair; do not exceed 50 m.
+
+## GPIO Map
+
+| Function | GPIO |
+|---|---|
+| OpenTherm in / out | 21 / 26 |
+| Display SCK / MOSI | 5 / 23 |
+| Display CS / DC / RST | 17 / 19 / 13 |
+| Display backlight PWM | 25 |
+| I²C SDA / SCL | 18 / 22 |
+| Radar UART TX / RX | 14 / 16 |
+| Radar presence output | 4 |
+| Encoder A / B | 32 / 33 |
+| Key ▶ / ▲ / ▼ / ◀ | 34 / 35 / 36 / 39 |
+
+GPIO5 is a strapping pin, used here as the display clock. It is driven only after boot and carries no external pull resistor.
+
+## User Interface
+
+Four keys and one encoder, with the same meaning on every page:
+
+| Control | Action |
+|---|---|
+| ◀ ▶ | previous / next page |
+| ▲ ▼ | open the menu, move through it |
+| encoder | change the page's main value, or the selected menu item |
+| ◀ (menu open) | close the menu |
+
+The screen shows the room temperature, the active setpoint and the state of the boiler without any menu. The menu is only needed to change something.
+
+The backlight is driven at 25 kHz — above the audible range, so the ceramic capacitors on the supply rail stay silent. The radar blanks the screen 45 s after the room empties and lights it again on approach.
+
+## Network Requirements
+
+- 2.4 GHz Wi-Fi
+- mDNS on the local subnet for ESPHome discovery
+- Outbound HTTPS to the vendor update manifest, only if managed updates are used
+
+The device holds no cloud dependency. Heating continues with Wi-Fi down.
+
+## First Boot & Wi-Fi Setup
+
+### Improv over Bluetooth (recommended)
+
+1. Power the device.
+2. Open https://improv-wifi.com in Chrome or Edge on a device with Bluetooth.
+3. Select the thermostat and enter the Wi-Fi credentials.
+
+### Improv over USB serial
+
+Connect USB-C and use the same page, choosing serial instead of Bluetooth. No driver is needed on current operating systems; the USB-serial bridge is a CP2102.
+
+The provisioning window stays open for 15 minutes after power-on. Power-cycle the device to reopen it.
+
+## Home Assistant Integration
+
+Add the device under Settings → Devices & Services → ESPHome. All entities appear automatically; no YAML is needed on the Home Assistant side.
+
+> ⚠️ **Taking control.** Importing the configuration in ESPHome Device Builder replaces the factory API encryption key with one of your own. Save that key before adding the device in Home Assistant.
+
+## Firmware Updates
+
+### ESPHome updates (user-controlled)
+
+Adopt the device in ESPHome Device Builder and build from the published configuration. This is the route for anyone who wants to modify the firmware.
+
+### Managed updates (HTTP)
+
+The shipped configuration carries an `update` entity backed by a vendor JSON manifest. New releases appear in Home Assistant under Settings → Updates and install over the air.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| Boiler entities unavailable | OpenTherm pair not connected, or the boiler is not in OpenTherm slave mode |
+| Screen stays dark | Radar has not seen anyone and the timeout expired — approach the device |
+| Screen never blanks | Radar still detects movement; reduce the still-distance gate |
+| Room temperature reads high | Check the device is not in direct sunlight or above a heat source |
+| Device not found in Home Assistant | mDNS blocked between VLANs; add the device by IP address |
+
+## Compliance & Certifications
+
+### Applicable EU directives
+
+- Radio Equipment Directive 2014/53/EU
+- RoHS 2011/65/EU
+- WEEE 2012/19/EU
+
+### Trademarks
+
+OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster® is a registered EU trademark of ISYSTEMS AUTOMATION S.R.L. (EUTM 019082911). ESPHome and the Made for ESPHome logo are used under permission from the Open Home Foundation.
+
+## License
+
+### Hardware
+
+Schematics, PCB layouts and bills of materials are licensed under **CERN-OHL-W v2**.
+
+### Firmware & ESPHome Integration
+
+All firmware, ESPHome configurations and software components are licensed under the **MIT License**.
