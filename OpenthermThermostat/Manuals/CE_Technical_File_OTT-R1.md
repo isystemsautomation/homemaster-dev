@@ -28,7 +28,7 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 | B3 | PCB layout, all layers | HAVE | KiCad source |
 | B4 | Bill of materials with manufacturer part numbers | MAKE | Also feeds the RoHS file (E1) |
 | B5 | Block diagram and description of operation | MAKE | |
-| B6 | Mechanical drawings of the enclosure | HAVE | Italtronic EYE BOX part drawings: P61610001G, P61610001V, P61610002B, P61610014A |
+| B6 | Mechanical drawings of the enclosure | HAVE | Italtronic EYE BOX part drawings: P61610001G, P61610001V, P61610002B, P61610014A. File the radome design guide here too — see C5 |
 | B7 | Firmware source and build identification | HAVE | `Firmware/thermostat.yaml`, version 1.0.0, in the public repository |
 
 ## C. Radio — RED Articles 3.1(b) and 3.2
@@ -39,61 +39,89 @@ Status column: **HAVE** — the document exists; **MAKE** — it has to be writt
 | C2 | ESP32 EU type-examination certificate 172141367/AA/02, Kiwa NB 0063 | HAVE | Already in the gateway's file; copy it in |
 | C3 | ESP32 module integration conditions and antenna specification | GET | Espressif integration guide; the external antenna used must be within the module's certified antenna list, or the product needs its own EN 300 328 testing |
 | C4 | HLK-LD2410C datasheet | GET | Hi-Link |
-| C5 | HLK-LD2410C CE test reports — EN 300 440, EN 301 489-3 | **GET — blocking** | See C5 note below. Supplier declarations alone are not evidence |
+| C5 | HLK-LD2410C CE test reports — EN 300 440, EN 301 489-3 | **DOES NOT EXIST** | See C5 note below |
 | C6 | Antenna specification and gain, 2.4 GHz external antenna | MAKE | |
 | C7 | EN 300 328 assessment for the finished product | MAKE | Needed if the external antenna differs from the module's certified one |
 
-### C5 note — what exists for the LD2410 family, checked 09/11/2026
+### C5 note — what exists for the LD2410 family, searched 09/11/2026
 
-**Hi-Link publishes nothing usable.** The LD2410C product page carries one
-sentence, "24GHz ISM band, compliant with FCC and CE spectrum regulations", and
-names no standard, no report number and no laboratory. The company's
-Certification page is a single image with no readable text and no linked
-documents. The documents link for the LD2410C is a Google Drive folder whose
-listing could not be read.
+**Conclusion: there is no document to find.** Hi-Link publishes no certificate,
+no test report and no declaration of conformity for any module in the LD2410
+family, in either language, on either of its two domains.
 
-**FCC filings exist for the family, under grantee code 2AD56:**
+Searched and came back empty:
+
+| Source | Result |
+|---|---|
+| hlktech.net product and certification pages | One certificate image with no readable text; no linked documents |
+| hlktech.com product pages for LD2410C, LD2410B, LD2410S, LD2410-AA, LD2410D-B | Full download lists read. Manuals, serial protocol, 3D models, radome guide, tools, demo code. **No certificate, no test report, no DoC** |
+| hlktech.com download centre | Seven categories, none for certification |
+| Hi-Link Google Drive folder for the LD2410C | Listing not readable |
+| Searches in English and Chinese, including 认证 / 证书 / 检测报告 | Nothing |
+| EU-market products built on the LD2410 | No published declaration found for any of them |
+
+**The plain LD2410 no longer exists as a product.** The current catalogue is
+LD2410B, LD2410C, LD2410S, LD2410-AA and LD2410D-B. The plain LD2410 has no
+product page.
+
+**What the pages actually claim.** Every variant's body text says the module
+complies with, or in the LD2410D-B's wording "可通过" — *is able to pass* — FCC and
+CE spectrum regulations. That is a statement about capability, not a statement
+that certification was carried out. It is worth nothing in a technical file.
+
+**The one piece of real paper: FCC grants.** Under grantee code 2AD56:
 
 | FCC ID | Variant |
 |---|---|
-| 2AD56HLK-LD2410-P | LD2410 |
+| 2AD56HLK-LD2410-P | LD2410 (the discontinued plain version) |
 | 2AD56HLK-LD2410B-P | LD2410B |
 
-No filing for the **LD2410C** surfaced. If the C variant has no FCC grant of its
-own, that is worth knowing before relying on anything said about the family.
+No grant surfaced for the **LD2410C** — the variant this design uses. If that
+holds, the module on this board has no certification of any kind anywhere in the
+world, while its sibling LD2410B has at least an FCC one. That is worth knowing
+before the PCB is frozen.
 
-The FCC filings are public and include the full test reports — measured field
-strength, occupied band, the test laboratory. Open them at
-`fccid.io/2AD56HLK-LD2410-P` and `fccid.io/2AD56HLK-LD2410B-P`. Those sites
-refuse automated retrieval but open normally in a browser.
+FCC data cannot be cited in an EU declaration. It is still worth pulling, as
+engineering input before paying for a test: the filings are public and carry the
+measured lower band edge — which settles whether the module transmits below
+24.05 GHz and so outside the EU radiodetermination allocation — the measured
+field strength, and the name of a laboratory that has already measured this
+module at 24 GHz. Open `fccid.io/2AD56HLK-LD2410-P` and
+`fccid.io/2AD56HLK-LD2410B-P` in a browser; those sites refuse automated
+retrieval.
 
-**What the FCC data is and is not worth.** It cannot be cited in an EU
-declaration — different regime, different limits, different standard. It is
-worth pulling anyway, as engineering input before paying for a test:
+**Routes to the documents other than Hi-Link's sales address:**
 
-- it gives the **measured lower band edge**, which settles whether the module
-  transmits below 24.05 GHz and therefore outside the EU radiodetermination
-  allocation — the single question most likely to sink the product;
-- it gives the measured field strength, from which the EN 300 440 margin can be
-  estimated;
-- it names a laboratory that has already measured this module at 24 GHz.
+- the distributor the parts are actually bought through — LCSC / 立创商城 stocks
+  the LD2410B and a B2B customer can demand supplier conformity documents as a
+  condition of purchase;
+- the AliExpress or Tmall store, through its order chat;
+- Hi-Link's own Q&A site, ask.hlktech.net, which already carries a thread titled
+  "CE Certification LD2410C".
 
-**What to ask Hi-Link for** (sales@hlktech.com) — ask for reports, not
-declarations, and say so:
+Ask for **reports**, naming EN 300 440, EN 301 489-3 and EN 62479, and say
+plainly that a declaration or a CE logo is not what is being asked for.
 
-1. EU Declaration of Conformity for the LD2410C.
-2. Test report against EN 300 440 (radio spectrum).
-3. Test report against EN 301 489-3 (EMC).
-4. Test report against EN 62479 or EN 62311 (RF exposure).
-5. Module integration conditions: antenna, keep-out, ground plane, supply
-   filtering — the conditions under which any of the above remains valid.
-6. Confirmation of the actual transmitted band, lower edge included.
+**If nothing comes back — and on this evidence nothing will — there are two
+routes**, and they should be weighed before the PCB is frozen:
 
-**If they do not produce reports**, there are two routes and they should be
-weighed before the PCB is frozen: test the finished thermostat against
-EN 300 440 and EN 301 489-3, or change to a 24 GHz module whose supplier
-publishes EU evidence. The second is cheaper if it is decided early and much
-more expensive if it is decided late.
+1. **Test the finished thermostat** against EN 300 440 and EN 301 489-3. This
+   is the normal route for this class of module and it is what the delta
+   campaign in D.0 already covers. It makes the product conformant regardless
+   of what the module supplier does or does not hold.
+2. **Change the module.** No 24 GHz presence module with published EU RED
+   evidence surfaced in this search, so this route may not lead anywhere
+   better — check any candidate's actual documents before committing, not its
+   marketing page.
+
+Route 1 is the realistic one. Budget for it rather than waiting on Hi-Link.
+
+**One document from Hi-Link that is worth having anyway:**
+毫米波传感器天线罩设计指南_海凌科.pdf (millimetre-wave sensor radome design guide),
+linked from every variant's page. This module sits behind the product's front
+panel, and the panel is part of the antenna system. It affects both detection
+performance and the radiated pattern that will be measured. Read it before the
+front panel is finalised, and file it under B6.
 
 ## D. EMC and safety — RED Articles 3.1(a) and 3.1(b)
 
@@ -204,9 +232,10 @@ converter if it is not the MiniPLC's.
 
 ## The short version
 
-1. **The 24 GHz radar's conformity evidence.** The only genuinely open item.
-   No notified-body certificate exists and Hi-Link publishes nothing. See the
-   C5 note for what to request and what the public FCC filings are worth.
+1. **The 24 GHz radar.** Settled, and not in a good way: no conformity
+   evidence for the LD2410C exists anywhere that can be reached — see the C5
+   note. Plan on testing the finished product rather than waiting for a
+   supplier document.
 2. **A delta EMC campaign** — the radar, plus the 24 V converter if it is not
    the one already measured on the MiniPLC. The display and the SPI bus are
    covered; see D.0.
