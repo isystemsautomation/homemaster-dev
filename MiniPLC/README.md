@@ -38,7 +38,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 📄 UK PSTI statement (PDF) | [PSTI_MiniPLC.pdf](https://config.home-master.eu/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
 | ⚙️ Default Firmware (YAML) | [miniplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MiniPLC/Firmware/miniplc.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
-| 🔧 Schematics | [Schematics/](https://config.home-master.eu/MiniPLC/Schematics) |
+| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/MiniPLC/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents

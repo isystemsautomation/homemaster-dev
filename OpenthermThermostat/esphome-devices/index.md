@@ -34,7 +34,7 @@ schematics), see:
 - Product page: [home-master.eu](https://www.home-master.eu/)
 - Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat)
 - Schematics (PDF):
-  [Schematics/](https://config.home-master.eu/OpenthermThermostat/Schematics)
+  [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat/Schematics)
 - Maker: [home-master.eu](https://www.home-master.eu/)
 
 ## Hardware Details

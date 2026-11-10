@@ -1020,7 +1020,7 @@ Recommission alarms, relay modes, bus address, and phase mapping in WebConfig af
 - 📄 **Datasheets & Manuals**  
   [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)
 
-> 🔁 The current firmware version is stated at [config.home-master.eu](https://config.home-master.eu/ENM-223-R1/); every version is in the [`Firmware/`](Firmware/) directory.
+> 🔁 The current firmware version is stated at [config.home-master.eu](https://config.home-master.eu/#ENM-223-R1); every version is in the [`Firmware/`](Firmware/) directory.
 
 ---
 

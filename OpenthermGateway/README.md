@@ -38,7 +38,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | 📄 UK PSTI statement (PDF) | [PSTI_OpenthermGateway.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/PSTI_OpenthermGateway.pdf) |
 | ⚙️ Default Firmware (YAML) | [opentherm.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermGateway/Firmware/opentherm.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
-| 🔧 Schematics | [Schematics/](https://config.home-master.eu/OpenthermGateway/Schematics) |
+| 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermGateway/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |
 
 ## Table of Contents

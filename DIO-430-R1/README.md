@@ -913,7 +913,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
   - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://config.home-master.eu/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)
   - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://config.home-master.eu/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
 - **Images & diagrams**
-  - [`DIO-430-R1/Images/`](https://config.home-master.eu/DIO-430-R1/Images)
+  - [`DIO-430-R1/Images/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1/Images)
 - **Datasheets**
   - Refer to `Schematics/` BOM notes for part numbers (e.g., ISO1212, MAX485, HF115F).
 
