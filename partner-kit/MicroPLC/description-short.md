@@ -1,1 +1,0 @@
-HomeMaster® MicroPLC is a compact ESP32 DIN-rail controller with one relay output, one 24 V digital input, 1-Wire temperature bus and RS-485 Modbus RTU. Pre-flashed ESPHome firmware. CE marked with EU DoC. Integrates with Home Assistant via ESPHome. Open hardware documentation included.

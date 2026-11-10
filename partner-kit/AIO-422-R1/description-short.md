@@ -1,1 +1,0 @@
-HomeMaster® AIO-422-R1 adds four 0–10 V analog inputs, two 0–10 V outputs and two PT100/PT1000 RTD channels to Modbus RS-485. RP2350-based DIN-rail module with USB-C WebConfig. CE marked slave for process and HVAC sensing. EU DoC and datasheet included.

@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://config.home-master.eu/sitemap.xml

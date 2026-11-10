@@ -1,1 +1,0 @@
-HomeMaster® OpenTherm Gateway links OpenTherm boilers to Home Assistant through ESPHome over Wi-Fi. DIN-rail module with opto-isolated OpenTherm port, auxiliary relay, dual 1-Wire sensors and dual power options. Made for ESPHome listed. CE marked. EU DoC, datasheet and open hardware supplied.

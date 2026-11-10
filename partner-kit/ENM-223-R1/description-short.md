@@ -1,1 +1,0 @@
-HomeMaster® ENM-223-R1 is a three-phase Modbus energy meter with three CT inputs, mains voltage sensing, two relay outputs and comprehensive power-quality registers. ATM90E32AS metering IC, USB-C WebConfig on DIN rail. CE marked slave module. EU DoC, datasheet and open hardware included.

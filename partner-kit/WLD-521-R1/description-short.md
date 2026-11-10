@@ -1,1 +1,0 @@
-HomeMaster® WLD-521-R1 combines five leak-sensor inputs, dual pulse flow counting, 1-Wire temperature and onboard indicative heat-energy calculation with two relay outputs on Modbus RS-485. USB-C WebConfig on DIN rail. CE marked slave module. EU DoC, datasheet and open hardware supplied.

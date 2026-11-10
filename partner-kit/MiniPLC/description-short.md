@@ -1,1 +1,0 @@
-HomeMaster® MiniPLC is a DIN-rail ESP32 controller with onboard digital, analog and relay I/O, RS-485 Modbus master/slave, Wi-Fi and optional Ethernet. Ships with ESPHome firmware. Made for ESPHome listed. CE marked with published EU Declaration of Conformity. Integrates with Home Assistant via ESPHome.

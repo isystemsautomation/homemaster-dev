@@ -1,1 +1,0 @@
-HomeMaster® ALM-173-R1 adds seventeen dry-contact alarm zones and three relay outputs to a Modbus RS-485 network. DIN-rail module with USB-C WebConfig, sensor power rails and per-zone enable/invert settings. CE marked Modbus RTU slave. Datasheet, EU DoC and open schematics included.

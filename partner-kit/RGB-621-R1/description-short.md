@@ -1,1 +1,0 @@
-HomeMaster® RGB-621-R1 controls five low-side PWM channels for 12–24 V common-anode RGB and tunable-white strips. Ten-amp shared LED supply budget, two digital inputs, one relay and Modbus RS-485. USB-C WebConfig. CE marked. Datasheet, EU DoC and open hardware included.

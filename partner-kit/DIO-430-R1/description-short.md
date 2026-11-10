@@ -1,1 +1,0 @@
-HomeMaster® DIO-430-R1 provides three SPDT relay outputs and four 24 V digital inputs on Modbus RS-485. On-module gesture counters and local rules survive slow bus polling. USB-C WebConfig. 3 A relay system rating. CE marked. EU DoC and open hardware supplied.

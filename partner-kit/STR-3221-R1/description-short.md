@@ -1,1 +1,0 @@
-HomeMaster® STR-3221-R1 drives thirty-two low-side channels for stair lighting or underfloor heating from one Modbus RS-485 slave. The stair sequence and heating cycle run on the module. USB-C WebConfig. CE marked. Datasheet, EU DoC, open hardware and published firmware supplied.

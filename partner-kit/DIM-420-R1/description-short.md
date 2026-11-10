@@ -1,1 +1,0 @@
-HomeMaster® DIM-420-R1 is a two-channel trailing/leading-edge AC dimmer for 230 V or 110 V loads, 1 A RMS per channel at 40 °C. Four digital inputs, Modbus RS-485 and USB-C WebConfig on DIN rail. CE marked. EU DoC and datasheet supplied.
