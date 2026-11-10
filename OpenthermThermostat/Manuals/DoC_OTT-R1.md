@@ -32,7 +32,7 @@ in accordance with Regulation (EC) No 765/2008 and Decision No 768/2008/EC
 
 | | |
 |---|---|
-| Product name | HomeMaster OpenTherm Thermostat |
+| Product name | HomeMaster Thermostat for OpenTherm |
 | Part number | OTT-R1 |
 | Hardware version | V1.0 |
 | Firmware version | 1.0.0 onwards |

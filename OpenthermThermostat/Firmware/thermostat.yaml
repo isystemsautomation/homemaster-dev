@@ -1,5 +1,5 @@
 #
-#  HomeMaster OpenTherm Thermostat — OTT-R1
+#  HomeMaster Thermostat for OpenTherm — OTT-R1
 #  Factory firmware shipped on the device.
 #
 #  Heating control runs entirely on this device. Home Assistant is used for

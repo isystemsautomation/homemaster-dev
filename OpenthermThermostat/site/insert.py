@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Insert the OpenTherm Thermostat card into index.html, after the
+"""Insert the HomeMaster Thermostat for OpenTherm card into index.html, after the
 OpenTherm Gateway card, and register it in the JSON-LD ItemList.
 
 Usage:  python3 insert.py /path/to/index.html /path/to/thermostat_card.html
@@ -29,12 +29,12 @@ for node in graph['@graph']:
         node['numberOfItems'] = pos
         node['itemListElement'].append({
             "@type": "ListItem", "position": pos,
-            "name": "OpenTherm Thermostat (OTT-R1)",
+            "name": "HomeMaster Thermostat for OpenTherm (OTT-R1)",
             "url": "https://config.home-master.eu/#OpenThermThermostat",
             "item": {
                 "@type": "WebPage",
                 "@id": "https://config.home-master.eu/#OpenThermThermostat",
-                "name": "OpenTherm Thermostat (OTT-R1)",
+                "name": "HomeMaster Thermostat for OpenTherm (OTT-R1)",
                 "description": "Wall-mounted OpenTherm master thermostat with colour display, encoder and presence radar.",
                 "url": "https://config.home-master.eu/#OpenThermThermostat",
                 "image": "https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg",

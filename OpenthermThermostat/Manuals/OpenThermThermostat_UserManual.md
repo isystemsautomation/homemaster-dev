@@ -1,4 +1,4 @@
-# HomeMaster OpenTherm Thermostat — Installer & User Manual
+# HomeMaster Thermostat for OpenTherm — Installer & User Manual
 
 **Part No. OTT-R1 · Hardware V1.0 · Firmware 1.0.0**
 **Document No.: MAN-OTT-R1-V1.0 · November 2026**
@@ -30,7 +30,7 @@ ISYSTEMS AUTOMATION S.R.L. · HomeMaster®
 
 This chapter describes the safety rules that must be observed before
 installation, during installation, and during normal operation of the HomeMaster
-OpenTherm Thermostat. Failure to follow these rules can result in personal
+Thermostat for OpenTherm. Failure to follow these rules can result in personal
 injury, equipment damage, or fire.
 
 ### 1.1 Qualified personnel
@@ -104,7 +104,7 @@ End users must not open the enclosure or perform wiring.
 
 ## 2. About this Product
 
-The HomeMaster OpenTherm Thermostat is an ESP32-based wall-mounted room
+The HomeMaster Thermostat for OpenTherm is an ESP32-based wall-mounted room
 thermostat that controls a modulating boiler directly over the OpenTherm bus. It
 carries a 2.8″ colour display, a rotary encoder and four keys, a 24 GHz presence
 radar, and on-board temperature, humidity and ambient-light sensors.
@@ -154,7 +154,7 @@ the stored schedule, and the display, the encoder and the keys keep working.
 
 ### 2.4 What is in the box
 
-- HomeMaster OpenTherm Thermostat (OTT-R1), assembled.
+- HomeMaster Thermostat for OpenTherm (OTT-R1), assembled.
 - Round wall base, or rectangular wall plate.
 - Two wall screws and plugs.
 - Quick-start card.
@@ -459,7 +459,7 @@ boiler is to be controlled from elsewhere.
 
 ## 12. Compliance and Certifications
 
-The HomeMaster OpenTherm Thermostat is CE marked and designed to comply with the
+The HomeMaster Thermostat for OpenTherm is CE marked and designed to comply with the
 applicable European Union legislation. ISYSTEMS AUTOMATION S.R.L. maintains the
 technical documentation and a signed EU Declaration of Conformity (document
 number DoC-OTT-R1-V1.0).

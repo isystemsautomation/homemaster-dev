@@ -1,4 +1,4 @@
-# HomeMaster OpenTherm Thermostat — Datasheet
+# HomeMaster Thermostat for OpenTherm — Datasheet
 
 **Part No. OTT-R1 · Hardware V1.0 · Firmware 1.0.0**
 **Document No.: DS-OTT-R1-V1.0 · November 2026**
@@ -180,7 +180,7 @@ DoC-OTT-R1-V1.0 and Chapter 12 of the user manual.
 
 | Part number | Description |
 |---|---|
-| OTT-R1 | HomeMaster OpenTherm Thermostat, wall mount, 24 V DC |
+| OTT-R1 | HomeMaster Thermostat for OpenTherm, wall mount, 24 V DC |
 
 ## 15. Manufacturer
 

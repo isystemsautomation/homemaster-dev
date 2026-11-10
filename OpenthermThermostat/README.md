@@ -1,4 +1,4 @@
-# HomeMaster OpenTherm Thermostat
+# HomeMaster Thermostat for OpenTherm
 
 <a href="https://devices.esphome.io/devices/homemaster-openthermthermostat/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
 
@@ -8,7 +8,7 @@
 
 ## Description
 
-The HomeMaster OpenTherm Thermostat is a wall-mounted ESP32 **OpenTherm master** with a 2.8″ colour display, a rotary encoder, four keys and a 24 GHz presence radar. It regulates a modulating boiler directly over OpenTherm — weather-compensated flow temperature, room setpoint with hysteresis, comfort/eco schedule — and reports everything to Home Assistant through the native ESPHome API.
+The HomeMaster Thermostat for OpenTherm is a wall-mounted ESP32 **OpenTherm master** with a 2.8″ colour display, a rotary encoder, four keys and a 24 GHz presence radar. It regulates a modulating boiler directly over OpenTherm — weather-compensated flow temperature, room setpoint with hysteresis, comfort/eco schedule — and reports everything to Home Assistant through the native ESPHome API.
 
 The device initiates all OpenTherm communication with the boiler (the boiler must be an OpenTherm slave — standard on every OT-capable boiler). Heating control runs on the device itself: if Home Assistant or the network is unavailable, the room keeps being heated to the stored schedule. The display, the encoder and the keys continue to work offline.
 
