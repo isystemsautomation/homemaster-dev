@@ -666,7 +666,6 @@ and is published in the manufacturer's GitHub repository under
 - Product page: https://www.home-master.eu
 - Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat
 - Firmware: `OpenthermThermostat/Firmware/thermostat.yaml`
-- Device page: https://devices.esphome.io/devices/homemaster-openthermthermostat/
 
 ### 13.3 License
 
@@ -690,8 +689,7 @@ recovered.
 
 HomeMaster® is a registered European Union trademark (EUTM No. 019082911) of
 ISYSTEMS AUTOMATION S.R.L. OpenTherm® is a registered trademark of the OpenTherm
-Association. ESPHome and the Made for ESPHome logo are used under permission
-from the Open Home Foundation. All other trademarks are the property of their
+Association. All other trademarks are the property of their
 respective owners.
 
 © 2026 ISYSTEMS AUTOMATION S.R.L. · MAN-OTT-R1-V1.0

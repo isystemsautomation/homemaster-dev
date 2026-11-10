@@ -1,6 +1,8 @@
 # HomeMaster Thermostat for OpenTherm
 
+<!-- Restore this badge after the Made for ESPHome application is approved.
 <a href="https://devices.esphome.io/devices/homemaster-openthermthermostat/"><img src="https://media.esphome.io/made-for-esphome/made-for-esphome-black-on-white.svg" alt="Made for ESPHome" height="28"></a>
+-->
 
 ![Device](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg)
 
@@ -394,7 +396,7 @@ The shipped configuration carries an `update` entity backed by a vendor JSON man
 
 ### Trademarks
 
-OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster® is a registered EU trademark of ISYSTEMS AUTOMATION S.R.L. (EUTM 019082911). ESPHome and the Made for ESPHome logo are used under permission from the Open Home Foundation.
+OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster® is a registered EU trademark of ISYSTEMS AUTOMATION S.R.L. (EUTM 019082911).
 
 ## Photographs
 
