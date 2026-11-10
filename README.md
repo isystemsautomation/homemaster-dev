@@ -6,7 +6,7 @@
 
 HomeMaster combines the reliability and modularity of industrial DIN‑rail automation with the openness of the ESPHome / Home Assistant ecosystem — fully open hardware and firmware, local‑first, no cloud, no vendor lock‑in.
 
-**Website:** [home-master.eu](https://www.home-master.eu/) · **Shop / Products:** [Products](https://www.home-master.eu/products) · **Partner kit:** [partner-kit/](./partner-kit/) (reseller listing assets)
+**Website:** [home-master.eu](https://www.home-master.eu/) · **Shop / Products:** [Products](https://www.home-master.eu/products) · **Partner kit:** [partner-kit/](https://config.home-master.eu/partner-kit/) (reseller listing assets)
 
 ---
 
