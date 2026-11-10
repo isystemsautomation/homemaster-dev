@@ -345,7 +345,10 @@ datetime:
     type: time
     optimistic: true
     restore_value: true
-    initial_value: "17:00:00"
+    initial_value:
+      hour: 17
+      minute: 0
+      second: 0
     entity_category: config
   - platform: template
     id: sch_wd_off
@@ -353,7 +356,10 @@ datetime:
     type: time
     optimistic: true
     restore_value: true
-    initial_value: "23:00:00"
+    initial_value:
+      hour: 23
+      minute: 0
+      second: 0
     entity_category: config
   - platform: template
     id: sch_we_on
@@ -361,7 +367,10 @@ datetime:
     type: time
     optimistic: true
     restore_value: true
-    initial_value: "09:00:00"
+    initial_value:
+      hour: 9
+      minute: 0
+      second: 0
     entity_category: config
   - platform: template
     id: sch_we_off
@@ -369,7 +378,10 @@ datetime:
     type: time
     optimistic: true
     restore_value: true
-    initial_value: "23:00:00"
+    initial_value:
+      hour: 23
+      minute: 0
+      second: 0
     entity_category: config
 
 switch:
