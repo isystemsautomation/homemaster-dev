@@ -30,7 +30,7 @@ packages:
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
 
 ### Module Description
 
@@ -544,7 +544,7 @@ Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24
 
 Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485, relay coils, and isolated sensor rails (reverse-polarity protected; size for ≥300 mA with headroom).
 
-<img src="Images/WLD_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_24Vdc.png" width="440" alt="24 V DC power wiring to V+ and 0V">
 
 *Regulated **24 V DC** to **V+** / **0V** — fuse the feed per local rules.*
 
@@ -558,7 +558,7 @@ Five opto-isolated digital inputs (**DI1…DI5**, terminals **I1**–**I5**, pos
 
 Configure each channel as water sensor, soil moisture, or counter in WebConfig.
 
-<img src="Images/WLD_FloodmeterWiringConnections.png" width="440" alt="Leak and flood sensor wiring to digital inputs">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_FloodmeterWiringConnections.png" width="440" alt="Leak and flood sensor wiring to digital inputs">
 
 *Field leak/moisture sensors and contacts on **DI** terminals with **GND_ISO** return.*
 
@@ -566,7 +566,7 @@ Configure each channel as water sensor, soil moisture, or counter in WebConfig.
 
 Configure a DI as **water counter** to count pulses from a flow meter — set **pulses per litre** in WebConfig to match the meter datasheet.
 
-<img src="Images/WLD_FlowmeterConnection.png" width="440" alt="Pulse flow meter connection to digital input">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_FlowmeterConnection.png" width="440" alt="Pulse flow meter connection to digital input">
 
 *Pulse output flow meter wired to a counter-mode **DI** channel.*
 
@@ -574,7 +574,7 @@ Configure a DI as **water counter** to count pulses from a flow meter — set **
 
 The protected **1-Wire** header at terminals **+5V** (9), **DATA** (10), **GND** (11) supports **DS18B20** sensors for supply/return temperature and ΔT heat-energy monitoring. This **+5V** rail is in the **logic domain** (not isolated) — do **not** use it to power devices on the isolated DI sensor side.
 
-<img src="Images/WLD_1WireConnection.png" width="440" alt="1-Wire DS18B20 temperature sensor wiring">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_1WireConnection.png" width="440" alt="1-Wire DS18B20 temperature sensor wiring">
 
 *DS18B20 sensors on the **+5 V** / **DATA** / **GND** 1-Wire bus — keep leads short.*
 
@@ -582,7 +582,7 @@ The protected **1-Wire** header at terminals **+5V** (9), **DATA** (10), **GND**
 
 Two **SPDT** dry-contact relays (**NO** / **COM** / **NC**) switch valves, pumps, or alarms at up to **3 A @ 250 VAC** (module limit); external fuse/breaker and RC snubber are mandatory per load. Capacitor motors: see §3.3.
 
-<img src="Images/WLD_RelayConnections.png" width="440" alt="Relay NO/COM/NC wiring for two relays">
+<img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_RelayConnections.png" width="440" alt="Relay NO/COM/NC wiring for two relays">
 
 *Dry contacts only — external load supply and overcurrent protection are mandatory.*
 
@@ -623,7 +623,7 @@ In the **Modbus** panel:
 - **Set Baudrate**: choose between **9600–115200** (default: 19200).
 - Confirm the updated settings in the banner and **Serial Log**.
 
-![WebConfig – Modbus](Images/webconfig1.png)
+![WebConfig – Modbus](https://config.home-master.eu/WLD-521-R1/Images/webconfig1.png)
 
 ---
 
@@ -654,7 +654,7 @@ Each DI has:
 - **Reset Total / Reset Pulses**
 - **Calc from External**: align module total with external meter
 
-![WebConfig – Inputs](Images/webconfig3.png)
+![WebConfig – Inputs](https://config.home-master.eu/WLD-521-R1/Images/webconfig3.png)
 
 ---
 
@@ -674,7 +674,7 @@ You can:
 - View **TA**, **TB**, **ΔT**
 - Reset energy counters
 
-![WebConfig – Heat Panel](Images/webconfig4.png)
+![WebConfig – Heat Panel](https://config.home-master.eu/WLD-521-R1/Images/webconfig4.png)
 
 ---
 
@@ -689,7 +689,7 @@ You can:
 
 > Relays are dry contact. Wire loads to `NO / NC / COM`.
 
-![WebConfig – Relays](Images/webconfig5.png)
+![WebConfig – Relays](https://config.home-master.eu/WLD-521-R1/Images/webconfig5.png)
 
 ---
 
@@ -703,7 +703,7 @@ Each LED can be:
 
 > The **State Dot** shows live ON/OFF.
 
-![WebConfig – LEDs](Images/webconfig6.png)
+![WebConfig – LEDs](https://config.home-master.eu/WLD-521-R1/Images/webconfig6.png)
 
 ---
 
@@ -724,7 +724,7 @@ Each button triggers an **Action**:
 - **Long press (3s)** = enter/exit override mode  
 - **In override**, relay ignores Modbus/logic control
 
-![WebConfig – Buttons](Images/webconfig6.png)
+![WebConfig – Buttons](https://config.home-master.eu/WLD-521-R1/Images/webconfig6.png)
 
 ---
 
@@ -768,21 +768,21 @@ Summarize steps in 3 phases:
     <tr>
       <td align="center">
         <strong>System Block Diagram</strong><br>
-        <img src="Images/WLD_SystemBLockDiagram.png" alt="System Diagram" width="360">
+        <img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_SystemBLockDiagram.png" alt="System Diagram" width="360">
       </td>
       <td align="center">
         <strong>Terminal Map</strong><br>
-        <img src="Images/photo1.png" alt="Module Photo and Terminal Map" width="360">
+        <img src="https://config.home-master.eu/WLD-521-R1/Images/photo1.png" alt="Module Photo and Terminal Map" width="360">
       </td>
     </tr>
     <tr>
       <td align="center">
         <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard_Diagram.png" alt="Field Board" width="360">
+        <img src="https://config.home-master.eu/WLD-521-R1/Images/FieldBoard_Diagram.png" alt="Field Board" width="360">
       </td>
       <td align="center">
         <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board" width="360">
+        <img src="https://config.home-master.eu/WLD-521-R1/Images/MCUBoard_Diagram.png" alt="MCU Board" width="360">
       </td>
     </tr>
   </table>
@@ -1271,7 +1271,7 @@ packages:
 - **Buttons 3 + 4** → hardware **RESET**.
 
 **Button numbering reference:**  
-<img src="Images/photo1.png" width="420" alt="Front panel with button numbering U1..U4"/>
+<img src="https://config.home-master.eu/WLD-521-R1/Images/photo1.png" width="420" alt="Front panel with button numbering U1..U4"/>
 
 ## 8.3 Arduino / PlatformIO Notes
 

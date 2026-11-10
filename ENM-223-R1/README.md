@@ -998,11 +998,11 @@ Recommission alarms, relay modes, bus address, and phase mapping in WebConfig af
 
 ### Files
 
-- 🧠 **Firmware (v0.2.0 — current)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino) · UF2 [`ENM-223-R1.uf2`](Firmware/v0.2.0/ENM-223-R1.uf2)  
+- 🧠 **Firmware (v0.2.0 — current)** — [Firmware/README.md](Firmware/README.md) · sketch [`default_enm_223_r1.ino`](Firmware/v0.2.0/default_enm_223_r1/default_enm_223_r1.ino) · UF2 [`ENM-223-R1.uf2`](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ENM-223-R1.uf2)  
   Contiguous Modbus map FC04 `0..85`, primary-Wh energy, CT/PGA, alarm engine. Full register map: [Modbus_Table.md](Modbus_Table.md).
 
 - 🧰 **WebConfig Tool**  
-  [`Firmware/v0.2.0/ConfigToolPage.html`](Firmware/v0.2.0/ConfigToolPage.html) · live: [config.home-master.eu …/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)
+  [`Firmware/v0.2.0/ConfigToolPage.html`](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html) · live: [config.home-master.eu …/v0.2.0/ConfigToolPage.html](https://config.home-master.eu/ENM-223-R1/Firmware/v0.2.0/ConfigToolPage.html)
 
 - 📦 **ESPHome YAML (v0.2.0 — current)**  
   [`default_enm_223_r1_plc.yaml`](Firmware/v0.2.0/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml)
@@ -1010,15 +1010,15 @@ Recommission alarms, relay modes, bus address, and phase mapping in WebConfig af
 - 🗂 **Legacy firmware (v0.1.0)** — [`Firmware/v0.1.0/`](Firmware/v0.1.0/) — previous map; kept for existing units.
 
 - 🖼 **Images & UI Diagrams**  
-  [`Images/`](Images/)  
+  [`Images/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/ENM-223-R1/Images)  
   Front-panel photos, system diagrams, wiring illustrations, WebConfig screenshots.
 
 - 📐 **Hardware Schematics**  
-  [`Schematics/`](Schematics/)  
+  [`Schematics/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/ENM-223-R1/Schematics)  
   PDF schematics for Field Board and MCU Board.
 
 - 📄 **Datasheets & Manuals**  
-  [`ENM-223-R1_Datasheet.pdf`](Manuals/ENM-223-R1_Datasheet.pdf)
+  [`ENM-223-R1_Datasheet.pdf`](https://config.home-master.eu/ENM-223-R1/Manuals/ENM-223-R1_Datasheet.pdf)
 
 > 🔁 The current firmware version is stated at [config.home-master.eu](https://config.home-master.eu/#ENM-223-R1); every version is in the [`Firmware/`](Firmware/) directory.
 

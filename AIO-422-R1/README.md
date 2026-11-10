@@ -432,7 +432,7 @@ Buttons 1–4, LEDs 1–4, Link OK, Config dirty, RTD1/2 fault, ADS/DAC/RTD chip
 
 - Flash **UF2** over USB-C (BOOTSEL) or build from `Firmware/v0.2.0/default_aio_422_r1/` with `arduino-cli compile --profile default`.
 - Reproducible pins: [`sketch.yaml`](Firmware/v0.2.0/default_aio_422_r1/sketch.yaml) · [Build environment](../README.md#build-environment-reproducible).
-- Pre-built binary: [`AIO-422-R1.uf2`](Firmware/v0.2.0/AIO-422-R1.uf2).
+- Pre-built binary: [`AIO-422-R1.uf2`](https://config.home-master.eu/AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2).
 
 ---
 

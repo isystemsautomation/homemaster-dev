@@ -32,7 +32,7 @@ The UF2 path follows the **board/FQBN** folder Arduino creates under `build/`. I
 
 Public download URL (current board folder):
 
-`https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2`
+`https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/DIO-430-R1.uf2`
 
 ### Do **not** commit
 

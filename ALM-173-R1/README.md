@@ -829,11 +829,11 @@ See [§10.2 Flashing](#102-flashing-usb-c) and [§12 Downloads](#12-downloads--r
 | Resource | Link |
 |----------|------|
 | **Firmware source** | [`Firmware/v0.2.0/default_alm_173_r1/`](Firmware/v0.2.0/default_alm_173_r1/) |
-| **Pre-built UF2** | [`default_alm_173_r1.uf2`](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/default_alm_173_r1.uf2) |
+| **Pre-built UF2** | [`ALM-173-R1.uf2`](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ALM-173-R1.uf2) |
 | **ESPHome YAML** | [`default_alm_173_r1_plc.yaml`](Firmware/v0.2.0/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml) |
 | **WebConfig** | [config.home-master.eu v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html) |
-| **Schematics** | [`Schematics/`](Schematics/) |
-| **Datasheet** | [`ALM-173-R1_Datasheet.pdf`](Manuals/ALM-173-R1_Datasheet.pdf) |
+| **Schematics** | [`Schematics/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/ALM-173-R1/Schematics) |
+| **Datasheet** | [`ALM-173-R1_Datasheet.pdf`](https://config.home-master.eu/ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf) |
 
 ---
 
@@ -841,7 +841,7 @@ See [§10.2 Flashing](#102-flashing-usb-c) and [§12 Downloads](#12-downloads--r
 
 This project uses a hybrid licensing model.
 
-**Hardware** — schematics, PCB layouts, BOMs: **CERN-OHL-W v2** ([`Schematics/LICENSE`](Schematics/LICENSE))
+**Hardware** — schematics, PCB layouts, BOMs: **CERN-OHL-W v2** ([`Schematics/LICENSE`](https://config.home-master.eu/ALM-173-R1/Schematics/LICENSE))
 
 **Firmware & ESPHome integration** — firmware, ESPHome configs, software: **MIT License** ([`Firmware/LICENSE`](Firmware/LICENSE))
 
@@ -861,8 +861,8 @@ The ALM-173-R1 is CE marked. **ISYSTEMS AUTOMATION S.R.L.** (HomeMaster® brand)
 
 | Document | File |
 |----------|------|
-| EU DoC | [DoC_ALM-173-R1.pdf](Manuals/DoC_ALM-173-R1.pdf) |
-| Datasheet | [ALM-173-R1_Datasheet.pdf](Manuals/ALM-173-R1_Datasheet.pdf) |
+| EU DoC | [DoC_ALM-173-R1.pdf](https://config.home-master.eu/ALM-173-R1/Manuals/DoC_ALM-173-R1.pdf) |
+| Datasheet | [ALM-173-R1_Datasheet.pdf](https://config.home-master.eu/ALM-173-R1/Manuals/ALM-173-R1_Datasheet.pdf) |
 
 **HomeMaster®** — EUTM No. 019082911 (EUIPO, 15 January 2025).
 

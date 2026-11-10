@@ -507,11 +507,11 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 | System Block Diagram | MCU Pinout |
 |----------------------|------------|
-| ![](Images/DIM_Diagram.png) | ![](Images/DIM_MCU_Pinouts.png) |
+| ![](https://config.home-master.eu/DIM-420-R1/Images/DIM_Diagram.png) | ![](https://config.home-master.eu/DIM-420-R1/Images/DIM_MCU_Pinouts.png) |
 
 | Field Board Layout | MCU Board Layout |
 |--------------------|------------------|
-| ![](Images/FieldBoard_Diagram.png) | ![](Images/MCUBoard_Diagram.png) |
+| ![](https://config.home-master.eu/DIM-420-R1/Images/FieldBoard_Diagram.png) | ![](https://config.home-master.eu/DIM-420-R1/Images/MCUBoard_Diagram.png) |
 
 </div>
 

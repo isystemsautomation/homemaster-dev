@@ -943,7 +943,7 @@ board diagrams.
 2. On v0.4.0, **Bootloader (USB)** in WebConfig Tools writes unsaved settings
    and mounts the module as an `RP2350` drive. On earlier firmware, press
    **Buttons 1 + 2** to enter **BOOT mode**.
-3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.4.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
+3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](https://config.home-master.eu/STR-3221-R1/Firmware/v0.4.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
    - **Arduino IDE** → "Upload"
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.

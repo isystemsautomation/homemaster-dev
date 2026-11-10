@@ -179,7 +179,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
   </tr>
 </table>
 
-> **RP2350A pinout** is dense — zoom the image or open [`DIO_MCU_Pinouts.png`](Images/DIO_MCU_Pinouts.png) full size if labels are hard to read at table width.
+> **RP2350A pinout** is dense — zoom the image or open [`DIO_MCU_Pinouts.png`](https://config.home-master.eu/DIO-430-R1/Images/DIO_MCU_Pinouts.png) full size if labels are hard to read at table width.
 
 ### 4.2 Connectors & terminal map
 
@@ -894,7 +894,7 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 ### Files
 
 - **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**
-  - [`default_DIO_430_R1.ino.uf2`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/default_DIO_430_R1.ino.uf2)
+  - [`DIO-430-R1.uf2`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/DIO-430-R1.uf2)
 - **Firmware publishing (maintainers)**
   - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
 - **Firmware source (Arduino, v0.2.0)**
