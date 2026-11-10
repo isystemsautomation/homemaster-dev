@@ -53,7 +53,7 @@ esphome:
 
 dashboard_import:
   package_import_url: github://isystemsautomation/homemaster-dev/OpenthermThermostat/Firmware/thermostat.yaml@main
-  import_full_config: false
+  import_full_config: true
 
 esp32:
   variant: esp32
