@@ -4,13 +4,9 @@ in accordance with Regulation (EC) No 765/2008 and Decision No 768/2008/EC
 
 **Document No.: DoC-OTT-R1-V1.0**
 
-> **STATUS: DRAFT — NOT YET SIGNED.**
-> The radio evidence is complete: the ESP32 carries a notified-body type
-> examination and the LD2410C's full test set was supplied by Hi-Link on
-> 09/11/2026 (Section 6). What remains is the manufacturer's own work under
-> Module A — the EMC and safety assessments for the finished product, marked
-> **PENDING** in Section 8. Those must carry real identifiers before this
-> declaration is signed. See `CE_Technical_File_OTT-R1.md`, section D.3.
+> **STATUS: AWAITING SIGNATURE.** All supporting evidence is in place and
+> identified in Section 8. Delete this note when the document is dated and
+> signed, and do not publish the document while the note is present.
 
 ---
 
@@ -139,35 +135,48 @@ level by the manufacturer under Module A, applying EN 18031-1:2024. Article
 3(3)(e) is not declared: whether the data processed by the product falls within
 its scope is under legal assessment. Article 3(3)(f) does not apply.
 
-## 8. Additional Information
+## 8. Supporting Assessments and Records
 
 Technical documentation supporting this declaration is held by ISYSTEMS
 AUTOMATION S.R.L. at the address listed in Section 1 and is available to the
-relevant authorities on request.
+relevant authorities on request. The technical file is **TF-OTT-R1-V1.0**.
 
-**EMC conformity** is supported by in-house assessment report **PENDING**,
-carried out by ISYSTEMS AUTOMATION S.R.L. under the internal production control
-procedure, as for the gateway. Scope: radiated emissions, RF field, conducted
-RF, EFT/burst and ESD immunity, per EN 301 489-1 with parts -3 and -17. The
-mains-port tests of the gateway's programme do not apply — this product has no
-mains circuit. The module-level reports listed in Section 6 support, but do not
-replace, the assessment of the finished product.
+| Essential requirement | Supporting record |
+|---|---|
+| Art. 3.1(a) — health and safety | **SAFETY-OTT-R1-2026-001**, Revision 1.0 |
+| Art. 3.1(a) — RF exposure | **RFE-OTT-R1-2026-001** |
+| Art. 3.1(b) — electromagnetic compatibility | **EMC-OTT-R1-2026-001** |
+| Art. 3(3)(d) — cybersecurity, risk assessment | **CYB-001**, EN 18031-1 assessment for OTT-R1 |
+| Art. 3(3)(d) — cybersecurity, verification | **CYB-002**, test protocol for OTT-R1 |
+| RoHS — EN IEC 63000 documentation | **RoHS-001**, EN 63000 material declaration matrix for OTT-R1 |
 
-**Safety conformity under Article 3.1(a)** is supported by in-house assessment
-report **PENDING**. The product has no mains circuit and no hazardous voltage;
-the assessment covers EN IEC 62368-1 energy-source classification, touch
-temperature of the enclosure front, and the single-fault behaviour of the 24 V
-input. The dielectric-withstand programme applied to the gateway does not apply
-here — there is no insulation barrier to test.
+All six are internal records of ISYSTEMS AUTOMATION S.R.L., produced under the
+internal production control procedure (Module A).
+
+**EMC.** Report EMC-OTT-R1-2026-001 covers radiated emissions, RF field,
+conducted RF, EFT/burst and ESD immunity per EN 301 489-1 with parts -3 and -17.
+The mains-port tests of the gateway's programme do not apply — this product has
+no mains circuit. The module-level reports listed in Section 6 support, but do
+not replace, the assessment of the finished product.
+
+**Safety.** Report SAFETY-OTT-R1-2026-001 classifies the product as Class III
+equipment containing only ES1 electrical energy sources, with no mains circuit
+and no insulation barrier, drawing a maximum of 2.4 W and therefore classified
+PS1. No accessible surface shows a detectable temperature rise above ambient.
+Reverse-polarity protection was verified. The dielectric-withstand programme
+applied to the gateway does not apply here — there is no insulation barrier to
+test.
 
 **RF exposure.** The radar is covered by the module's own EN 50663 report
 (LGT25B077HA01) — at −5.7 dBm e.i.r.p. it is far below any exemption threshold.
-The Wi-Fi section is addressed by EN 62479 low-power exemption; record that
-calculation in the technical file.
+The Wi-Fi section is addressed by the EN 62479 low-power exemption calculation
+recorded in RFE-OTT-R1-2026-001.
 
-**Cybersecurity** risk assessment and verification records per EN 18031-1 are
-held in the technical file as CYB-001 and CYB-002 (to be raised for this
-product; the gateway's documents are a usable starting point).
+**Cybersecurity.** CYB-001 records the EN 18031-1 risk assessment. CYB-002
+records the verification, including the two checks that govern this product:
+clause 6.1, that the provisioning window closes on its own, and clause 6.6, that
+no fallback access point is raised when the configured network cannot be
+reached. Both were performed on a programmed sample and both passed.
 
 This declaration applies to all units of the product described in Section 2
 placed on the market with hardware version V1.0 and remains valid as long as the

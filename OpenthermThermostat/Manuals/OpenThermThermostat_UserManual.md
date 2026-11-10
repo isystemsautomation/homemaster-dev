@@ -171,7 +171,8 @@ cable are not supplied.
 | Item | Value |
 |---|---|
 | Supply voltage | 24 V DC nominal, SELV, reverse-polarity protected |
-| Supply current | See the datasheet; the display backlight dominates |
+| Supply current | 50–100 mA across operating states |
+| Input power, maximum | 2.4 W |
 | OpenTherm interface | Master, polarity-insensitive, 2-wire |
 | USB | USB-C, serial only, CP2102 bridge |
 | Wi-Fi | 2.4 GHz, 802.11 b/g/n, external antenna, U.FL |
@@ -280,35 +281,147 @@ clip.
 
 ## 6. Controls and Display
 
-### 6.1 Navigation
+Everything the thermostat does can be done from the glass. Home Assistant adds
+remote access and history; it does not add control that is missing here.
 
-Four keys and one encoder, with the same meaning on every page:
+The screen is 320 × 240 pixels. It redraws every two seconds, and immediately
+after any key press or encoder movement.
 
-| Control | Action |
+### 6.1 Backlight and presence
+
+The backlight rises to 85 % on any key press or encoder movement, and the
+presence radar lights it when somebody approaches. It turns off 45 seconds after
+the radar stops seeing anyone; while the radar still sees someone, it stays on.
+
+When the screen blanks, the interface also returns to the **Climate** page with
+the menu closed, so the unit is in the same state every time you walk up to it.
+
+The backlight is driven at 25 kHz, above the audible range. At lower
+frequencies the ceramic capacitors on the 5 V rail sing.
+
+### 6.2 Navigation
+
+Four keys and the encoder. The keys mean the same thing on every page.
+
+| Control | Menu closed | Menu open |
+|---|---|---|
+| ◀ Left | Previous page; wraps around | Closes the menu |
+| ▶ Right | Next page; wraps around | Closes the menu |
+| ▲ Up | Opens the menu on the first item | Moves the selection up; wraps |
+| ▼ Down | Opens the menu on the first item | Moves the selection down; wraps |
+| Encoder | On Climate: changes the active setpoint, 0.5 °C per detent. On the other pages: nothing | Changes the selected item |
+
+The selected menu item is drawn as a dim band with a blue bar down its left
+edge. Changes take effect as you turn the encoder — there is nothing to confirm
+and nothing to save.
+
+### 6.3 The header
+
+The top strip is the same on every page.
+
+| Position | Shows |
 |---|---|
-| ◀ ▶ | previous / next page |
-| ▲ ▼ | open the menu, move through it |
-| encoder | change the page's main value, or the selected menu item |
-| ◀ with the menu open | close the menu |
+| Left | Page name — `CLIMATE`, `BOILER`, `SCHEDULE`, `SYSTEM` |
+| After the name | Four square dots, one per page; the current page is white, the others dim |
+| Right | Clock, `HH:MM`, or `--:--` until the clock is set |
+| Left of the clock | Wi-Fi status |
+| Left of that | Boiler status |
 
-The screen shows the room temperature, the active setpoint and the state of the
-boiler with no menu visible. The menu is only needed to change something.
+The clock comes from Home Assistant when it is connected and from an internet
+time server otherwise.
 
-### 6.2 Pages
+### 6.4 Icons
 
-| Page | Shows |
+These are the only icons the interface uses. The colour carries as much meaning
+as the shape: **amber means active or wrong**, white means a normal reading, dim
+grey means idle or unavailable.
+
+| Icon | Meaning | Colour |
+|---|---|---|
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi.png" width="36"> | Wi-Fi is associated | Normal grey when Home Assistant is also connected, dim when it is not |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi-off.png" width="36"> | No Wi-Fi connection | Dim |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/water-boiler.png" width="36"> | In the header: the boiler reports a fault. In a tile: boiler water or hot-water temperature | Amber on fault or while that circuit is active, dim otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/fire.png" width="36"> | Burner. The value is the relative modulation level, or `ON` / `IDLE` when the boiler does not report modulation | Amber while the flame is on, dim when it is out |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/thermometer.png" width="36"> | Outside temperature on the Climate page, return temperature on the Boiler page | White |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/gauge.png" width="36"> | Central-heating water pressure, in bar | Amber when the boiler reports low pressure, white otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/alert.png" width="36"> | Boiler fault summary — `FAULT` or `OK` | Amber on fault, dim when clear |
+
+A reading the boiler has not sent, or a sensor that is absent, is shown as `--`
+or `--.-` in dim grey, never as a zero.
+
+### 6.5 Climate page
+
+The page for day-to-day use.
+
+- Room temperature, large, to one decimal.
+- The setpoint currently in force below it, in cyan.
+- To its right: `COMFORT`, `ECO` or `BOOST`.
+- Four tiles: burner, boiler water temperature, outside temperature, system
+  pressure.
+
+Turning the encoder here changes the setpoint of whichever window is active —
+comfort during the comfort window, eco outside it.
+
+| Menu item | Effect |
 |---|---|
-| CLIMATE | Room temperature, active setpoint, flame and modulation, boiler water temperature, outside temperature, system pressure |
-| BOILER | Boiler water temperature, flow setpoint from the curve, modulation, return temperature, DHW temperature, fault state |
-| SCHEDULE | Active mode, setpoint, weekday and weekend comfort windows, boost state |
-| SYSTEM | IP address, firmware version, boiler link state, raw room temperature, ambient light, presence |
+| `COMFORT SETPOINT` / `ECO SETPOINT` | The active setpoint, 0.5 °C per detent |
+| `HEATING` | `AUTO` or `MANUAL`; manual suspends the control loop |
+| `BOOST` | Comfort plus the boost offset until the next scheduled change |
+| `HYSTERESIS` | Switching band around the setpoint, 0.1 °C per detent |
 
-### 6.3 Backlight and screen blanking
+### 6.6 Boiler page
 
-The backlight is driven at 25 kHz, above the audible range, so the ceramic
-capacitors on the supply rail stay silent. The radar blanks the screen 45
-seconds after the room empties and lights it again on approach. On waking, the
-display returns to the CLIMATE page with the menu closed.
+What the boiler itself reports.
+
+- Boiler water temperature, large.
+- The flow setpoint the thermostat is asking for, in cyan, labelled `FLOW SET`.
+- Four tiles: modulation level, return temperature, hot-water temperature,
+  fault summary.
+
+| Menu item | Effect |
+|---|---|
+| `DHW SETPOINT` | Hot-water temperature, 1 °C per detent |
+| `MAX FLOW` | Upper limit for the flow setpoint, 1 °C per detent |
+| `DHW` | Hot water on or off at the boiler |
+
+### 6.7 Schedule page
+
+- Which window is in force now, and its setpoint.
+- The weekday and weekend windows, as `HH:MM - HH:MM`.
+- Whether boost is on.
+
+> **ℹ The windows themselves are set from Home Assistant**, through four time
+> entities: weekday start and end, weekend start and end. The screen shows them
+> so they can be checked without a phone, but they cannot be edited on the
+> glass.
+
+| Menu item | Effect |
+|---|---|
+| `COMFORT` | Comfort setpoint, 0.5 °C per detent |
+| `ECO` | Eco setpoint, 0.5 °C per detent |
+| `BOOST OFFSET` | How far above comfort boost goes, 0.5 °C per detent |
+| `BOOST` | Boost on or off |
+
+### 6.8 System page
+
+Diagnostics, for commissioning and for support calls.
+
+| Row | Shows |
+|---|---|
+| `IP` | Address on the network |
+| `FIRMWARE` | Firmware version |
+| `BOILER LINK` | `OK` once the boiler has answered, amber `NONE` until then |
+| `ROOM RAW` | The room sensor before the offset is applied |
+| `LIGHT` | Ambient light in lux |
+| `PRESENCE` | Whether the radar sees anyone right now |
+
+| Menu item | Effect |
+|---|---|
+| `ROOM OFFSET` | Correction added to the room sensor, 0.1 °C per detent |
+
+✓ Set the room offset after the unit has been on the wall for at least two
+hours: compare `ROOM RAW` against a reference thermometer in the middle of the
+room and enter the difference.
 
 ---
 
@@ -323,23 +436,41 @@ display returns to the CLIMATE page with the menu closed.
 
 The device holds no cloud dependency. Heating continues with Wi-Fi down.
 
-### 7.2 Improv over Bluetooth (recommended)
+### 7.2 The provisioning window
 
-1. Power the device.
-2. Open https://improv-wifi.com in Chrome or Edge on a device with Bluetooth.
+Wi-Fi credentials are accepted only during a **15-minute window that opens when
+the device is powered on**. When the window closes, the device logs that it has
+closed and accepts no further credentials until it is power-cycled.
+
+> **ℹ Why there is no setup access point.** Earlier HomeMaster firmware raised
+> an open access point with a captive portal when it could not join the stored
+> network. That was removed under Article 3(3)(d) of the Radio Equipment
+> Directive and EN 18031-1: an open access point that accepts new Wi-Fi
+> credentials is an unauthenticated path to reconfigure the device. **This
+> product raises no access point under any circumstance.** If the stored
+> credentials stop working, power-cycle the device to reopen the provisioning
+> window and set them again by one of the methods below.
+
+### 7.3 Improv over Bluetooth (recommended)
+
+1. Power the device. The provisioning window is now open for 15 minutes.
+2. Open https://improv-wifi.com in Chrome or Edge on a computer or phone with
+   Bluetooth. Safari and iOS cannot do this — they have no Web Bluetooth.
 3. Select the thermostat and enter the Wi-Fi credentials.
 
-### 7.3 Improv over USB serial
+> **ℹ On Linux**, Web Bluetooth has to be enabled once in Chrome, under
+> `chrome://flags/#enable-experimental-web-platform-features`.
+
+### 7.4 Improv over USB serial
 
 Connect USB-C and use the same page, choosing serial instead of Bluetooth. No
 driver is needed on current operating systems; the USB-serial bridge is a
-CP2102.
+CP2102. This is the route to use when Bluetooth is unavailable.
 
-### 7.4 Fallback access point
+### 7.5 Changing the network later
 
-If the stored credentials fail, the device raises an access point named
-**HomeMaster Thermostat Fallback** with a captive portal for entering new
-credentials.
+Power-cycle the device and re-provision within 15 minutes, by Bluetooth or by
+USB. There is no other path, by design.
 
 ---
 
@@ -388,6 +519,10 @@ Updates and install over the air.
 
 Adopt the device in ESPHome Device Builder and build from the published
 configuration. This is the route for anyone who wants to modify the firmware.
+
+> **ℹ Taking control hands you the whole configuration**, not a reference to it,
+> so the device stops following vendor releases from that point on. To go back
+> to vendor updates, adopt the published configuration again.
 
 ### 9.3 USB-C recovery flashing
 
@@ -450,18 +585,21 @@ boiler is to be controlled from elsewhere.
 | Boiler entities unavailable | OpenTherm pair not connected, or the boiler is not in OpenTherm slave mode |
 | Screen stays dark | Radar has not seen anyone and the timeout expired — approach the device |
 | Screen never blanks | Radar still detects movement; reduce the still-distance gate |
+| Wi-Fi icon crossed out | No Wi-Fi association. A normal icon in a dim colour means Wi-Fi is up but Home Assistant is not connected — that is not a fault |
+| Cannot set Wi-Fi credentials | The 15-minute provisioning window has closed. Power-cycle the device and try again within 15 minutes |
+| No setup access point appears | There is none, by design — see 7.2 |
 | Room temperature reads high | Device in direct sunlight or above a heat source; or the offset needs trimming after warm-up |
 | Device not found in Home Assistant | mDNS blocked between VLANs; add the device by IP address |
-| Setpoint changes on the wheel do not reach the boiler | Check Heating Automatic is on and the boiler link is OK on the SYSTEM page |
+| Setpoint changes on the wheel do not reach the boiler | Check Heating Automatic is on and `BOILER LINK` is `OK` on the System page |
 | Device will not start | Supply polarity reversed, or the supply is below 24 V under load |
 
 ---
 
 ## 12. Compliance and Certifications
 
-The HomeMaster Thermostat for OpenTherm is CE marked and designed to comply with the
-applicable European Union legislation. ISYSTEMS AUTOMATION S.R.L. maintains the
-technical documentation and a signed EU Declaration of Conformity (document
+The HomeMaster Thermostat for OpenTherm is CE marked and designed to comply with
+the applicable European Union legislation. ISYSTEMS AUTOMATION S.R.L. maintains
+the technical documentation and a signed EU Declaration of Conformity (document
 number DoC-OTT-R1-V1.0).
 
 ### 12.1 Applicable EU legislation
@@ -495,7 +633,7 @@ number DoC-OTT-R1-V1.0).
 | Module | ESP32-WROOM-32U-N16 | HLK-LD2410C |
 | Manufacturer | Espressif Systems | Shenzhen Hi-Link Electronic |
 | Band | 2402–2480 MHz | 24.00–24.25 GHz |
-| Max. radiated power | ≤ 20 dBm EIRP | see the Declaration of Conformity |
+| Max. radiated power | ≤ 20 dBm EIRP | −5.70 dBm e.i.r.p., measured |
 
 EU type-examination for the 2.4 GHz module: No. 172141367/AA/02, issued
 02 March 2023 by Kiwa Nederland B.V. (Notified Body 0063), Wilmersdorf 50,

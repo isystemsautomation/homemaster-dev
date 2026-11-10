@@ -51,17 +51,17 @@ reverse-polarity protected by a series Schottky diode.
 | Parameter | Value |
 |---|---|
 | Nominal supply | 24 V DC, SELV |
-| Supply range | *to be confirmed by measurement at the hardware validation stage* |
-| Supply current, screen on | *to be measured* |
-| Supply current, screen blanked | *to be measured* |
-| Inrush current | *to be measured* |
+| Supply current, measured across operating states | 50–100 mA |
+| Input power, maximum | 2.4 W |
+| Energy source classification | ES1 throughout; PS1 |
+| Equipment class | Class III, no protective earth |
 | OpenTherm interface | Master, 2-wire, polarity-insensitive |
 | OpenTherm cable length | 50 m max., twisted pair |
 | USB | USB-C, serial only, CP2102 |
 
-> The current figures are deliberately left unfilled. They go in after the
-> thermal and consumption measurements recorded in the technical file
-> (TF-OTT-R1, item D4).
+Current and power figures are those measured on the assembled unit at 24 V DC
+with the backlight at 100 % and both radios active, as recorded in safety
+assessment SAFETY-OTT-R1-2026-001.
 
 ## 5. Radio
 
@@ -69,7 +69,7 @@ reverse-polarity protected by a series Schottky diode.
 |---|---|---|
 | Module | ESP32-WROOM-32U-N16 | HLK-LD2410C |
 | Band | 2402–2480 MHz | 24.00–24.25 GHz |
-| Max. radiated power | ≤ 20 dBm EIRP | see DoC-OTT-R1 |
+| Max. radiated power | ≤ 20 dBm EIRP | −5.70 dBm e.i.r.p., measured |
 | Antenna | External, U.FL connector | On-module |
 | Standards | 802.11 b/g/n, BLE | FMCW presence detection |
 
@@ -82,9 +82,14 @@ Detection range of the radar is configurable per gate from Home Assistant
 |---|---|
 | Panel | 2.8″ IPS, 320 × 240, ST7789V, SPI |
 | Backlight | LEDC PWM at 25 kHz, above the audible range |
+| Backlight level, awake | 85 % |
 | Encoder | Quadrature, 2 counts per detent |
 | Keys | Four: ◀ ▶ ▲ ▼ |
+| Screen refresh | Every 2 s, and immediately on any input |
 | Screen blanking | Radar-driven, 45 s after the room empties |
+
+Four pages — Climate, Boiler, Schedule, System — each with a menu reached with
+▲ or ▼. The interface is described in full in Chapter 4 of the user manual.
 
 ## 7. Sensors
 
@@ -123,7 +128,7 @@ capacitor.
 
 ## 10. Mechanical
 
-Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
+Enclosure: Italtronic EYE BOX, ABS to UL94 V-0, white (RAL 9003), wall mounted.
 
 | Dimension | Value | Italtronic part |
 |---|---|---|
@@ -133,6 +138,9 @@ Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
 | Wall base, round | Ø 88.7 mm, 10.5 mm deep, keyhole centres 58 mm | P61610002B |
 | Wall plate, rectangular | 140 × 80 mm, 9 mm thick, aperture 45 × 30 mm, fixings 83.5 / 60 mm | P61610014A |
 | PCB carrier | Ø 90.3 mm, 7.5 mm deep; PCB holes 58 × 36 mm, Ø 2.4 mm | P61610001V |
+
+Assembled unit: base plate 152 × 107 mm, round body Ø 95 mm, total height from
+base to screen 47 mm.
 
 ## 11. Default entity set
 
@@ -168,6 +176,7 @@ Version (text sensors).
 | Weekday comfort window | 17:00 – 23:00 |
 | Weekend comfort window | 09:00 – 23:00 |
 | Weather curve | −15 °C → 65 °C, +15 °C → 35 °C |
+| Control interval | 30 s |
 | Screen timeout | 45 s |
 
 ## 13. Compliance
