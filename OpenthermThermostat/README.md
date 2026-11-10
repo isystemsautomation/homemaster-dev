@@ -166,6 +166,176 @@ The screen shows the room temperature, the active setpoint and the state of the 
 
 The backlight is driven at 25 kHz — above the audible range, so the ceramic capacitors on the supply rail stay silent. The radar blanks the screen 45 s after the room empties and lights it again on approach.
 
+The thermostat is operated entirely from the glass: a 2.8″ colour screen, a
+rotary encoder and four keys. Everything on the screen is also available in
+Home Assistant, but nothing on the screen depends on Home Assistant being
+connected — the device keeps controlling the boiler on its own.
+
+The screen is 320 × 240 pixels in landscape. It redraws every two seconds, and
+again immediately after any key press, any encoder detent and every control
+pass.
+
+### Backlight and presence
+
+The backlight comes up to 85 % on any key press or encoder movement. It turns
+off 45 seconds after the presence radar stops seeing anyone in the room; while
+the radar still sees someone, it stays on. When the screen blanks, the
+interface also returns to the Climate page with the menu closed, so the unit is
+always in the same state when you walk up to it.
+
+The backlight is driven at 25 kHz, above the audible range. At lower
+frequencies the ceramic capacitors on the 5 V rail sing.
+
+### The header
+
+The top strip is the same on every page.
+
+| Position | Shows |
+|---|---|
+| Left | Page name — `CLIMATE`, `BOILER`, `SCHEDULE`, `SYSTEM` |
+| After the name | Four square dots, one per page; the current page is white, the others dim |
+| Right | Clock, `HH:MM`. `--:--` until the clock is set |
+| Left of the clock | Wi-Fi status |
+| Left of that | Boiler status |
+
+The clock is taken from Home Assistant when it is connected and from an
+internet time server otherwise.
+
+### Icons
+
+These are the only icons the interface uses. They are drawn in colour, and the
+colour carries as much meaning as the shape: **amber means active or wrong**,
+white means a normal reading, dim grey means idle or unavailable.
+
+| Icon | Meaning | Colour |
+|---|---|---|
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi.png" width="40"> | Wi-Fi is associated | Normal grey when Home Assistant is also connected, dim when it is not |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi-off.png" width="40"> | No Wi-Fi connection | Dim |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/water-boiler.png" width="40"> | In the header: the boiler reports a fault. In a tile: boiler water or hot-water temperature | Amber on fault or while that circuit is active, dim otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/fire.png" width="40"> | Burner. The value is the relative modulation level, or `ON` / `IDLE` when the boiler does not report modulation | Amber while the flame is on, dim when it is out |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/thermometer.png" width="40"> | Outside temperature on the Climate page, return temperature on the Boiler page | White |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/gauge.png" width="40"> | Central-heating water pressure, in bar | Amber when the boiler reports low pressure, white otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/alert.png" width="40"> | Boiler fault summary — `FAULT` or `OK` | Amber on fault, dim when clear |
+
+A reading the boiler has not sent, or a sensor that is absent, is shown as
+`--` or `--.-` in dim grey rather than as a zero.
+
+### Navigation
+
+Four keys and the encoder. The keys do the same thing on every page.
+
+| Control | Menu closed | Menu open |
+|---|---|---|
+| **Left** | Previous page; wraps around | Closes the menu |
+| **Right** | Next page; wraps around | Closes the menu |
+| **Up** | Opens the menu on the first item | Moves the selection up; wraps |
+| **Down** | Opens the menu on the first item | Moves the selection down; wraps |
+| **Encoder** | On Climate: changes the setpoint directly, in 0.5 °C steps. On the other pages: nothing | Changes the selected item |
+
+The selected menu item is drawn as a dim band with a blue bar down its left
+edge. Changes take effect as you turn — there is nothing to confirm, and
+nothing to save.
+
+### Pages
+
+#### Climate
+
+The page you use day to day.
+
+- Room temperature, large, to one decimal.
+- The setpoint currently in force below it, in cyan.
+- To its right, which setpoint that is: `COMFORT`, `ECO` or `BOOST`.
+- Four tiles: burner, boiler water temperature, outside temperature, system
+  pressure.
+
+Turning the encoder here changes the setpoint of whichever window is active —
+comfort during the comfort window, eco outside it.
+
+**Menu**
+
+| Item | Does |
+|---|---|
+| `COMFORT SETPOINT` / `ECO SETPOINT` | The active setpoint, 0.5 °C per detent |
+| `HEATING` | `AUTO` or `MANUAL`. Manual suspends the control loop and leaves the boiler as it stands |
+| `BOOST` | Comfort plus the boost offset until the next scheduled change |
+| `HYSTERESIS` | Switching band around the setpoint, 0.1 °C per detent |
+
+#### Boiler
+
+What the boiler itself reports.
+
+- Boiler water temperature, large.
+- The flow setpoint the thermostat is asking for, in cyan, labelled
+  `FLOW SET`. This is computed from the weather curve and capped by the
+  maximum flow setting.
+- Four tiles: modulation level, return temperature, hot-water temperature,
+  fault summary.
+
+**Menu**
+
+| Item | Does |
+|---|---|
+| `DHW SETPOINT` | Hot-water temperature, 1 °C per detent |
+| `MAX FLOW` | Upper limit for the flow setpoint, 1 °C per detent |
+| `DHW` | Hot water on or off at the boiler |
+
+#### Schedule
+
+- Which window is in force now, `COMFORT` or `ECO`, and its setpoint.
+- The weekday window and the weekend window, as `HH:MM - HH:MM`.
+- Whether boost is on.
+
+The windows themselves are set from Home Assistant, not on the screen: the
+device exposes four time entities for weekday start and end and weekend start
+and end. The screen shows them so you can check them without a phone.
+
+**Menu**
+
+| Item | Does |
+|---|---|
+| `COMFORT` | Comfort setpoint, 0.5 °C per detent |
+| `ECO` | Eco setpoint, 0.5 °C per detent |
+| `BOOST OFFSET` | How far above comfort boost goes, 0.5 °C per detent |
+| `BOOST` | Boost on or off |
+
+#### System
+
+Diagnostics, for commissioning and for support calls.
+
+| Row | Shows |
+|---|---|
+| `IP` | Address on the network |
+| `FIRMWARE` | Firmware version |
+| `BOILER LINK` | `OK` once the boiler has answered, amber `NONE` until then |
+| `ROOM RAW` | The room sensor before the offset is applied |
+| `LIGHT` | Ambient light in lux |
+| `PRESENCE` | Whether the radar sees anyone right now |
+
+**Menu**
+
+| Item | Does |
+|---|---|
+| `ROOM OFFSET` | Correction added to the room sensor, 0.1 °C per detent |
+
+Set the room offset after the unit has been on the wall for at least two hours:
+compare `ROOM RAW` against a reference thermometer in the middle of the room
+and enter the difference.
+
+### How the control loop uses all this
+
+Every 30 seconds the thermostat:
+
+1. picks the target — comfort inside the window, eco outside it, comfort plus
+   the boost offset while boost is on;
+2. compares it against the room temperature with the hysteresis band, so the
+   burner is not asked to start and stop around a single value;
+3. computes a flow temperature from the weather curve and caps it at the
+   maximum flow setting;
+4. enables or disables central heating at the boiler to match.
+
+With `HEATING` set to `MANUAL` none of this runs and the boiler is left exactly
+as it was found, which is what you want while servicing it.
+
 ## Network Requirements
 
 - 2.4 GHz Wi-Fi
