@@ -397,9 +397,9 @@ OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster®
 
 | | |
 |---|---|
-| ![Front, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg) | ![Three-quarter view, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-2.jpg) |
-| ![Three-quarter view from below](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-3.jpg) | ![Front, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front-off.jpg) |
-| ![Side profile](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-side.jpg) | ![Wall plate](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-back.jpg) |
+| ![Front, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg) | ![Front, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front-off.jpg) |
+| ![Three-quarter view](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-2.jpg) | ![View from below, USB-C port](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-3.jpg) |
+| ![Wall plate, rear face](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-back.jpg) | |
 
 ## License
 
