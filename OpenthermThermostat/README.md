@@ -31,7 +31,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 1. Fix the back plate to the wall and clip the body onto it.
 2. Connect 24 V DC to the +V / 0V terminals.
 3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
-4. Power on, open https://improv-wifi.com and provision Wi-Fi over Bluetooth.
+4. Power on and open https://improv-wifi.com in Chrome or Edge — provision Wi-Fi over **Bluetooth**, or over **USB serial** with a USB-C cable. Either route works; use USB when the machine or the browser has no Bluetooth.
 5. Within **15 minutes** of power-on, open ESPHome Device Builder → **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant (Settings → Devices & Services → ESPHome).
 
 | Resource | Link |
@@ -154,19 +154,6 @@ The OpenTherm interface is polarity-insensitive. Use a twisted pair; do not exce
 GPIO5 is a strapping pin, used here as the display clock. It is driven only after boot and carries no external pull resistor.
 
 ## User Interface
-
-Four keys and one encoder, with the same meaning on every page:
-
-| Control | Action |
-|---|---|
-| ◀ ▶ | previous / next page |
-| ▲ ▼ | open the menu, move through it |
-| encoder | change the page's main value, or the selected menu item |
-| ◀ (menu open) | close the menu |
-
-The screen shows the room temperature, the active setpoint and the state of the boiler without any menu. The menu is only needed to change something.
-
-The backlight is driven at 25 kHz — above the audible range, so the ceramic capacitors on the supply rail stay silent. The radar blanks the screen 45 s after the room empties and lights it again on approach.
 
 The thermostat is operated entirely from the glass: a 2.8″ colour screen, a
 rotary encoder and four keys. Everything on the screen is also available in
