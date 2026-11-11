@@ -410,7 +410,7 @@ OpenTherm® is a registered trademark of the OpenTherm Association. HomeMaster®
 
 | | |
 |---|---|
-| ![Front, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg) | ![Three-quarter view, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle.jpg) |
+| ![Front, screen on](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg) | |
 | ![Three-quarter view, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-2.jpg) | ![Three-quarter view from below](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-angle-3.jpg) |
 | ![Front, screen off](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front-off.jpg) | ![Side profile](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-side.jpg) |
 | ![Wall plate](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-back.jpg) | |
