@@ -295,7 +295,7 @@ and end. The screen shows them so you can check them without a phone.
 
 #### System
 
-<img src="https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=3" alt="System page" width="420">
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=4" alt="System page" width="420">
 
 Diagnostics, for commissioning and for support calls.
 

@@ -437,7 +437,7 @@ A window wraps at midnight: turning `WEEKEND TO` past `23:50` brings it to
 
 Diagnostics, for commissioning and for support calls.
 
-![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png)
+![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=4)
 
 | Row | Shows |
 |---|---|
