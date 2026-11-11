@@ -1,5 +1,5 @@
 ---
-title: HomeMaster OpenTherm Thermostat
+title: HomeMaster Thermostat for OpenTherm
 date-published: 2026-11-09
 type: misc
 standard: global
@@ -9,13 +9,13 @@ made-for-esphome: True
 difficulty: 1
 ---
 
-## HomeMaster OpenTherm Thermostat
+## HomeMaster Thermostat for OpenTherm
 
-![Device](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg)
+![HomeMaster Thermostat for OpenTherm](thermostat.jpg)
 
 ## Description
 
-The HomeMaster OpenTherm Thermostat is a wall-mounted ESP32 device that acts as an
+The HomeMaster Thermostat for OpenTherm is a wall-mounted ESP32 device that acts as an
 **OpenTherm master** for modulating boilers. It carries a 2.8″ colour display, a
 rotary encoder, four keys, a 24 GHz presence radar, and on-board temperature,
 humidity and ambient light sensors.
@@ -152,8 +152,9 @@ manifest. New releases appear under Settings → Updates in Home Assistant.
 
 ## ESPHome Compatibility
 
-Requires ESPHome 2026.7.0 or newer, for the `mipi_spi` display platform and the
-`opentherm` component.
+Requires ESPHome 2026.10.0 or newer, for the `improv_ble` component. The
+`mipi_spi` display platform and the `opentherm` component have been available
+since 2026.7.0.
 
 ## User Interface
 
