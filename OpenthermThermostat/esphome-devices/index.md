@@ -11,7 +11,7 @@ difficulty: 1
 
 ## HomeMaster Thermostat for OpenTherm
 
-![Device](https://config.home-master.eu/OpenthermThermostat/Images/thermostat-front.jpg)
+![HomeMaster Thermostat for OpenTherm](thermostat.jpg)
 
 ## Description
 
