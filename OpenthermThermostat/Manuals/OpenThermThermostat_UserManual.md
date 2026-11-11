@@ -238,14 +238,72 @@ See Chapter 12.
 > including a curtain over a radiator, a ceiling fan, and a pet. If the screen
 > never blanks, reduce **Radar Max Still Gate** before suspecting a fault.
 
-### 4.2 Mounting
+### 4.2 What the thermostat mounts on
 
-1. Fix the wall base or wall plate with two screws, or mount it on a flush box.
+The device is supplied with the Italtronic EYE BOX mounting parts and goes up
+one of two ways.
+
+**Straight to the wall.** The round base, Italtronic P61610002B, Ø 88.7 mm and
+10.5 mm deep, takes two screws into the wall at **58 mm** centres through its
+keyholes. Nothing else is needed; the cables come through the opening in the
+base.
+
+**On a flush-mounting box.** The rectangular plate, Italtronic P61610014A,
+140 × 80 mm and 9 mm thick, screws onto a box already in the wall. It carries
+two pairs of fixing holes, and Italtronic describes it as a *"wall mounting
+element for electrical box use UK/USA/EUROPE respectively Ø 60, 3 gang and
+Ø 60 + 3 gang"*:
+
+| Hole centres | Fits |
+|---|---|
+| **60 mm** | The round device box used across continental Europe — bore Ø 68 mm, depth from 35 mm. Also the square boxes whose device screws sit at 60 mm |
+| **83.5 mm** | The Italian three-module box, 503 or 503E |
+
+What decides whether a box fits is the **distance between its device screws**,
+not the shape of the box or the size of the hole in the wall. Measure that
+distance before ordering anything: 60 mm and 83.5 mm are the two the plate is
+drilled for.
+
+The plate has a cable aperture of 45 × 30 mm, and it sets the body 9 mm off the
+wall, which is where the cable turns.
+
+> **ℹ A box is not required.** The round base screws to bare plasterwork. A
+> flush box is worth having for one reason: it is where the supply can live,
+> and it keeps the cable joints out of the wall cavity.
+
+**Sequence**
+
+1. Fix the round base, or the plate on the box, with two screws.
 2. Bring the 24 V DC supply and the OpenTherm pair through the opening.
 3. Terminate the wires.
-4. Clip the body onto the base.
+4. Clip the body on.
 
-### 4.3 Removal
+### 4.3 Power supply — not included
+
+**No mains power supply is shipped with the thermostat.** The device takes
+**24 V DC SELV**, draws 50–100 mA and never more than 2.4 W, and that supply is
+the installer's to provide. Mains voltage must not reach any terminal on the
+device.
+
+There are two sensible places to put it.
+
+**In the distribution board or the boiler cabinet.** A DIN-rail 24 V supply
+feeds the thermostat over the same route as the OpenTherm pair. This is the
+tidier arrangement and the one to prefer: the supply is accessible, it is in a
+ventilated enclosure, and nothing mains-powered sits behind the thermostat.
+
+**In a deep flush box behind the thermostat.** Only with a supply that is built
+for installation inside a closed box, in a box deep enough for it, and wired by
+someone qualified to work on mains. The room-temperature reading is the other
+reason to think twice: a supply dissipating a watt or two directly behind the
+sensor warms the wall it is screwed to.
+
+**Cabling.** Two pairs reach the device — 24 V DC, and OpenTherm. They may
+share one cable or run separately; both are SELV, so a single four-core cable
+is fine. OpenTherm is polarity-insensitive, takes a twisted pair and must not
+exceed 50 m. Neither pair may be bundled with mains cabling.
+
+### 4.4 Removal
 
 Hold the body and pull it straight off the base. Disconnect the 24 V supply
 before touching the terminals.

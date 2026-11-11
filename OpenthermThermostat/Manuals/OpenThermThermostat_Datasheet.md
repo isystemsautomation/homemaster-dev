@@ -56,7 +56,7 @@ reverse-polarity protected by a series Schottky diode.
 
 | Parameter | Value |
 |---|---|
-| Nominal supply | 24 V DC, SELV |
+| Nominal supply | 24 V DC, SELV, **not supplied with the device** |
 | Supply current, measured across operating states | 50–100 mA |
 | Input power, maximum | 2.4 W |
 | Energy source classification | ES1 throughout; PS1 |
@@ -152,6 +152,12 @@ Enclosure: Italtronic EYE BOX, ABS to UL94 V-0, white (RAL 9003), wall mounted.
 Assembled unit: base plate 152 × 107 mm, round body Ø 95 mm, total height from
 base to screen 47 mm.
 
+Mounting: the round base takes two screws into the wall at 58 mm centres. The
+rectangular plate screws onto a flush-mounting box, with fixing holes at both
+**60 mm** — the round European device box, bore Ø 68 mm — and **83.5 mm** — the
+Italian three-module box, 503. Cable aperture 45 × 30 mm. What decides whether
+a box fits is the distance between its device screws, not the shape of the box.
+
 ## 11. Default entity set
 
 Sensors: Room Temperature, Room Temperature Raw, Room Humidity, Ambient Light,
@@ -220,6 +226,11 @@ DoC-OTT-R1-V1.0 and Chapter 12 of the user manual.
 | Part number | Description |
 |---|---|
 | OTT-R1 | HomeMaster Thermostat for OpenTherm, wall mount, 24 V DC |
+
+The thermostat ships with its enclosure and mounting parts. A 24 V DC supply is
+not included and is ordered separately — a DIN-rail unit in the distribution
+board or the boiler cabinet, or a module rated for installation inside a deep
+flush box.
 
 ## 15. Manufacturer
 
