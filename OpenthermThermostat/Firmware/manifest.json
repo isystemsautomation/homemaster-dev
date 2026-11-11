@@ -1,5 +1,5 @@
 {
-  "name": "HomeMaster OpenTherm Thermostat",
+  "name": "HomeMaster Thermostat for OpenTherm",
   "version": "1.0.0",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": true,
@@ -7,13 +7,13 @@
     {
       "chipFamily": "ESP32",
       "parts": [
-        { "path": "thermostat.factory.bin", "offset": 0 }
+        { "path": "https://config.home-master.eu/OpenthermThermostat/Firmware/thermostat.factory.bin", "offset": 0 }
       ],
       "ota": {
-        "path": "thermostat.ota.bin",
-        "md5": "",
-        "summary": "Initial release",
-        "release_url": "https://github.com/isystemsautomation/homemaster-dev/releases"
+        "path": "https://config.home-master.eu/OpenthermThermostat/Firmware/thermostat.ota.bin",
+        "md5": "2064bb5cc82dae80c37873b0b3ffb7f0",
+        "summary": "Version 1.0.0 - first release.",
+        "release_url": "https://config.home-master.eu/OpenthermThermostat/Firmware/CHANGELOG.md"
       }
     }
   ]
