@@ -4,12 +4,6 @@ in accordance with Regulation (EC) No 765/2008 and Decision No 768/2008/EC
 
 **Document No.: DoC-OTT-R1-V1.0**
 
-> **STATUS: AWAITING SIGNATURE.** All supporting evidence is in place and
-> identified in Section 8. Delete this note when the document is dated and
-> signed, and do not publish the document while the note is present.
-
----
-
 ## 1. Manufacturer
 
 | | |
@@ -186,13 +180,13 @@ product is manufactured without significant modification.
 
 Place of issue: Ploiești, Romania
 
-Date of issue: _________________
+Date of issue: 12.11.2026
 
 Name: Daniela Drezyulya
 
 Position: Director
 
-Signature: _________________
+Signature:
 
 ---
 
