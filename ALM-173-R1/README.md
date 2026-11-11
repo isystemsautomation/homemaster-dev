@@ -916,6 +916,6 @@ No. Configuration uses the browser-based WebConfig over USB-C in a Chromium-base
 
 - [WebConfig v0.2.0](https://config.home-master.eu/ALM-173-R1/Firmware/v0.2.0/ConfigToolPage.html)
 - [Official support](https://www.home-master.eu/support)
-- [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1)
+- [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/site/ALM-173-R1)
 
 **Manufacturer:** ISYSTEMS AUTOMATION S.R.L. · [www.home-master.eu](https://www.home-master.eu)

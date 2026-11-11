@@ -462,10 +462,10 @@ Buttons 1–4, LEDs 1–4, Link OK, Config dirty, RTD1/2 fault, ADS/DAC/RTD chip
 ### Files
 
 - **Firmware v0.2.0 (UF2):** [`AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2`](https://config.home-master.eu/AIO-422-R1/Firmware/v0.2.0/AIO-422-R1.uf2)
-- **ESPHome package (v0.2.0):** [`default_aio_422_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc)
+- **ESPHome package (v0.2.0):** [`default_aio_422_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1_plc)
 - **WebConfig (v0.2.0):** [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.2.0/ConfigToolPage.html)
-- **Sketch source (v0.2.0):** [`default_aio_422_r1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1)
-- **ESPHome package (v0.1.0 — legacy):** [`Firmware/v0.1.0/default_aio_422_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc)
+- **Sketch source (v0.2.0):** [`default_aio_422_r1/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/AIO-422-R1/Firmware/v0.2.0/default_aio_422_r1)
+- **ESPHome package (v0.1.0 — legacy):** [`Firmware/v0.1.0/default_aio_422_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/AIO-422-R1/Firmware/v0.1.0/default_aio_422_r1_plc)
 - **WebConfig (v0.1.0 — legacy):** [ConfigToolPage.html](https://config.home-master.eu/AIO-422-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - **Schematics / manuals:** under `AIO-422-R1/Schematics/`, `AIO-422-R1/Manuals/`
 

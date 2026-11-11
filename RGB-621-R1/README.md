@@ -1001,7 +1001,7 @@ See LICENSE files in each directory for full terms.
 # 11. Downloads
 
 - **Repository (module path):**  
-  [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1)
+  [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/site/RGB-621-R1)
 - **Firmware & examples:** `RGB-621-R1/Firmware/`
 - **WebConfig (HTML page):** `RGB-621-R1/Firmware/v0.3.0/ConfigToolPage.html`
 - **Schematics (PDF):** `RGB-621-R1/Schematics/`

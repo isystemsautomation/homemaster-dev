@@ -1045,7 +1045,7 @@ See LICENSE files in each directory for full terms.
 
 | Item               | Link                                                                 |
 |--------------------|----------------------------------------------------------------------|
-| **Firmware Source**   | [`/Firmware/v0.1.0/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1) |
+| **Firmware Source**   | [`/Firmware/v0.1.0/default_DIM_420_R1`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIM-420-R1/Firmware/v0.1.0/default_DIM_420_R1) |
 | **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIM-420-R1/Firmware/v0.1.0/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
 | **WebConfig Tool**    | [Online Version](https://config.home-master.eu/DIM-420-R1/Firmware/v0.1.0/ConfigToolPage.html) |
 | **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIM-420-R1/Schematics) |

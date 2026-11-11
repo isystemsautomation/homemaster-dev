@@ -4,7 +4,7 @@ date-published: 2025-08-19
 type: relay
 standard: global
 board: esp32
-project-url: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway
+project-url: https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermGateway
 made-for-esphome: True
 difficulty: 1
 ---
@@ -27,7 +27,7 @@ This page includes the full ESPHome configuration used on shipped devices (inclu
 For complete product documentation (connections, compliance/certifications, wiring, and schematics), see:
 
 - Product page: [home-master.eu shop](https://www.home-master.eu/shop/esp32-opentherm-gateway-59)
-- Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermGateway)
+- Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermGateway)
 - Datasheet (PDF):
   [OpenTherm_Datasheet.pdf](https://config.home-master.eu/OpenthermGateway/Manuals/OpenTherm_Datasheet.pdf)
 - Schematics (PDF):

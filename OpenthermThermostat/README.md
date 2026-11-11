@@ -37,7 +37,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | Resource | Link |
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/) |
-| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat) |
 | ⚙️ Default Firmware (YAML) | [thermostat.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/OpenthermThermostat/Firmware/thermostat.yaml) |
 | 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat/Schematics) |
 | 🏠 Maker | [home-master.eu](https://www.home-master.eu/) |

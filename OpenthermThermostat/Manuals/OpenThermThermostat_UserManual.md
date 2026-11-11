@@ -724,7 +724,7 @@ and is published in the manufacturer's GitHub repository under
 ### 13.2 Online resources
 
 - Product page: https://www.home-master.eu
-- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat
+- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat
 - Firmware: `OpenthermThermostat/Firmware/thermostat.yaml`
 
 ### 13.3 License

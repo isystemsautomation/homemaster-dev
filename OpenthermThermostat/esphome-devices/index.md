@@ -4,7 +4,7 @@ date-published: 2026-11-09
 type: misc
 standard: global
 board: esp32
-project-url: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat
+project-url: https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat
 made-for-esphome: True
 difficulty: 1
 ---
@@ -32,7 +32,7 @@ For complete product documentation (connections, compliance, wiring and
 schematics), see:
 
 - Product page: [home-master.eu](https://www.home-master.eu/)
-- Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat)
+- Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat)
 - Schematics (PDF):
   [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat/Schematics)
 - Maker: [home-master.eu](https://www.home-master.eu/)

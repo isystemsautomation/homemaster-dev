@@ -11,7 +11,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 | Resource | Link |
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/esp32-microplc-56) |
-| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MicroPLC) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/site/MicroPLC) |
 | ⚙️ Default Firmware (YAML) | [microplc.yaml](https://github.com/isystemsautomation/homemaster-dev/blob/main/MicroPLC/Firmware/microplc.yaml) |
 | 📝 Changelog | [CHANGELOG.md](Firmware/CHANGELOG.md) |
 | 🔧 Schematics | [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/MicroPLC/Schematics) |

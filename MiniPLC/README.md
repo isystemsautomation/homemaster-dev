@@ -32,7 +32,7 @@ This repository includes the full ESPHome configuration used on shipped devices 
 | Resource | Link |
 |---|---|
 | 🛒 Product page | [home-master.eu](https://www.home-master.eu/shop/esp32-miniplc-55) |
-| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/main/MiniPLC) |
+| 📁 Repository | [GitHub](https://github.com/isystemsautomation/homemaster-dev/tree/site/MiniPLC) |
 | 📄 Datasheet (PDF) | [MiniPLC_Datasheet.pdf](https://config.home-master.eu/MiniPLC/Manuals/MiniPLC_Datasheet.pdf) |
 | 📘 User Manual (PDF) | [User Manual.pdf](https://config.home-master.eu/MiniPLC/Manuals/User%20Manual.pdf) |
 | 📄 UK PSTI statement (PDF) | [PSTI_MiniPLC.pdf](https://config.home-master.eu/MiniPLC/Manuals/PSTI_MiniPLC.pdf) |
@@ -108,14 +108,14 @@ The MiniPLC acts as a Modbus RTU master on its RS-485 bus. Add HomeMaster I/O mo
 
 | Module | Function | Repository |
 |---|---|---|
-| DIO-430-R1 | 4 × digital inputs + 3 × relays | [DIO-430-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1) |
-| DIM-420-R1 | 2-channel MOSFET AC dimmer | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIM-420-R1) |
-| ENM-223-R1 | 3-phase energy & power-quality monitor | [ENM-223-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ENM-223-R1) |
-| ALM-173-R1 | 17 digital inputs + 3 relays, alarm logic (not a certified alarm system) | [ALM-173-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/ALM-173-R1) |
-| AIO-422-R1 | 4 × analog inputs + 2 × analog outputs + 2 × RTD | [AIO-422-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/AIO-422-R1) |
-| RGB-621-R1 | RGB + CCT LED controller (5 PWM + 1 relay) | [RGB-621-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/RGB-621-R1) |
-| STR-3221-R1 | 32-channel staircase / architectural LED controller | [STR-3221-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/STR-3221-R1) |
-| WLD-521-R1 | Multi-zone leak detection, valve control, pulse metering | [WLD-521-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/main/WLD-521-R1) |
+| DIO-430-R1 | 4 × digital inputs + 3 × relays | [DIO-430-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1) |
+| DIM-420-R1 | 2-channel MOSFET AC dimmer | [DIM-420-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIM-420-R1) |
+| ENM-223-R1 | 3-phase energy & power-quality monitor | [ENM-223-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/ENM-223-R1) |
+| ALM-173-R1 | 17 digital inputs + 3 relays, alarm logic (not a certified alarm system) | [ALM-173-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/ALM-173-R1) |
+| AIO-422-R1 | 4 × analog inputs + 2 × analog outputs + 2 × RTD | [AIO-422-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/AIO-422-R1) |
+| RGB-621-R1 | RGB + CCT LED controller (5 PWM + 1 relay) | [RGB-621-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/RGB-621-R1) |
+| STR-3221-R1 | 32-channel staircase / architectural LED controller | [STR-3221-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/STR-3221-R1) |
+| WLD-521-R1 | Multi-zone leak detection, valve control, pulse metering | [WLD-521-R1/](https://github.com/isystemsautomation/homemaster-dev/tree/site/WLD-521-R1) |
 
 Any standard Modbus RTU slave device can also be connected. Refer to each module's own `README.md` for register maps and the recommended YAML package import.
 

@@ -896,17 +896,17 @@ See [§9.2 Flashing](#92-flashing-usb-c-hardware-buttons) and [§11 Downloads](#
 - **Firmware v0.2.0 (pre-built UF2 — drag-and-drop upgrade)**
   - [`DIO-430-R1.uf2`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/DIO-430-R1.uf2)
 - **Firmware publishing (maintainers)**
-  - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/main/DIO-430-R1/Firmware/README.md)
+  - [`DIO-430-R1/Firmware/README.md`](https://github.com/isystemsautomation/homemaster-dev/blob/site/DIO-430-R1/Firmware/README.md)
 - **Firmware source (Arduino, v0.2.0)**
-  - [`DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1)
+  - [`DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1/Firmware/v0.2.0/default_DIO_430_R1)
 - **YAML configs (ESPHome, v0.2.0)**
-  - [`DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc)
+  - [`DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1/Firmware/v0.2.0/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS, v0.2.0)**
   - [`DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.2.0/ConfigToolPage.html)
 - **Firmware source (Arduino, v0.1.0 — legacy)**
-  - [`DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1)
+  - [`DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1/Firmware/v0.1.0/default_DIO_430_R1)
 - **YAML configs (ESPHome, v0.1.0 — legacy)**
-  - [`DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/main/DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc)
+  - [`DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/homemaster-dev/tree/site/DIO-430-R1/Firmware/v0.1.0/default_dio_430_r1_plc)
 - **WebConfig tool (HTML/JS, v0.1.0 — legacy)**
   - [`DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html`](https://config.home-master.eu/DIO-430-R1/Firmware/v0.1.0/ConfigToolPage.html)
 - **Schematics (PDF)**
