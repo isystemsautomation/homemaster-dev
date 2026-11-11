@@ -373,7 +373,7 @@ measurement.
 
 The page for day-to-day use.
 
-![Climate page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-climate.png)
+![Climate page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-climate.png?v=3)
 
 - Room temperature, large, to one decimal.
 - The setpoint currently in force below it, in cyan.
@@ -395,7 +395,7 @@ comfort during the comfort window, eco outside it.
 
 What the boiler itself reports.
 
-![Boiler page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png)
+![Boiler page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png?v=3)
 
 - Boiler water temperature, large.
 - The flow setpoint the thermostat is asking for, in cyan, labelled `FLOW SET`.
@@ -410,7 +410,7 @@ What the boiler itself reports.
 
 ### 6.8 Schedule page
 
-![Schedule page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-schedule.png)
+![Schedule page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-schedule.png?v=3)
 
 - Which window is in force now, and its setpoint.
 - The weekday and weekend windows, as `HH:MM - HH:MM`.
@@ -437,7 +437,7 @@ A window wraps at midnight: turning `WEEKEND TO` past `23:50` brings it to
 
 Diagnostics, for commissioning and for support calls.
 
-![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png)
+![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=3)
 
 | Row | Shows |
 |---|---|
