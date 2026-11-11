@@ -123,7 +123,8 @@ firmware:
    eco setpoint outside it, or comfort plus the boost offset while Boost is on;
 2. compares it with the room temperature and applies hysteresis;
 3. calculates the flow setpoint from the weather curve and caps it at the
-   boiler's maximum;
+   boiler's maximum, or uses the fixed flow setpoint when compensation is off
+   or no outside temperature is available;
 4. enables or disables central heating accordingly.
 
 Home Assistant is used for visibility and remote control, never as a dependency.
@@ -494,6 +495,10 @@ appear automatically; no YAML is needed on the Home Assistant side.
 | Comfort Temperature, Eco Temperature | number |
 | Boost Offset, Room Hysteresis, Room Sensor Offset | number (config) |
 | Curve Cold/Warm Outside, Curve Cold/Warm Flow | number (config) |
+| Fixed Flow Setpoint | number (config) |
+| Outside Temperature Source, Room Temperature Source | select (config) |
+| Weather Compensation | switch |
+| Outside Temperature In Use | sensor |
 | Weekday / Weekend Comfort Start and End | datetime (config) |
 | Heating Target, Flow Setpoint By Curve | sensor |
 | Boiler Water Temperature, Return, DHW, Pressure, Modulation, Outside | sensor |
@@ -566,11 +571,62 @@ the boiler's maximum CH setpoint.
 |---|---|
 | Curve Cold Outside / Curve Cold Flow | −15 °C → 65 °C |
 | Curve Warm Outside / Curve Warm Flow | +15 °C → 35 °C |
+| Fixed Flow Setpoint | 55 °C |
+| Weather Compensation | On |
 
-Without an outside temperature from the boiler, the curve collapses to its warm
-end — the result under-shoots rather than over-heats.
+**Weather Compensation** turns the curve off. With it off, the boiler is asked
+for **Fixed Flow Setpoint** and nothing else — use this on a system that is
+balanced for one flow temperature, or while commissioning.
 
-### 10.4 Heating Automatic
+**With no outside temperature available**, from either source, the thermostat
+also asks for Fixed Flow Setpoint. It does not fall back to the warm end of the
+curve: on a January morning that is a silent under-heat which looks like a
+broken thermostat rather than a missing sensor.
+
+Both limits still apply: the value is capped by **Boiler Max CH Setpoint**, and
+the room hysteresis still decides whether heat is called for at all.
+
+### 10.4 Where the temperatures come from
+
+Two selects decide the sources. Both default to the device's own source, so a
+thermostat that is never added to Home Assistant behaves as a self-contained
+unit.
+
+| Select | Options | Default |
+|---|---|---|
+| **Outside Temperature Source** | `Boiler, then Home Assistant` · `Boiler` · `Home Assistant` | Boiler, then Home Assistant |
+| **Room Temperature Source** | `Built-in sensor` · `Home Assistant` | Built-in sensor |
+
+The default for the outside temperature prefers the boiler's own sensor and
+falls back to Home Assistant only when the boiler reports none. The boiler's
+sensor does not depend on the network, so it is the safer source when both
+exist.
+
+> **ℹ Most boilers have no outside sensor.** If yours does not, the curve has
+> nothing to work from until you either fit one or point the thermostat at a
+> Home Assistant entity — a weather integration is enough. Until then the
+> thermostat uses Fixed Flow Setpoint.
+
+> **⚠ Home Assistant as a source is a dependency.** With a source set to
+> `Home Assistant`, that value stops arriving when the network or Home
+> Assistant does. The room temperature then has no reading and heating stops
+> being regulated; the outside temperature falls back to Fixed Flow Setpoint.
+> Leave the room source on the built-in sensor unless you have a reason not to.
+
+**Room Sensor Offset applies to the built-in sensor only.** A value coming from
+Home Assistant arrives from a thermometer that is already calibrated, and
+correcting it again here would be a second, invisible correction.
+
+The sensor **Outside Temperature In Use** publishes the value actually feeding
+the curve, after the select has been applied, and the Climate page shows that
+same value. Use it to confirm which source is live.
+
+The entities **ha_outside_entity** and **ha_room_entity** in the configuration
+name the Home Assistant entities to read. They default to
+`sensor.outside_temperature` and `sensor.room_temperature`; change them after
+taking control of the device.
+
+### 10.5 Heating Automatic
 
 Turning **Heating Automatic** off suspends the whole control loop and leaves the
 boiler in whatever state it was found. Use it when commissioning, or when the
@@ -591,6 +647,9 @@ boiler is to be controlled from elsewhere.
 | Room temperature reads high | Device in direct sunlight or above a heat source; or the offset needs trimming after warm-up |
 | Device not found in Home Assistant | mDNS blocked between VLANs; add the device by IP address |
 | Setpoint changes on the wheel do not reach the boiler | Check Heating Automatic is on and `BOILER LINK` is `OK` on the System page |
+| House is cool in cold weather although the boiler runs | No outside temperature, so the flow setpoint is the Fixed Flow Setpoint. Check `Outside Temperature In Use`; either raise the fixed value or give the thermostat an outside source (see 10.4) |
+| Outside temperature shows `--` | The boiler reports none and no Home Assistant entity is configured or reachable |
+| Room temperature unavailable after a network outage | Room Temperature Source is set to Home Assistant; switch it back to the built-in sensor |
 | Device will not start | Supply polarity reversed, or the supply is below 24 V under load |
 
 ---

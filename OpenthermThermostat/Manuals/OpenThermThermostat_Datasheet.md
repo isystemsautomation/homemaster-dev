@@ -18,6 +18,12 @@ setpoint — runs on the device. Home Assistant is used for visibility and remot
 control, not as a dependency: with the network down the room keeps being heated
 to the stored schedule.
 
+The outside temperature and the room temperature can each be taken from the
+device's own source — the boiler's outside sensor, the on-board SHT40 — or from
+a Home Assistant entity, selected per temperature. Weather compensation can also
+be switched off entirely, in which case the boiler is asked for a fixed flow
+setpoint.
+
 ESPHome is pre-installed. The device appears in Home Assistant over the native
 ESPHome API, with no MQTT and no register mapping.
 
@@ -147,20 +153,23 @@ base to screen 47 mm.
 Sensors: Room Temperature, Room Temperature Raw, Room Humidity, Ambient Light,
 Heating Target, Flow Setpoint By Curve, Boiler Water Temperature, Boiler Return
 Temperature, Boiler DHW Temperature, Boiler CH Pressure, Boiler Relative
-Modulation Level, Outside Temperature, Uptime, WiFi Signal, Radar distances.
+Modulation Level, Outside Temperature, Outside Temperature In Use, Uptime,
+WiFi Signal, Radar distances.
 
 Binary sensors: Boiler Flame On, Boiler CH Active, Boiler DHW Active, Boiler
 Fault Indication, Boiler Low Water Pressure, Boiler Flame Fault, Boiler Service
 Request, Comfort Window, Heat Demand, Presence, Radar Target.
 
 Numbers: Comfort Temperature, Eco Temperature, Boost Offset, Room Hysteresis,
-Room Sensor Offset, Curve Cold/Warm Outside, Curve Cold/Warm Flow, Boiler DHW
-Setpoint, Boiler Max CH Setpoint, Radar gates and timeout.
+Room Sensor Offset, Curve Cold/Warm Outside, Curve Cold/Warm Flow, Fixed Flow
+Setpoint, Boiler DHW Setpoint, Boiler Max CH Setpoint, Radar gates and timeout.
+
+Selects: Outside Temperature Source, Room Temperature Source.
 
 Datetimes: Weekday and Weekend Comfort Start and End.
 
-Switches: Heating Automatic, Boost Until Next Change, Boiler CH Enable, Boiler
-DHW Enable.
+Switches: Heating Automatic, Weather Compensation, Boost Until Next Change,
+Boiler CH Enable, Boiler DHW Enable.
 
 Other: Backlight (light), Firmware Update (update), IP Address and ESPHome
 Version (text sensors).
@@ -176,6 +185,10 @@ Version (text sensors).
 | Weekday comfort window | 17:00 – 23:00 |
 | Weekend comfort window | 09:00 – 23:00 |
 | Weather curve | −15 °C → 65 °C, +15 °C → 35 °C |
+| Weather Compensation | On |
+| Fixed Flow Setpoint | 55 °C |
+| Outside Temperature Source | Boiler, then Home Assistant |
+| Room Temperature Source | Built-in sensor |
 | Control interval | 30 s |
 | Screen timeout | 45 s |
 
