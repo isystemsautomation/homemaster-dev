@@ -1,3 +1,5 @@
+Product names and model codes: [NAMING.md](NAMING.md)
+
 # HOMEMASTER – Modular, Open, Local‑First Automation
 
 ![License: CERN-OHL-W v2 + GPLv3 + MIT](https://img.shields.io/badge/license-CERN--OHL--W_v2%20%7C%20GPLv3%20%7C%20MIT-informational)
