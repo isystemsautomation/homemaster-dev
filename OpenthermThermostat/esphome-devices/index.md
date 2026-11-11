@@ -13,7 +13,7 @@ difficulty: 1
 
 ![HomeMaster Thermostat for OpenTherm](thermostat.jpg)
 
-![Climate page](screen-climate.png)
+![Climate page](screen-climate.png?v=2)
 
 ## Description
 
