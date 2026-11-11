@@ -253,7 +253,7 @@ comfort during the comfort window, eco outside it.
 
 #### Boiler
 
-<img src="https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png" alt="Boiler page" width="420">
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png?v=0677c21" alt="Boiler page" width="420">
 
 What the boiler itself reports.
 
