@@ -31,6 +31,11 @@ substitutions:
   margin_left: "42"
   margin_right: "14"
 
+  # Home Assistant entities used when a temperature source is set to
+  # "Home Assistant". Change them after taking control of the device.
+  ha_outside_entity: sensor.outside_temperature
+  ha_room_entity: sensor.room_temperature
+
   # Backlight level while the screen is awake.
   bl_active: "0.85"
   # Screen blanks this long after the radar stops seeing anyone.
@@ -298,6 +303,20 @@ number:
     entity_category: config
 
   - platform: template
+    id: flow_fixed
+    name: "Fixed Flow Setpoint"
+    icon: mdi:radiator
+    unit_of_measurement: "°C"
+    min_value: 20
+    max_value: 85
+    step: 1
+    initial_value: 55
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    mode: box
+
+  - platform: template
     id: room_offset
     name: "Room Sensor Offset"
     unit_of_measurement: "°C"
@@ -393,6 +412,13 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
 
   - platform: template
+    id: curve_enable
+    name: "Weather Compensation"
+    icon: mdi:chart-bell-curve-cumulative
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - platform: template
     id: heat_boost
     name: "Boost Until Next Change"
     icon: mdi:fire-circle
@@ -408,6 +434,36 @@ switch:
       id: ot_dhw_enable
       name: "Boiler DHW Enable"
       restore_mode: RESTORE_DEFAULT_ON
+
+# ---------------------------------------------------------------- sources
+
+# Where the two temperatures come from. Both default to the device's own
+# source, so a unit that is never adopted still behaves as it did before.
+select:
+  - platform: template
+    id: src_outside
+    name: "Outside Temperature Source"
+    icon: mdi:thermometer-lines
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    options:
+      - "Boiler, then Home Assistant"
+      - "Boiler"
+      - "Home Assistant"
+    initial_option: "Boiler, then Home Assistant"
+
+  - platform: template
+    id: src_room
+    name: "Room Temperature Source"
+    icon: mdi:home-thermometer-outline
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    options:
+      - "Built-in sensor"
+      - "Home Assistant"
+    initial_option: "Built-in sensor"
 
 # ---------------------------------------------------------------- sensors
 
@@ -434,9 +490,36 @@ sensor:
     accuracy_decimals: 1
     update_interval: 10s
     lambda: |-
+      // Room Temperature Source decides where this comes from. The offset is
+      // applied to the built-in sensor only: a value from Home Assistant
+      // comes from a thermometer that is already calibrated, and correcting
+      // it here would be a second, invisible correction.
+      if (id(src_room).current_option() == "Home Assistant") {
+        if (id(ha_t_room).has_state() && !std::isnan(id(ha_t_room).state))
+          return id(ha_t_room).state;
+        return {};
+      }
       if (!id(room_temp_raw).has_state() || std::isnan(id(room_temp_raw).state))
         return {};
       return id(room_temp_raw).state + id(room_offset).state;
+
+  # Temperatures taken from Home Assistant. They are the alternative
+  # source for the two selects below. Both stay unavailable until the
+  # entity exists, which is the correct behaviour on a device that has
+  # not been adopted yet.
+  - platform: homeassistant
+    id: ha_t_outside
+    entity_id: ${ha_outside_entity}
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    internal: true
+
+  - platform: homeassistant
+    id: ha_t_room
+    entity_id: ${ha_room_entity}
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    internal: true
 
   - platform: bh1750
     i2c_id: i2c_bus
@@ -493,6 +576,34 @@ sensor:
       name: "Outside Temperature"
       unit_of_measurement: "°C"
 
+  # The outside temperature actually feeding the curve, after the source
+  # select has been applied. Published so the choice is visible instead of
+  # being buried in a lambda.
+  - platform: template
+    id: outside_temp
+    name: "Outside Temperature In Use"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 30s
+    lambda: |-
+      auto ok = [](sensor::Sensor *s) {
+        return s->has_state() && !std::isnan(s->state);
+      };
+      const auto src = id(src_outside).current_option();
+      if (src == "Boiler")
+        return ok(id(ot_t_outside)) ? optional<float>(id(ot_t_outside).state)
+                                    : optional<float>{};
+      if (src == "Home Assistant")
+        return ok(id(ha_t_outside)) ? optional<float>(id(ha_t_outside).state)
+                                    : optional<float>{};
+      // "Boiler, then Home Assistant": the boiler's own sensor wins when it
+      // has one, because it does not depend on the network.
+      if (ok(id(ot_t_outside))) return optional<float>(id(ot_t_outside).state);
+      if (ok(id(ha_t_outside))) return optional<float>(id(ha_t_outside).state);
+      return optional<float>{};
+
   - platform: template
     id: heat_target
     name: "Heating Target"
@@ -515,21 +626,38 @@ sensor:
     accuracy_decimals: 1
     update_interval: 30s
     lambda: |-
-      // Weather compensation. Without an outside reading the curve collapses
-      // to its warm end, which under-shoots rather than over-heats.
+      // Weather compensation, with two deliberate exits.
+      //
+      // Compensation switched off: the boiler is asked for Fixed Flow
+      // Setpoint and nothing else.
+      //
+      // No outside reading from the chosen source: also Fixed Flow Setpoint.
+      // The previous firmware slid to the warm end of the curve instead,
+      // which on a January morning is a silent under-heat that looks like a
+      // broken thermostat. A fallback the installer sets is honest; a
+      // fallback that happens to be the minimum is not.
+      float cap = id(ot_max_t_set).state;
+      auto capped = [&](float v) {
+        if (!std::isnan(cap) && v > cap) v = cap;
+        return v;
+      };
+
+      const float fixed = id(flow_fixed).state;
+      if (!id(curve_enable).state) return capped(fixed);
+
+      if (!id(outside_temp).has_state() || std::isnan(id(outside_temp).state))
+        return capped(fixed);
+
       float x1 = id(curve_cold_out).state, y1 = id(curve_cold_flow).state;
       float x2 = id(curve_warm_out).state, y2 = id(curve_warm_flow).state;
-      if (x2 <= x1) return y2;
-      float out = y2;
-      if (id(ot_t_outside).has_state() && !std::isnan(id(ot_t_outside).state)) {
-        float x = id(ot_t_outside).state;
-        if (x <= x1) out = y1;
-        else if (x >= x2) out = y2;
-        else out = y1 + (y2 - y1) * (x - x1) / (x2 - x1);
-      }
-      float cap = id(ot_max_t_set).state;
-      if (!std::isnan(cap) && out > cap) out = cap;
-      return out;
+      if (x2 <= x1) return capped(fixed);
+
+      const float x = id(outside_temp).state;
+      float out;
+      if (x <= x1) out = y1;
+      else if (x >= x2) out = y2;
+      else out = y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+      return capped(out);
 
   - platform: uptime
     id: esp_uptime
@@ -979,7 +1107,7 @@ display:
           tile(L + half + 14, 152, I_BOIL, b2,
                id(ot_ch_active).state ? id(c_amber) : id(c_dim));
 
-          if (has(id(ot_t_outside))) snprintf(b, sizeof(b), "%.0f°", id(ot_t_outside).state);
+          if (has(id(outside_temp))) snprintf(b, sizeof(b), "%.0f°", id(outside_temp).state);
           else strcpy(b, "--");
           tile(L + 8, 194, I_TEMP, b, id(c_white));
 
