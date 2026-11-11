@@ -90,7 +90,7 @@ wifi:
       - delay: 10s
       - component.update: firmware_update
 
-esp32_improv:
+improv_ble:
   authorizer: none
 
 improv_serial:
@@ -918,8 +918,14 @@ display:
       if (!clock.is_valid()) clock = id(sntp_time).now();
       it.strftime(R, 16, id(f_tab), id(c_grey), TextAlign::CENTER_RIGHT,
                   clock.is_valid() ? "%H:%M" : "--:--", clock);
-      it.print(R - 42, 16, id(f_icon_sm), id(c_grey), TextAlign::CENTER_RIGHT,
-               id(esp_status).state ? I_WIFI : I_NOWIFI);
+      // The glyph follows Wi-Fi association, its colour follows the Home
+      // Assistant connection. binary_sensor.status is network AND api AND
+      // mqtt, so it read false - and crossed out the Wi-Fi icon - whenever
+      // Home Assistant simply was not connected yet.
+      it.print(R - 42, 16, id(f_icon_sm),
+               id(esp_status).state ? id(c_grey) : id(c_dim),
+               TextAlign::CENTER_RIGHT,
+               id(wifi_component).is_connected() ? I_WIFI : I_NOWIFI);
       it.print(R - 62, 16, id(f_icon_sm),
                id(ot_fault_indication).state ? id(c_amber) : id(c_dim),
                TextAlign::CENTER_RIGHT, I_BOIL);
