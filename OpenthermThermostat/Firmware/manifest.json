@@ -1,6 +1,6 @@
 {
   "name": "HomeMaster Thermostat for OpenTherm",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": true,
   "builds": [
@@ -11,8 +11,8 @@
       ],
       "ota": {
         "path": "https://config.home-master.eu/OpenthermThermostat/Firmware/thermostat.ota.bin",
-        "md5": "2064bb5cc82dae80c37873b0b3ffb7f0",
-        "summary": "Version 1.0.0 - first release.",
+        "md5": "50addb9d585f4c3c993b793fb126372e",
+        "summary": "Version 1.1.0 - the outside and room temperatures can be pushed in from Home Assistant.",
         "release_url": "https://config.home-master.eu/OpenthermThermostat/Firmware/CHANGELOG.md"
       }
     }
