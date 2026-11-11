@@ -55,6 +55,8 @@ schematics), see:
 
 The device is low-voltage only. No mains terminals are present.
 
+**A mains power supply is not included.** The 24 V DC supply is provided by the installer: a DIN-rail unit in the distribution board or the boiler cabinet, or a module rated for installation inside a deep flush box. The device draws 50–100 mA and never more than 2.4 W.
+
 ## Terminal Connections
 
 | Terminal | Function |
@@ -120,10 +122,13 @@ Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003).
 | Ring height | 20.5 mm |
 | Wall base | Ø 88.7 mm, 10.5 mm deep, keyhole centres 58 mm |
 | Wall plate (alternative) | 140 × 80 mm, 9 mm thick, cable aperture 45 × 30 mm |
+| Plate fixing centres | 60 mm and 83.5 mm |
 
 - Indoor use, dry locations
 - Operating temperature: 0 … 40 °C, non-condensing
 - Two-part enclosure: wall base or plate fixed to the wall, body clipped on
+
+**Mounting.** The round base takes two screws straight into the wall at 58 mm centres. The rectangular plate screws onto a flush-mounting box and is drilled for both common spacings: **60 mm**, the round European device box with a Ø 68 mm bore, and **83.5 mm**, the Italian three-module box (503). What decides whether a box fits is the distance between its device screws, not the shape of the box.
 
 ## Getting Started
 

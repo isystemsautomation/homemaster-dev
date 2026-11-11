@@ -104,7 +104,7 @@ Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
 
 - Two-part construction: wall base or plate fixed to the wall, body clipped on
 - Front: round glass with a printed brand arc and a rectangular display aperture
-- Mounting: screws into the wall, or onto a flush-mount box
+- Mounting: two screws straight into the wall at 58 mm centres, or onto a flush-mounting box — the plate is drilled for both **60 mm** (round European device box, Ø 68 mm bore) and **83.5 mm** (Italian three-module box, 503). What decides whether a box fits is the distance between its device screws, not the shape of the box
 - Indoor use only, dry locations
 - Operating temperature: 0 … 40 °C, non-condensing
 
@@ -113,7 +113,7 @@ Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
 ## Installation
 
 1. Choose a position about 1.5 m above the floor, on an internal wall, away from direct sunlight, draughts, radiators and door openings.
-2. Fix the back plate with two screws, or mount it on a flush box.
+2. Fix the round base with two screws at 58 mm centres, or screw the rectangular plate onto a flush box — fixing holes at 60 mm and 83.5 mm.
 3. Bring the 24 V DC supply and the OpenTherm pair through the opening in the back plate.
 4. Terminate the wires, clip the body onto the back plate.
 
@@ -127,6 +127,8 @@ The radar looks straight out of the front face. Keep the area in front of the de
 |---|---|
 | +V | 24 V DC |
 | 0V | 0 V |
+
+> ⚠️ **No mains power supply is included.** The thermostat takes 24 V DC SELV, 50–100 mA, 2.4 W maximum, and that supply is the installer's to provide — a DIN-rail unit in the distribution board or the boiler cabinet, or a module rated for installation inside a deep flush box. Mains voltage must not reach any terminal on the device. The 24 V pair and the OpenTherm pair are both SELV and may share one four-core cable or run separately; neither may be bundled with mains cabling.
 
 ### OpenTherm bus
 
