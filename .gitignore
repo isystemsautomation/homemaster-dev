@@ -4,6 +4,7 @@
 # A released binary is copied to Firmware/<version>/<MODULE>.uf2 and
 # committed from there — see Rule 7 in the workspace AGENTS.md.
 **/build/
+**/.esphome/
 .pio/
 *.hex
 *.elf
