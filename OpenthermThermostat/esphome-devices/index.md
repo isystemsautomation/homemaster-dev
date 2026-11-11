@@ -152,8 +152,9 @@ manifest. New releases appear under Settings → Updates in Home Assistant.
 
 ## ESPHome Compatibility
 
-Requires ESPHome 2026.7.0 or newer, for the `mipi_spi` display platform and the
-`opentherm` component.
+Requires ESPHome 2026.10.0 or newer, for the `improv_ble` component. The
+`mipi_spi` display platform and the `opentherm` component have been available
+since 2026.7.0.
 
 ## User Interface
 
