@@ -242,6 +242,8 @@ nothing to save.
 
 #### Climate
 
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screen-climate.png" alt="Climate page" width="420">
+
 The page you use day to day.
 
 - Room temperature, large, to one decimal.
@@ -264,6 +266,8 @@ comfort during the comfort window, eco outside it.
 
 #### Boiler
 
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screen-boiler.png" alt="Boiler page" width="420">
+
 What the boiler itself reports.
 
 - Boiler water temperature, large.
@@ -283,6 +287,8 @@ What the boiler itself reports.
 
 #### Schedule
 
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screen-schedule.png" alt="Schedule page" width="420">
+
 - Which window is in force now, `COMFORT` or `ECO`, and its setpoint.
 - The weekday window and the weekend window, as `HH:MM - HH:MM`.
 - Whether boost is on.
@@ -301,6 +307,8 @@ and end. The screen shows them so you can check them without a phone.
 | `BOOST` | Boost on or off |
 
 #### System
+
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/screen-system.png" alt="System page" width="420">
 
 Diagnostics, for commissioning and for support calls.
 
