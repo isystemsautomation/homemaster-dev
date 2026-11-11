@@ -1,6 +1,6 @@
 # HomeMaster Thermostat for OpenTherm — Installer & User Manual
 
-**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.2**
+**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.3**
 **Document No.: MAN-OTT-R1-V1.0 · November 2026**
 
 ISYSTEMS AUTOMATION S.R.L. · HomeMaster®
@@ -373,7 +373,7 @@ measurement.
 
 The page for day-to-day use.
 
-![Climate page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-climate.png?v=3)
+![Climate page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-climate.png)
 
 - Room temperature, large, to one decimal.
 - The setpoint currently in force below it, in cyan.
@@ -395,7 +395,7 @@ comfort during the comfort window, eco outside it.
 
 What the boiler itself reports.
 
-![Boiler page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png?v=3)
+![Boiler page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png)
 
 - Boiler water temperature, large.
 - The flow setpoint the thermostat is asking for, in cyan, labelled `FLOW SET`.
@@ -410,7 +410,7 @@ What the boiler itself reports.
 
 ### 6.8 Schedule page
 
-![Schedule page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-schedule.png?v=3)
+![Schedule page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-schedule.png)
 
 - Which window is in force now, and its setpoint.
 - The weekday and weekend windows, as `HH:MM - HH:MM`.
@@ -437,7 +437,7 @@ A window wraps at midnight: turning `WEEKEND TO` past `23:50` brings it to
 
 Diagnostics, for commissioning and for support calls.
 
-![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=3)
+![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png)
 
 | Row | Shows |
 |---|---|
@@ -445,6 +445,7 @@ Diagnostics, for commissioning and for support calls.
 | `FIRMWARE` | Firmware version |
 | `BOILER LINK` | Green `OK` once the boiler has answered, red `NONE` until then |
 | `HOME ASSISTANT` | Green `OK` while the ESPHome API is connected, grey `NONE` otherwise. Heating does not depend on it |
+| `TIME ZONE` | The zone the clock is keeping, as `UTC+1 EU`. `FROM HA` while Home Assistant is connected, because the zone then comes from there |
 | `ROOM RAW` | The room sensor before the offset is applied |
 | `LIGHT` | Ambient light in lux |
 | `PRESENCE` | Whether the radar sees anyone right now |
@@ -452,6 +453,31 @@ Diagnostics, for commissioning and for support calls.
 | Menu item | Effect |
 |---|---|
 | `ROOM OFFSET` | Correction added to the room sensor, 0.1 °C per detent |
+| `UTC OFFSET` | −12 to +14 hours, 0.25 h per detent |
+| `SUMMER TIME` | `Off`, `Europe`, `North America`, `Australia`, `New Zealand`; one detent moves to the next |
+
+> **⚠ Set these two on a thermostat that has no Home Assistant.** The device
+> learns the time from an internet time server, and a time server sends the
+> moment but never the zone. With Home Assistant connected the zone comes from
+> there and both settings are ignored — the System page then reads `FROM HA`.
+> Without it the schedule runs on what is set here, and a wrong setting shifts
+> the comfort window by hours while the clock on the glass still looks
+> perfectly correct.
+
+The offset moves in quarter hours because not every country is on the hour —
+India is on the half, Nepal and the Chatham Islands on the quarter. The four
+summer-time rules are every schedule in common use:
+
+| Rule | Turns forward | Turns back |
+|---|---|---|
+| `Europe` | Last Sunday in March | Last Sunday in October |
+| `North America` | Second Sunday in March | First Sunday in November |
+| `Australia` | First Sunday in October | First Sunday in April |
+| `New Zealand` | Last Sunday in September | First Sunday in April |
+
+Anywhere else — most of Asia, Africa and South America, and the countries that
+keep dates of their own — choose `Off`. The clock then holds correct standard
+time the year round.
 
 ✓ Set the room offset after the unit has been on the wall for at least two
 hours: compare `ROOM RAW` against a reference thermometer in the middle of the
@@ -467,6 +493,10 @@ off — do this on the glass and nothing has to be enabled first.
 
 - 2.4 GHz Wi-Fi.
 - mDNS on the local subnet for ESPHome discovery.
+- Outbound NTP (UDP 123) to `pool.ntp.org`, for a thermostat used without
+  Home Assistant. There is no battery-backed clock on the board and no other
+  way to learn the time; with Home Assistant connected the time comes from
+  there instead.
 - Outbound HTTPS to the vendor update manifest, only if managed updates are
   used.
 
@@ -533,6 +563,9 @@ appear automatically; no YAML is needed on the Home Assistant side.
 | Curve Cold/Warm Outside, Curve Cold/Warm Flow | number (config) |
 | Fixed Flow Setpoint | number (config) |
 | Outside Temperature Source, Room Temperature Source | select (config) |
+| Summer Time | select (config) |
+| UTC Offset | number (config) |
+| Boiler DHW Setpoint, Boiler Max CH Setpoint | number |
 | Room Temperature Input, Outside Temperature Input, Room Humidity Input | number (config, written from Home Assistant) |
 | Weather Compensation | switch |
 | Outside Temperature In Use | sensor |
@@ -548,8 +581,9 @@ appear automatically; no YAML is needed on the Home Assistant side.
 | Backlight | light |
 | Firmware Update | update |
 
-> **ℹ Three entities arrive switched off.** **Room Temperature Raw**, **Boiler
-> Return Temperature** and **Boiler DHW Temperature** are created disabled, so
+> **ℹ Four entities arrive switched off.** **Room Temperature Raw**, **Room
+> Humidity Raw**, **Boiler Return Temperature** and **Boiler DHW Temperature**
+> are created disabled, so
 > that a device added to Home Assistant does not bring a dozen rarely-read
 > values with it. Home Assistant shows them on the device page as *disabled
 > entities*; open that line, pick the entity and enable it. It starts recording
@@ -818,7 +852,7 @@ and is published in the manufacturer's GitHub repository under
 
 ### 13.1 Support channels
 
-- Forum: https://www.home-master.eu/forum
+- Support: https://www.home-master.eu/support
 - Email: support@home-master.eu
 
 ### 13.2 Online resources

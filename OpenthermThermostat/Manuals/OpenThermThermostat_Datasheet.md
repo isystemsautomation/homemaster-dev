@@ -1,6 +1,6 @@
 # HomeMaster Thermostat for OpenTherm — Datasheet
 
-**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.2**
+**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.3**
 **Document No.: DS-OTT-R1-V1.0 · November 2026**
 
 ISYSTEMS AUTOMATION S.R.L. · HomeMaster®
@@ -166,9 +166,10 @@ Request, Comfort Window, Heat Demand, Presence, Radar Target.
 
 Numbers: Comfort Temperature, Eco Temperature, Boost Offset, Room Hysteresis,
 Room Sensor Offset, Curve Cold/Warm Outside, Curve Cold/Warm Flow, Fixed Flow
-Setpoint, Boiler DHW Setpoint, Boiler Max CH Setpoint, Radar gates and timeout.
+Setpoint, Boiler DHW Setpoint, Boiler Max CH Setpoint, UTC Offset, Radar gates
+and timeout.
 
-Selects: Outside Temperature Source, Room Temperature Source.
+Selects: Outside Temperature Source, Room Temperature Source, Summer Time.
 
 Written from Home Assistant: Room Temperature Input, Room Humidity Input,
 Outside Temperature Input. A value written to any of them is ignored once it is
@@ -202,6 +203,8 @@ Version (text sensors).
 | Boiler DHW Setpoint | 50 °C |
 | Boiler Max CH Setpoint | 80 °C |
 | Outside Temperature Source | Boiler, then Home Assistant |
+| UTC Offset | +1 h |
+| Summer Time | Europe |
 | Room Temperature Source | Built-in sensor |
 | Control interval | 30 s |
 | Screen timeout | 45 s |

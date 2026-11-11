@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.1.3 — 11 November 2026
+
+- **The schedule keeps local time without Home Assistant.** NTP carries
+  the moment but never the zone, and no zone was set in the
+  configuration, so the firmware inherited the timezone of whatever
+  machine built it — UTC. A thermostat with Home Assistant was unaffected
+  because Home Assistant sends its own zone from 2026.3.0 and the device
+  applies it. One running on its own, which is how this product is meant
+  to be able to run, held its comfort window one or two hours late and
+  kept heating past midnight, with a clock on the glass that looked
+  perfectly correct.
+- Two settings on the System page, in the menu and in Home Assistant,
+  which between them describe any place on earth: **UTC Offset**, from
+  −12 to +14 in quarter hours, because not every country is on the hour;
+  and **Summer Time** — `Off`, `Europe`, `North America`, `Australia`,
+  `New Zealand`. `Off` gives correct standard time the year round
+  anywhere the four rules do not apply. Both are kept across restarts and
+  applied before the first schedule pass.
+- The System page shows the zone in force, as `UTC+1 EU` and the like.
+  With Home Assistant connected it reads `FROM HA`, because the zone then
+  comes from there and these two settings are not what the clock is
+  using.
+- The configuration now states `Europe/Berlin` as the built-in default,
+  so a factory image never again carries the build server's timezone.
+
 ## 1.1.2 — 11 November 2026
 
 - **Boiler DHW Setpoint** and **Boiler Max CH Setpoint** now survive a
