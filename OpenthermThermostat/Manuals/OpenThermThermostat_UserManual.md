@@ -437,7 +437,7 @@ A window wraps at midnight: turning `WEEKEND TO` past `23:50` brings it to
 
 Diagnostics, for commissioning and for support calls.
 
-![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png?v=4)
+![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png)
 
 | Row | Shows |
 |---|---|
@@ -548,6 +548,36 @@ appear automatically; no YAML is needed on the Home Assistant side.
 > **⚠ Taking control.** Importing the configuration in ESPHome Device Builder
 > replaces the factory API encryption key with one of your own. Save that key
 > before adding the device in Home Assistant.
+
+Home Assistant sorts the entities into four cards of its own accord.
+**Controls** is what you operate day to day; **Sensors** is what the thermostat
+and the boiler report; **Diagnostic** is for commissioning and support calls.
+
+<table>
+<tr>
+<td align="center"><b>Controls</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-controls.png" style="width:74mm"></td>
+<td align="center"><b>Sensors</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-sensors.png" style="width:74mm"></td>
+</tr>
+</table>
+
+In the Sensors capture the boiler is heating water, not the house: the comfort
+window is closed and the room is above the eco setpoint, so there is no heat
+demand and central heating is switched off at the boiler. `Outside Temperature`
+is missing because that boiler has no outside sensor; `Outside Temperature In
+Use` shows what the control loop is actually working from, which here comes
+from Home Assistant.
+
+**Configuration** holds the settings — the weather curve, the hysteresis, the
+two source selectors, the time zone, the radar gates and the four comfort
+times. It is a long card; every entity on it is listed in 8.1, and it is
+reproduced in full on the device page in the repository.
+
+<table>
+<tr>
+<td align="center"><b>Diagnostic</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-diagnostic.png" style="width:74mm"></td>
+<td align="center"><b>The three inputs, in Configuration</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-inputs.png" style="width:74mm"></td>
+</tr>
+</table>
 
 ### 8.1 Entities
 

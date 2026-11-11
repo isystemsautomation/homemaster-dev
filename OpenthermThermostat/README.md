@@ -360,6 +360,22 @@ The provisioning window stays open for 15 minutes after power-on. Power-cycle th
 Add the device under Settings → Devices & Services → ESPHome. All entities appear automatically; no YAML is needed on the Home Assistant side.
 
 > ⚠️ **Taking control.** Importing the configuration in ESPHome Device Builder replaces the factory API encryption key with one of your own. Save that key before adding the device in Home Assistant.
+Home Assistant sorts the entities into four cards of its own accord.
+<table>
+<tr>
+<td align="center"><b>Controls</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-controls.png" width="300"></td>
+<td align="center"><b>Sensors</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-sensors.png" width="300"></td>
+</tr>
+<tr>
+<td align="center"><b>Configuration</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-configuration.png" width="300"></td>
+<td align="center"><b>Diagnostic</b><br><img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-diagnostic.png" width="300"></td>
+</tr>
+</table>
+**Controls** is what you operate day to day. **Sensors** is what the thermostat and the boiler report — in the capture the boiler is heating water, not the house: the comfort window is closed and the room is above the eco setpoint, so central heating is switched off at the boiler. **Configuration** holds the settings, including the two source selectors and the time zone. **Diagnostic** is for commissioning and support calls.
+The three numbers Home Assistant writes into — room temperature, room humidity and outside temperature — sit in Configuration:
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-inputs.png" width="320">
+The whole device page:
+<img src="https://config.home-master.eu/OpenthermThermostat/Images/ha/ha-device-page.png" width="640">
 
 ## Firmware Updates
 
