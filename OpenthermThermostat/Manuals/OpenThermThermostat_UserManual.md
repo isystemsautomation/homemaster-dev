@@ -622,10 +622,61 @@ The sensor **Outside Temperature In Use** publishes the value actually feeding
 the curve, after the select has been applied, and the Climate page shows that
 same value. Use it to confirm which source is live.
 
-The entities **ha_outside_entity** and **ha_room_entity** in the configuration
-name the Home Assistant entities to read. They default to
-`sensor.outside_temperature` and `sensor.room_temperature`; change them after
-taking control of the device.
+### Feeding a temperature from Home Assistant
+
+The thermostat does not go looking for an entity by name. Home Assistant writes
+the value into the device, through two numbers that appear in the device's
+**Configuration** section:
+
+| Number | Feeds |
+|---|---|
+| `Room Temperature Input` | The room temperature, when Room Temperature Source is set to Home Assistant |
+| `Outside Temperature Input` | The outside temperature, when the outside source is set to or falls back to Home Assistant |
+
+Any entity can feed them — a wall sensor, a weather integration, an average of
+several rooms — and nothing in the firmware has to change.
+
+One automation per value. Replace the sensor in both places with your own:
+
+```yaml
+alias: Room temperature to the thermostat
+triggers:
+  - trigger: state
+    entity_id: sensor.your_room_sensor
+  - trigger: time_pattern
+    minutes: "/5"
+  - trigger: homeassistant
+    event: start
+actions:
+  - action: number.set_value
+    target:
+      entity_id: number.homemaster_thermostat_room_temperature_input
+    data:
+      value: "{{ states('sensor.your_room_sensor') | float }}"
+mode: single
+```
+
+The outside temperature is the same automation with
+`number.homemaster_thermostat_outside_temperature_input` and your outside
+sensor.
+
+> **⚠ The repeating trigger is not optional.** A pushed value is ignored once it
+> is older than **30 minutes**. Without the five-minute trigger a quiet sensor
+> would silently take the thermostat out of regulation after half an hour. With
+> it, the value is refreshed long before it expires.
+
+The trigger on Home Assistant starting matters too: after a restart the value
+arrives at once instead of up to five minutes later.
+
+**What happens when the value stops arriving.** The thermostat does not keep
+using it. The room temperature becomes unavailable and heating is no longer
+regulated; the outside temperature falls back to Fixed Flow Setpoint. This is
+deliberate — regulating a house on a reading from yesterday is worse than
+admitting the reading is gone.
+
+Until something writes to them, both numbers read −50 °C, which is the bottom of
+their range rather than a measurement. The thermostat knows nothing has been
+written and ignores them.
 
 ### 10.5 Heating Automatic
 
@@ -724,7 +775,7 @@ and is published in the manufacturer's GitHub repository under
 ### 13.2 Online resources
 
 - Product page: https://www.home-master.eu
-- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat
+- Repository: https://github.com/isystemsautomation/homemaster-dev/tree/main/OpenthermThermostat
 - Firmware: `OpenthermThermostat/Firmware/thermostat.yaml`
 
 ### 13.3 License

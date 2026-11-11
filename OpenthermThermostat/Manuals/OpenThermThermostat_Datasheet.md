@@ -166,6 +166,9 @@ Setpoint, Boiler DHW Setpoint, Boiler Max CH Setpoint, Radar gates and timeout.
 
 Selects: Outside Temperature Source, Room Temperature Source.
 
+Written from Home Assistant: Room Temperature Input, Outside Temperature Input.
+A value written to either is ignored once it is older than 30 minutes.
+
 Datetimes: Weekday and Weekend Comfort Start and End.
 
 Switches: Heating Automatic, Weather Compensation, Boost Until Next Change,
