@@ -1,6 +1,6 @@
 # HomeMaster Thermostat for OpenTherm — Installer & User Manual
 
-**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.0.0**
+**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.2**
 **Document No.: MAN-OTT-R1-V1.0 · November 2026**
 
 ISYSTEMS AUTOMATION S.R.L. · HomeMaster®
@@ -325,34 +325,55 @@ The top strip is the same on every page.
 | Left | Page name — `CLIMATE`, `BOILER`, `SCHEDULE`, `SYSTEM` |
 | After the name | Four square dots, one per page; the current page is white, the others dim |
 | Right | Clock, `HH:MM`, or `--:--` until the clock is set |
-| Left of the clock | Wi-Fi status |
-| Left of that | Boiler status |
+| Left of the clock | Wi-Fi — white when associated, dim and crossed out when not |
+| Left of that | Boiler — red when the boiler reports a fault |
 
 The clock comes from Home Assistant when it is connected and from an internet
 time server otherwise.
 
-### 6.4 Icons
+### 6.4 Colour
 
-These are the only icons the interface uses. The colour carries as much meaning
-as the shape: **amber means active or wrong**, white means a normal reading, dim
-grey means idle or unavailable.
+Four colours, one meaning each. Nothing on the glass is coloured for
+decoration.
+
+| Colour | Means | Where you see it |
+|---|---|---|
+| **Amber** | A circuit is running | Burner alight, central heating active, hot water being drawn, boost on |
+| **Red** | A fault, or a link that is down | `FAULT`, low water pressure, the boiler icon in the header, `BOILER LINK NONE` |
+| **Green** | A healthy state, where a word says so | `OK` on the fault tile, `BOILER LINK OK`, `HOME ASSISTANT OK` |
+| **White** | A measurement | Every number that is a reading |
+| Dim grey | No reading — dashes stand in for the value | A sensor that is absent, or a value the boiler has not sent |
+
+Within a tile the icon and the number are coloured apart: the **icon** carries
+the state of the circuit, the **number** stays white because it is a
+measurement. Hot water stored at 59 °C reads white whether or not anyone is
+drawing it; only the boiler icon beside it goes dim when the circuit is idle.
+
+### 6.5 Icons
+
+These are the only icons the interface uses.
 
 | Icon | Meaning | Colour |
 |---|---|---|
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi.png" width="36"> | Wi-Fi is associated | Normal grey when Home Assistant is also connected, dim when it is not |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi-off.png" width="36"> | No Wi-Fi connection | Dim |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/water-boiler.png" width="36"> | In the header: the boiler reports a fault. In a tile: boiler water or hot-water temperature | Amber on fault or while that circuit is active, dim otherwise |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/fire.png" width="36"> | Burner. The value is the relative modulation level, or `ON` / `IDLE` when the boiler does not report modulation | Amber while the flame is on, dim when it is out |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/thermometer.png" width="36"> | Outside temperature on the Climate page, return temperature on the Boiler page | White |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/gauge.png" width="36"> | Central-heating water pressure, in bar | Amber when the boiler reports low pressure, white otherwise |
-| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/alert.png" width="36"> | Boiler fault summary — `FAULT` or `OK` | Amber on fault, dim when clear |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi.png" width="36"> | Wi-Fi is associated | White |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/wifi-off.png" width="36"> | No Wi-Fi connection | Dim. The Home Assistant link is a separate row on the System page |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/water-boiler.png" width="36"> | In the header: the boiler reports a fault. In a tile: boiler water or hot-water temperature | Red on fault; amber while that circuit is active, grey otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/fire.png" width="36"> | Burner. The value is the relative modulation level, or `ON` / `IDLE` when the boiler does not report modulation | Amber while the flame is on, grey when it is out |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/thermometer.png" width="36"> | Outside temperature on the Climate page, return temperature on the Boiler page | Grey; the number beside it is white |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/gauge.png" width="36"> | Central-heating water pressure, in bar | Red when the boiler reports low pressure, grey otherwise |
+| <img src="https://config.home-master.eu/OpenthermThermostat/Images/icons/alert.png" width="36"> | Boiler fault summary — `FAULT` or `OK` | Red on fault, green when clear |
 
 A reading the boiler has not sent, or a sensor that is absent, is shown as `--`
-or `--.-` in dim grey, never as a zero.
+or `--.-` in dim grey, never as a zero. A return temperature below 5 °C is
+treated as no reading: a boiler with no return sensor answers 0.00 instead of
+refusing the request, and 0 °C of return water beside 48 °C of flow is not a
+measurement.
 
-### 6.5 Climate page
+### 6.6 Climate page
 
 The page for day-to-day use.
+
+![Climate page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-climate.png)
 
 - Room temperature, large, to one decimal.
 - The setpoint currently in force below it, in cyan.
@@ -370,9 +391,11 @@ comfort during the comfort window, eco outside it.
 | `BOOST` | Comfort plus the boost offset until the next scheduled change |
 | `HYSTERESIS` | Switching band around the setpoint, 0.1 °C per detent |
 
-### 6.6 Boiler page
+### 6.7 Boiler page
 
 What the boiler itself reports.
+
+![Boiler page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-boiler.png)
 
 - Boiler water temperature, large.
 - The flow setpoint the thermostat is asking for, in cyan, labelled `FLOW SET`.
@@ -385,33 +408,43 @@ What the boiler itself reports.
 | `MAX FLOW` | Upper limit for the flow setpoint, 1 °C per detent |
 | `DHW` | Hot water on or off at the boiler |
 
-### 6.7 Schedule page
+### 6.8 Schedule page
+
+![Schedule page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-schedule.png)
 
 - Which window is in force now, and its setpoint.
 - The weekday and weekend windows, as `HH:MM - HH:MM`.
 - Whether boost is on.
 
-> **ℹ The windows themselves are set from Home Assistant**, through four time
-> entities: weekday start and end, weekend start and end. The screen shows them
-> so they can be checked without a phone, but they cannot be edited on the
-> glass.
+The windows are set here, on the glass, and in Home Assistant through four
+time entities — whichever is to hand. The menu on this page is seven items
+long.
 
 | Menu item | Effect |
 |---|---|
 | `COMFORT` | Comfort setpoint, 0.5 °C per detent |
 | `ECO` | Eco setpoint, 0.5 °C per detent |
 | `BOOST OFFSET` | How far above comfort boost goes, 0.5 °C per detent |
-| `BOOST` | Boost on or off |
+| `WEEKDAY FROM` | Start of the weekday comfort window, 10 minutes per detent |
+| `WEEKDAY TO` | End of it, 10 minutes per detent |
+| `WEEKEND FROM` | Start of the weekend comfort window, 10 minutes per detent |
+| `WEEKEND TO` | End of it, 10 minutes per detent |
 
-### 6.8 System page
+A window wraps at midnight: turning `WEEKEND TO` past `23:50` brings it to
+`00:00`. Boost is not repeated on this menu — it is on the Climate menu.
+
+### 6.9 System page
 
 Diagnostics, for commissioning and for support calls.
+
+![System page](https://config.home-master.eu/OpenthermThermostat/Images/screens/screen-system.png)
 
 | Row | Shows |
 |---|---|
 | `IP` | Address on the network |
 | `FIRMWARE` | Firmware version |
-| `BOILER LINK` | `OK` once the boiler has answered, amber `NONE` until then |
+| `BOILER LINK` | Green `OK` once the boiler has answered, red `NONE` until then |
+| `HOME ASSISTANT` | Green `OK` while the ESPHome API is connected, grey `NONE` otherwise. Heating does not depend on it |
 | `ROOM RAW` | The room sensor before the offset is applied |
 | `LIGHT` | Ambient light in lux |
 | `PRESENCE` | Whether the radar sees anyone right now |
@@ -422,7 +455,9 @@ Diagnostics, for commissioning and for support calls.
 
 ✓ Set the room offset after the unit has been on the wall for at least two
 hours: compare `ROOM RAW` against a reference thermometer in the middle of the
-room and enter the difference.
+room and enter the difference. The same reading is called **Room Temperature
+Raw** in Home Assistant, where it is one of the entities that arrive switched
+off — do this on the glass and nothing has to be enabled first.
 
 ---
 
@@ -489,19 +524,22 @@ appear automatically; no YAML is needed on the Home Assistant side.
 | Entity | Type |
 |---|---|
 | Room Temperature | sensor |
-| Room Temperature Raw | sensor (diagnostic) |
+| Room Temperature Raw | sensor (diagnostic, off by default) |
 | Room Humidity | sensor |
+| Room Humidity Raw | sensor (diagnostic, off by default) |
 | Ambient Light | sensor |
 | Comfort Temperature, Eco Temperature | number |
 | Boost Offset, Room Hysteresis, Room Sensor Offset | number (config) |
 | Curve Cold/Warm Outside, Curve Cold/Warm Flow | number (config) |
 | Fixed Flow Setpoint | number (config) |
 | Outside Temperature Source, Room Temperature Source | select (config) |
+| Room Temperature Input, Outside Temperature Input, Room Humidity Input | number (config, written from Home Assistant) |
 | Weather Compensation | switch |
 | Outside Temperature In Use | sensor |
 | Weekday / Weekend Comfort Start and End | datetime (config) |
 | Heating Target, Flow Setpoint By Curve | sensor |
-| Boiler Water Temperature, Return, DHW, Pressure, Modulation, Outside | sensor |
+| Boiler Water Temperature, Pressure, Modulation, Outside | sensor |
+| Boiler Return Temperature, Boiler DHW Temperature | sensor (off by default) |
 | Boiler Flame On, CH Active, DHW Active, Fault Indication | binary_sensor |
 | Boiler CH Enable, Boiler DHW Enable | switch |
 | Heating Automatic, Boost Until Next Change | switch |
@@ -509,6 +547,13 @@ appear automatically; no YAML is needed on the Home Assistant side.
 | Presence, Radar Target | binary_sensor |
 | Backlight | light |
 | Firmware Update | update |
+
+> **ℹ Three entities arrive switched off.** **Room Temperature Raw**, **Boiler
+> Return Temperature** and **Boiler DHW Temperature** are created disabled, so
+> that a device added to Home Assistant does not bring a dozen rarely-read
+> values with it. Home Assistant shows them on the device page as *disabled
+> entities*; open that line, pick the entity and enable it. It starts recording
+> from the moment it is enabled — there is no back-history.
 
 ---
 
@@ -625,12 +670,13 @@ same value. Use it to confirm which source is live.
 ### Feeding a temperature from Home Assistant
 
 The thermostat does not go looking for an entity by name. Home Assistant writes
-the value into the device, through two numbers that appear in the device's
+the value into the device, through three numbers that appear in the device's
 **Configuration** section:
 
 | Number | Feeds |
 |---|---|
 | `Room Temperature Input` | The room temperature, when Room Temperature Source is set to Home Assistant |
+| `Room Humidity Input` | The room humidity, under the same selector — a room whose temperature comes from Home Assistant takes its humidity from there too |
 | `Outside Temperature Input` | The outside temperature, when the outside source is set to or falls back to Home Assistant |
 
 Any entity can feed them — a wall sensor, a weather integration, an average of
@@ -656,9 +702,12 @@ actions:
 mode: single
 ```
 
-The outside temperature is the same automation with
-`number.homemaster_thermostat_outside_temperature_input` and your outside
-sensor.
+The outside temperature and the humidity are the same automation with
+`number.homemaster_thermostat_outside_temperature_input` and
+`number.homemaster_thermostat_room_humidity_input` and the matching sensors.
+
+Humidity is not used for heating — it is reported for comfort and for damp
+rooms — so leaving `Room Humidity Input` unfed costs nothing but the reading.
 
 > **⚠ The repeating trigger is not optional.** A pushed value is ignored once it
 > is older than **30 minutes**. Without the five-minute trigger a quiet sensor

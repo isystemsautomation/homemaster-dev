@@ -1,6 +1,6 @@
 {
   "name": "HomeMaster Thermostat for OpenTherm",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": true,
   "builds": [
@@ -11,8 +11,8 @@
       ],
       "ota": {
         "path": "https://config.home-master.eu/OpenthermThermostat/Firmware/thermostat.ota.bin",
-        "md5": "50addb9d585f4c3c993b793fb126372e",
-        "summary": "Version 1.1.0 - the outside and room temperatures can be pushed in from Home Assistant.",
+        "md5": "4e664e2f9639a82437c74c3b1d7d24c4",
+        "summary": "Version 1.1.2 - the boiler setpoints survive a restart, and the comfort windows can be set from the glass.",
         "release_url": "https://config.home-master.eu/OpenthermThermostat/Firmware/CHANGELOG.md"
       }
     }

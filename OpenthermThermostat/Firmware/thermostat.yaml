@@ -48,7 +48,7 @@ esphome:
   min_version: 2026.10.0
   project:
     name: homemaster.opentherm_thermostat
-    version: "1.1.0"
+    version: "1.1.2"
   on_boot:
     priority: -100
     then:
@@ -202,6 +202,11 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
+  - id: ha_hum_at
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
   - id: ha_outside_at
     type: uint32_t
     restore_value: false
@@ -332,6 +337,22 @@ number:
         - lambda: 'id(ha_room_at) = millis();'
 
   - platform: template
+    id: ha_hum_in
+    name: "Room Humidity Input"
+    icon: mdi:water-percent
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 0.1
+    optimistic: true
+    restore_value: false
+    entity_category: config
+    mode: box
+    on_value:
+      then:
+        - lambda: 'id(ha_hum_at) = millis();'
+
+  - platform: template
     id: ha_outside_in
     name: "Outside Temperature Input"
     icon: mdi:thermometer-chevron-down
@@ -375,18 +396,29 @@ number:
     entity_category: config
 
   - platform: opentherm
+    # Both of these were left without restore_value and without
+    # initial_value. The component then publishes initial_value_, which is
+    # NaN, on every boot: Home Assistant drew the slider at an undefined
+    # position, the encoder could not move the value because NaN plus one
+    # detent is still NaN, and the boiler was handed a hot-water setpoint
+    # that meant nothing until somebody typed a number in by hand.
     t_dhw_set:
       id: ot_t_dhw_set
       name: "Boiler DHW Setpoint"
       min_value: 35
       max_value: 65
       step: 1
+      initial_value: 50
+      restore_value: true
     max_t_set:
       id: ot_max_t_set
       name: "Boiler Max CH Setpoint"
       min_value: 30
       max_value: 85
       step: 1
+      # High enough not to clip the weather curve, which tops out at 65.
+      initial_value: 80
+      restore_value: true
 
   - platform: ld2410
     timeout:
@@ -523,8 +555,10 @@ sensor:
       entity_category: diagnostic
       disabled_by_default: true
     humidity:
-      id: room_humidity
-      name: "Room Humidity"
+      id: room_hum_raw
+      name: "Room Humidity Raw"
+      entity_category: diagnostic
+      disabled_by_default: true
 
   - platform: template
     id: room_temp
@@ -549,6 +583,29 @@ sensor:
       if (!id(room_temp_raw).has_state() || std::isnan(id(room_temp_raw).state))
         return {};
       return id(room_temp_raw).state + id(room_offset).state;
+
+  - platform: template
+    id: room_humidity
+    name: "Room Humidity"
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      // Follows Room Temperature Source. A room whose temperature is fed from
+      // Home Assistant has no reason to take its humidity from a sensor that
+      // may not be fitted, so the same selector governs both.
+      if (id(src_room).current_option() == "Home Assistant") {
+        const uint32_t at = id(ha_hum_at);
+        if (at != 0 && (millis() - at) < ${ha_value_timeout_ms} &&
+            !std::isnan(id(ha_hum_in).state))
+          return id(ha_hum_in).state;
+        return {};
+      }
+      if (!id(room_hum_raw).has_state() || std::isnan(id(room_hum_raw).state))
+        return {};
+      return id(room_hum_raw).state;
 
   - platform: bh1750
     i2c_id: i2c_bus
@@ -591,6 +648,12 @@ sensor:
       name: "Boiler Return Temperature"
       unit_of_measurement: "°C"
       disabled_by_default: true
+      filters:
+        # A boiler with no return sensor answers 0.00 rather than refusing the
+        # request, and the screen then showed 0 degrees of return water next to
+        # 48 degrees of flow. Below 5 C is not a reading from a live circuit,
+        # so it is dropped and the tile prints --.
+        - lambda: 'if (x < 5.0f) return {}; return x;'
     t_dhw:
       id: ot_t_dhw
       name: "Boiler DHW Temperature"
@@ -865,7 +928,7 @@ binary_sensor:
     on_press:
       - script.execute: wake_screen
       - lambda: |-
-          const int items[4] = {4, 3, 4, 1};
+          const int items[4] = {4, 3, 7, 1};
           if (!id(menu_open)) { id(menu_open) = true; id(focus) = 0; }
           else {
             int n = items[id(page)];
@@ -887,7 +950,7 @@ binary_sensor:
     on_press:
       - script.execute: wake_screen
       - lambda: |-
-          const int items[4] = {4, 3, 4, 1};
+          const int items[4] = {4, 3, 7, 1};
           if (!id(menu_open)) { id(menu_open) = true; id(focus) = 0; }
           else id(focus) = (id(focus) + 1) % items[id(page)];
       - component.update: lcd
@@ -1021,6 +1084,14 @@ color:
     hex: "22D3EE"
   - id: c_amber
     hex: F59E0B
+  # Amber used to mean both "this circuit is running" and "the boiler has
+  # faulted", which left the two unreadable from each other. Amber now means
+  # running only; a fault is red, and the two places that print the word for
+  # a healthy state print it green.
+  - id: c_red
+    hex: EF4444
+  - id: c_green
+    hex: 22C55E
 
 # ---------------------------------------------------------------- display
 
@@ -1078,22 +1149,32 @@ display:
       if (!clock.is_valid()) clock = id(sntp_time).now();
       it.strftime(R, 16, id(f_tab), id(c_grey), TextAlign::CENTER_RIGHT,
                   clock.is_valid() ? "%H:%M" : "--:--", clock);
-      // The glyph follows Wi-Fi association, its colour follows the Home
-      // Assistant connection. binary_sensor.status is network AND api AND
-      // mqtt, so it read false - and crossed out the Wi-Fi icon - whenever
-      // Home Assistant simply was not connected yet.
+      // One icon, one fact. The glyph and its colour both follow Wi-Fi
+      // association now: the colour used to carry the Home Assistant
+      // connection as grey against dim, which nobody can tell apart from two
+      // metres away. The Home Assistant link has its own row on SYSTEM.
       it.print(R - 42, 16, id(f_icon_sm),
-               id(esp_status).state ? id(c_grey) : id(c_dim),
+               id(wifi_component).is_connected() ? id(c_white) : id(c_dim),
                TextAlign::CENTER_RIGHT,
                id(wifi_component).is_connected() ? I_WIFI : I_NOWIFI);
       it.print(R - 62, 16, id(f_icon_sm),
-               id(ot_fault_indication).state ? id(c_amber) : id(c_dim),
+               id(ot_fault_indication).state ? id(c_red) : id(c_dim),
                TextAlign::CENTER_RIGHT, I_BOIL);
       it.line(L, 30, R, 30, id(c_line));
 
-      auto tile = [&](int x, int y, const char *ic, const char *val, Color c) {
-        it.print(x, y + 16, id(f_icon), c, TextAlign::CENTER_LEFT, ic);
-        it.print(x + 28, y + 16, id(f_tile), c, TextAlign::CENTER_LEFT, val);
+      // Icon and value are coloured apart. The icon carries the state of the
+      // circuit, the value carries the measurement: 59 degrees of stored hot
+      // water is a real reading whether or not anyone is drawing it, and used
+      // to be dimmed to the same grey as a missing one.
+      auto tile = [&](int x, int y, const char *ic, const char *val,
+                      Color ic_c, Color val_c) {
+        it.print(x, y + 16, id(f_icon), ic_c, TextAlign::CENTER_LEFT, ic);
+        it.print(x + 28, y + 16, id(f_tile), val_c, TextAlign::CENTER_LEFT, val);
+      };
+
+      // A value is white when it is a reading and dim when it is the placeholder.
+      auto vcol = [&](const char *v) {
+        return strcmp(v, "--") == 0 ? id(c_dim) : id(c_white);
       };
 
       auto row = [&](int idx, int y, const char *label, const char *value,
@@ -1132,21 +1213,23 @@ display:
           if (flame && has(id(ot_rel_mod_level)))
             snprintf(b, sizeof(b), "%.0f%%", id(ot_rel_mod_level).state);
           else strcpy(b, flame ? "ON" : "IDLE");
-          tile(L + 8, 152, I_FIRE, b, flame ? id(c_amber) : id(c_dim));
+          tile(L + 8, 152, I_FIRE, b,
+               flame ? id(c_amber) : id(c_grey), vcol(b));
 
           if (has(id(ot_t_boiler))) snprintf(b2, sizeof(b2), "%.0f°", id(ot_t_boiler).state);
           else strcpy(b2, "--");
           tile(L + half + 14, 152, I_BOIL, b2,
-               id(ot_ch_active).state ? id(c_amber) : id(c_dim));
+               id(ot_ch_active).state ? id(c_amber) : id(c_grey), vcol(b2));
 
           if (has(id(outside_temp))) snprintf(b, sizeof(b), "%.0f°", id(outside_temp).state);
           else strcpy(b, "--");
-          tile(L + 8, 194, I_TEMP, b, id(c_white));
+          tile(L + 8, 194, I_TEMP, b, id(c_grey), vcol(b));
 
           if (has(id(ot_ch_pressure))) snprintf(b2, sizeof(b2), "%.2f", id(ot_ch_pressure).state);
           else strcpy(b2, "--");
           tile(L + half + 14, 194, I_GAUGE, b2,
-               id(ot_low_water_pressure).state ? id(c_amber) : id(c_white));
+               id(ot_low_water_pressure).state ? id(c_red) : id(c_grey),
+               id(ot_low_water_pressure).state ? id(c_red) : vcol(b2));
 
         } else if (p == 1) {
           if (has(id(ot_t_boiler)))
@@ -1165,17 +1248,18 @@ display:
           if (has(id(ot_rel_mod_level))) snprintf(b, sizeof(b), "%.0f%%", id(ot_rel_mod_level).state);
           else strcpy(b, "--");
           tile(L + 8, 152, I_FIRE, b,
-               id(ot_flame_on).state ? id(c_amber) : id(c_dim));
+               id(ot_flame_on).state ? id(c_amber) : id(c_grey), vcol(b));
           if (has(id(ot_t_ret))) snprintf(b2, sizeof(b2), "%.0f°", id(ot_t_ret).state);
           else strcpy(b2, "--");
-          tile(L + half + 14, 152, I_TEMP, b2, id(c_white));
+          tile(L + half + 14, 152, I_TEMP, b2, id(c_grey), vcol(b2));
           if (has(id(ot_t_dhw))) snprintf(b, sizeof(b), "%.0f°", id(ot_t_dhw).state);
           else strcpy(b, "--");
           tile(L + 8, 194, I_BOIL, b,
-               id(ot_dhw_active).state ? id(c_amber) : id(c_dim));
+               id(ot_dhw_active).state ? id(c_amber) : id(c_grey), vcol(b));
           tile(L + half + 14, 194, I_ALERT,
                id(ot_fault_indication).state ? "FAULT" : "OK",
-               id(ot_fault_indication).state ? id(c_amber) : id(c_dim));
+               id(ot_fault_indication).state ? id(c_red) : id(c_green),
+               id(ot_fault_indication).state ? id(c_red) : id(c_green));
 
         } else if (p == 2) {
           it.print(CX, 62, id(f_target), id(c_white), TextAlign::CENTER,
@@ -1195,41 +1279,55 @@ display:
               id(heat_boost).state ? id(c_amber) : id(c_grey));
 
         } else {
-          it.print(L, 60, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "IP");
-          it.print(R, 60, id(f_val), id(c_white), TextAlign::CENTER_RIGHT,
+          it.print(L, 58, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "IP");
+          it.print(R, 58, id(f_val), id(c_white), TextAlign::CENTER_RIGHT,
                    id(esp_ip_address).state.c_str());
-          it.print(L, 90, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "FIRMWARE");
+          it.print(L, 84, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "FIRMWARE");
           // The project version as compiled in, never a literal: a hard-coded
           // string here lies after the first update and makes it impossible
           // to tell from the glass which firmware is running.
-          it.print(R, 90, id(f_val), id(c_white), TextAlign::CENTER_RIGHT,
+          it.print(R, 84, id(f_val), id(c_white), TextAlign::CENTER_RIGHT,
                    ESPHOME_PROJECT_VERSION);
-          it.print(L, 120, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "BOILER LINK");
-          it.print(R, 120, id(f_val),
-                   has(id(ot_t_boiler)) ? id(c_white) : id(c_amber),
+          it.print(L, 110, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "BOILER LINK");
+          it.print(R, 110, id(f_val),
+                   has(id(ot_t_boiler)) ? id(c_green) : id(c_red),
                    TextAlign::CENTER_RIGHT,
                    has(id(ot_t_boiler)) ? "OK" : "NONE");
-          it.print(L, 150, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "ROOM RAW");
+          // The Home Assistant link used to be encoded in the colour of the
+          // Wi-Fi icon, where it could not be read. It belongs here, next to
+          // the other things you check when something is not answering.
+          it.print(L, 136, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "HOME ASSISTANT");
+          it.print(R, 136, id(f_val),
+                   id(esp_status).state ? id(c_green) : id(c_grey),
+                   TextAlign::CENTER_RIGHT,
+                   id(esp_status).state ? "OK" : "NONE");
+          it.print(L, 162, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "ROOM RAW");
           if (has(id(room_temp_raw))) snprintf(b, sizeof(b), "%.1f°", id(room_temp_raw).state);
           else strcpy(b, "--");
-          it.print(R, 150, id(f_val), id(c_white), TextAlign::CENTER_RIGHT, b);
-          it.print(L, 180, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "LIGHT");
+          it.print(R, 162, id(f_val), vcol(b), TextAlign::CENTER_RIGHT, b);
+          it.print(L, 188, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "LIGHT");
           if (has(id(ambient_light))) snprintf(b2, sizeof(b2), "%.0f lx", id(ambient_light).state);
           else strcpy(b2, "--");
-          it.print(R, 180, id(f_val), id(c_white), TextAlign::CENTER_RIGHT, b2);
-          it.print(L, 210, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "PRESENCE");
-          it.print(R, 210, id(f_val),
+          it.print(R, 188, id(f_val), vcol(b2), TextAlign::CENTER_RIGHT, b2);
+          it.print(L, 214, id(f_sm), id(c_grey), TextAlign::CENTER_LEFT, "PRESENCE");
+          it.print(R, 214, id(f_val),
                    id(radar_has_target).state ? id(c_amber) : id(c_grey),
                    TextAlign::CENTER_RIGHT,
                    id(radar_has_target).state ? "YES" : "NO");
         }
 
       } else {
-        const int TOP = 44, PITCH = 34;
         int n = 0;
-        std::string lab[4], val[4];
-        Color col[4];
-        for (int k = 0; k < 4; k++) col[k] = id(c_grey);
+        std::string lab[8], val[8];
+        Color col[8];
+        for (int k = 0; k < 8; k++) col[k] = id(c_grey);
+        // A time window is four numbers, so the Schedule menu is seven items
+        // long and has to be drawn tighter than the others.
+        auto hhmm = [&](datetime::TimeEntity *t) {
+          char x[8];
+          snprintf(x, sizeof(x), "%02d:%02d", t->hour, t->minute);
+          return std::string(x);
+        };
 
         if (p == 0) {
           lab[0] = comf ? "COMFORT SETPOINT" : "ECO SETPOINT";
@@ -1263,10 +1361,14 @@ display:
           col[1] = id(c_cyan);
           lab[2] = "BOOST OFFSET";
           snprintf(b, sizeof(b), "%.1f°", id(sp_boost_delta).state); val[2] = b;
-          lab[3] = "BOOST";
-          val[3] = id(heat_boost).state ? "ON" : "OFF";
-          col[3] = id(heat_boost).state ? id(c_amber) : id(c_grey);
-          n = 4;
+          // Boost itself is on the Climate menu; repeating it here cost a row
+          // the comfort windows need. The windows used to be readable on this
+          // page and settable only from Home Assistant.
+          lab[3] = "WEEKDAY FROM"; val[3] = hhmm(id(sch_wd_on)); col[3] = id(c_cyan);
+          lab[4] = "WEEKDAY TO";   val[4] = hhmm(id(sch_wd_off)); col[4] = id(c_cyan);
+          lab[5] = "WEEKEND FROM"; val[5] = hhmm(id(sch_we_on)); col[5] = id(c_cyan);
+          lab[6] = "WEEKEND TO";   val[6] = hhmm(id(sch_we_off)); col[6] = id(c_cyan);
+          n = 7;
         } else {
           lab[0] = "ROOM OFFSET";
           snprintf(b, sizeof(b), "%.1f°", id(room_offset).state); val[0] = b;
@@ -1274,6 +1376,8 @@ display:
           n = 1;
         }
 
+        const int TOP = (n > 4) ? 40 : 44;
+        const int PITCH = (n > 4) ? 28 : 34;
         for (int k = 0; k < n; k++)
           row(k, TOP + k * PITCH, lab[k].c_str(), val[k].c_str(), col[k]);
       }
@@ -1293,6 +1397,21 @@ script:
     mode: restart
     then:
       - lambda: |-
+          // A detent moves a comfort window by ten minutes and wraps at
+          // midnight. Written here rather than as a shared script because a
+          // script call cannot carry which entity to move.
+          auto bump = [](datetime::TimeEntity *t, int d) {
+            int m = t->hour * 60 + t->minute + d;
+            m = ((m % 1440) + 1440) % 1440;
+            auto c = t->make_call();
+            c.set_time(m / 60, m % 60, 0);
+            c.perform();
+          };
+          // A boiler setpoint that was never set is NaN, and NaN plus a
+          // detent is NaN. Start from the shipped default instead.
+          auto num = [](number::Number *x, float fallback) {
+            return std::isnan(x->state) ? fallback : x->state;
+          };
           bool sp_edit = (id(page) == 0) && (!id(menu_open) || id(focus) == 0);
           if (sp_edit) {
             if (id(in_comfort).state) {
@@ -1311,10 +1430,10 @@ script:
             c.set_value(id(sp_hyst).state + 0.1f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 0) {
             auto c = id(ot_t_dhw_set).make_call();
-            c.set_value(id(ot_t_dhw_set).state + 1.0f); c.perform();
+            c.set_value(num(id(ot_t_dhw_set), 50.0f) + 1.0f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 1) {
             auto c = id(ot_max_t_set).make_call();
-            c.set_value(id(ot_max_t_set).state + 1.0f); c.perform();
+            c.set_value(num(id(ot_max_t_set), 80.0f) + 1.0f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 2) {
             id(ot_dhw_enable).turn_on();
           } else if (id(menu_open) && id(page) == 2 && id(focus) == 0) {
@@ -1327,7 +1446,13 @@ script:
             auto c = id(sp_boost_delta).make_call();
             c.set_value(id(sp_boost_delta).state + 0.5f); c.perform();
           } else if (id(menu_open) && id(page) == 2 && id(focus) == 3) {
-            id(heat_boost).turn_on();
+            bump(id(sch_wd_on), 10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 4) {
+            bump(id(sch_wd_off), 10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 5) {
+            bump(id(sch_we_on), 10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 6) {
+            bump(id(sch_we_off), 10);
           } else if (id(menu_open) && id(page) == 3 && id(focus) == 0) {
             auto c = id(room_offset).make_call();
             c.set_value(id(room_offset).state + 0.1f); c.perform();
@@ -1338,6 +1463,21 @@ script:
     mode: restart
     then:
       - lambda: |-
+          // A detent moves a comfort window by ten minutes and wraps at
+          // midnight. Written here rather than as a shared script because a
+          // script call cannot carry which entity to move.
+          auto bump = [](datetime::TimeEntity *t, int d) {
+            int m = t->hour * 60 + t->minute + d;
+            m = ((m % 1440) + 1440) % 1440;
+            auto c = t->make_call();
+            c.set_time(m / 60, m % 60, 0);
+            c.perform();
+          };
+          // A boiler setpoint that was never set is NaN, and NaN plus a
+          // detent is NaN. Start from the shipped default instead.
+          auto num = [](number::Number *x, float fallback) {
+            return std::isnan(x->state) ? fallback : x->state;
+          };
           bool sp_edit = (id(page) == 0) && (!id(menu_open) || id(focus) == 0);
           if (sp_edit) {
             if (id(in_comfort).state) {
@@ -1356,10 +1496,10 @@ script:
             c.set_value(id(sp_hyst).state - 0.1f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 0) {
             auto c = id(ot_t_dhw_set).make_call();
-            c.set_value(id(ot_t_dhw_set).state - 1.0f); c.perform();
+            c.set_value(num(id(ot_t_dhw_set), 50.0f) - 1.0f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 1) {
             auto c = id(ot_max_t_set).make_call();
-            c.set_value(id(ot_max_t_set).state - 1.0f); c.perform();
+            c.set_value(num(id(ot_max_t_set), 80.0f) - 1.0f); c.perform();
           } else if (id(menu_open) && id(page) == 1 && id(focus) == 2) {
             id(ot_dhw_enable).turn_off();
           } else if (id(menu_open) && id(page) == 2 && id(focus) == 0) {
@@ -1372,7 +1512,13 @@ script:
             auto c = id(sp_boost_delta).make_call();
             c.set_value(id(sp_boost_delta).state - 0.5f); c.perform();
           } else if (id(menu_open) && id(page) == 2 && id(focus) == 3) {
-            id(heat_boost).turn_off();
+            bump(id(sch_wd_on), -10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 4) {
+            bump(id(sch_wd_off), -10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 5) {
+            bump(id(sch_we_on), -10);
+          } else if (id(menu_open) && id(page) == 2 && id(focus) == 6) {
+            bump(id(sch_we_off), -10);
           } else if (id(menu_open) && id(page) == 3 && id(focus) == 0) {
             auto c = id(room_offset).make_call();
             c.set_value(id(room_offset).state - 0.1f); c.perform();

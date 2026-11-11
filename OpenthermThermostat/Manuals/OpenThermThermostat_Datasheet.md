@@ -1,6 +1,6 @@
 # HomeMaster Thermostat for OpenTherm — Datasheet
 
-**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.0.0**
+**Part No. OTT-R1 · Hardware V1.0 · Firmware 1.1.2**
 **Document No.: DS-OTT-R1-V1.0 · November 2026**
 
 ISYSTEMS AUTOMATION S.R.L. · HomeMaster®
@@ -95,7 +95,11 @@ Detection range of the radar is configurable per gate from Home Assistant
 | Screen blanking | Radar-driven, 45 s after the room empties |
 
 Four pages — Climate, Boiler, Schedule, System — each with a menu reached with
-▲ or ▼. The interface is described in full in Chapter 4 of the user manual.
+▲ or ▼. Every setting the heating loop uses, the comfort windows included, can
+be set from the glass without Home Assistant. Colour carries one meaning each: amber a running circuit, red a fault or
+a lost link, green a healthy state where a word says so, white a measurement,
+dim grey no reading. The interface is described in full in Chapter 6 of the user
+manual.
 
 ## 7. Sensors
 
@@ -166,10 +170,15 @@ Setpoint, Boiler DHW Setpoint, Boiler Max CH Setpoint, Radar gates and timeout.
 
 Selects: Outside Temperature Source, Room Temperature Source.
 
-Written from Home Assistant: Room Temperature Input, Outside Temperature Input.
-A value written to either is ignored once it is older than 30 minutes.
+Written from Home Assistant: Room Temperature Input, Room Humidity Input,
+Outside Temperature Input. A value written to any of them is ignored once it is
+older than 30 minutes.
 
 Datetimes: Weekday and Weekend Comfort Start and End.
+
+Room Temperature Raw, Room Humidity Raw, Boiler Return Temperature and Boiler
+DHW Temperature are created disabled in Home Assistant and have to be enabled on
+the device page before they record.
 
 Switches: Heating Automatic, Weather Compensation, Boost Until Next Change,
 Boiler CH Enable, Boiler DHW Enable.
@@ -190,6 +199,8 @@ Version (text sensors).
 | Weather curve | −15 °C → 65 °C, +15 °C → 35 °C |
 | Weather Compensation | On |
 | Fixed Flow Setpoint | 55 °C |
+| Boiler DHW Setpoint | 50 °C |
+| Boiler Max CH Setpoint | 80 °C |
 | Outside Temperature Source | Boiler, then Home Assistant |
 | Room Temperature Source | Built-in sensor |
 | Control interval | 30 s |
