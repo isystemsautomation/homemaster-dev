@@ -13,7 +13,7 @@ difficulty: 1
 
 ![HomeMaster Thermostat for OpenTherm](thermostat.jpg)
 
-![Climate page](screen-climate.png?v=3)
+![Climate page](screen-climate.png)
 
 ## Description
 
@@ -41,7 +41,7 @@ schematics), see:
 
 ## Hardware Details
 
-- **MCU:** ESP32-WROOM-32U (16 MB flash, external antenna connector)
+- **MCU:** ESP32-WROOM-32U (16 MB flash, U.FL antenna fitted inside the enclosure)
 - **Architecture:** Modular — MCU Board + Display Board
 - **Part number:** OTT-R1
 - **Manufacturer:** ISYSTEMS AUTOMATION S.R.L.
@@ -181,27 +181,33 @@ SCHEDULE (comfort and eco windows), SYSTEM (network, sensors, diagnostics).
 
 | Entity | Type |
 |---|---|
-| Room Temperature | sensor |
-| Room Humidity | sensor |
-| Ambient Light | sensor |
-| Comfort Temperature | number |
-| Eco Temperature | number |
-| Heating Target | sensor |
-| Flow Setpoint By Curve | sensor |
-| Boiler Water Temperature | sensor |
-| Boiler Relative Modulation Level | sensor |
-| Boiler CH Pressure | sensor |
-| Outside Temperature | sensor |
-| Boiler Flame On | binary_sensor |
-| Boiler CH Enable | switch |
-| Boiler DHW Enable | switch |
-| Heating Automatic | switch |
-| Boost Until Next Change | switch |
-| Comfort Window | binary_sensor |
-| Presence | binary_sensor |
-| Radar Target | binary_sensor |
+| Room Temperature, Room Humidity, Ambient Light | sensor |
+| Heating Target, Flow Setpoint By Curve, Outside Temperature In Use | sensor |
+| Boiler Water Temperature, Relative Modulation Level, CH Pressure | sensor |
+| Boiler Flame On, CH Active, DHW Active, Fault Indication | binary_sensor |
+| Comfort Window, Heat Demand, Presence, Radar Target | binary_sensor |
+| Comfort Temperature, Eco Temperature | number |
+| Boost Offset, Room Hysteresis, Room Sensor Offset | number (config) |
+| Curve Cold/Warm Outside, Curve Cold/Warm Flow, Fixed Flow Setpoint | number (config) |
+| Boiler DHW Setpoint, Boiler Max CH Setpoint | number |
+| Room Temperature Input, Room Humidity Input, Outside Temperature Input | number (config, written from Home Assistant) |
+| UTC Offset | number (config) |
+| Outside Temperature Source, Room Temperature Source, Summer Time | select (config) |
+| Weekday / Weekend Comfort Start and End | datetime (config) |
+| Heating Automatic, Weather Compensation, Boost Until Next Change | switch |
+| Boiler CH Enable, Boiler DHW Enable | switch |
 | Backlight | light |
 | Firmware Update | update |
+
+Four entities are created disabled, so that adding the device does not bring a
+dozen rarely-read values with it: **Room Temperature Raw**, **Room Humidity
+Raw**, **Boiler Return Temperature** and **Boiler DHW Temperature**. Enable them
+on the device page if you want them.
+
+The outside and the room temperature can each be taken from the device's own
+source — the boiler's outside sensor, the on-board SHT40 — or pushed in from
+Home Assistant through the input numbers. Room humidity follows the room
+temperature selector.
 
 ## Configuration
 
