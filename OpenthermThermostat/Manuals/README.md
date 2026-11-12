@@ -6,3 +6,4 @@ Filenames referenced elsewhere in the repository. Use exactly these names.
 |---|---|
 | `OpenThermThermostat_Datasheet.pdf` | `site/thermostat_card.html` |
 | `OpenThermThermostat_UserManual.pdf` | `site/thermostat_card.html` |
+| `DoC_OTT-R1.pdf` | `site/thermostat_card.html` |
