@@ -1,6 +1,6 @@
 ---
 title: HomeMaster Thermostat for OpenTherm
-date-published: 2026-11-09
+date-published: 2026-11-12
 type: misc
 standard: global
 board: esp32
