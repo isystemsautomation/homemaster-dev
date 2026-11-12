@@ -95,13 +95,16 @@ Enclosure: Italtronic EYE BOX, ABS, white (RAL 9003), wall mounted.
 
 | Dimension | Value | Italtronic part |
 |---|---|---|
-| Body outer diameter | Ø 94.6 mm | P61610001G frame ring |
-| Front aperture (visible glass) | Ø 82.2 mm | P61610001G |
-| Ring height | 20.5 mm | P61610001G |
+| Cover plate, visible | 151.7 × 106.7 mm | P61610003A |
+| Body outer diameter | Ø 94.6 mm | P61610002G knurled ring |
+| Front aperture (visible glass) | Ø 82.2 mm | P61610002G |
+| Ring height | 20.5 mm | P61610002G |
 | Wall base, round | Ø 88.7 mm, 10.5 mm deep, keyhole centres 58 mm | P61610002B |
 | Wall plate, rectangular | 140 × 80 mm (149.9 mm over the tabs), 9 mm thick, cable aperture 45 × 30 mm, fixing centres 83.5 / 60 mm | P61610014A |
-| PCB carrier | Ø 90.3 mm, 7.5 mm deep; PCB fixing pattern 58 × 36 mm, Ø 2.4 mm | P61610001V |
+| Toothed ring | Ø 89.7 mm | P61610003G |
+| PCB tray | 64 × 45 mm, 8.5 mm deep | P61610003V |
 
+- Overall depth from the wall: 41 mm
 - Two-part construction: wall base or plate fixed to the wall, body clipped on
 - Front: round glass with a printed brand arc and a rectangular display aperture
 - Mounting: two screws straight into the wall at 58 mm centres, or onto a flush-mounting box — the plate is drilled for both **60 mm** (round European device box, Ø 68 mm bore) and **83.5 mm** (Italian three-module box, 503). What decides whether a box fits is the distance between its device screws, not the shape of the box
