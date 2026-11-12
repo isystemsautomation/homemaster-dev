@@ -48,7 +48,7 @@ esphome:
   min_version: 2026.10.0
   project:
     name: homemaster.opentherm_thermostat
-    version: "1.1.3"
+    version: "1.1.4"
   on_boot:
     priority: -100
     then:
@@ -173,14 +173,6 @@ output:
     # 25 kHz, above the audible range: at 2 kHz the ceramic capacitors
     # on the +5 V rail sing.
     frequency: 25000Hz
-
-  - platform: opentherm
-    id: ot_output
-    t_set:
-      id: ot_t_set_output
-      min_value: 20
-      max_value: 85
-      zero_means_zero: true
 
 light:
   - platform: monochromatic
@@ -433,6 +425,14 @@ number:
     # position, the encoder could not move the value because NaN plus one
     # detent is still NaN, and the boiler was handed a hot-water setpoint
     # that meant nothing until somebody typed a number in by hand.
+    t_set:
+      id: ot_t_set
+      name: "Boiler CH Setpoint"
+      min_value: 0
+      max_value: 85
+      step: 0.5
+      initial_value: 0
+      restore_value: false
     t_dhw_set:
       id: ot_t_dhw_set
       name: "Boiler DHW Setpoint"
@@ -1046,7 +1046,10 @@ interval:
 
           float flow = id(flow_setpoint).has_state() ? id(flow_setpoint).state : NAN;
           if (std::isnan(flow)) flow = 0.0f;
-          id(ot_t_set_output).set_level(id(heat_want) ? flow / 100.0f : 0.0f);
+          const float want = id(heat_want) ? flow : 0.0f;
+          if (!id(ot_t_set).has_state() || fabsf(id(ot_t_set).state - want) >= 0.5f) {
+            id(ot_t_set).make_call().set_value(want).perform();
+          }
 
           if (id(heat_want) != id(ot_ch_enable).state) {
             if (id(heat_want)) id(ot_ch_enable).turn_on();
