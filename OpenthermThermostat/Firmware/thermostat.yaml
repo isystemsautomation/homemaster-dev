@@ -175,6 +175,7 @@ output:
     frequency: 25000Hz
 
   - platform: opentherm
+    id: ot_output
     t_set:
       id: ot_t_set_output
       min_value: 20
