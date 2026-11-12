@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.4 — 12 November 2026
+
+- The central heating setpoint the thermostat asks the boiler for is now a
+  number, **Boiler CH Setpoint**, instead of an output with no name. Nothing
+  changes on the OpenTherm bus: the same message carries the same value, and
+  the heating behaves exactly as before. What changes is that the figure the
+  control loop has worked out is now visible in Home Assistant instead of
+  being hidden inside the firmware.
+- The thermostat keeps ownership of that number. It writes the flow setpoint
+  its own weather curve produced, and anything typed in by hand is overwritten
+  on the next pass of the control loop.
+- The change was required by the ESPHome device catalogue: its automated
+  review insists that every component in a published configuration carries an
+  identifier, and an OpenTherm output cannot carry one — ESPHome does not keep
+  an identifier at that level.
+
 ## 1.1.3 — 11 November 2026
 
 - **The schedule keeps local time without Home Assistant.** NTP carries
