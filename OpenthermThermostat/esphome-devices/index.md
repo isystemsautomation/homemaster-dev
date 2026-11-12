@@ -33,10 +33,18 @@ This page includes the full ESPHome configuration used on shipped devices
 For complete product documentation (connections, compliance, wiring and
 schematics), see:
 
-- Product page: [home-master.eu](https://www.home-master.eu/)
+- Product page: [home-master.eu shop](https://www.home-master.eu/shop/opentherm-thermostat-1514)
 - Repository: [GitHub repository](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat)
+- Datasheet (PDF):
+  [OpenThermThermostat_Datasheet.pdf](https://config.home-master.eu/OpenthermThermostat/Manuals/OpenThermThermostat_Datasheet.pdf)
+- User Manual (PDF):
+  [OpenThermThermostat_UserManual.pdf](https://config.home-master.eu/OpenthermThermostat/Manuals/OpenThermThermostat_UserManual.pdf)
 - Schematics (PDF):
-  [Schematics/](https://github.com/isystemsautomation/homemaster-dev/tree/site/OpenthermThermostat/Schematics)
+  - MCU Board:
+    [MCUBoard.pdf](https://config.home-master.eu/OpenthermThermostat/Schematics/MCUBoard.pdf)
+  - Display Board:
+    [LCDBoard.pdf](https://config.home-master.eu/OpenthermThermostat/Schematics/LCDBoard.pdf)
+
 - Maker: [home-master.eu](https://www.home-master.eu/)
 
 ## Hardware Details
