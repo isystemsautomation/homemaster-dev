@@ -13,8 +13,6 @@ difficulty: 1
 
 ![HomeMaster Thermostat for OpenTherm](thermostat.jpg)
 
-![Climate page](screen-climate.png)
-
 ## Description
 
 The HomeMaster Thermostat for OpenTherm is a wall-mounted ESP32 device that acts as an
