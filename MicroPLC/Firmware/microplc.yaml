@@ -52,7 +52,7 @@ wifi:
 
 improv_serial:                          # Allows setup via Improv over Serial
 
-esp32_improv:
+improv_ble:
   authorizer: none                      # No additional authorization required for Improv
 
 dashboard_import:
@@ -136,6 +136,7 @@ switch:
 
 button:
   - platform: restart
+    id: btn_restart
     name: "Restart"
     entity_category: config
 
