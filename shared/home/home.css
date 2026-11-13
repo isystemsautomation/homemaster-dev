@@ -35,7 +35,7 @@
 .hmh-hero .hmh-btn--ghost{color:#fff!important;border-color:#55617A}
 .hmh-hero .hmh-btn--ghost:hover{border-color:#fff}
 .hmh-hero__img img{display:none}
-.hmh-hero__img{aspect-ratio:1060/596;background:url(https://config.home-master.eu/shared/home/hero-studio-d.webp?v=1) right center/contain no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 96%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 96%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);mask-composite:intersect;margin-right:-24px}
+.hmh-hero__img{aspect-ratio:1100/616;background:url(https://config.home-master.eu/shared/home/hero-studio2-d.webp) right center/contain no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 96%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 96%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);mask-composite:intersect;margin-right:-24px}
 .hmh-facts{display:flex;flex-wrap:wrap;gap:16px 40px;margin:48px 0 0;padding:24px 0 0;border-top:1px solid #222C42;list-style:none}
 .hmh-facts li{font-size:14px;color:#9AA4B8;line-height:1.3}
 .hmh-facts b{display:block;font-size:20px;color:#fff;font-weight:700;margin-bottom:2px}
@@ -112,7 +112,7 @@
   .hmh-hero__grid,.hmh-how,.hmh-co,.hmh-partner{grid-template-columns:1fr}
   .hmh-hero{background:#050A10;padding-top:0}
   .hmh-hero__grid{gap:24px}
-  .hmh-hero__img{order:-1;aspect-ratio:1040/440;background:url(https://config.home-master.eu/shared/home/hero-studio-m.webp?v=1) center/cover no-repeat;-webkit-mask-image:none;mask-image:none;margin:0 -24px}
+  .hmh-hero__img{order:-1;aspect-ratio:1090/560;background:url(https://config.home-master.eu/shared/home/hero-studio2-m.webp) center/cover no-repeat;-webkit-mask-image:none;mask-image:none;margin:0 -24px}
   .hmh-cat,.hmh-guides{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:575px){
