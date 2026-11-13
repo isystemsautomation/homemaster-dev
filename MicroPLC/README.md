@@ -89,7 +89,7 @@ are not controlled by this component.
 
 ## Programming
 
-The MicroPLC ships with ESPHome and can be configured in three standard ways. Firmware **1.3.1** requires **ESPHome ≥ 2026.7.0**.
+The MicroPLC ships with ESPHome and can be configured in three standard ways. Firmware **1.3.2** requires **ESPHome ≥ 2026.7.0**.
 
 ### Improv Wi-Fi Setup
 
@@ -108,7 +108,7 @@ continues to work regardless, because it requires physical access.
 ### One-Click Import (ESPHome Dashboard)
 
 Once connected to Wi-Fi, the MicroPLC is auto-discovered in ESPHome Device Builder
-as `homemaster-microplc-<mac>` running `homemaster.microplc 1.3.1`.
+as `homemaster-microplc-<mac>` running `homemaster.microplc 1.3.2`.
 Click **Take control** to import the official configuration from GitHub. That step
 generates the **API encryption key** and **OTA password** for this device.
 
