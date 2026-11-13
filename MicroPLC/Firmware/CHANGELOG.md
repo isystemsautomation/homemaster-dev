@@ -2,7 +2,13 @@
 
 Firmware release history. OTA binaries and `manifest.json` live in this folder alongside `microplc.yaml`.
 
-### v1.3.1 — current
+### v1.3.2 — current
+
+- The **Restart** button is gone, and the hardware it stood in for is exposed instead: the front-panel push button, as `Button` on **GPIO39**. SW1 pulls the pin to ground and a 10 kΩ resistor pulls it up to 3V3; GPIO39 is input-only and has no internal pull resistors, so that external resistor is what holds the idle level. Rebooting from Home Assistant is no longer offered as an entity — the device is restarted by its own button or by removing power.
+- `esp32_improv:` renamed to **`improv_ble:`**. ESPHome deprecated the old key and removes it in 2027.4.0; the component and its behaviour are unchanged.
+- Every component in the configuration now carries an `id`. The ESPHome device catalogue requires this of a Made for ESPHome submission, and the restart button was the one component without one.
+
+### v1.3.1
 
 - Added the onboard **24 V digital input** as `DI #1` (**GPIO36**); the input existed in hardware from v1.0.0 but was never exposed as an entity.
 - RS-485 UART aligned with MiniPLC: id renamed `mod_uart` → **`uart_modbus`**, matching the wiring example in every module README, and pins written as `GPIO17`/`GPIO16`.
