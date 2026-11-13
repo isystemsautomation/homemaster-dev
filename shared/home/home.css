@@ -1,0 +1,138 @@
+/* HomeMaster homepage v2 — scoped to .hmh. Tokens: design audit 27.09.2026 */
+.hmh{--ink:#0B1220;--text:#334155;--muted:#5B667A;--line:#E6E8EE;--surface:#F6F7FB;--accent:#0B5ED7;--accent-h:#094DB3;--dark:#0A0C17;
+  font-family:Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);font-size:16px;line-height:1.55}
+.hmh *{box-sizing:border-box}
+.hmh img{max-width:100%;height:auto;display:block}
+.hmh a{color:var(--accent);text-decoration:none}
+.hmh a:hover{text-decoration:underline}
+.hmh h1,.hmh h2,.hmh h3{color:var(--ink);font-weight:700;margin:0;letter-spacing:-.01em}
+.hmh h2{font-size:28px;line-height:1.25}
+.hmh h3{font-size:18px;line-height:1.3}
+.hmh p{margin:0}
+.hmh-wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.hmh-sec{padding:64px 0}
+.hmh-sec--alt{background:var(--surface)}
+.hmh-head{max-width:720px;margin-bottom:32px}
+.hmh-head p{margin-top:12px;font-size:18px;color:var(--muted)}
+.hmh-eyebrow{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:12px!important}
+
+/* buttons */
+.hmh-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:8px;font-size:16px;font-weight:700;line-height:1.2;border:1px solid transparent;transition:background .15s,border-color .15s}
+.hmh-btn:hover{text-decoration:none!important}
+.hmh-btn--primary{background:var(--accent);color:#fff!important}
+.hmh-btn--primary:hover{background:var(--accent-h)}
+.hmh-btn--ghost{border-color:#C9D0DC;color:var(--ink)!important;font-weight:400}
+.hmh-btn--ghost:hover{border-color:var(--ink)}
+.hmh-btns{display:flex;flex-wrap:wrap;gap:12px}
+
+/* hero */
+.hmh-hero{background:radial-gradient(ellipse 60% 80% at 75% 50%,#16213A 0%,var(--dark) 70%);color:#fff;padding:72px 0 64px;overflow:hidden}
+.hmh-hero__grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.hmh-hero .hmh-eyebrow{color:#7FB2FF}
+.hmh-hero h1{color:#fff;font-size:40px;line-height:1.15;max-width:600px}
+.hmh-hero__lead{margin-top:16px!important;font-size:18px;color:#B8C0D0;max-width:540px}
+.hmh-hero .hmh-btns{margin-top:32px}
+.hmh-hero .hmh-btn--ghost{color:#fff!important;border-color:#55617A}
+.hmh-hero .hmh-btn--ghost:hover{border-color:#fff}
+.hmh-hero__img img{width:100%;max-width:620px;margin-left:auto;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55))}
+.hmh-facts{display:flex;flex-wrap:wrap;gap:16px 40px;margin:48px 0 0;padding:24px 0 0;border-top:1px solid #222C42;list-style:none}
+.hmh-facts li{font-size:14px;color:#9AA4B8;line-height:1.3}
+.hmh-facts b{display:block;font-size:20px;color:#fff;font-weight:700;margin-bottom:2px}
+
+/* price strip — cards come from estimator/examples.js */
+.hmh-price .hmh-head{margin-bottom:24px}
+.hmh-price__foot{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;margin-top:24px}
+.hmh-note{font-size:14px;color:var(--muted)}
+
+/* how it works */
+.hmh-how{display:grid;grid-template-columns:1.25fr 1fr;gap:48px;align-items:start}
+.hmh-flow{display:flex;flex-direction:column;align-items:center;gap:0}
+.hmh-node{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 20px;text-align:center;width:100%}
+.hmh-node small{display:block;color:var(--muted);font-size:14px}
+.hmh-node--server{max-width:340px}
+.hmh-node--ctrl{max-width:420px;display:flex;align-items:center;gap:16px;text-align:left}
+.hmh-node--ctrl img{width:150px;flex:none}
+.hmh-link{display:flex;flex-direction:column;align-items:center;font-size:12px;font-weight:700;color:var(--accent);padding:6px 0;text-transform:uppercase;letter-spacing:.06em}
+.hmh-link::before{content:"";width:2px;height:28px;background:var(--accent);margin-bottom:6px}
+.hmh-bus{width:100%;border-top:3px solid var(--accent);position:relative;padding-top:16px;margin-top:4px}
+.hmh-mods{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.hmh-mod{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--muted);line-height:1.3}
+.hmh-mod img{height:64px;width:100%;margin:0 auto 6px;object-fit:contain}
+.hmh-mod b{display:block;color:var(--ink);font-size:13px}
+.hmh-points{list-style:none;margin:0;padding:0;display:grid;gap:24px}
+.hmh-points li{padding-left:20px;border-left:3px solid var(--accent)}
+.hmh-points h3{margin-bottom:6px}
+.hmh-points p{color:var(--text)}
+
+/* catalog */
+.hmh-cat{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.hmh-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;color:var(--text)!important;transition:box-shadow .15s,border-color .15s;position:relative}
+.hmh-card:hover{text-decoration:none!important;border-color:#C9D0DC;box-shadow:0 8px 24px rgba(11,18,32,.08)}
+.hmh-card__img{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.hmh-card__img img{max-height:100%;width:auto;object-fit:contain}
+.hmh-card__tag{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.hmh-card h3{margin:4px 0 6px;font-size:18px}
+.hmh-card p{font-size:14px;color:var(--text);flex:1}
+.hmh-card__price{margin-top:12px;font-size:16px;font-weight:700;color:var(--ink);min-height:24px}
+.hmh-card__price small{font-weight:400;color:var(--muted);font-size:12px;margin-left:4px}
+.hmh-badge{position:absolute;top:12px;right:12px;background:#E8F0FE;color:var(--accent);font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px}
+.hmh-cat-foot{margin-top:24px}
+
+/* company */
+.hmh-co{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.hmh-co p+p{margin-top:12px}
+.hmh-co .hmh-btns{margin-top:24px}
+.hmh-co img{border-radius:16px}
+.hmh-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
+.hmh-stat{border:1px solid var(--line);border-radius:16px;padding:20px;background:#fff}
+.hmh-stat b{display:block;font-size:28px;color:var(--ink);line-height:1.1;margin-bottom:6px}
+.hmh-stat span{font-size:14px;color:var(--muted)}
+
+/* guides */
+.hmh-guides{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.hmh-guide{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;color:var(--text)!important}
+.hmh-guide:hover{text-decoration:none!important;box-shadow:0 8px 24px rgba(11,18,32,.08)}
+.hmh-guide img{aspect-ratio:16/10;width:100%;object-fit:cover}
+.hmh-guide div{padding:16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.hmh-guide h3{font-size:16px}
+.hmh-guide p{font-size:14px;color:var(--muted);flex:1}
+.hmh-guide span{font-size:14px;font-weight:700;color:var(--accent)}
+.hmh-guides-foot{margin-top:24px;display:flex;flex-wrap:wrap;gap:12px 32px;font-size:16px}
+
+/* partner */
+.hmh-partner{display:grid;grid-template-columns:5fr 7fr;gap:48px;align-items:center}
+.hmh-partner img{border-radius:16px;max-height:520px;width:auto;margin:0 auto}
+.hmh-list{list-style:none;margin:20px 0 28px;padding:0;display:grid;gap:12px}
+.hmh-list li{position:relative;padding-left:32px}
+.hmh-list li::before{content:"";position:absolute;left:0;top:2px;width:20px;height:20px;border-radius:50%;background:#E8F0FE url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.5 10.5l3 3 6-7' fill='none' stroke='%230B5ED7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/20px no-repeat}
+
+/* responsive */
+@media (max-width:991px){
+  .hmh-hero__grid,.hmh-how,.hmh-co,.hmh-partner{grid-template-columns:1fr}
+  .hmh-hero__img{order:-1}
+  .hmh-hero__img img{max-width:440px;margin:0 auto}
+  .hmh-cat,.hmh-guides{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:575px){
+  .hmh-wrap{padding:0 16px}
+  .hmh-sec{padding:48px 0}
+  .hmh-hero{padding:40px 0 48px}
+  .hmh-hero h1{font-size:28px}
+  .hmh-hero__lead,.hmh-head p{font-size:16px}
+  .hmh h2{font-size:24px}
+  .hmh-facts{gap:16px 24px;margin-top:32px}
+  .hmh-facts li{flex:0 0 calc(50% - 12px)}
+  .hmh-btns .hmh-btn{flex:1 1 100%;justify-content:center}
+  .hmh-mods{grid-template-columns:repeat(2,1fr)}
+  .hmh-node--ctrl img{width:110px}
+  .hmh-cat{grid-template-columns:1fr 1fr;gap:12px}
+  .hmh-card{padding:12px}
+  .hmh-card h3{font-size:16px}
+  .hmh-card p{display:none}
+  .hmh-badge{font-size:11px;top:8px;right:8px}
+  .hmh-guides{grid-template-columns:1fr}
+  .hmh-guide{flex-direction:row}
+  .hmh-guide img{width:120px;aspect-ratio:1/1;flex:none}
+  .hmh-guide p{display:none}
+  .hmh-stats{grid-template-columns:1fr;gap:12px}
+}
