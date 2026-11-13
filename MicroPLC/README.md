@@ -53,7 +53,7 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 - PCF8563 RTC for time-based automation
 - One industrial-grade relay with varistor and opto-isolation
 - One 24 V digital input on **GPIO36** with surge protection (ISO1212)
-- one front-panel button and status LEDs
+- One front-panel push button on **GPIO39** and status LEDs
 - DIN-rail mounting for standard control cabinets
 - **24 V DC only** field supply (plus USB-C for programming) — no AC mains input
 - **No onboard Ethernet or microSD** (unlike MiniPLC); expand I/O over RS-485 modules
@@ -89,7 +89,7 @@ are not controlled by this component.
 
 ## Programming
 
-The MicroPLC ships with ESPHome and can be configured in three standard ways. Firmware **1.1.0** requires **ESPHome ≥ 2026.7.0**.
+The MicroPLC ships with ESPHome and can be configured in three standard ways. Firmware **1.3.1** requires **ESPHome ≥ 2026.7.0**.
 
 ### Improv Wi-Fi Setup
 
@@ -108,7 +108,7 @@ continues to work regardless, because it requires physical access.
 ### One-Click Import (ESPHome Dashboard)
 
 Once connected to Wi-Fi, the MicroPLC is auto-discovered in ESPHome Device Builder
-as `homemaster-microplc-<mac>` running `Homemaster.MicroPLC 1.1.0`.
+as `homemaster-microplc-<mac>` running `homemaster.microplc 1.3.1`.
 Click **Take control** to import the official configuration from GitHub. That step
 generates the **API encryption key** and **OTA password** for this device.
 
@@ -216,7 +216,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Digital Inputs | 1 × isolated 24 V DC discrete input (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
 | Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC (module limit) |
 | Temperature Inputs | 1 × 1-Wire (DS18B20 compatible) |
-| User Interface | 1 front-panel button, 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
+| User Interface | 1 front-panel button (GPIO39), 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
 | Wi-Fi | Wi-Fi (ESP32) |
 | USB | USB-C (ESD protected, CC detection, data to ESP32) |
@@ -255,7 +255,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | DI #1 | Binary Sensor | Enabled | 24 V DC digital input (GPIO36, ISO1212) |
 | 1-Wire Bus 1 Temperature | Sensor | Enabled | DS18B20 on GPIO4 |
 | Relay | Switch | Enabled | Onboard relay C/NC only (GPIO26); closed when de-energised |
-| Restart | Button | Enabled (config) | Reboot only — does not clear Wi-Fi or API key |
+| Button | Binary Sensor | Enabled | Front-panel push button on GPIO39, active low |
 | WiFi Signal | Sensor | Enabled (diagnostic) | RSSI in dBm |
 | ESP32 Temperature | Sensor | Enabled (diagnostic) | Internal chip temperature |
 | ESP Uptime Human | Text Sensor | Enabled (diagnostic) | Human-readable uptime |
