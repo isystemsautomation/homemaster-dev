@@ -6,7 +6,7 @@ esphome:
   min_version: 2026.7.0
   project:
     name: homemaster.microplc
-    version: "1.3.1"
+    version: "1.3.2"
 
 esp32:
   variant: esp32
