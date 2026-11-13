@@ -67,6 +67,7 @@ on the module.
 | 1-Wire bus | GPIO | 4 |
 | Relay, C / NC | GPIO | 26 |
 | Digital input, isolated 24 V | GPIO | 36 |
+| Front-panel button | GPIO | 39, active low |
 | Status LED | GPIO | 25, inverted |
 
 The RS-485 port is half-duplex Modbus RTU and is not galvanically isolated.
@@ -88,6 +89,7 @@ legend on the case labels the two data terminals of a single bus, not two buses.
 - RS-485 Modbus RTU for HomeMaster expansion modules
 - One relay channel, C / NC, opto-isolated drive with a varistor
 - One isolated 24 V digital input, ISO1212, PTC fused, TVS protected
+- Front-panel push button, exposed as a binary sensor
 - 1-Wire bus with ESD and overvoltage protection
 - PCF8563 real-time clock
 - USB Type-C for programming and serial provisioning
@@ -186,10 +188,10 @@ Requires ESPHome 2026.7.0 or newer.
 | --- | --- |
 | ESP Status | binary_sensor (diagnostic) |
 | DI #1 | binary_sensor |
+| Button | binary_sensor |
 | 1-Wire Bus 1 Temperature | sensor |
 | WiFi Signal, ESP32 Temperature | sensor (diagnostic) |
 | Relay | switch |
-| Restart | button (config) |
 | ESP Uptime Human, ESPHome Version, ESP IP Address | text_sensor (diagnostic) |
 | Firmware Update | update |
 
