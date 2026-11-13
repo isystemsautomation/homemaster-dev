@@ -89,6 +89,17 @@
 .hmh-stat b{display:block;font-size:28px;color:var(--ink);line-height:1.1;margin-bottom:6px}
 .hmh-stat span{font-size:14px;color:var(--muted)}
 
+/* company v2 (light, inline facts) */
+.hmh-co2__grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.hmh-co2__lead{margin-top:16px!important;font-size:18px;color:var(--text);max-width:600px}
+.hmh-co2__facts{list-style:none;margin:28px 0;padding:24px 0 0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:600px}
+.hmh-co2__facts li{font-size:14px;color:var(--muted);line-height:1.35}
+.hmh-co2__facts b{display:block;font-size:24px;color:var(--ink);margin-bottom:4px}
+.hmh-co2__img{justify-self:end;width:100%;max-width:520px;margin:0}
+.hmh-co2__img img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:16px;box-shadow:0 12px 32px rgba(11,18,32,.12)}
+@media (max-width:991px){.hmh-co2__grid{grid-template-columns:1fr;gap:32px}.hmh-co2__img{justify-self:start}}
+@media (max-width:575px){.hmh-co2__lead{font-size:16px}.hmh-co2__facts{grid-template-columns:1fr;gap:12px}.hmh-co2__facts li{display:flex;gap:12px;align-items:baseline}.hmh-co2__facts b{font-size:20px;margin:0;min-width:84px}}
+
 /* guides */
 .hmh-guides{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .hmh-guide{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;color:var(--text)!important}
