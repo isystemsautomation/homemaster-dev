@@ -10,7 +10,7 @@
         "path": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/homemaster-microplc-firmware.ota.bin",
         "md5": "5c4a9cd3eec755667b7290538e9a41a5",
         "release_url": "https://isystemsautomation.github.io/homemaster-dev/MicroPLC/Firmware/CHANGELOG.md",
-        "summary": "Version 1.3.1 \u2014 DI #1, UART 19200, diagnostics, Restart"
+        "summary": "Version 1.3.1 — DI #1, UART 19200, diagnostics"
       }
     }
   ]
