@@ -104,6 +104,16 @@ binary_sensor:
     pin:
       number: GPIO36
 
+  # Front-panel push button. SW1 pulls GPIO39 to GND; R23 (10 k) pulls it
+  # up to 3V3. GPIO39 is input-only and has no internal pull resistors,
+  # so the external pull-up is what holds the idle level.
+  - platform: gpio
+    id: btn_1
+    name: "Button"
+    pin:
+      number: GPIO39
+      inverted: true
+
 sensor:
   - platform: uptime
     id: esp_uptime
@@ -133,12 +143,6 @@ switch:
     name: "Relay"                       # Relay switch exposed to Home Assistant
     pin: 26
     id: relay1
-
-button:
-  - platform: restart
-    id: btn_restart
-    name: "Restart"
-    entity_category: config
 
 text_sensor:
   - platform: template
