@@ -1,4 +1,17 @@
 User-agent: *
 Allow: /
 
+# Firmware source and machine files. Customers search for the
+# documents: the pages, the manuals, the datasheets.
+Disallow: /*.ino$
+Disallow: /*.h$
+Disallow: /*.cpp$
+Disallow: /*.py$
+Disallow: /*.yaml$
+Disallow: /*.yml$
+Disallow: /*.json$
+Disallow: /*.bin$
+Disallow: /*.uf2$
+Disallow: /*.csv$
+
 Sitemap: https://config.home-master.eu/sitemap.xml
