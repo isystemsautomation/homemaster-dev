@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
 
+# The system builder on www.home-master.eu/system-builder renders from
+# these files. The path is longer than the *.json rule, so Google fetches them.
+Allow: /estimator/
+
 # Firmware source and machine files. Customers search for the
 # documents: the pages, the manuals, the datasheets.
 Disallow: /*.ino$
