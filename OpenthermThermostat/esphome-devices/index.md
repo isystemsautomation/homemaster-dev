@@ -153,6 +153,8 @@ not the shape of the box.
 3. Connect over Bluetooth, or over USB serial with a USB-C cable, and enter the
    Wi-Fi credentials.
 
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102 USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 The provisioning window stays open for 15 minutes after power-on. If it has
 closed, power-cycle the thermostat to open it again.
 
