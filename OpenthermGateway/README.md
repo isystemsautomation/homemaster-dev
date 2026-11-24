@@ -392,6 +392,8 @@ public.
 
 Primary setup is **Improv** via [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge, over BLE or USB Serial.
 
+> **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
 
 ### 2. Provisioning window (15 minutes)
@@ -440,6 +442,9 @@ Improv over BLE or USB.
 1. Power on the device
 2. Open https://improv-wifi.com
 3. Connect via USB or Bluetooth
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 4. Enter Wi-Fi credentials
 5. Wait for connection
 
@@ -524,14 +529,14 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 
 | Symptom | Checks | Action |
 |---|---|---|
-| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 slow-blinking? Same subnet as HA? Within 15 min of power-on? | Wait for Wi-Fi. Slow-blink U.2 usually means no API client yet — finish [commissioning](#commissioning-firmware-110). If Wi-Fi itself failed, power-cycle to reopen the 15-minute provisioning window and re-run Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com). |
+| Device not in HA or ESPHome Dashboard | PWR LED solid ON? U.2 slow-blinking? Same subnet as HA? Within 15 min of power-on? | Wait for Wi-Fi. Slow-blink U.2 usually means no API client yet — finish [commissioning](#commissioning-firmware-110). If Wi-Fi itself failed, power-cycle to reopen the 15-minute provisioning window and re-run Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com). If USB on improv-wifi.com fails, use web.esphome.io → Connect → Configure Wi-Fi. |
 | U.2 slow-blinks after flashing 1.1.0, device otherwise works | Has the device been adopted in Home Assistant or ESPHome Device Builder? | Slow blink means no API client is connected. Complete **Take control** and add the device to Home Assistant. The LED goes out once Home Assistant connects. |
 | No OpenTherm communication — all OT entities unavailable | OT+ / OT− connected? Boiler OpenTherm enabled in boiler settings? Short circuit on OT terminals? | - Check OT+ / OT− are firmly connected at both ends (no loose ferrules in the screw terminals).<br>- Verify OpenTherm is enabled in the boiler installer menu (often disabled by default).<br>- Confirm the boiler is OT-compliant. Some Vaillant models use eBus (e.g. VR66) and are not OpenTherm; most Worcester models do not support OT. Check the boiler manual.<br>- Look at ESPHome logs:<br>&nbsp;&nbsp;- `[opentherm] Timeout` → no response from boiler. Recheck wiring and that boiler-side OT is enabled.<br>&nbsp;&nbsp;- `[opentherm] Invalid response` → electrical noise. Re-route OT cable away from mains and use shielded twisted pair. |
 | 1-Wire sensor shows unknown or no value | Sensor wired correctly (+5V, DATA, Gnd)? Stubs ≤ 0.5 m? Daisy-chain topology? | If multiple sensors on one bus, assign explicit addresses in YAML. |
 | Relay does not switch | `Relay` switch entity enabled in HA? Wiring on C / NC correct? | Check external fuse or breaker. Note: NC contact is closed by default — load is powered when relay is OFF. |
 | Relay switches but load does not work | External power connected to load circuit? Relay is dry-contact — it does not supply power. | Add external power supply to the load circuit. Use external contactor for inductive loads above 3 A. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/OpenthermGateway/Firmware/manifest.json`. If `http_request`/`update` blocks removed from YAML, use ESPHome OTA instead. |
-| Wi-Fi credentials changed, device unreachable | — | Power-cycle the device to reopen the 15-minute provisioning window, then set new credentials with Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge. |
+| Wi-Fi credentials changed, device unreachable | — | Power-cycle the device to reopen the 15-minute provisioning window, then set new credentials with Improv (BLE or USB) at [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge. If USB on improv-wifi.com fails, use web.esphome.io → Connect → Configure Wi-Fi. |
 | Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use `https://web.esphome.io` (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. USB can be connected with or without external power — no backfeed risk. |
 | OT communication verification without HA | — | ESPHome Dashboard → Logs → look for `[opentherm]` lines: `Received response` = OK · `Timeout` = check wiring · `Invalid response` = check for electrical noise on OT line. Add `web_server: port: 80` to YAML for browser interface at `http://<device_ip>`. |
 
