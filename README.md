@@ -139,6 +139,9 @@ OpenTherm Gateway joins Home Assistant over the native ESPHome API (same as the 
 ### 5-minute setup
 1. **Power the controller** — ESPHome is pre-installed on MiniPLC, MicroPLC, and OpenTherm Gateway.
 2. **Join Wi-Fi with Improv** — BLE or Serial via [improv-wifi.com](https://improv-wifi.com).
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 3. **Wire RS-485** (controllers + I/O modules) — A/B differential pair; **120 Ω termination** at both bus ends.
 4. **Configure each module** — USB-C → WebConfig: set the **Modbus address**, calibration, mapping and rules. Note the address you assign — you'll reference it in the controller config.
 5. **Add the modules to the controller** — in the controller's ESPHome YAML, include the ESPHome **package** for each module (see the [ESPHome example](#home-assistant-example-esphome) below) and set each module's Modbus address to match the one you assigned in WebConfig. Upload the config to the controller.
@@ -163,6 +166,9 @@ OpenTherm Gateway is standalone over the native ESPHome API — it does not use 
 ### Controller setup
 1. Power on  
 2. Connect via **improv-wifi.com** (BLE or USB)  
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 3. Enter Wi‑Fi credentials  
 4. Device appears in **ESPHome Dashboard** and **Home Assistant**
 
