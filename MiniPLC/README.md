@@ -27,6 +27,9 @@ This repository includes the full ESPHome configuration used on shipped devices 
 2. Connect ONE power input (24 V DC at V+/0V, OR 85–265 V AC at L/N).
 3. Wire your field signals: DI, AI, AO, RTD, 1-Wire, RS-485 — as needed.
 4. Power on, open <https://improv-wifi.com>, and provision Wi-Fi via Bluetooth (BLE) or USB (Serial).
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 5. Within **15 minutes** of power-on, open ESPHome Device Builder → click **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant. See [Commissioning (firmware 1.1.0)](#commissioning-firmware-110).
 
 | Resource | Link |
@@ -718,6 +721,8 @@ public.
 
 Primary setup is **Improv** via [improv-wifi.com](https://improv-wifi.com) in Chrome or Edge, over BLE or USB Serial.
 
+> **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 Details: [First Boot & Wi-Fi Setup](#first-boot--wi-fi-setup).
 
 ### 2. Provisioning window (15 minutes)
@@ -758,6 +763,9 @@ You can provision Wi-Fi via either **Bluetooth (BLE)** or **USB-C (Serial)** —
 
 1. Power on the device.
 2. Open <https://improv-wifi.com> in Chrome or Edge (desktop or mobile).
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 3. Click **Connect device** and choose:
    - **Bluetooth LE** — pair with the device wirelessly (recommended for devices already mounted in a cabinet).
    - **USB Serial** — connect a USB-C cable from the MiniPLC to your computer.
@@ -892,7 +900,7 @@ The device polls the firmware manifest every 6 hours (`update_interval: 6h`). To
 | OLED display blank | I²C bus working? | Look at ESPHome logs for I²C scan output at boot. Verify 0x3C appears. |
 | Modbus slave not responding | Address correct on slave WebConfig? Same baud / parity? A/B not swapped? | Check ESPHome logs for `[modbus]` timeouts. Confirm A→A and B→B (not crossed). Confirm COM is tied between all nodes. |
 | Firmware update fails | Device has internet access? | Check manifest URL reachable: `https://isystemsautomation.github.io/homemaster-dev/MiniPLC/Firmware/manifest.json`. If `http_request` / `update` blocks removed from YAML, use ESPHome OTA instead. |
-| Wi-Fi credentials changed, device unreachable | — | Re-provision Wi-Fi via USB-C Serial Improv at <https://improv-wifi.com>. The serial path always works regardless of Wi-Fi state. |
+| Wi-Fi credentials changed, device unreachable | — | Re-provision Wi-Fi via USB-C Serial Improv at <https://improv-wifi.com>. The serial path always works regardless of Wi-Fi state. If USB on improv-wifi.com fails, use web.esphome.io → Connect → Configure Wi-Fi. |
 | Device completely unreachable | Boot loop? OTA interrupted? | Reflash via USB. CP2102N bridge — Linux auto (add user to dialout), Windows auto via Windows Update, macOS needs the CP210x VCP driver with its extension enabled (see the USB Serial Driver & Port Access section). Use <https://web.esphome.io> (Chrome/Edge) or ESPHome Dashboard → Install → Plug into computer. |
 
 ## Entity Reference
