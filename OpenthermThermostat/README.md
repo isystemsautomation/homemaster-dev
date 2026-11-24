@@ -32,6 +32,9 @@ This repository includes the full ESPHome configuration used on shipped devices 
 2. Connect 24 V DC to the +V / 0V terminals.
 3. Wire OT+ and OT− to the boiler's OpenTherm terminals.
 4. Power on and open https://improv-wifi.com in Chrome or Edge — provision Wi-Fi over **Bluetooth**, or over **USB serial** with a USB-C cable. Either route works; use USB when the machine or the browser has no Bluetooth.
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102 USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 5. Within **15 minutes** of power-on, open ESPHome Device Builder → **Take control** to import the configuration and establish the API encryption key. Then add the device in Home Assistant (Settings → Devices & Services → ESPHome).
 
 | Resource | Link |
@@ -357,6 +360,8 @@ The device holds no cloud dependency. Heating continues with Wi-Fi down.
 ### Improv over USB serial
 
 Connect USB-C and use the same page, choosing serial instead of Bluetooth. No driver is needed on current operating systems; the USB-serial bridge is a CP2102.
+
+> **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102 USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
 
 The provisioning window stays open for 15 minutes after power-on. Power-cycle the device to reopen it.
 
