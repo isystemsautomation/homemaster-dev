@@ -64,6 +64,9 @@ HomeMaster MicroPLC is a compact ESP32 Modbus RTU master with ESPHome pre-instal
 2. Power on the device.
 3. Open [improv-wifi.com](https://www.improv-wifi.com) in Chrome/Edge.
 4. Connect over USB (serial) or Bluetooth LE and enter Wi-Fi credentials.
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 5. Within **15 minutes** of power-on, open ESPHome Device Builder and click **Take control** after discovery. Home Assistant will then prompt for the API encryption key and install it automatically.
 
 
@@ -96,6 +99,9 @@ The MicroPLC ships with ESPHome and can be configured in three standard ways. Fi
 1. Power on your HomeMaster MicroPLC.
 2. Go to [improv-wifi.com](https://www.improv-wifi.com).
 3. Connect via USB (serial) or Bluetooth LE.
+
+   > **Known issue (Nov 2026):** improv-wifi.com may not open the Wi-Fi setup dialog over USB Serial — a bug in the site's Improv SDK, not in the device. If it doesn't work, use https://web.esphome.io in Chrome or Edge: connect the device with a USB-C cable → **Connect** → select "CP2102N USB to UART Bridge Controller" → **Configure Wi-Fi**. Do not click Install.
+
 4. Enter your Wi-Fi SSID and password, then connect.
 5. The device joins your Wi-Fi and becomes available in Home Assistant / ESPHome Device Builder.
 
