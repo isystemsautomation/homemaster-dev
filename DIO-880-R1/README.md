@@ -214,7 +214,7 @@ Full safety and installation guidance will be added before release.
 | Firmware (UF2, source) | *In development* |
 | ESPHome package | *In development* |
 | WebConfig tool | *In development* |
-| Schematics (PDF) | *In development* — control board: see [DIM-880-R1 MCU Board](https://config.home-master.eu/DIM-880-R1/Schematics/DIM-880-R1-MCUBoard.pdf) (shared) |
+| Schematics (PDF) | Field Board: [`Schematics/DIO-880-R1-FieldBoard.pdf`](https://config.home-master.eu/DIO-880-R1/Schematics/DIO-880-R1-FieldBoard.pdf) · MCU Board: [`Schematics/DIO-880-R1-MCUBoard.pdf`](https://config.home-master.eu/DIO-880-R1/Schematics/DIO-880-R1-MCUBoard.pdf) — work in progress |
 | Images & diagrams | *In development* |
 
 ---
