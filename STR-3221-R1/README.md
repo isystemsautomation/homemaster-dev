@@ -26,6 +26,8 @@ floor temperature and does not run a PI loop — it holds valves, duty, local
 safety on the discrete input, valve exercise and frost protection. The
 controller holds temperature, the pump/boiler relay and the schedule.
 
+> ⚠️ Not a plus-switching (high-side) controller. Each channel switches the strip's minus (−); the plus (+) is common per group. Strips wired with a common minus, as many existing stair controllers do, must be rewired to a common plus before they can be used.
+
 **Key capabilities at a glance:**
 
 - **32 independently dimmable low-side MOSFET channels** — 12–24 V DC loads, ≤1.5 A per channel, ≤18 A module total; nine physical groups of four, each with its own **+** rail
