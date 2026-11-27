@@ -134,9 +134,9 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 | DIN width | 4 modules (≈ 70 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08 / DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 200 g |
 | Gross weight | 320 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
@@ -173,7 +173,7 @@ Detailed WebConfig steps for these patterns are in [§6 WebConfig Reference](#6-
 
 </div>
 
-> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (0.2–2.5 mm² / AWG 24–12, torque 0.4 Nm max).
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are fixed PCB screw terminals, 5.08 mm pitch (0.5–2.5 mm² / AWG 20–14, torque 0.5 Nm).
 
 ### 4.2 Connectors & terminal map
 

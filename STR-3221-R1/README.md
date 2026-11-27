@@ -172,9 +172,9 @@ software only if you have accepted that a dead controller leaves the pump on.
 | DIN width | 9 modules (≈ 158 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 150 g |
 | Gross weight | 250 g |
 | Pack size | 230 × 140 × 87 mm (L × W × H) |

@@ -79,7 +79,9 @@ The module shares its control board with the **[DIM-880-R1](../DIM-880-R1/README
 | USB | USB-C (configuration and firmware upload) |
 | Modbus defaults | *In development* |
 | Dimensions / DIN width | *In development* |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
+| Terminal type | Fixed PCB screw terminals, 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Operating / storage temperature, humidity, IP | *In development* |
 
 ### 3.4 Communication defaults

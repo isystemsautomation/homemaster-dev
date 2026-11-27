@@ -180,9 +180,9 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 | DIN width | 9 modules (≈ 158 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08 / DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 300 g |
 | Gross weight | 450 g |
 | Pack size | 230 × 140 × 87 mm (L × W × H) |
@@ -202,11 +202,15 @@ Any standard Modbus RTU slave device can also be connected. Refer to each module
 - The cabinet must include a protective front plate covering all terminals and a closing protective door.
 - Not suitable for outdoor or exposed installation.
 
+### Opening the enclosure
+
+The white top cover is held by latches on both sides of the unit; release them and lift off the cover to access the board (RTC battery holder, RTD jumpers, microSD).
+
 ### Terminal Wiring
 
-- Terminal type: pluggable screw terminal blocks, 5.08 mm pitch.
-- Wire cross-section: 0.2–2.5 mm² (AWG 24–12), solid or stranded copper.
-- Use ferrules for stranded wire. Tightening torque: 0.4 Nm maximum.
+- Terminal type: fixed PCB screw terminals (DORABO DB129V-5.08 / DB129R-5.08), 5.08 mm pitch — not pluggable.
+- Wire cross-section: 0.5–2.5 mm² (AWG 20–14), solid or stranded copper (within the terminal part rating).
+- Use ferrules for stranded wire. Tightening torque: 0.5 Nm.
 - All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
 
 ## Cable Recommendations & Shield Grounding
@@ -514,8 +518,8 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 | GPIO13 | SPI MOSI — microSD + MAX31865 RTD | No — reserved |
 | GPIO14 | SPI SCLK — microSD + MAX31865 RTD | No — reserved |
 | GPIO15 | SPI CS — microSD | No — reserved |
-| GPIO1 | SPI CS — MAX31865 RTD #2 | No — reserved |
-| GPIO3 | SPI CS — MAX31865 RTD #1 | No — reserved |
+| GPIO1 | SPI CS — MAX31865 RTD #1 (TXD0 / CS_RTD1) | No — reserved |
+| GPIO3 | SPI CS — MAX31865 RTD #2 (RXD0 / CS_RTD2) | No — reserved |
 | GPIO23 | RMII MDC (Ethernet) | No — reserved (Ethernet) |
 | GPIO18 | RMII MDIO (Ethernet) | No — reserved (Ethernet) |
 | GPIO19 | RMII TXD0 (Ethernet) | No — reserved (Ethernet) |
@@ -562,7 +566,7 @@ All hardware-assigned GPIOs are listed below. Do not reassign reserved GPIOs in 
 
 ## RTD Jumper Configuration
 
-> **Correction (2026-09-17).** Earlier README and example YAML had RTD chip-select pins swapped (**RTD1 = GPIO1**, **RTD2 = GPIO3**) and listed RTD2 as PT1000 from the factory. Correct: **RTD1 = GPIO3**, **RTD2 = GPIO1**, and both channels ship as **PT100, 2-wire**. Board and enclosure labels were always correct.
+> **CS pins (from MiniPLC.eprj2).** `TXD0` / `CS_RTD1` → **GPIO1** (RTD1); `RXD0` / `CS_RTD2` → **GPIO3** (RTD2). A 2026-09-17 README note that swapped these was wrong; the schematic net names and the `.eprj2` agree with GPIO1 = RTD1, GPIO3 = RTD2. Both channels ship as **PT100, 2-wire**.
 
 The MiniPLC includes **two MAX31865 RTD interface ICs** for direct connection of **PT100 and PT1000 sensors** in **2-, 3-, or 4-wire** configurations.
 
@@ -605,12 +609,14 @@ Jumpers **J1, J4–J5 and J8** select wiring mode. Jumpers **J2–J3 and J6–J7
 
 1. Power OFF the MiniPLC.
 2. Set jumpers J1–J8 per the logic table above.
-3. Update ESPHome YAML: change `rtd_nominal_resistance` (100 or 1000) and `wires` (2, 3, or 4).
+3. Update ESPHome YAML for both the sensor type and the reference resistance, and set `wires` (2, 3, or 4):
+   - **PT100** (factory jumpers): `rtd_nominal_resistance: 100 Ω` and `reference_resistance: 400 Ω`.
+   - **PT1000** (J2/J3 and J6/J7): the jumpers put 3.6 kΩ in series with the 400 Ω reference (R1 400 Ω + R2 3.6 kΩ for channel 1; R3/R4 for channel 2), so set `rtd_nominal_resistance: 1000 Ω` **and** `reference_resistance: 4000 Ω`.
 4. Power ON and verify temperature readings.
 
-**Fixed by hardware:** MAX31865 IC, SPI pins, CS pins (RTD1 = GPIO3, RTD2 = GPIO1), reference resistor network, terminal order.
+**Fixed by hardware:** MAX31865 IC, SPI pins, CS pins (RTD1 = GPIO1, RTD2 = GPIO3), reference resistor network, terminal order.
 
-**Configurable in YAML:** sensor type (`rtd_nominal_resistance: 100` or `1000`), wiring mode (`wires: 2/3/4`), update interval, filters, alarm thresholds.
+**Configurable in YAML:** sensor type (`rtd_nominal_resistance` + matching `reference_resistance`), wiring mode (`wires: 2/3/4`), update interval, filters, alarm thresholds.
 
 ## Enabling RTD Sensors in YAML
 
@@ -646,7 +652,7 @@ To enable RTD sensors, after taking control of the device:
      - platform: max31865
        id: rtd_1
        name: "RTD Temperature 1"
-       cs_pin: GPIO3
+       cs_pin: GPIO1
        reference_resistance: 400 Ω
        rtd_nominal_resistance: 100 Ω
        wires: 2
@@ -654,14 +660,14 @@ To enable RTD sensors, after taking control of the device:
      - platform: max31865
        id: rtd_2
        name: "RTD Temperature 2"
-       cs_pin: GPIO1
+       cs_pin: GPIO3
        reference_resistance: 400 Ω
        rtd_nominal_resistance: 100 Ω
        wires: 2
        update_interval: 60s
 ```
 
-4. Adjust `rtd_nominal_resistance` (`100` for PT100, `1000` for PT1000) and `wires` (`2`, `3`, or `4`) to match the jumper settings — see [RTD Jumper Configuration](#rtd-jumper-configuration).
+4. Match YAML to the jumper settings — see [RTD Jumper Configuration](#rtd-jumper-configuration). For PT1000 set `rtd_nominal_resistance: 1000 Ω` **and** `reference_resistance: 4000 Ω` (not 400 Ω). Set `wires` to `2`, `3`, or `4`.
 
 ## Enabling 1-Wire Sensors in YAML
 
@@ -692,7 +698,7 @@ The MiniPLC includes a **PCF8563** real-time clock chip on the I²C bus (address
 To fit a backup battery (holder is on the board; cell not fitted):
 
 1. Power OFF the MiniPLC and disconnect all inputs.
-2. Open the enclosure (refer to the hardware schematics for the battery-holder location on the MCU Board).
+2. Open the enclosure (see [Opening the enclosure](#opening-the-enclosure)); the RTC battery holder is on the MCU Board.
 3. Insert a fresh coin cell into the holder, observing the polarity marked on the PCB.
 4. Re-assemble and power on.
 

@@ -222,7 +222,7 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | Digital Inputs | 1 × isolated 24 V DC discrete input (DIx + GNDx), supporting dry-contact closure protected by per-channel PTC fuse, TVS surge suppression, and EMI filtering |
 | Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC (module limit) |
 | Temperature Inputs | 1 × 1-Wire (DS18B20 compatible) |
-| User Interface | 1 front-panel button (GPIO39), 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
+| User Interface | 1 front-panel button, 6 LEDs (1 user, 1 status, RX, TX, relay, DI) |
 | RS-485 | half-duplex Modbus RTU, not galvanically isolated |
 | Wi-Fi | Wi-Fi (ESP32) |
 | USB | USB-C (ESD protected, CC detection, data to ESP32) |
@@ -237,9 +237,9 @@ ESPHome id **`uart_modbus`**. Attach your own `modbus:` / `modbus_controller:` b
 | DIN width | 2 modules (≈ 35.5 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 120 g |
 | Gross weight | 220 g |
 | Pack size | TBD |

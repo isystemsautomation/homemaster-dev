@@ -131,7 +131,7 @@ legend on the case labels the two data terminals of a single bus, not two buses.
 - Indoor use, inside a cabinet
 - Ingress protection: IP20
 - Operating temperature: 0 … +40 °C, 0–90 % RH, non-condensing
-- Terminals: pluggable screw blocks, 5.08 mm pitch, 0.2–2.5 mm² (AWG 24–12)
+- Terminals: fixed PCB screw terminals, 5.08 mm pitch, 0.5–2.5 mm² (AWG 20–14)
 
 ## Compliance
 

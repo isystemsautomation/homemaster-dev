@@ -8,4 +8,4 @@ Analog inputs share a common reference on the terminal block; route sensor retur
 
 Calibrate RTD wire mode after installation and before connecting the bus master. Record scaling factors for each analog input in the integrator documentation.
 
-Install inside a cabinet on DIN rail. Use screened pairs for long analog runs where noise is a concern. Observe 0.4–0.6 Nm terminal torque on pluggable 5.08 mm blocks. CE marked with published EU DoC. Analog output load must stay within the stated per-channel current limit. The pack includes the module datasheet and EU Declaration of Conformity.
+Install inside a cabinet on DIN rail. Use screened pairs for long analog runs where noise is a concern. Observe 0.5 Nm terminal torque on fixed PCB screw terminals, 5.08 mm pitch blocks. CE marked with published EU DoC. Analog output load must stay within the stated per-channel current limit. The pack includes the module datasheet and EU Declaration of Conformity.

@@ -820,8 +820,9 @@ Summarize steps in 3 phases:
 | Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
 | File system | LittleFS persistent configuration storage |
 | Document revision | DS-WLD-521-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
-| Digital Inputs | 5 × isolated 5 V DC discrete inputs |
-| Max Input Voltage | 5 V DC continuous |
+| Digital Inputs | 5 × isolated 5 V DC discrete inputs, active HIGH (sense between +5V_ISO and Ix) |
+| Max Input Voltage | 5 V DC continuous (+12V_ISO must never be connected to an input) |
+| Detection threshold (calculated) | Turns on when resistance between +5V_ISO and Ix is below approx. 140–190 kΩ; tap water (typically 1–50 kΩ) is detected; distilled/very soft water may not be |
 | Relay outputs | 2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
 | Isolated +12 V Output | 12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended) |
 | Isolated +5 V Output | 5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended) |
@@ -842,9 +843,9 @@ Summarize steps in 3 phases:
 | DIN width | 4 modules (≈ 70 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08 / DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 200 g |
 | Gross weight | 320 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
@@ -900,7 +901,7 @@ Summarize steps in 3 phases:
 
 ## 5.6 Connector / Terminal Map (Field Side)
 
-External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–12 AWG, torque 0.5–0.6 Nm).
+External terminals are 5.08 mm pitch fixed PCB screw terminals (300 V / 20 A, 26–12 AWG, torque 0.5–0.6 Nm).
 
 <!-- hm:terminal-map:begin -->
 

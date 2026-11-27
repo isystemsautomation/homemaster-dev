@@ -127,7 +127,6 @@ The table below lists boilers users have successfully run with this hardware (or
 |---|---|
 | Microcontroller | ESP32-WROOM-32U-N16 (dual-core) |
 | Power Input | 24 V DC nominal or 85–265 V AC, 47–63 Hz (L / N) |
-| RTC | RTC (PCF8563); backup battery holder, battery not fitted |
 | Document revision | DS-OpenthermGateway Rev. B · 2026-09 · Hardware V1.0 |
 | Relay outputs | 1 × relay, C and NC only (SPST-NC); 3 A @ 250 VAC per contact (module limit) |
 | Temperature Inputs | 2 × 1-Wire (DS18B20 compatible) |
@@ -147,9 +146,9 @@ The table below lists boilers users have successfully run with this hardware (or
 | DIN width | 2 modules (≈ 35.5 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08 / DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 130 g |
 | Gross weight | 220 g |
 | Pack size | 140 × 96 × 95 mm (L × W × H) |
@@ -169,9 +168,9 @@ The table below lists boilers users have successfully run with this hardware (or
 - Not suitable for outdoor or exposed installation.
 
 ### Terminal Wiring
-- Terminal type: pluggable screw terminal blocks, 5.08 mm pitch.
-- Wire cross-section: 0.2–2.5 mm² (AWG 24–12), solid or stranded copper.
-- Use ferrules for stranded wire. Tightening torque: 0.4 Nm maximum.
+- Terminal type: Fixed PCB screw terminals, 5.08 mm pitch.
+- Wire cross-section: 0.5–2.5 mm² (AWG 20–14), solid or stranded copper.
+- Use ferrules for stranded wire. Tightening torque: 0.5 Nm.
 - All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. **Exposed live terminals are not permitted.**
 
 ## Cable Recommendations & Shield Grounding

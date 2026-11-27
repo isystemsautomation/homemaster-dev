@@ -214,7 +214,7 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Storage | External QSPI Flash (32 Mbit) |
 | Power Input | 24 V DC nominal |
 | Input Protection (24 V logic) | 1 A fuse, reverse polarity diode (STPS340U), TVS surge suppression, EMI filtering |
-| LED PS input protection | 10 A fuse; TVS surge suppression. **No reverse-polarity protection on this input** — see the warning in §5. |
+| LED PS input protection | 10 A fuse; TVS surge suppression; no reverse-polarity protection on this input |
 | Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
 | Document revision | DS-RGB-621-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
 | LED Outputs | 5 × low-side MOSFET outputs (AP9990GH-HF: R, G, B, CW, WW) |
@@ -239,9 +239,9 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | DIN width | 3 modules (≈ 52.5 mm) |
 | Mounting | 35 mm DIN rail |
 | Enclosure | PC/ABS industrial enclosure |
-| Terminal type | Pluggable screw terminal blocks DB129V-5.08 / DB129R-5.08, 5.08 mm pitch |
-| Wire cross-section | 0.2–2.5 mm² (AWG 24–12) |
-| Tightening torque | 0.4–0.6 Nm |
+| Terminal type | Fixed PCB screw terminals (DB129V-5.08 / DB129R-5.08), 5.08 mm pitch |
+| Wire cross-section | 0.5–2.5 mm² (AWG 20–14) |
+| Tightening torque | 0.5 Nm |
 | Net weight | 150 g |
 | Gross weight | 240 g |
 | Pack size | 140 × 125 × 94 mm (L × W × H) |
