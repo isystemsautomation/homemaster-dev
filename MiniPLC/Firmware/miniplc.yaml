@@ -367,17 +367,21 @@ sensor:
 
   # Optional MAX31865 RTD inputs (PT100 / PT1000) over SPI.
   # Requires `spi:` block above to be enabled with miso/mosi/clk pins.
+  # CS from .eprj2: TXD0/CS_RTD1 = GPIO1, RXD0/CS_RTD2 = GPIO3.
+  # PT100 (factory jumpers): reference_resistance 400 Ω.
+  # PT1000 (J2/J3 and J6/J7): reference_resistance 4000 Ω (R1 400 Ω + R2 3.6 kΩ in series;
+  # same for channel 2 with R3/R4) together with rtd_nominal_resistance 1000 Ω.
   # - platform: max31865
   #   id: rtd_1
   #   name: "RTD Temperature 1"
-  #   cs_pin: GPIO3
+  #   cs_pin: GPIO1
   #   reference_resistance: 400 Ω
   #   rtd_nominal_resistance: 100 Ω
   #   update_interval: 60s
   # - platform: max31865
   #   id: rtd_2
   #   name: "RTD Temperature 2"
-  #   cs_pin: GPIO1
+  #   cs_pin: GPIO3
   #   reference_resistance: 400 Ω
   #   rtd_nominal_resistance: 100 Ω
   #   update_interval: 60s
