@@ -1,6 +1,12 @@
 ##
 ## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
 ##
+## Field DI wiring (hardware): inputs are active HIGH. Passiveive leak probes
+## sense between +5V_ISO (bottom PS 5Vdc, pos. 10) and Ix (top I.1–I.5).
+## Shorting Ix to GND_ISO does not activate the input. Max Ix = 5 V;
+## never connect +12V_ISO to an input. NPN/open-collector sensors need a
+## 10 kΩ pull-up to +5V_ISO and Invert enabled in WebConfig.
+##
 
 substitutions:
   wld_id: wld_1

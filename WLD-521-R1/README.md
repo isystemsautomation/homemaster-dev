@@ -83,7 +83,7 @@ The **WLD-521-R1** is autonomous water-safety I/O: **multi-zone leak detection**
 
 | Subsystem         | Qty        | Description |
 |-------------------|------------|-------------|
-| **Digital Inputs** | 5          | Opto‑isolated inputs with MOSFET front‑ends, debouncing, and isolated return (**GND_ISO**); suitable for dry contacts or pulse flowmeters. |
+| **Digital Inputs** | 5          | Opto‑isolated inputs with MOSFET front‑ends and debouncing; **active HIGH** — sense between **+5V_ISO** and **Ix**; suitable for leak probes, contacts, or pulse flowmeters. |
 | **Analog Outputs** | 0          | — |
 | **Relays**         | 2          | SPDT dry contacts (~3 A @ 250 VAC); driven via opto‑isolated stages and RC/snubber-protected. Terminals NO/COM/NC exposed. |
 | **1‑Wire Bus**     | 1          | Protected 3‑pin header (+5 V / DATA / GND) with level shifting and ESD protection; supports DS18B20 sensors. |
@@ -222,9 +222,9 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 | **ESD Precaution**   | Use anti-static strap and handle boards by casing only. |
 | **Power Wiring**     | Connect regulated **24 VDC** to `V+ / 0V` terminals. Fuse upstream. |
 | **Relay Wiring**     | Use `NO / COM / NC` terminals for each relay. Relays are **dry contact SPDT** only. External loads must have their own power. |
-| **Digital Inputs**   | Connect each dry-contact or open-collector sensor between the corresponding **Ix** terminal (**I1**–**I5**, positions 3–7) and **GND_ISO** (position 8, top-row **GND**). **Do not** return inputs to logic **0V**. Power isolated field sensors from **+5V_ISO** (position 21) or **+12V_ISO** (position 22), not from terminal 9. |
-| **Sensor Power**     | Use **+5 V** or **+12 V** outputs (right-side terminals) for low-power field sensors only. |
-| **GND Domains**      | Keep **GND_ISO** (inputs) and **0 V / GND (logic)** isolated unless explicitly bridged. |
+| **Digital Inputs**   | Inputs are **active HIGH**. Wire the sensing path between **+5V_ISO** (bottom row **PS 5Vdc**, pos. 10) and **Ix** (**I1**–**I5**, top row pos. 3–7). Shorting **Ix** to **GND_ISO** does **not** activate the input. Power field sensors only from **+5V_ISO** / **GND_ISO** — never from logic **0V**, 1-Wire **+5V** (pos. 9), or 1-Wire **Gnd** (pos. 11). Never connect **+12V_ISO** to an input (max **5 V**). |
+| **Sensor Power**     | Use bottom-row **PS 5Vdc** (pos. 10) and **PS 12Vdc** (pos. 11) for low-power field sensors only. |
+| **GND Domains**      | Keep **GND_ISO** (isolated sensor domain) separate from logic **0 V** and 1-Wire **Gnd**. Do not mix domains. |
 | **RS-485 Wiring**    | Wire `A/B/COM` to RS‑485 master. Maintain A↔A, B↔B polarity. COM = signal reference. Terminate both ends with ~120 Ω. |
 | **Commissioning**    | Before applying power: verify polarity, relay contact wiring, RS‑485 line, and ensure sensor loads are within spec. |
 
@@ -237,7 +237,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 | Interface             | Warning |
 |-----------------------|---------|
 | **V+ / 0V (Top-left)** | Connect only regulated **24 VDC**. Reverse protected. Never exceed 30 V. |
-| **+5 V / +12 V (Bottom-right)** | Isolated sensor supply. Use for dry-contact sensors only. Protected by DC-DC and fuses. Not for powering relays or actuators. |
+| **+5 V / +12 V (Bottom-right)** | Isolated sensor supply (**+5V_ISO** / **+12V_ISO**). Power leak probes and small field sensors from these rails only. Protected by DC-DC and fuses. Not for powering relays or actuators. **+12V_ISO** must never feed an **Ix** input. |
 
 ---
 
@@ -245,8 +245,8 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 | Interface              | Warning |
 |------------------------|---------|
-| **Inputs I1–I5 (Top row)** | Opto-isolated channels (**SFH6156**, 100 kΩ pulldown). Wire the **switching contact** between **Ix** (pos. 3–7) and **GND_ISO** (pos. 8). **Do not** bridge **GND_ISO** to logic **0V**. |
-| **+5V (Top row, pos. 9)** | **Non-isolated 1-Wire logic supply** only — **not** for powering input-side field sensors. Using terminal 9 for leak/moisture probes **defeats input isolation**; use **+5V_ISO** (pos. 21) instead. |
+| **Inputs I1–I5 (Top row)** | Opto-isolated channels (**IRLML2402** gate, **SFH6156** LED path, **100 kΩ** pulldown to **GND_ISO**). **Active HIGH**: pull **Ix** toward **+5V_ISO**. Wire passive probes between **+5V_ISO** (bottom **PS 5Vdc**, pos. 10) and **Ix** (pos. 3–7). **Do not** bridge **GND_ISO** to logic **0V**. |
+| **+5V (Top row, pos. 9)** | **Non-isolated 1-Wire logic supply** only — **not** for powering input-side field sensors. Using terminal 9 for leak/moisture probes **defeats input isolation**; use **+5V_ISO** (bottom row **PS 5Vdc**, pos. 10) instead. |
 | **Relays (Bottom row)**   | `NC / COM / NO` per relay. Dry contact only. Max: **3 A @ 250 VAC / 30 VDC**. Use snubbers for inductive loads (e.g. pumps, valves). |
 | **Relay Power**           | Relay contacts are **not powered**. External load must have its own power source. |
 
@@ -306,7 +306,7 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 |              | DIN enclosure                 | Dry, clean cabinet with **DIN rail**; provide strain relief and shield grounding. |
 | **Software** | WebConfig (browser)           | Configure **Address / Baud**, assign **Inputs / Relays / Buttons / LEDs**, irrigation zones, sensors, etc. |
 |              | ESPHome (optional)            | On controller: polls Modbus, exposes WLD sensors and relays to Home Assistant. |
-| **Field I/O**| Dry contacts                  | Inputs DI1…DI5 return to **GND_ISO**; supports leak probes, flow meters, or buttons. |
+| **Field I/O**| Leak / contacts               | Inputs DI1…DI5 are **active HIGH** between **+5V_ISO** and **Ix**; supports leak probes, flow meters, or contacts. |
 |              | Relay loads                   | RLY1/RLY2: **COM/NO/NC** dry contacts; up to **3 A @ 250 VAC**. Use RC/TVS snubbers for inductive loads. |
 |              | Sensor power (isolated)       | Bottom-right **+12 V / +5 V ISO** terminals for **low-power sensors only**. Not for actuators. |
 | **Tools**    | Screwdrivers, ferrules, meter | Verify terminal torque, polarity, and RS‑485 A/B wiring. Use **120 Ω resistors** and surge protectors if needed. |
@@ -538,7 +538,7 @@ All data accessible via FC03 Read Holding Registers.
 
 ## 4.4 Installation & Wiring
 
-Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and RS-485 before wiring. Opto-isolated inputs return to **GND_ISO** — do not tie **GND_ISO** to logic **0V** unless your system design explicitly requires it.
+Mount the module on a **35 mm DIN rail** inside a dry enclosure; disconnect **24 V DC** and RS-485 before wiring. Keep the isolated sensor domain (**+5V_ISO** / **GND_ISO**) separate from logic **0V** and the 1-Wire ground — do not mix domains.
 
 ### Power (24 V DC)
 
@@ -550,25 +550,41 @@ Connect a regulated **24 V DC SELV** supply to **V+** and **0V** for MCU, RS-485
 
 ### Leak / flood sensors
 
-Five opto-isolated digital inputs (**DI1…DI5**, terminals **I1**–**I5**, positions 3–7) accept leak probes, soil-moisture sensors, or dry contacts. Wire each sensor so the **active contact** is between the **Ix** terminal and **GND_ISO** (position 8, top-row **GND**). When the contact is open, the input is held low by an internal **100 kΩ** pulldown; closing the contact energises the opto front-end (**SFH6156** on FieldBoard schematic).
+Five opto-isolated digital inputs (**DI1…DI5**, terminals **I1**–**I5**, top-row positions 3–7) accept leak probes, soil-moisture sensors, contacts, or pulse meters. Each input drives the gate of an **N-MOSFET** (**IRLML2402**, Q3–Q7) with a **100 kΩ** pulldown to **GND_ISO** (R78–R82) and an **SMAJ6.8CA** TVS from the input to **GND_ISO**. The MOSFET drain goes through **49.9 Ω** to **+5V_ISO**; the source feeds the **SFH6156** optocoupler LED to **GND_ISO**.
 
-**Example (leak probe on DI1):** probe wire **A** → **I1** (terminal 3); probe wire **B** → **GND** (terminal 8, **GND_ISO**). Power any three-wire sensor from **+5V_ISO** (terminal 21) and **GND_ISO** (terminal 8) — **not** from **+5V** at terminal 9 (1-Wire logic domain).
+The input is **active HIGH**: it turns on when **Ix** is pulled toward **+5V_ISO**. Shorting **Ix** to **GND_ISO** does **not** activate the input.
 
-> **Hazard:** Terminal **9** (+5V, top row) is the **non-isolated 1-Wire supply** shared with the MCU logic ground. **Do not** power input-side field sensors from terminal 9 if galvanic isolation is required; use **+5V_ISO** (terminal **21**) and **GND_ISO** (terminal **8**).
+**Detection threshold (calculated):** the input turns on when the resistance between **+5V_ISO** and **Ix** is below approx. **140–190 kΩ** (gate turn-on ≈ 1.7–2.1 V on the 100 kΩ divider from 5 V). Tap water between two electrodes is typically **1–50 kΩ** → passive probes are detected reliably; distilled or very soft water may not be. **Max input voltage: 5 V.** Never connect **+12V_ISO** to an input (the 6.8 V TVS will conduct).
+
+Leak probes and sensors are powered **only** from the module’s internal isolated supply:
+
+| Rail / terminal | Row | Label | Position |
+|-----------------|-----|-------|----------|
+| **+5V_ISO** | Bottom | **PS 5Vdc** | **10** |
+| **GND_ISO** | Top | **Gnd** (INPUTS group) | **8** |
+| **Ix** (I1–I5) | Top | **I.1**–**I.5** | **3–7** |
+
+> **Warning:** Do not mix up **+5V_ISO** and **GND_ISO**. Do **not** use the module (logic) ground for sensors — not **0V** (top row pos. 2), not 1-Wire **Gnd** (top row pos. 11), and not 1-Wire **+5V** (top row pos. 9). Use the isolated ground only.
+
+**Passive two-electrode probe:** electrode A → **+5V_ISO** (**PS 5Vdc**, pos. 10); electrode B → **Ix** (top row pos. 3–7). No **GND** connection needed.
+
+**Three-wire powered sensor:** **+** → **+5V_ISO**; **−** → **GND_ISO** (pos. 8); signal → **Ix** (active HIGH, ≤ 5 V).
+
+**NPN / open-collector sensors** (pull low when wet): power from **+5V_ISO** / **GND_ISO**, add a **10 kΩ** pull-up from **Ix** to **+5V_ISO**, and enable **Invert** for that input in WebConfig.
 
 Configure each channel as water sensor, soil moisture, or counter in WebConfig.
 
 <img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_FloodmeterWiringConnections.png" width="440" alt="Leak and flood sensor wiring to digital inputs">
 
-*Field leak/moisture sensors and contacts on **DI** terminals with **GND_ISO** return.*
+*Legacy diagram — shows the old Ix↔GND_ISO wiring and needs redrawing. Follow the text above: passive probes between **+5V_ISO** and **Ix**.*
 
 ### Flow meter (pulse counter)
 
-Configure a DI as **water counter** to count pulses from a flow meter — set **pulses per litre** in WebConfig to match the meter datasheet.
+Configure a DI as **water counter** to count pulses from a flow meter — set **pulses per litre** in WebConfig to match the meter datasheet. Pulse outputs follow the same electrical rules as leak inputs: **active HIGH** toward **+5V_ISO**. Typical NPN / open-collector meters need a **10 kΩ** pull-up from **Ix** to **+5V_ISO** and **Invert** enabled; do not treat **GND_ISO** as the sense path for a passive contact, and do not feed **+12V_ISO** into **Ix**.
 
 <img src="https://config.home-master.eu/WLD-521-R1/Images/WLD_FlowmeterConnection.png" width="440" alt="Pulse flow meter connection to digital input">
 
-*Pulse output flow meter wired to a counter-mode **DI** channel.*
+*Legacy diagram — shows Ix↔GND_ISO wiring and needs redrawing. Follow the text above.*
 
 ### 1-Wire temperature sensors
 
@@ -796,7 +812,7 @@ Summarize steps in 3 phases:
 
 | Interface            | Qty | Description |
 |---------------------|-----|-------------|
-| **Digital Inputs**  | 5   | Opto‑isolated DI (dry contact / open‑collector / pulse for flow meters); isolated return (GND_ISO). |
+| **Digital Inputs**  | 5   | Opto‑isolated DI, **active HIGH** between **+5V_ISO** and **Ix** (leak probes / contacts / pulse meters); **GND_ISO** is the isolated sensor return, not the sense path for passive probes. |
 | **Relay Outputs**   | 2   | SPDT dry contact (NO/C/NC); snubbered; local/Modbus/logic control. |
 | **User LEDs**       | 4   | Configurable (Solid/Blink) for DI/Relay/Irrigation/Override feedback. |
 | **User Buttons**    | 4   | Assignable actions (Relay toggle/pulse, Override, Irrigation start/stop). |
@@ -820,8 +836,9 @@ Summarize steps in 3 phases:
 | Main Logic Supply | Buck regulator 24 V → 5 V, 3.3 V LDO regulator |
 | File system | LittleFS persistent configuration storage |
 | Document revision | DS-WLD-521-R1 Rev. B · 2026-09 · Hardware R1 (V1.0) |
-| Digital Inputs | 5 × isolated 5 V DC discrete inputs |
-| Max Input Voltage | 5 V DC continuous |
+| Digital Inputs | 5 × isolated 5 V DC discrete inputs, active HIGH (sense between +5V_ISO and Ix) |
+| Max Input Voltage | 5 V DC continuous (+12V_ISO must never be connected to an input) |
+| Detection threshold (calculated) | Turns on when resistance between +5V_ISO and Ix is below approx. 140–190 kΩ; tap water (typically 1–50 kΩ) is detected; distilled/very soft water may not be |
 | Relay outputs | 2 × SPDT (NO / C / NC); 3 A @ 250 VAC per contact (module limit) |
 | Isolated +12 V Output | 12 V isolated rail, 2 W; max 167 mA theoretical (≤150 mA recommended) |
 | Isolated +5 V Output | 5 V isolated rail, 1 W; max 200 mA theoretical (≤150 mA recommended) |
@@ -944,8 +961,8 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 
 **Housing notes**
 
-- One shared Gnd (GND_ISO) for all five inputs, not one per channel.
-- The Gnd on the top-row BUS block is the logic domain. Do not power field sensors from it - use the isolated PS rails.
+- One shared **Gnd** (**GND_ISO**) for the isolated sensor domain, not one per channel. Passiveive probes sense between **+5V_ISO** and **Ix**, not between **Ix** and **GND_ISO**.
+- The **Gnd** on the top-row BUS block is the logic / 1-Wire domain. Do not power field sensors from it — use the isolated **PS** rails (**5Vdc** pos. 10 / **12Vdc** pos. 11). Never feed **+12V_ISO** into an **Ix** input.
 - Isolated sensor rails 5 Vdc and 12 Vdc, 150 mA total.
 
 <!-- hm:terminal-map:end -->
